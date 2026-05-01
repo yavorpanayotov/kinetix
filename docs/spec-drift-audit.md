@@ -127,7 +127,7 @@ P2 aspirational items carry a Batch-I triage suffix:
 64. ✓ `RegimeState.degraded_inputs` default differs.
 65. ✓ Counterparty exposure `Decimal` (spec) vs `Double` (code) — pervasive.
 66. ✓ `LiquidityRiskSnapshot.adv_data_as_of` nullability mismatch.
-67. ☐ `Counterparty.sector` nullable in orchestrator DTO but non-null at source. *(deferred — code change with test fan-out, scheduled with Batch C/G).*
+67. ✓ `Counterparty.sector` nullable in orchestrator DTO but non-null at source. Resolved by tightening `CounterpartyDto.sector` to non-null `String` (matching `reference-data-service/.../Counterparty.kt` and the `CounterpartyResponse` wire contract), removing the three `?: ""` fallbacks in `CounterpartyRiskOrchestrationService.kt` (lines 152, 224, 261), and adding `sector = "FINANCIALS"` to the two test fixtures in `SaCcrRoutesAcceptanceTest.kt` that previously omitted it.
 68. ✓ Enum casing convention `buy/sell` (spec lowercase) vs `BUY/SELL` (code Kotlin uppercase) — uniform translation; document once.
 
 ## Specs in good shape

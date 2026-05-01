@@ -41,6 +41,7 @@ private fun saCcrGrpcResponse(counterpartyId: String = "CP-GS") =
 private val COUNTERPARTY_GS = CounterpartyDto(
     counterpartyId = "CP-GS",
     legalName = "Goldman Sachs",
+    sector = "FINANCIALS",
     lgd = 0.4,
 )
 
@@ -68,7 +69,7 @@ class SaCcrRoutesAcceptanceTest : FunSpec({
             if (id == "CP-MISSING") {
                 call.respond(HttpStatusCode.NotFound)
             } else {
-                call.respond(CounterpartyDto(counterpartyId = id ?: "CP-GS", legalName = "Goldman Sachs", lgd = 0.4))
+                call.respond(CounterpartyDto(counterpartyId = id ?: "CP-GS", legalName = "Goldman Sachs", sector = "FINANCIALS", lgd = 0.4))
             }
         }
     }

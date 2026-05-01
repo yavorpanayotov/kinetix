@@ -11,7 +11,7 @@ data class CounterpartyDto(
     val ratingSp: String? = null,
     val ratingMoodys: String? = null,
     val ratingFitch: String? = null,
-    val sector: String? = null,
+    val sector: String,
     val country: String? = null,
     val isFinancial: Boolean = false,
     val pd1y: Double? = null,

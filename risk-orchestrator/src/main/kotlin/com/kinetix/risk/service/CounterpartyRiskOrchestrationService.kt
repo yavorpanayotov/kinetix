@@ -149,7 +149,7 @@ class CounterpartyRiskOrchestrationService(
                     pd1y = counterparty.pd1y ?: 0.0,
                     cdsSpreadBps = counterparty.cdsSpreadBps ?: 0.0,
                     rating = counterparty.ratingSp ?: "",
-                    sector = counterparty.sector ?: "",
+                    sector = counterparty.sector,
                     riskFreeRate = 0.0,
                 )
             } catch (e: Exception) {
@@ -221,7 +221,7 @@ class CounterpartyRiskOrchestrationService(
         if (counterparty.isFinancial) {
             flags.add("FINANCIAL_SECTOR_WRONG_WAY_RISK: counterparty sector correlated with market stress")
         }
-        val sector = counterparty.sector?.uppercase() ?: ""
+        val sector = counterparty.sector.uppercase()
         if (sector in setOf("SOVEREIGN", "GOVERNMENT")) {
             flags.add("SOVEREIGN_WRONG_WAY_RISK: sovereign counterparty exposure may spike during crises")
         }
@@ -258,7 +258,7 @@ class CounterpartyRiskOrchestrationService(
             pd1y = counterparty.pd1y ?: 0.0,
             cdsSpreadBps = counterparty.cdsSpreadBps ?: 0.0,
             rating = counterparty.ratingSp ?: "",
-            sector = counterparty.sector ?: "",
+            sector = counterparty.sector,
             riskFreeRate = 0.0,
         )
     }
