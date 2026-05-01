@@ -293,7 +293,7 @@ deferred per_instrument_attribution
 -- Trigger chaining: position changes originate from existing rules
 
 rule PriceChangeTriggersPositionChanged {
-    when: PositionPriceUpdated(instrument_id, price_amount, price_currency)
+    when: PricePublished(instrument_id, price_amount, price_currency)
     for position in positions/Positions where instrument_id = instrument_id:
         ensures: PositionChanged(
             book_id: position.book_id,
@@ -302,8 +302,11 @@ rule PriceChangeTriggersPositionChanged {
         )
 
     @guidance
-        -- After MarkToMarket updates position market_price,
-        -- emit PositionChanged for each affected book.
+        -- Subscribes directly to the price.updates Kafka topic — independent of
+        -- positions/MarkToMarket, which subscribes to the same topic to update
+        -- market_price. Wired in risk-orchestrator's PriceEventConsumer, which
+        -- calls IntradayPnlService.recompute(book_id, POSITION_CHANGE, ...) for
+        -- each book holding the instrument.
 }
 
 rule TradeTriggersPositionChanged {

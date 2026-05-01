@@ -130,13 +130,18 @@ rule MarkToMarket {
     for position in Positions where instrument_id = instrument_id:
         requires: position.market_price.currency = price_currency
         ensures: position.market_price = core/Money{amount: price_amount, currency: price_currency}
-        ensures: PositionPriceUpdated(instrument_id: instrument_id, price_amount: price_amount, price_currency: price_currency)
 
     @guidance
         -- Triggered by Kafka consumer on price.updates topic.
         -- Filters out positions with currency mismatch.
         -- Updates market_price; unrealized_pnl and market_value recompute automatically.
         -- Also updates FX rate cache for 6-char instrument IDs (e.g., EURUSD).
+        --
+        -- No synthetic PositionPriceUpdated event is emitted. Downstream consumers
+        -- (e.g. intraday-pnl recompute) subscribe directly to PricePublished — see
+        -- intraday-pnl.allium PriceChangeTriggersPositionChanged. Both this rule
+        -- and PriceChangeTriggersPositionChanged are independent consumers of the
+        -- same PricePublished event.
 }
 
 -- FX rate extraction from price events
