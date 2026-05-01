@@ -47,13 +47,13 @@ P2 aspirational items carry a Batch-I triage suffix:
 
 9. ✓ **Three coexisting `LiquidityTier` enums.** Resolved: `InstrumentLiquidityTier.kt` (`TIER_1/TIER_2/TIER_3`) deleted; `LiquidityTier` extracted to its own `common/.../LiquidityTier.kt`; `LIQUID_TIERS` in `HedgeRecommendationService` updated to `{HIGH_LIQUID, LIQUID}`; V12 migration renames DB rows; `InstrumentLiquidityService.classifyTier` uses canonical names; Playwright E2E guards canonical labels in the hedge panel.
 
-10. ⚠ **`PositionPriceUpdated` event referenced but doesn't exist.** Spec chains `MarkToMarket → PositionPriceUpdated → intraday recompute` (`positions.allium:127`, `intraday-pnl.allium:285-297`). Code consumer reads `price.updates` directly (`PriceEventConsumer.kt:88-92`). Likely spec bug — chained event is conceptual.
+10. ✓ **`PositionPriceUpdated` event referenced but doesn't exist.** Spec chained `MarkToMarket → PositionPriceUpdated → intraday recompute`; no such event exists on the wire — both consumers (positions mark-to-market, risk-orchestrator intraday-pnl recompute) listen directly to `price.updates`. Resolved by dropping the synthetic `ensures` from `MarkToMarket` and re-keying `PriceChangeTriggersPositionChanged` to `PricePublished`. **Spec edit only.**
 
-11. ⚠ **`TradeEvent` Kafka payload drops `counterpartyId` and `strategyId`.** `common/.../TradeEventMessage.from()` (`TradeEventMessage.kt:32-50`) populates 17 fields but omits these. Downstream consumers can't see counterparty/strategy. Either restore the fields or update spec to acknowledge omission.
+11. ✓ **`TradeEvent` Kafka payload drops `counterpartyId` and `strategyId`.** Restored both fields on `TradeEventMessage` as nullable, defaulted-to-null. The Trade entity already carries them and the spec already declares them on the Trade — the wire format now matches. Backwards-compatible: existing producers serialise null when unset; existing consumers ignore unknown keys; schema-test pins the round-trip and the legacy-payload backward path.
 
 12. ✓ **EOD self-promotion bypass for AUTO_CLOSE.** `EodPromotionService.promoteToOfficialEodAutomatically` skips the `triggered_by != promoted_by` check (`EodPromotionService.kt:47-59`). Spec invariant unconditional (`risk.allium:546`). Resolved by editing the `PromoteToOfficialEod` rule to carve `AUTO_CLOSE` out of the four-eyes guard with explanatory guidance pointing back at the implementation. **Spec edit only.**
 
-13. ☐ **`ExpireDayOrder` rule has no implementation.** `OrderStatus.EXPIRED` enum exists; no service or scheduled job ever transitions to it. Spec `execution.allium:461-474`.
+13. ⚠ **`ExpireDayOrder` rule has no implementation.** `OrderStatus.EXPIRED` enum exists; no service or scheduled job ever transitions to it. Spec `execution.allium:461-474`. Blocked: the implementation needs (a) a `TimeInForce` field on `Order` (currently absent — every order is effectively day-or-GTC-undecided), (b) a recurring scheduler with venue-specific cutoff times, and (c) a FIX cancel emitter (`OrderCancelReject` MsgType=9). All three are architectural additions and need explicit business/architecture sign-off before code; raised here pending that decision.
 
 14. ✓ **Arrival-price staleness check is dead code via HTTP.** `position-service/.../OrderRoutes.kt:45-56` doesn't accept `arrivalPriceTimestamp`; `OrderSubmissionService.kt:65-70` only checks staleness when timestamp non-null. Fix: wire the field through the request DTO.
 
@@ -63,7 +63,7 @@ P2 aspirational items carry a Batch-I triage suffix:
 
 17. ⚠ **`HandleDegradedSignals` stricter than spec.** `risk-engine/.../regime_detector.py:298-312` always holds regime on degraded inputs; spec says transition allowed if both available signals agree (`regime.allium:362-365`). Possibly intentional safety bias.
 
-18. ☐ **Reconciliation alert severity tiers wrong.** `position-service/.../PrimeBrokerReconciliationService.kt:53-56` uses `$10K manual_review` threshold; spec `execution.allium` describes `WARNING < $100K < CRITICAL`. Spec or code; needs decision.
+18. ✓ **Reconciliation alert severity tiers wrong.** Spec @guidance described `WARNING < $100K < CRITICAL` — but `WARNING` is not a value of `ReconciliationBreakSeverity` (which is `normal | critical`), and the $100K threshold never matched code. Resolved by editing the `AlertOnReconciliationBreaks` and reconciliation @guidance to describe the actual single-threshold model: `normal` below $10K (recorded only, no alert), `critical` at or above $10K (recorded + alerted via `ReconciliationAlertPublisher`). A graduated escalation tier remains a future feature ticket if ops asks for it. **Spec edit only.**
 
 19. ✓ **Hedge `staleness warning` (30min ≤ age < 2h) not implemented.** Resolved: `HedgeRecommendationService` now emits a non-blocking warning in `recommendation.message` when Greek age ≥ 30 min; hard block remains at 2 h. Per `hedge.allium:172-175`.
 
@@ -73,7 +73,7 @@ P2 aspirational items carry a Batch-I triage suffix:
 
 22. ✓ **Pre-trade warning threshold off-by-one.** Spec text said `>` strict (`limits.allium:141`), invariant said `>=` (`limits.allium:184`). Code `LimitHierarchyService.kt:138` uses `>=`. Reconciled by editing the `CheckPositionLimit` guidance to `>=` so the spec is internally consistent and matches code. **Spec edit only.**
 
-23. ☐ **`UpdateLimit` rule full-PUT vs partial-PATCH.** Spec implies full overwrite (`limits.allium:104-111`); code treats nullable fields as preserve-existing (`LimitRoutes.kt:155-161`). Spec or code.
+23. ✓ **`UpdateLimit` rule full-PUT vs partial-PATCH.** Resolved as PATCH semantics — clients should not have to echo back the whole record to toggle one attribute, which is also what every UI flow assumes. Spec ensures clauses now coalesce (`?? limit.<field>`) and a guidance note pins the wiring to `LimitRoutes.kt`. **Spec edit only.**
 
 24. ✓ **`AlertOnReconciliationBreaks` per-break threshold check.** Resolved by changing `ReconciliationAlertPublisher.publishBreakAlert` to `(reconciliation, break)` and having `PrimeBrokerReconciliationService` iterate material breaks, firing one alert per break whose abs notional ≥ the manual-review threshold. Kafka publisher partitions by `bookId|instrumentId` so per-break alerts for the same instrument stay ordered. Severity tier values themselves are still pending the A-18 quant call.
 
@@ -104,7 +104,7 @@ P2 aspirational items carry a Batch-I triage suffix:
 44. ✓ **`PAGER_DUTY` note obsolete.** `alerts.allium:338-340` says PAGER_DUTY missing from `core.allium`; it's been there. **Spec edit only.**
 45. ✓ **"Sequential fetch" guidance stale.** `discovery-valuation.allium:268` says sequential; `MarketDataFetcher.kt:62-69` is async/parallel up to 10. **Spec edit only.**
 46. ✓ **`StressTestResultRecord` rename guidance never executed.** `scenarios.allium:226` says rename to avoid collision; code didn't. Either rename code or drop guidance. **Likely spec edit.**
-47. ☐ **`HierarchyRiskSnapshot.missing_books` field.** Spec property `PartialAggregationOnFailure` references it; snapshot only persists `isPartial`. Spec edit *or* code addition.
+47. ✓ **`HierarchyRiskSnapshot.missing_books` field.** Resolved by adding `is_partial: Boolean = false` to the persisted `HierarchyRiskSnapshot` entity (matches the existing DB column) and clarifying that `missing_books` lives only on the live `HierarchyNodeRisk` return value — historical snapshots intentionally retain only the partial flag, with per-book detail captured in service logs. The `PartialAggregationOnFailure` invariant text now describes the split. **Spec edit only.**
 48. ✓ **`AuditEvent.sequence_number` not in spec.** Real column, real gap-detection route, absent from spec entity (`audit.allium:39-65`). **Spec edit.**
 49. ✓ **`ReconciliationBreak.status` lifecycle absent from spec.** Full state machine in code (`ReconciliationBreak.kt:14`, `ReconciliationBreakStatus`); spec `execution.allium:42-49` stops at `severity`. **Spec edit.**
 50. ✓ **`fail-open vs fail-closed` open question stale.** `execution.allium:540` lists this as open; code has fail-closed (`OrderSubmissionService.kt:113-120`). **Spec edit.**
