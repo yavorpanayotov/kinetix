@@ -1,7 +1,7 @@
 # ADR-0032: Greek Source for Intraday P&L Attribution
 
 ## Status
-Proposed
+Accepted (2026-05-01) — implemented end-to-end. Phase 1 wired `IntradayPnlService` to read pricing Greeks from `SodGreekSnapshotRepository` with VaR-Greek per-instrument fallback. Phase 2 added the `CalculatePricingGreeks` gRPC RPC on `risk-engine` (Black-Scholes for options, DV01 for FI) and the `SodSnapshotService.persistPricingGreeks` hook that populates `sod_greek_snapshots` alongside the daily VaR snapshot. Closes audit item A-3.
 
 ## Context
 
