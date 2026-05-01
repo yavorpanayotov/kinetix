@@ -375,15 +375,33 @@ rule HandleDegradedSignals {
     requires: signals.credit_spread_bps = null or signals.pnl_volatility = null
 
     @guidance
-        -- When VIX proxy or credit spread data is unavailable,
-        -- the classifier falls back to a two-factor model:
-        --   (realised_vol, cross_asset_correlation) only.
+        -- When credit_spread_bps or pnl_volatility is unavailable the
+        -- detector enters degraded mode (degraded_inputs = true on the
+        -- returned RegimeState). The UI shows a staleness indicator on
+        -- the regime badge and RegimeHistory entries record the flag so
+        -- the audit trail captures that the model ran without full
+        -- signal coverage.
         --
-        -- The regime state is marked with degraded_inputs = true.
-        -- The UI shows a staleness indicator on the regime badge.
-        -- The classifier does NOT change regime on degraded inputs
-        -- (stays in last known state) unless both available signals
-        -- independently indicate a transition.
+        -- In degraded mode the confirmed regime is held without change.
+        -- No escalation or de-escalation is permitted. Any pending
+        -- transition counter is reset to zero.
+        --
+        -- Rationale: the supplementary signals (credit spreads, P&L
+        -- vol) exist precisely to confirm or refute what the primary
+        -- signals (realised_vol, cross_asset_correlation) suggest.
+        -- Acting on primary signals alone while the confirmation layer
+        -- is absent increases false-transition risk at the worst
+        -- possible time — when data availability itself is stressed
+        -- (e.g. CDX gaps during a credit event). Silence is strictly
+        -- preferred to noise in degraded conditions; this matches the
+        -- HMM-with-missing-observations / abstaining-voter convention
+        -- in the regime-detection literature.
+        --
+        -- When all signals recover, normal debounce logic resumes from
+        -- a clean pending_count of 0.
+        --
+        -- Implementation: risk-engine/src/kinetix_risk/regime_detector.py
+        -- (see HoldOnDegradedInputs invariant below).
 }
 
 ------------------------------------------------------------
@@ -415,4 +433,18 @@ invariant SingleActiveRegime {
     for a in RegimeStates:
         for b in RegimeStates:
             a != b implies false
+}
+
+invariant HoldOnDegradedInputs {
+    -- When degraded_inputs is true on the current RegimeState, the
+    -- confirmed regime must equal the regime from the previous detection
+    -- cycle. No transition is permitted while inputs are degraded, and
+    -- pending_count resets to 0 on every degraded-mode cycle.
+    --
+    -- This is the explicit, first-class statement of the policy that
+    -- HandleDegradedSignals describes in @guidance: degraded-input
+    -- silence is mandatory, not optional. Enforced by
+    -- risk-engine/src/kinetix_risk/regime_detector.py:298-312.
+    for s in RegimeStates:
+        s.degraded_inputs implies s.regime = previous_regime(s)
 }
