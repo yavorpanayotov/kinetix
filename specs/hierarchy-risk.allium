@@ -111,12 +111,22 @@ entity HierarchyRiskSnapshot {
     limit_utilisation: Decimal?
     marginal_var: Decimal?
     top_contributors: List<RiskContributor>
+    is_partial: Boolean = false
 
     @guidance
         -- Persisted per hierarchy node per computation.
         -- top_contributors: top 5 child entities by |var_contribution|.
         -- limit_utilisation: current_var / effective_limit (from limits.allium).
         -- Stored as a TimescaleDB hypertable for historical trending.
+        --
+        -- is_partial mirrors HierarchyNodeRisk.is_partial. The companion
+        -- missing_books list is intentionally NOT persisted on the snapshot
+        -- — it lives only on the live HierarchyNodeRisk return value
+        -- (computed from the cache miss set per request). Historical
+        -- snapshots therefore record that an aggregation was partial but
+        -- not which books were missing at that moment; the operational
+        -- log carries the per-book detail (HierarchyRiskService logs each
+        -- missing book at WARN when isPartial = true).
 }
 
 ------------------------------------------------------------
@@ -343,5 +353,8 @@ rule ScheduledHierarchyAggregation {
 -- to exactly one division, with exactly one firm and no cycles.
 --
 -- PartialAggregationOnFailure. If one book's VaR is unavailable during
--- aggregation the result is marked is_partial and missing_books lists the
--- unavailable books; the firm-level result is never null.
+-- aggregation the live HierarchyNodeRisk result is marked is_partial and
+-- its missing_books list names the unavailable books; the persisted
+-- HierarchyRiskSnapshot also records is_partial (the per-book missing
+-- list is captured in service logs, not on the snapshot row). The
+-- firm-level result is never null.
