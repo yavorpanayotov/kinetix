@@ -1,7 +1,7 @@
 # ADR-0034: Regime Classifier Behaviour on Degraded Inputs
 
 ## Status
-Proposed
+Accepted (2026-05-01) — code already enforced the always-hold-on-degraded policy in `regime_detector.py:298-312`. Spec promoted the policy from buried @guidance into a first-class invariant `HoldOnDegradedInputs` in `regime.allium`. Closes audit item A-17.
 
 ## Context
 

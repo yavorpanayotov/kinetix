@@ -1,7 +1,7 @@
 # ADR-0033: Vol-Surface Diff Method — Interpolation vs Nearest-Neighbour
 
 ## Status
-Proposed
+Accepted (2026-05-01) — implemented in `volatility-service/.../routes/VolSurfaceDiff.kt` with bilinear interpolation in (log K, sqrt T) and flat boundary clamping. Closes audit item A-15.
 
 ## Context
 

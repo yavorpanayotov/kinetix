@@ -1,7 +1,7 @@
 # ADR-0031: Wrong-Way Risk Sector Taxonomy
 
 ## Status
-Proposed
+Accepted (2026-05-01) — implemented in `WrongWayRiskSectorGroup`, `CounterpartyRiskOrchestrationService.computeWrongWayRiskFlags`, and the @guidance on `DetectWrongWayRisk` in `counterparty-risk.allium`. Closes audit item A-2.
 
 ## Context
 
