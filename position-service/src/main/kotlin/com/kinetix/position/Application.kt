@@ -206,6 +206,12 @@ fun Application.moduleWithRoutes() {
     val reconciliationRepository = ExposedReconciliationRepository(db)
     val reconciliationJob = PositionReconciliationJob(reconciliationRepository)
 
+    // Day/GTD-order expiry sweeper (audit A-13, ADR-0035). The cancel emitter is the
+    // logging stub until fix-gateway phase 2 lands; the state-side EXPIRED transition
+    // is the spec-mandated behaviour and works today.
+    val orderCancelEmitter = com.kinetix.position.fix.LoggingOrderCancelEmitter()
+    val venueCutoffRegistry = com.kinetix.position.fix.VenueCutoffRegistry()
+
     val executionCostRepository = ExposedExecutionCostRepository(db)
     val primeBrokerReconciliationRepository = ExposedPrimeBrokerReconciliationRepository(db)
     val primeBrokerReconciliationService = PrimeBrokerReconciliationService()
@@ -359,6 +365,15 @@ fun Application.moduleWithRoutes() {
 
     launch {
         reconciliationJob.start()
+    }
+
+    val orderExpirySweeper = com.kinetix.position.fix.ScheduledOrderExpirySweeper(
+        orderRepository = executionOrderRepository,
+        venueCutoffRegistry = venueCutoffRegistry,
+        cancelEmitter = orderCancelEmitter,
+    )
+    launch {
+        orderExpirySweeper.start()
     }
 
     launch {
