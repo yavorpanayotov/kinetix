@@ -136,9 +136,12 @@ class VolatilityDiffRoutesTest : FunSpec({
     }
 
     // Union-grid interpolation: when the two surfaces have different strike grids, the diff
-    // must cover the union of both grids. Missing points are filled via nearest-neighbour
-    // interpolation before differencing.
-    test("diff uses union of both strike grids and fills missing points via nearest-neighbour") {
+    // must cover the union of both grids. Missing points are filled by bilinear interpolation
+    // in (log K, sqrt T) space — see VolSurfaceDiffTest for the per-scenario interpolation
+    // contract. This test exercises the route end-to-end and asserts that the union grid is
+    // assembled correctly and that interpolated diffs reflect the surface skew rather than
+    // step-jumping to the nearest knot.
+    test("diff uses union of both strike grids and bilinear-interpolates missing points") {
         // Base has strikes 100, 110, 120 at maturity 30
         val baseSurfaceUnionGrid = VolSurface(
             instrumentId = InstrumentId("AAPL"),
@@ -188,18 +191,21 @@ class VolatilityDiffRoutesTest : FunSpec({
             val diff100 = byStrike[100.0]!!["diff"]!!.jsonPrimitive.double
             (diff100 > 0.009 && diff100 < 0.011) shouldBe true
 
-            // Strike 110 — missing in compare; nearest neighbour is 115 (dist=5 < dist to 100=10)
-            // compare vol for 110 = 0.2100 (from 115), diff = 0.2200 - 0.2100 = 0.0100
+            // Strike 110 — base has it (0.2200); compare interpolates between 100 (0.19) and
+            // 115 (0.21) in log-K space. log(110) sits at ~68% of the way from log(100) to
+            // log(115), so compare ≈ 0.19 + 0.68 * 0.02 ≈ 0.2036; diff ≈ 0.0164.
             val diff110 = byStrike[110.0]!!["diff"]!!.jsonPrimitive.double
-            (diff110 > 0.009 && diff110 < 0.011) shouldBe true
+            (diff110 > 0.014 && diff110 < 0.020) shouldBe true
 
-            // Strike 115 — present in compare (0.2100); missing in base; nearest neighbour in base
-            // is 110 (dist=5 < dist to 120=5 — tie broken by first found, 110 is first)
-            // Presence confirms the union includes 115
+            // Strike 115 — compare has 0.2100; base interpolates between 110 (0.22) and 120
+            // (0.25) in log-K. log(115) sits ~51% of the way; base ≈ 0.22 + 0.51 * 0.03 ≈
+            // 0.2353; diff ≈ 0.0253.
             byStrike.containsKey(115.0) shouldBe true
+            val diff115 = byStrike[115.0]!!["diff"]!!.jsonPrimitive.double
+            (diff115 > 0.020 && diff115 < 0.030) shouldBe true
 
-            // Strike 120 — missing in compare; nearest is 115 (dist=5 < dist to 100=20)
-            // diff = 0.2500 - 0.2100 = 0.0400
+            // Strike 120 — base has 0.2500; compare clamps to its right boundary (115, 0.21)
+            // because 120 is outside compare's available strike range. diff = 0.04.
             val diff120 = byStrike[120.0]!!["diff"]!!.jsonPrimitive.double
             (diff120 > 0.039 && diff120 < 0.041) shouldBe true
         }
