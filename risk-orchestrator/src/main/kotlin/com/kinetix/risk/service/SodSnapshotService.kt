@@ -5,11 +5,14 @@ import com.kinetix.common.model.InstrumentId
 import com.kinetix.risk.cache.VaRCache
 import com.kinetix.risk.client.ClientResponse
 import com.kinetix.risk.client.PositionProvider
+import com.kinetix.risk.client.PricingGreeksClient
+import com.kinetix.risk.client.PricingGreeksInstrumentInput
 import com.kinetix.risk.client.RatesServiceClient
 import com.kinetix.risk.client.VolatilityServiceClient
 import com.kinetix.risk.model.*
 import com.kinetix.risk.persistence.DailyRiskSnapshotRepository
 import com.kinetix.risk.persistence.SodBaselineRepository
+import com.kinetix.risk.persistence.SodGreekSnapshotRepository
 import org.slf4j.LoggerFactory
 import java.math.BigDecimal
 import java.time.Instant
@@ -27,6 +30,15 @@ class SodSnapshotService(
     private val maxCacheAgeMinutes: Long = 120,
     private val volatilityServiceClient: VolatilityServiceClient? = null,
     private val ratesServiceClient: RatesServiceClient? = null,
+    /**
+     * Optional analytical-pricing-Greek source (per ADR-0032). When wired, the SOD job
+     * computes closed-form pricing Greeks alongside the VaR snapshot and persists them
+     * to [sodGreekSnapshotRepository]. If either dependency is null the SOD job still
+     * succeeds but consumers (IntradayPnlService, PnlComputationService) fall back to
+     * VaR Greeks. Both should be wired together.
+     */
+    private val pricingGreeksClient: PricingGreeksClient? = null,
+    private val sodGreekSnapshotRepository: SodGreekSnapshotRepository? = null,
 ) {
     private val logger = LoggerFactory.getLogger(SodSnapshotService::class.java)
 
@@ -67,6 +79,11 @@ class SodSnapshotService(
 
         dailyRiskSnapshotRepository.saveAll(snapshots)
 
+        // Capture analytical pricing Greeks alongside the VaR snapshot. Errors here
+        // never fail the SOD job — consumers fall back to VaR Greeks if the pricing
+        // table is empty for the day. This matches the audit A-3 Phase 1 wiring.
+        persistPricingGreeks(bookId, date, positions, snapshots)
+
         val baseline = SodBaseline(
             bookId = bookId,
             baselineDate = date,
@@ -83,6 +100,98 @@ class SodSnapshotService(
             "SOD snapshot created for portfolio {} on {} ({}, {} positions)",
             bookId.value, date, snapshotType, snapshots.size,
         )
+    }
+
+    /**
+     * Computes analytical pricing Greeks via the engine and persists them. Best-effort:
+     * any failure is logged and swallowed so the SOD job still produces the VaR snapshot
+     * and baseline. Consumers (IntradayPnlService, PnlComputationService) tolerate empty
+     * pricing-Greek rows by falling back to VaR Greeks per-instrument.
+     */
+    private suspend fun persistPricingGreeks(
+        bookId: BookId,
+        date: LocalDate,
+        positions: List<com.kinetix.common.model.Position>,
+        snapshots: List<DailyRiskSnapshot>,
+    ) {
+        val client = pricingGreeksClient ?: return
+        val repo = sodGreekSnapshotRepository ?: return
+
+        val inputs = positions.mapNotNull { pos ->
+            val sod = snapshots.firstOrNull { it.instrumentId == pos.instrumentId } ?: return@mapNotNull null
+            buildPricingGreeksInput(pos, sod)
+        }
+        if (inputs.isEmpty()) return
+
+        try {
+            val results = client.calculatePricingGreeks(inputs)
+            if (results.isEmpty()) return
+
+            val byInstrument = positions.associateBy { it.instrumentId }
+            val now = Instant.now()
+            val rows = results.map { r ->
+                val pos = byInstrument[com.kinetix.common.model.InstrumentId(r.instrumentId)]
+                SodGreekSnapshot(
+                    bookId = bookId,
+                    snapshotDate = date,
+                    instrumentId = com.kinetix.common.model.InstrumentId(r.instrumentId),
+                    sodPrice = pos?.marketPrice?.amount ?: BigDecimal.ZERO,
+                    sodVol = snapshots.firstOrNull { it.instrumentId.value == r.instrumentId }?.sodVol,
+                    sodRate = snapshots.firstOrNull { it.instrumentId.value == r.instrumentId }?.sodRate,
+                    delta = r.delta.takeIf { it != 0.0 },
+                    gamma = r.gamma.takeIf { it != 0.0 },
+                    vega = r.vega.takeIf { it != 0.0 },
+                    theta = r.theta.takeIf { it != 0.0 },
+                    rho = r.rho.takeIf { it != 0.0 },
+                    vanna = r.vanna.takeIf { it != 0.0 },
+                    volga = r.volga.takeIf { it != 0.0 },
+                    charm = r.charm.takeIf { it != 0.0 },
+                    bondDv01 = r.bondDv01.takeIf { it != 0.0 },
+                    swapDv01 = r.swapDv01.takeIf { it != 0.0 },
+                    createdAt = now,
+                )
+            }
+            repo.saveAll(rows)
+            logger.info(
+                "SOD pricing Greeks persisted for portfolio {} on {} ({} of {} instruments priced)",
+                bookId.value, date, rows.size, inputs.size,
+            )
+        } catch (e: Exception) {
+            logger.warn(
+                "SOD pricing-Greek calculation failed for portfolio {} on {}: {} — consumers will fall back to VaR Greeks",
+                bookId.value, date, e.message,
+            )
+        }
+    }
+
+    /**
+     * Builds a pricing-Greek input for a single position. Returns null when we don't have
+     * enough information to price the instrument analytically — those will be silently
+     * skipped and the consumer will fall back to VaR Greeks.
+     *
+     * Asset-class dispatch is conservative: only the instruments we know how to price end
+     * up in the request. Options need strike/expiry/vol metadata which positions don't
+     * carry today, so they're routed as EQUITY (identity delta) rather than OPTION until
+     * the position model carries the option-specific fields. This is acceptable interim
+     * behaviour — option attribution then uses VaR Greeks via the per-instrument fallback.
+     */
+    private fun buildPricingGreeksInput(
+        position: com.kinetix.common.model.Position,
+        snapshot: DailyRiskSnapshot,
+    ): PricingGreeksInstrumentInput? {
+        val ac = position.assetClass.name
+        val spot = position.marketPrice.amount.toDouble()
+        return when (ac) {
+            "EQUITY", "FX" -> PricingGreeksInstrumentInput(
+                instrumentId = position.instrumentId.value,
+                assetClass = ac,
+                spotPrice = spot,
+            )
+            // Other asset classes are skipped until the position model carries the
+            // closed-form-pricing inputs (strike/vol for options, face/coupon/maturity
+            // for bonds). Their consumers fall back to VaR Greeks per-instrument.
+            else -> null
+        }
     }
 
     suspend fun getBaselineStatus(bookId: BookId, date: LocalDate): SodBaselineStatus {

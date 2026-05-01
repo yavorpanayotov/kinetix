@@ -503,6 +503,9 @@ fun Application.moduleWithRoutes() {
         InMemoryQuantDiffCache()
     }
 
+    val pricingGreeksClient = com.kinetix.risk.client.GrpcPricingGreeksClient(
+        RiskCalculationServiceGrpcKt.RiskCalculationServiceCoroutineStub(channel),
+    )
     val sodSnapshotService = SodSnapshotService(
         sodBaselineRepository = sodBaselineRepository,
         dailyRiskSnapshotRepository = dailyRiskSnapshotRepository,
@@ -512,6 +515,8 @@ fun Application.moduleWithRoutes() {
         jobRecorder = jobRecorder,
         volatilityServiceClient = effectiveVolatilityServiceClient,
         ratesServiceClient = effectiveRatesServiceClient,
+        pricingGreeksClient = pricingGreeksClient,
+        sodGreekSnapshotRepository = sodGreekSnapshotRepository,
     )
     val pnlAttributionService = PnlAttributionService()
     val pnlComputationService = PnlComputationService(

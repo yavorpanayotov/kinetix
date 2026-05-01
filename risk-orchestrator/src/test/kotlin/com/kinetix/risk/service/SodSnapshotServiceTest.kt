@@ -436,4 +436,94 @@ class SodSnapshotServiceTest : FunSpec({
             })
         }
     }
+
+    // ------------------------------------------------------------
+    // SOD pricing-Greek population (audit A-3 Phase 2)
+    // ------------------------------------------------------------
+
+    test("calls pricingGreeksClient and persists pricing-Greek rows when both are wired") {
+        val pricingGreeksClient = mockk<com.kinetix.risk.client.PricingGreeksClient>()
+        val sodGreekSnapshotRepo = mockk<com.kinetix.risk.persistence.SodGreekSnapshotRepository>()
+        val wiredService = SodSnapshotService(
+            sodBaselineRepository = sodBaselineRepository,
+            dailyRiskSnapshotRepository = dailyRiskSnapshotRepository,
+            varCache = varCache,
+            varCalculationService = varCalculationService,
+            positionProvider = positionProvider,
+            pricingGreeksClient = pricingGreeksClient,
+            sodGreekSnapshotRepository = sodGreekSnapshotRepo,
+        )
+
+        val result = valuationResult()
+        coEvery { positionProvider.getPositions(PORTFOLIO) } returns listOf(position())
+        coEvery { dailyRiskSnapshotRepository.saveAll(any()) } just Runs
+        coEvery { sodBaselineRepository.save(any()) } just Runs
+        coEvery { pricingGreeksClient.calculatePricingGreeks(any()) } returns listOf(
+            com.kinetix.risk.client.PricingGreeksResult(
+                instrumentId = "AAPL",
+                delta = 1.0,
+                gamma = 0.0, vega = 0.0, theta = 0.0, rho = 0.0,
+                vanna = 0.0, volga = 0.0, charm = 0.0,
+                bondDv01 = 0.0, swapDv01 = 0.0,
+            ),
+        )
+        coEvery { sodGreekSnapshotRepo.saveAll(any()) } just Runs
+
+        wiredService.createSnapshot(PORTFOLIO, SnapshotType.MANUAL, result, TODAY)
+
+        coVerify(exactly = 1) { pricingGreeksClient.calculatePricingGreeks(any()) }
+        coVerify {
+            sodGreekSnapshotRepo.saveAll(withArg { rows ->
+                rows.size shouldBe 1
+                rows[0].instrumentId shouldBe InstrumentId("AAPL")
+                rows[0].bookId shouldBe PORTFOLIO
+                rows[0].snapshotDate shouldBe TODAY
+                rows[0].delta shouldBe 1.0
+                // Zero-valued Greeks are stored as null to distinguish "not applicable"
+                // from "computed and is zero".
+                rows[0].gamma shouldBe null
+            })
+        }
+    }
+
+    test("does not call pricingGreeksClient when client is null (legacy wiring)") {
+        // Service is constructed without pricingGreeksClient — must succeed without
+        // touching the missing dependency.
+        val result = valuationResult()
+        coEvery { positionProvider.getPositions(PORTFOLIO) } returns listOf(position())
+        coEvery { dailyRiskSnapshotRepository.saveAll(any()) } just Runs
+        coEvery { sodBaselineRepository.save(any()) } just Runs
+
+        service.createSnapshot(PORTFOLIO, SnapshotType.MANUAL, result, TODAY)
+
+        // The underlying SOD baseline still persists; the pricing-Greek path is a no-op.
+        coVerify { sodBaselineRepository.save(any()) }
+    }
+
+    test("does not fail the SOD job when pricingGreeksClient throws") {
+        val pricingGreeksClient = mockk<com.kinetix.risk.client.PricingGreeksClient>()
+        val sodGreekSnapshotRepo = mockk<com.kinetix.risk.persistence.SodGreekSnapshotRepository>()
+        val wiredService = SodSnapshotService(
+            sodBaselineRepository = sodBaselineRepository,
+            dailyRiskSnapshotRepository = dailyRiskSnapshotRepository,
+            varCache = varCache,
+            varCalculationService = varCalculationService,
+            positionProvider = positionProvider,
+            pricingGreeksClient = pricingGreeksClient,
+            sodGreekSnapshotRepository = sodGreekSnapshotRepo,
+        )
+
+        val result = valuationResult()
+        coEvery { positionProvider.getPositions(PORTFOLIO) } returns listOf(position())
+        coEvery { dailyRiskSnapshotRepository.saveAll(any()) } just Runs
+        coEvery { sodBaselineRepository.save(any()) } just Runs
+        coEvery { pricingGreeksClient.calculatePricingGreeks(any()) } throws
+            RuntimeException("risk-engine unavailable")
+
+        // SOD job must complete successfully — consumers will fall back to VaR Greeks.
+        wiredService.createSnapshot(PORTFOLIO, SnapshotType.MANUAL, result, TODAY)
+
+        coVerify { sodBaselineRepository.save(any()) }
+        coVerify(exactly = 0) { sodGreekSnapshotRepo.saveAll(any()) }
+    }
 })
