@@ -21,4 +21,16 @@ data class SubmitOrderRequest(
      * arrival-price staleness check.
      */
     val arrivalPriceTimestamp: String? = null,
+    /**
+     * FIX time-in-force. Defaults to DAY (industry norm) when absent. Must be one of
+     * DAY / GTC / IOC / FOK / GTD. GTD requires [expiresAt] to be set; non-GTD must
+     * not set [expiresAt].
+     */
+    val timeInForce: String = "DAY",
+    /**
+     * ISO-8601 instant when the order should auto-expire. Required when timeInForce
+     * is GTD; ignored otherwise. Must be in the future at submit time. The venue's
+     * max-GTD horizon (typically 90 days) caps how far ahead this can be.
+     */
+    val expiresAt: String? = null,
 )

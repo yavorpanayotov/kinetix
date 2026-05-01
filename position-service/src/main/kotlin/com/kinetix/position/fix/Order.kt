@@ -23,8 +23,21 @@ data class Order(
     val fixSessionId: String?,
     val assetClass: AssetClass = AssetClass.EQUITY,
     val currency: Currency = Currency.getInstance("USD"),
+    val timeInForce: TimeInForce = TimeInForce.DAY,
+    /**
+     * Expiry timestamp for [TimeInForce.GTD] orders; null for every other TIF.
+     * Validated at submit time (must be in the future, must be within the
+     * venue's max-GTD horizon — see ADR-0035).
+     */
+    val expiresAt: Instant? = null,
     val fills: List<ExecutionFill> = emptyList(),
 ) {
+    init {
+        require((timeInForce == TimeInForce.GTD) == (expiresAt != null)) {
+            "expiresAt must be set IFF timeInForce = GTD (got tif=$timeInForce, expiresAt=$expiresAt)"
+        }
+    }
+
     val isTerminal: Boolean
         get() = status.isTerminal
 

@@ -360,4 +360,128 @@ class OrderSubmissionServiceTest : FunSpec({
         order.assetClass shouldBe com.kinetix.common.model.AssetClass.FIXED_INCOME
         order.currency shouldBe java.util.Currency.getInstance("EUR")
     }
+
+    // ------------------------------------------------------------
+    // Time in force / GTD (audit A-13, ADR-0035)
+    // ------------------------------------------------------------
+
+    test("defaults to DAY when timeInForce is not provided") {
+        val order = service.submit(
+            bookId = "book-1",
+            instrumentId = "AAPL",
+            side = Side.BUY,
+            quantity = BigDecimal("100"),
+            orderType = "MARKET",
+            limitPrice = null,
+            arrivalPrice = BigDecimal("150.00"),
+            fixSessionId = null,
+        )
+
+        order.timeInForce shouldBe TimeInForce.DAY
+        order.expiresAt shouldBe null
+    }
+
+    test("accepts an explicit GTC time-in-force") {
+        val order = service.submit(
+            bookId = "book-1",
+            instrumentId = "AAPL",
+            side = Side.BUY,
+            quantity = BigDecimal("100"),
+            orderType = "MARKET",
+            limitPrice = null,
+            arrivalPrice = BigDecimal("150.00"),
+            fixSessionId = null,
+            timeInForce = TimeInForce.GTC,
+        )
+
+        order.timeInForce shouldBe TimeInForce.GTC
+        order.expiresAt shouldBe null
+    }
+
+    test("GTD requires expiresAt to be set") {
+        shouldThrow<IllegalArgumentException> {
+            service.submit(
+                bookId = "book-1",
+                instrumentId = "AAPL",
+                side = Side.BUY,
+                quantity = BigDecimal("100"),
+                orderType = "MARKET",
+                limitPrice = null,
+                arrivalPrice = BigDecimal("150.00"),
+                fixSessionId = null,
+                timeInForce = TimeInForce.GTD,
+                expiresAt = null,
+            )
+        }.message!! shouldContain "expiresAt is required"
+    }
+
+    test("GTD rejects an expiresAt in the past") {
+        shouldThrow<IllegalArgumentException> {
+            service.submit(
+                bookId = "book-1",
+                instrumentId = "AAPL",
+                side = Side.BUY,
+                quantity = BigDecimal("100"),
+                orderType = "MARKET",
+                limitPrice = null,
+                arrivalPrice = BigDecimal("150.00"),
+                fixSessionId = null,
+                timeInForce = TimeInForce.GTD,
+                expiresAt = Instant.now().minusSeconds(60),
+            )
+        }.message!! shouldContain "must be in the future"
+    }
+
+    test("GTD rejects an expiresAt beyond the venue's max-GTD horizon") {
+        shouldThrow<IllegalArgumentException> {
+            service.submit(
+                bookId = "book-1",
+                instrumentId = "AAPL",
+                side = Side.BUY,
+                quantity = BigDecimal("100"),
+                orderType = "MARKET",
+                limitPrice = null,
+                arrivalPrice = BigDecimal("150.00"),
+                fixSessionId = null,
+                timeInForce = TimeInForce.GTD,
+                expiresAt = Instant.now().plusSeconds(100L * 24 * 3600),
+            )
+        }.message!! shouldContain "max-GTD horizon"
+    }
+
+    test("non-GTD orders reject any expiresAt") {
+        shouldThrow<IllegalArgumentException> {
+            service.submit(
+                bookId = "book-1",
+                instrumentId = "AAPL",
+                side = Side.BUY,
+                quantity = BigDecimal("100"),
+                orderType = "MARKET",
+                limitPrice = null,
+                arrivalPrice = BigDecimal("150.00"),
+                fixSessionId = null,
+                timeInForce = TimeInForce.DAY,
+                expiresAt = Instant.now().plusSeconds(3600),
+            )
+        }.message!! shouldContain "expiresAt must be null"
+    }
+
+    test("GTD with a future expiresAt within horizon is accepted and stored on the order") {
+        val expires = Instant.now().plusSeconds(7L * 24 * 3600)
+        val order = service.submit(
+            bookId = "book-1",
+            instrumentId = "AAPL",
+            side = Side.BUY,
+            quantity = BigDecimal("100"),
+            orderType = "MARKET",
+            limitPrice = null,
+            arrivalPrice = BigDecimal("150.00"),
+            fixSessionId = null,
+            timeInForce = TimeInForce.GTD,
+            expiresAt = expires,
+        )
+
+        order.timeInForce shouldBe TimeInForce.GTD
+        order.expiresAt shouldBe expires
+    }
 })

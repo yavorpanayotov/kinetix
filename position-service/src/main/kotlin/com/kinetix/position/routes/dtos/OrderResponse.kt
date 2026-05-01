@@ -15,4 +15,6 @@ data class OrderResponse(
     val submittedAt: String,
     val status: String,
     val fixSessionId: String?,
+    val timeInForce: String = "DAY",
+    val expiresAt: String? = null,
 )

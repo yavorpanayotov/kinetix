@@ -3,6 +3,7 @@ package com.kinetix.position.routes
 import com.kinetix.common.model.Side
 import com.kinetix.position.fix.Order
 import com.kinetix.position.fix.OrderSubmissionService
+import com.kinetix.position.fix.TimeInForce
 import com.kinetix.position.routes.dtos.OrderResponse
 import com.kinetix.position.routes.dtos.SubmitOrderRequest
 import io.github.smiley4.ktoropenapi.post
@@ -52,6 +53,21 @@ fun Route.orderRoutes(orderSubmissionService: OrderSubmissionService) {
                 }
             }
 
+            val timeInForce = runCatching { TimeInForce.valueOf(request.timeInForce.uppercase()) }
+                .getOrElse {
+                    throw IllegalArgumentException(
+                        "Invalid timeInForce '${request.timeInForce}': must be DAY, GTC, IOC, FOK, or GTD"
+                    )
+                }
+
+            val expiresAt = request.expiresAt?.let {
+                try {
+                    Instant.parse(it)
+                } catch (e: DateTimeParseException) {
+                    throw IllegalArgumentException("Invalid expiresAt '$it'")
+                }
+            }
+
             val order = orderSubmissionService.submit(
                 bookId = request.bookId,
                 instrumentId = request.instrumentId,
@@ -64,6 +80,8 @@ fun Route.orderRoutes(orderSubmissionService: OrderSubmissionService) {
                 assetClass = request.assetClass,
                 currency = request.currency,
                 arrivalPriceTimestamp = arrivalPriceTimestamp,
+                timeInForce = timeInForce,
+                expiresAt = expiresAt,
             )
 
             call.respond(HttpStatusCode.Created, order.toResponse())
@@ -85,4 +103,6 @@ private fun Order.toResponse() = OrderResponse(
     submittedAt = submittedAt.toString(),
     status = status.name,
     fixSessionId = fixSessionId,
+    timeInForce = timeInForce.name,
+    expiresAt = expiresAt?.toString(),
 )

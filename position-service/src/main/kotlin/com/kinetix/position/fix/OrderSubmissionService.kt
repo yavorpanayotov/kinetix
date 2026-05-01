@@ -59,6 +59,9 @@ class OrderSubmissionService(
         assetClass: String = "EQUITY",
         currency: String = "USD",
         arrivalPriceTimestamp: Instant? = null,
+        timeInForce: TimeInForce = TimeInForce.DAY,
+        expiresAt: Instant? = null,
+        maxGtdHorizonDays: Long = 90,
     ): Order {
         require(quantity > BigDecimal.ZERO) { "Quantity must be positive" }
 
@@ -66,6 +69,23 @@ class OrderSubmissionService(
             val ageMs = Instant.now().toEpochMilli() - arrivalPriceTimestamp.toEpochMilli()
             require(ageMs <= ARRIVAL_PRICE_MAX_AGE_MS) {
                 "Arrival price is stale: observed ${ageMs}ms ago, limit is ${ARRIVAL_PRICE_MAX_AGE_MS}ms"
+            }
+        }
+
+        val now = Instant.now()
+        when (timeInForce) {
+            TimeInForce.GTD -> {
+                requireNotNull(expiresAt) { "expiresAt is required when timeInForce=GTD" }
+                require(expiresAt.isAfter(now)) {
+                    "expiresAt must be in the future (got $expiresAt, now $now)"
+                }
+                val maxHorizon = now.plusSeconds(maxGtdHorizonDays * 24 * 3600)
+                require(!expiresAt.isAfter(maxHorizon)) {
+                    "expiresAt $expiresAt exceeds the venue's max-GTD horizon of $maxGtdHorizonDays days"
+                }
+            }
+            else -> require(expiresAt == null) {
+                "expiresAt must be null when timeInForce=$timeInForce (only GTD orders carry an expiry)"
             }
         }
 
@@ -81,13 +101,15 @@ class OrderSubmissionService(
             orderType = orderType,
             limitPrice = limitPrice,
             arrivalPrice = arrivalPrice,
-            submittedAt = Instant.now(),
+            submittedAt = now,
             status = OrderStatus.PENDING_RISK_CHECK,
             riskCheckResult = null,
             riskCheckDetails = null,
             fixSessionId = fixSessionId,
             assetClass = resolvedAssetClass,
             currency = resolvedCurrency,
+            timeInForce = timeInForce,
+            expiresAt = expiresAt,
         )
         orderRepository.save(order)
         logger.info(
