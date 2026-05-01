@@ -105,9 +105,20 @@ rule UpdateLimit {
     when: UpdateLimitRequested(limit_id, limit_value, intraday_limit, overnight_limit, active)
     let limit = LimitDefinition{id: limit_id}
     ensures: limit.limit_value = limit_value
-    ensures: limit.intraday_limit = intraday_limit
-    ensures: limit.overnight_limit = overnight_limit
-    ensures: limit.active = active
+    ensures: limit.intraday_limit = intraday_limit ?? limit.intraday_limit
+    ensures: limit.overnight_limit = overnight_limit ?? limit.overnight_limit
+    ensures: limit.active = active ?? limit.active
+
+    @guidance
+        -- PATCH-style update over HTTP PUT: the only required field is
+        -- limit_value. The three optional fields (intraday_limit,
+        -- overnight_limit, active) preserve their existing values when
+        -- omitted from the request payload — the client need not echo
+        -- the full record back to toggle a single attribute.
+        --
+        -- See LimitRoutes.kt PUT /api/v1/limits/{id}: missing optional
+        -- fields in UpdateLimitRequest fall back to existing.* via
+        -- ?: existing.<field>.
 }
 
 rule RequestTemporaryIncrease {
