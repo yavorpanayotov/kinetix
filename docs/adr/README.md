@@ -36,3 +36,4 @@
 | [0032](0032-intraday-pnl-greek-source.md) | Greek source for intraday P&L attribution | Proposed |
 | [0033](0033-vol-surface-diff-method.md) | Vol-surface diff method — interpolation vs nearest-neighbour | Proposed |
 | [0034](0034-regime-degraded-signal-policy.md) | Regime classifier behaviour on degraded inputs | Proposed |
+| [0035](0035-fix-gateway-service-extraction.md) | Fix-gateway service extraction | Proposed |
