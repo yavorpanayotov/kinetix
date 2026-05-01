@@ -25,7 +25,20 @@ from kinetix_risk.version import get_model_version
 from kinetix_risk.key_rate_duration import STANDARD_TENOR_BUCKETS, calculate_krd
 from kinetix_risk.market_data_consumer import consume_market_data
 from kinetix_risk.market_data_models import YieldCurveData
+from datetime import date as _date, timedelta as _timedelta
+
+from kinetix_risk.black_scholes import bs_greeks
+from kinetix_risk.bond_pricing import bond_dv01
 from kinetix_risk.greeks import calculate_greeks
+from kinetix_risk.models import AssetClass, BondPosition, OptionPosition, OptionType
+
+
+def _maturity_iso_date(maturity_years: float) -> str:
+    """BondPosition.maturity_date is ISO-formatted (`bond_pricing._years_to_maturity`
+    parses via `date.fromisoformat`); convert the wire-format `maturity_years` to an
+    actual future date so DV01 reflects the requested tenor rather than collapsing to
+    expired-bond face value."""
+    return (_date.today() + _timedelta(days=int(maturity_years * 365.25))).isoformat()
 from kinetix_risk.metrics import (
     cross_book_diversification_benefit,
     greeks_delta,
@@ -255,6 +268,98 @@ class RiskCalculationServicer(risk_calculation_pb2_grpc.RiskCalculationServiceSe
 
     def SuggestHedge(self, request, context):
         return HedgeOptimizerServicer().SuggestHedge(request, context)
+
+    def CalculatePricingGreeks(self, request, context):
+        """Returns analytical closed-form pricing Greeks per instrument.
+
+        For each input:
+        - asset_class == "OPTION": Black-Scholes Greeks via bs_greeks()
+        - asset_class == "BOND" or "SWAP": DV01 via bond_dv01()
+        - asset_class == "EQUITY" or "FX": identity delta = 1.0, others zero
+        - anything else: skipped (no row in response)
+
+        Errors during a single instrument's computation are logged and the
+        instrument is skipped rather than failing the whole batch — SOD job
+        consumers tolerate partial population by falling back to VaR Greeks
+        for missing instruments.
+        """
+        from kinetix.risk import risk_calculation_pb2
+
+        results = []
+        for inp in request.instruments:
+            try:
+                ac = (inp.asset_class or "").upper()
+                if ac == "OPTION":
+                    option = OptionPosition(
+                        instrument_id=inp.instrument_id,
+                        underlying_id=inp.instrument_id,
+                        option_type=OptionType(inp.option_type.upper() or "CALL"),
+                        strike=float(inp.strike),
+                        expiry_days=int(inp.expiry_days),
+                        spot_price=float(inp.spot_price),
+                        implied_vol=float(inp.implied_vol),
+                        risk_free_rate=float(inp.risk_free_rate),
+                        dividend_yield=float(inp.dividend_yield),
+                    )
+                    g = bs_greeks(option)
+                    results.append(risk_calculation_pb2.PricingGreekInstrumentResult(
+                        instrument_id=inp.instrument_id,
+                        delta=float(g["delta"]),
+                        gamma=float(g["gamma"]),
+                        vega=float(g["vega"]),
+                        theta=float(g["theta"]),
+                        rho=float(g["rho"]),
+                        vanna=float(g["vanna"]),
+                        volga=float(g["volga"]),
+                        charm=float(g["charm"]),
+                    ))
+                elif ac in ("BOND", "FIXED_INCOME"):
+                    bond = BondPosition(
+                        instrument_id=inp.instrument_id,
+                        asset_class=AssetClass.FIXED_INCOME,
+                        market_value=0.0,
+                        currency="USD",
+                        face_value=float(inp.face_value),
+                        coupon_rate=float(inp.coupon_rate),
+                        coupon_frequency=int(inp.coupon_frequency or 2),
+                        maturity_date=_maturity_iso_date(float(inp.maturity_years)),
+                    )
+                    dv01 = bond_dv01(bond, float(inp.yield_rate))
+                    results.append(risk_calculation_pb2.PricingGreekInstrumentResult(
+                        instrument_id=inp.instrument_id,
+                        bond_dv01=float(dv01),
+                    ))
+                elif ac == "SWAP":
+                    # Treat swap DV01 as bond DV01 against the fixed leg —
+                    # adequate for the linear-instrument Taylor expansion.
+                    bond = BondPosition(
+                        instrument_id=inp.instrument_id,
+                        asset_class=AssetClass.FIXED_INCOME,
+                        market_value=0.0,
+                        currency="USD",
+                        face_value=float(inp.face_value),
+                        coupon_rate=float(inp.coupon_rate),
+                        coupon_frequency=int(inp.coupon_frequency or 2),
+                        maturity_date=_maturity_iso_date(float(inp.maturity_years)),
+                    )
+                    dv01 = bond_dv01(bond, float(inp.yield_rate))
+                    results.append(risk_calculation_pb2.PricingGreekInstrumentResult(
+                        instrument_id=inp.instrument_id,
+                        swap_dv01=float(dv01),
+                    ))
+                elif ac in ("EQUITY", "FX"):
+                    # Linear instrument: delta = 1, all other Greeks = 0.
+                    results.append(risk_calculation_pb2.PricingGreekInstrumentResult(
+                        instrument_id=inp.instrument_id,
+                        delta=1.0,
+                    ))
+                else:
+                    logger.debug("CalculatePricingGreeks: skipping unknown asset_class %r for %s", ac, inp.instrument_id)
+            except Exception:
+                logger.exception("CalculatePricingGreeks: failed for instrument %s; skipping", inp.instrument_id)
+                continue
+
+        return risk_calculation_pb2.PricingGreeksResponse(results=results)
 
     def CalculateKeyRateDurations(self, request, context):
         try:

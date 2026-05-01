@@ -360,6 +360,73 @@ message KeyRateDurationResponse {
   string total_dv01 = 3;
 }
 
+// Pricing-Greek inputs per instrument. The orchestrator owns market data
+// fetching (per ADR-0029); the engine receives all inputs explicitly.
+//
+// asset_class drives which fields are read:
+//   OPTION       — strike, expiry_days, implied_vol, risk_free_rate,
+//                  dividend_yield, option_type are required; spot_price is
+//                  required as the underlying spot.
+//   BOND / SWAP  — face_value, coupon_rate, coupon_frequency, maturity_years,
+//                  yield_rate are required.
+//   EQUITY / FX  — spot_price required; the engine returns identity delta.
+//
+// Unknown asset_classes are skipped and produce no row in the response.
+message PricingGreekInstrumentInput {
+  string instrument_id = 1;
+  string asset_class = 2;          // OPTION / BOND / SWAP / EQUITY / FX
+
+  // Common
+  double spot_price = 3;
+
+  // Option (Black-Scholes inputs)
+  double strike = 10;
+  int32 expiry_days = 11;
+  double implied_vol = 12;
+  double risk_free_rate = 13;
+  double dividend_yield = 14;
+  string option_type = 15;          // CALL | PUT
+
+  // Fixed income (BondPosition / SwapPosition equivalents)
+  double face_value = 20;
+  double coupon_rate = 21;
+  int32 coupon_frequency = 22;
+  double maturity_years = 23;
+  double yield_rate = 24;
+}
+
+message PricingGreeksRequest {
+  repeated PricingGreekInstrumentInput instruments = 1;
+}
+
+// Per-instrument analytical Greeks. Fields that don't apply to the asset
+// class are left at zero (proto3 default). Consumers should only read the
+// fields appropriate to the input asset_class.
+message PricingGreekInstrumentResult {
+  string instrument_id = 1;
+
+  // First-order pricing Greeks (closed-form Black-Scholes for options;
+  // identity delta for linear instruments).
+  double delta = 2;
+  double gamma = 3;
+  double vega = 4;
+  double theta = 5;
+  double rho = 6;
+
+  // Cross-Greeks (second-order mixed sensitivities, BS closed-form).
+  double vanna = 7;
+  double volga = 8;
+  double charm = 9;
+
+  // Fixed-income sensitivities. Both null/zero for non-FI instruments.
+  double bond_dv01 = 10;
+  double swap_dv01 = 11;
+}
+
+message PricingGreeksResponse {
+  repeated PricingGreekInstrumentResult results = 1;
+}
+
 service RiskCalculationService {
   // Deprecated: use Valuate instead
   rpc CalculateVaR(VaRRequest) returns (VaRResponse);
@@ -369,4 +436,11 @@ service RiskCalculationService {
   rpc DecomposeFactorRisk(FactorDecompositionRequest) returns (FactorDecompositionResponse);
   rpc SuggestHedge(SuggestHedgeRequest) returns (SuggestHedgeResponse);
   rpc CalculateKeyRateDurations(KeyRateDurationRequest) returns (KeyRateDurationResponse);
+
+  // Computes analytical pricing Greeks per instrument, captured at SOD by
+  // the SOD snapshot job. Unlike the VaR-side CalculateVaR pipeline these
+  // are closed-form Black-Scholes partials (and DV01 for fixed income),
+  // suitable for Taylor-expansion P&L attribution. See ADR-0032 and
+  // intraday-pnl.allium for context.
+  rpc CalculatePricingGreeks(PricingGreeksRequest) returns (PricingGreeksResponse);
 }

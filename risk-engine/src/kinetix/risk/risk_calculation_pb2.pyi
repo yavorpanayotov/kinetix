@@ -610,3 +610,73 @@ class KeyRateDurationResponse(_message.Message):
     krd_buckets: _containers.RepeatedCompositeFieldContainer[KeyRateDurationBucket]
     total_dv01: str
     def __init__(self, instrument_id: _Optional[str] = ..., krd_buckets: _Optional[_Iterable[_Union[KeyRateDurationBucket, _Mapping]]] = ..., total_dv01: _Optional[str] = ...) -> None: ...
+
+class PricingGreekInstrumentInput(_message.Message):
+    __slots__ = ("instrument_id", "asset_class", "spot_price", "strike", "expiry_days", "implied_vol", "risk_free_rate", "dividend_yield", "option_type", "face_value", "coupon_rate", "coupon_frequency", "maturity_years", "yield_rate")
+    INSTRUMENT_ID_FIELD_NUMBER: _ClassVar[int]
+    ASSET_CLASS_FIELD_NUMBER: _ClassVar[int]
+    SPOT_PRICE_FIELD_NUMBER: _ClassVar[int]
+    STRIKE_FIELD_NUMBER: _ClassVar[int]
+    EXPIRY_DAYS_FIELD_NUMBER: _ClassVar[int]
+    IMPLIED_VOL_FIELD_NUMBER: _ClassVar[int]
+    RISK_FREE_RATE_FIELD_NUMBER: _ClassVar[int]
+    DIVIDEND_YIELD_FIELD_NUMBER: _ClassVar[int]
+    OPTION_TYPE_FIELD_NUMBER: _ClassVar[int]
+    FACE_VALUE_FIELD_NUMBER: _ClassVar[int]
+    COUPON_RATE_FIELD_NUMBER: _ClassVar[int]
+    COUPON_FREQUENCY_FIELD_NUMBER: _ClassVar[int]
+    MATURITY_YEARS_FIELD_NUMBER: _ClassVar[int]
+    YIELD_RATE_FIELD_NUMBER: _ClassVar[int]
+    instrument_id: str
+    asset_class: str
+    spot_price: float
+    strike: float
+    expiry_days: int
+    implied_vol: float
+    risk_free_rate: float
+    dividend_yield: float
+    option_type: str
+    face_value: float
+    coupon_rate: float
+    coupon_frequency: int
+    maturity_years: float
+    yield_rate: float
+    def __init__(self, instrument_id: _Optional[str] = ..., asset_class: _Optional[str] = ..., spot_price: _Optional[float] = ..., strike: _Optional[float] = ..., expiry_days: _Optional[int] = ..., implied_vol: _Optional[float] = ..., risk_free_rate: _Optional[float] = ..., dividend_yield: _Optional[float] = ..., option_type: _Optional[str] = ..., face_value: _Optional[float] = ..., coupon_rate: _Optional[float] = ..., coupon_frequency: _Optional[int] = ..., maturity_years: _Optional[float] = ..., yield_rate: _Optional[float] = ...) -> None: ...
+
+class PricingGreeksRequest(_message.Message):
+    __slots__ = ("instruments",)
+    INSTRUMENTS_FIELD_NUMBER: _ClassVar[int]
+    instruments: _containers.RepeatedCompositeFieldContainer[PricingGreekInstrumentInput]
+    def __init__(self, instruments: _Optional[_Iterable[_Union[PricingGreekInstrumentInput, _Mapping]]] = ...) -> None: ...
+
+class PricingGreekInstrumentResult(_message.Message):
+    __slots__ = ("instrument_id", "delta", "gamma", "vega", "theta", "rho", "vanna", "volga", "charm", "bond_dv01", "swap_dv01")
+    INSTRUMENT_ID_FIELD_NUMBER: _ClassVar[int]
+    DELTA_FIELD_NUMBER: _ClassVar[int]
+    GAMMA_FIELD_NUMBER: _ClassVar[int]
+    VEGA_FIELD_NUMBER: _ClassVar[int]
+    THETA_FIELD_NUMBER: _ClassVar[int]
+    RHO_FIELD_NUMBER: _ClassVar[int]
+    VANNA_FIELD_NUMBER: _ClassVar[int]
+    VOLGA_FIELD_NUMBER: _ClassVar[int]
+    CHARM_FIELD_NUMBER: _ClassVar[int]
+    BOND_DV01_FIELD_NUMBER: _ClassVar[int]
+    SWAP_DV01_FIELD_NUMBER: _ClassVar[int]
+    instrument_id: str
+    delta: float
+    gamma: float
+    vega: float
+    theta: float
+    rho: float
+    vanna: float
+    volga: float
+    charm: float
+    bond_dv01: float
+    swap_dv01: float
+    def __init__(self, instrument_id: _Optional[str] = ..., delta: _Optional[float] = ..., gamma: _Optional[float] = ..., vega: _Optional[float] = ..., theta: _Optional[float] = ..., rho: _Optional[float] = ..., vanna: _Optional[float] = ..., volga: _Optional[float] = ..., charm: _Optional[float] = ..., bond_dv01: _Optional[float] = ..., swap_dv01: _Optional[float] = ...) -> None: ...
+
+class PricingGreeksResponse(_message.Message):
+    __slots__ = ("results",)
+    RESULTS_FIELD_NUMBER: _ClassVar[int]
+    results: _containers.RepeatedCompositeFieldContainer[PricingGreekInstrumentResult]
+    def __init__(self, results: _Optional[_Iterable[_Union[PricingGreekInstrumentResult, _Mapping]]] = ...) -> None: ...

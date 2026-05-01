@@ -69,6 +69,11 @@ class RiskCalculationServiceStub(object):
                 request_serializer=kinetix_dot_risk_dot_risk__calculation__pb2.KeyRateDurationRequest.SerializeToString,
                 response_deserializer=kinetix_dot_risk_dot_risk__calculation__pb2.KeyRateDurationResponse.FromString,
                 _registered_method=True)
+        self.CalculatePricingGreeks = channel.unary_unary(
+                '/kinetix.risk.RiskCalculationService/CalculatePricingGreeks',
+                request_serializer=kinetix_dot_risk_dot_risk__calculation__pb2.PricingGreeksRequest.SerializeToString,
+                response_deserializer=kinetix_dot_risk_dot_risk__calculation__pb2.PricingGreeksResponse.FromString,
+                _registered_method=True)
 
 
 class RiskCalculationServiceServicer(object):
@@ -117,6 +122,17 @@ class RiskCalculationServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def CalculatePricingGreeks(self, request, context):
+        """Computes analytical pricing Greeks per instrument, captured at SOD by
+        the SOD snapshot job. Unlike the VaR-side CalculateVaR pipeline these
+        are closed-form Black-Scholes partials (and DV01 for fixed income),
+        suitable for Taylor-expansion P&L attribution. See ADR-0032 and
+        intraday-pnl.allium for context.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_RiskCalculationServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -154,6 +170,11 @@ def add_RiskCalculationServiceServicer_to_server(servicer, server):
                     servicer.CalculateKeyRateDurations,
                     request_deserializer=kinetix_dot_risk_dot_risk__calculation__pb2.KeyRateDurationRequest.FromString,
                     response_serializer=kinetix_dot_risk_dot_risk__calculation__pb2.KeyRateDurationResponse.SerializeToString,
+            ),
+            'CalculatePricingGreeks': grpc.unary_unary_rpc_method_handler(
+                    servicer.CalculatePricingGreeks,
+                    request_deserializer=kinetix_dot_risk_dot_risk__calculation__pb2.PricingGreeksRequest.FromString,
+                    response_serializer=kinetix_dot_risk_dot_risk__calculation__pb2.PricingGreeksResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -345,6 +366,33 @@ class RiskCalculationService(object):
             '/kinetix.risk.RiskCalculationService/CalculateKeyRateDurations',
             kinetix_dot_risk_dot_risk__calculation__pb2.KeyRateDurationRequest.SerializeToString,
             kinetix_dot_risk_dot_risk__calculation__pb2.KeyRateDurationResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def CalculatePricingGreeks(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/kinetix.risk.RiskCalculationService/CalculatePricingGreeks',
+            kinetix_dot_risk_dot_risk__calculation__pb2.PricingGreeksRequest.SerializeToString,
+            kinetix_dot_risk_dot_risk__calculation__pb2.PricingGreeksResponse.FromString,
             options,
             channel_credentials,
             insecure,
