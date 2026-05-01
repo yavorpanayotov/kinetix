@@ -430,7 +430,9 @@ rule ReconcilePositions {
 
     @guidance
         -- Breaks < 1 unit are auto-resolved (rounding from partial fills).
-        -- Breaks > $10,000 notional trigger alerts for manual investigation.
+        -- Breaks >= $10,000 notional are classified CRITICAL and trigger
+        -- alerts for manual investigation; breaks below the threshold
+        -- are recorded as NORMAL severity but generate no alert.
         -- The prime broker statement is typically a CSV uploaded daily.
 }
 
@@ -439,12 +441,24 @@ rule AlertOnReconciliationBreaks {
     requires: reconciliation.break_count > 0
 
     for break in reconciliation.breaks:
-        requires: abs(break.break_notional) > config.manual_review_notional_threshold
+        requires: abs(break.break_notional) >= config.manual_review_notional_threshold
 
         @guidance
-            -- Fire RECONCILIATION_BREAK alert through notification-service.
-            -- Severity: WARNING for breaks < $100K, CRITICAL for > $100K.
+            -- Fire one RECONCILIATION_BREAK alert per qualifying break
+            -- through notification-service. The single material-break
+            -- threshold (config.manual_review_notional_threshold,
+            -- currently $10,000) gates both severity classification AND
+            -- alert publication: a break is classified CRITICAL iff its
+            -- notional clears the threshold, and only CRITICAL breaks
+            -- generate alerts. NORMAL-severity breaks below the
+            -- threshold are still recorded on PrimeBrokerReconciliation
+            -- for investigation but produce no alert.
+            --
             -- A break older than T+2 is flagged as overdue.
+            --
+            -- Implementation: PrimeBrokerReconciliationService.kt and
+            -- ReconciliationAlertPublisher.publishBreakAlert (per-break,
+            -- partition key bookId|instrumentId).
 }
 
 -- Reconciliation break lifecycle
