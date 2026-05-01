@@ -11,9 +11,11 @@ import com.kinetix.risk.model.DailyRiskSnapshot
 import com.kinetix.risk.model.InstrumentPnlBreakdown
 import com.kinetix.risk.model.IntradayPnlSnapshot
 import com.kinetix.risk.model.PnlTrigger
+import com.kinetix.risk.model.SodGreekSnapshot
 import com.kinetix.risk.persistence.DailyRiskSnapshotRepository
 import com.kinetix.risk.persistence.IntradayPnlRepository
 import com.kinetix.risk.persistence.SodBaselineRepository
+import com.kinetix.risk.persistence.SodGreekSnapshotRepository
 import org.slf4j.LoggerFactory
 import java.math.BigDecimal
 import java.math.MathContext
@@ -34,6 +36,15 @@ class IntradayPnlService(
     private val volatilityServiceClient: VolatilityServiceClient? = null,
     private val ratesServiceClient: RatesServiceClient? = null,
     private val fxRateProvider: FxRateProvider? = null,
+    /**
+     * Repository for immutable pricing Greeks locked at SOD. When wired and populated,
+     * attribution uses analytical BS partials (the correct quantity for Taylor expansion).
+     * When null or empty, falls back to VaR sensitivities from [DailyRiskSnapshot] —
+     * the same fallback pattern as [PnlComputationService]. Spec [intraday-pnl.allium:225-231]
+     * mandates pricing Greeks; fallback exists only because the SOD population path is not yet
+     * built (see audit item A-3 Phase 2).
+     */
+    private val sodGreekSnapshotRepository: SodGreekSnapshotRepository? = null,
 ) {
     private val logger = LoggerFactory.getLogger(IntradayPnlService::class.java)
     private val mc = MathContext(20, RoundingMode.HALF_UP)
@@ -73,6 +84,7 @@ class IntradayPnlService(
         }
 
         val sodSnapshots = dailyRiskSnapshotRepository.findByBookIdAndDate(bookId, date)
+        val pricingGreeks = fetchPricingGreeks(bookId, date)
         val positions = positionProvider.getPositions(bookId)
 
         // Total P&L is the truth: computed from position state, never from Greek attribution.
@@ -96,7 +108,9 @@ class IntradayPnlService(
         val currentRateMap = fetchCurrentRates(currencies)
 
         // Greek attribution: analytical overlay against frozen SOD state.
-        val pnlInputs = buildAttributionInputs(positions, sodSnapshots, baseCurrency, fxRates, currentVolMap, currentRateMap)
+        val pnlInputs = buildAttributionInputs(
+            positions, sodSnapshots, pricingGreeks, baseCurrency, fxRates, currentVolMap, currentRateMap,
+        )
         val attribution = pnlAttributionService.attribute(bookId, pnlInputs, date, currency = baseCurrency)
 
         // High-water mark is monotonically non-decreasing within the trading day.
@@ -167,6 +181,7 @@ class IntradayPnlService(
     private fun buildAttributionInputs(
         positions: List<com.kinetix.common.model.Position>,
         sodSnapshots: List<DailyRiskSnapshot>,
+        pricingGreeks: Map<InstrumentId, SodGreekSnapshot>,
         baseCurrency: String,
         fxRates: Map<String, BigDecimal>,
         currentVolMap: Map<InstrumentId, Double>,
@@ -183,21 +198,47 @@ class IntradayPnlService(
             val volChange = computeVolChange(sod, currentVolMap[position.instrumentId])
             val rateChange = computeRateChange(sod, currentRateMap[position.currency])
 
+            // Prefer pricing Greeks (analytical BS partials) over VaR Greeks (bump-and-reprice
+            // aggregations). VaR Greeks are mathematically the wrong quantity for a Taylor-
+            // expansion P&L attribution and produce systematically inflated unexplained_pnl.
+            // See PnlComputationService.greekOrFallback for the same pattern in EOD attribution.
+            val pricingGreek = pricingGreeks[position.instrumentId]
+
             PositionPnlInput(
                 instrumentId = position.instrumentId,
                 assetClass = position.assetClass,
                 totalPnl = positionPnl,
-                delta = BigDecimal.valueOf(sod.delta ?: 0.0),
-                gamma = BigDecimal.valueOf(sod.gamma ?: 0.0),
-                vega = BigDecimal.valueOf(sod.vega ?: 0.0),
-                theta = BigDecimal.valueOf(sod.theta ?: 0.0),
-                rho = BigDecimal.valueOf(sod.rho ?: 0.0),
+                delta = greekOrFallback(pricingGreek?.delta, sod.delta),
+                gamma = greekOrFallback(pricingGreek?.gamma, sod.gamma),
+                vega = greekOrFallback(pricingGreek?.vega, sod.vega),
+                theta = greekOrFallback(pricingGreek?.theta, sod.theta),
+                rho = greekOrFallback(pricingGreek?.rho, sod.rho),
+                vanna = pricingGreek?.vanna?.let { BigDecimal.valueOf(it) } ?: BigDecimal.ZERO,
+                volga = pricingGreek?.volga?.let { BigDecimal.valueOf(it) } ?: BigDecimal.ZERO,
+                charm = pricingGreek?.charm?.let { BigDecimal.valueOf(it) } ?: BigDecimal.ZERO,
                 priceChange = priceChange,
                 volChange = volChange,
                 rateChange = rateChange,
             )
         }
     }
+
+    /**
+     * Fetches per-instrument pricing Greeks from the [SodGreekSnapshotRepository].
+     * Returns an empty map when the repository is not wired or the SOD job has not yet
+     * populated rows for the day — attribution then falls back to VaR Greeks per-instrument.
+     */
+    private suspend fun fetchPricingGreeks(
+        bookId: BookId,
+        date: LocalDate,
+    ): Map<InstrumentId, SodGreekSnapshot> {
+        val repo = sodGreekSnapshotRepository ?: return emptyMap()
+        return repo.findByBookIdAndDate(bookId, date).associateBy { it.instrumentId }
+    }
+
+    /** Returns pricing Greek value when available; falls back to VaR Greek value; zero if neither. */
+    private fun greekOrFallback(pricingGreek: Double?, varGreek: Double?): BigDecimal =
+        BigDecimal.valueOf(pricingGreek ?: varGreek ?: 0.0)
 
     private suspend fun fetchCurrentVols(instrumentIds: List<InstrumentId>): Map<InstrumentId, Double> {
         val client = volatilityServiceClient ?: return emptyMap()

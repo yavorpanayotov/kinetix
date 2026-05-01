@@ -9,13 +9,16 @@ import com.kinetix.risk.model.DailyRiskSnapshot
 import com.kinetix.risk.model.IntradayPnlSnapshot
 import com.kinetix.risk.model.PnlTrigger
 import com.kinetix.risk.model.SodBaseline
+import com.kinetix.risk.model.SodGreekSnapshot
 import com.kinetix.risk.model.SnapshotType
 import com.kinetix.risk.persistence.DailyRiskSnapshotRepository
 import com.kinetix.risk.persistence.IntradayPnlRepository
 import com.kinetix.risk.persistence.SodBaselineRepository
+import com.kinetix.risk.persistence.SodGreekSnapshotRepository
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.collections.shouldBeEmpty
+import io.kotest.matchers.doubles.plusOrMinus
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -109,7 +112,10 @@ private fun previousSnapshot(
 /**
  * Fresh mocks for each test. Each test is fully isolated — no shared state between calls.
  */
-private class TestFixtures(fxRateProvider: FxRateProvider? = null) {
+private class TestFixtures(
+    fxRateProvider: FxRateProvider? = null,
+    val sodGreekSnapshotRepo: SodGreekSnapshotRepository? = null,
+) {
     val sodBaselineRepo = mockk<SodBaselineRepository>()
     val dailyRiskSnapshotRepo = mockk<DailyRiskSnapshotRepository>()
     val pnlRepository = mockk<IntradayPnlRepository>(relaxed = true)
@@ -124,8 +130,35 @@ private class TestFixtures(fxRateProvider: FxRateProvider? = null) {
         pnlAttributionService = PnlAttributionService(),
         publisher = publisher,
         fxRateProvider = fxRateProvider,
+        sodGreekSnapshotRepository = sodGreekSnapshotRepo,
     )
 }
+
+private fun pricingGreek(
+    instrumentId: String,
+    delta: Double? = null,
+    gamma: Double? = null,
+    vega: Double? = null,
+    theta: Double? = null,
+    rho: Double? = null,
+    vanna: Double? = null,
+    volga: Double? = null,
+    charm: Double? = null,
+): SodGreekSnapshot = SodGreekSnapshot(
+    bookId = BOOK,
+    snapshotDate = TODAY,
+    instrumentId = InstrumentId(instrumentId),
+    sodPrice = bd("100.00"),
+    delta = delta,
+    gamma = gamma,
+    vega = vega,
+    theta = theta,
+    rho = rho,
+    vanna = vanna,
+    volga = volga,
+    charm = charm,
+    createdAt = Instant.now(),
+)
 
 class IntradayPnlServiceTest : FunSpec({
 
@@ -549,5 +582,128 @@ class IntradayPnlServiceTest : FunSpec({
 
         snapshot.shouldNotBeNull()
         snapshot.dataQualityWarning.shouldBeNull()
+    }
+
+    // ------------------------------------------------------------
+    // Pricing Greeks vs VaR Greeks (audit A-3 Phase 1)
+    // ------------------------------------------------------------
+
+    test("uses pricing Greeks from SodGreekSnapshotRepository when available") {
+        val sodGreekRepo = mockk<SodGreekSnapshotRepository>()
+        val f = TestFixtures(sodGreekSnapshotRepo = sodGreekRepo)
+        coEvery { f.sodBaselineRepo.findByBookIdAndDate(BOOK, any()) } returns sodBaseline()
+        // VaR delta from DailyRiskSnapshot is intentionally different from pricing delta
+        // so a divergent attribution proves the service used the pricing Greek, not VaR.
+        coEvery { f.dailyRiskSnapshotRepo.findByBookIdAndDate(BOOK, TODAY) } returns listOf(
+            sodSnapshot("AAPL", quantity = "100", marketPrice = "100.00", delta = 0.5),
+        )
+        coEvery { sodGreekRepo.findByBookIdAndDate(BOOK, TODAY) } returns listOf(
+            pricingGreek("AAPL", delta = 0.95, gamma = 0.10),
+        )
+        coEvery { f.positionProvider.getPositions(BOOK) } returns listOf(
+            position("AAPL", quantity = "100", avgCost = "90.00", marketPrice = "110.00"),
+        )
+        coEvery { f.pnlRepository.findLatest(BOOK) } returns null
+
+        val snapshot = f.service.recompute(BOOK, PnlTrigger.POSITION_CHANGE, correlationId = null)
+
+        snapshot.shouldNotBeNull()
+        // priceChange = 110 - 100 = 10. Pricing delta = 0.95 → deltaPnl ≈ 0.95 * 10 = 9.5,
+        // not VaR delta of 0.5 → 5. The deltaPnl magnitude must reflect the pricing value.
+        snapshot.deltaPnl.toDouble() shouldBe (9.5 plusOrMinus 0.001)
+    }
+
+    test("falls back to VaR Greeks when SodGreekSnapshotRepository returns no rows for the book/date") {
+        val sodGreekRepo = mockk<SodGreekSnapshotRepository>()
+        val f = TestFixtures(sodGreekSnapshotRepo = sodGreekRepo)
+        coEvery { f.sodBaselineRepo.findByBookIdAndDate(BOOK, any()) } returns sodBaseline()
+        coEvery { f.dailyRiskSnapshotRepo.findByBookIdAndDate(BOOK, TODAY) } returns listOf(
+            sodSnapshot("AAPL", quantity = "100", marketPrice = "100.00", delta = 0.5),
+        )
+        // Repository wired but empty — production state until A-3 Phase 2 lands.
+        coEvery { sodGreekRepo.findByBookIdAndDate(BOOK, TODAY) } returns emptyList()
+        coEvery { f.positionProvider.getPositions(BOOK) } returns listOf(
+            position("AAPL", quantity = "100", avgCost = "90.00", marketPrice = "110.00"),
+        )
+        coEvery { f.pnlRepository.findLatest(BOOK) } returns null
+
+        val snapshot = f.service.recompute(BOOK, PnlTrigger.POSITION_CHANGE, correlationId = null)
+
+        snapshot.shouldNotBeNull()
+        // Falls back to VaR delta of 0.5 → 0.5 * 10 = 5.0 (not the pricing path).
+        snapshot.deltaPnl.toDouble() shouldBe (5.0 plusOrMinus 0.001)
+    }
+
+    test("uses VaR Greeks when SodGreekSnapshotRepository is not wired (null)") {
+        // No sodGreekSnapshotRepo on the fixture → the service constructs with null and
+        // never calls the repo. Same outcome as the empty-rows test above.
+        val f = TestFixtures()
+        coEvery { f.sodBaselineRepo.findByBookIdAndDate(BOOK, any()) } returns sodBaseline()
+        coEvery { f.dailyRiskSnapshotRepo.findByBookIdAndDate(BOOK, TODAY) } returns listOf(
+            sodSnapshot("AAPL", quantity = "100", marketPrice = "100.00", delta = 0.5),
+        )
+        coEvery { f.positionProvider.getPositions(BOOK) } returns listOf(
+            position("AAPL", quantity = "100", avgCost = "90.00", marketPrice = "110.00"),
+        )
+        coEvery { f.pnlRepository.findLatest(BOOK) } returns null
+
+        val snapshot = f.service.recompute(BOOK, PnlTrigger.POSITION_CHANGE, correlationId = null)
+
+        snapshot.shouldNotBeNull()
+        snapshot.deltaPnl.toDouble() shouldBe (5.0 plusOrMinus 0.001)
+    }
+
+    test("per-instrument fallback: pricing Greek for one instrument, VaR Greek for another") {
+        val sodGreekRepo = mockk<SodGreekSnapshotRepository>()
+        val f = TestFixtures(sodGreekSnapshotRepo = sodGreekRepo)
+        coEvery { f.sodBaselineRepo.findByBookIdAndDate(BOOK, any()) } returns sodBaseline()
+        coEvery { f.dailyRiskSnapshotRepo.findByBookIdAndDate(BOOK, TODAY) } returns listOf(
+            sodSnapshot("AAPL", quantity = "100", marketPrice = "100.00", delta = 0.5),
+            sodSnapshot("MSFT", quantity = "50", marketPrice = "200.00", delta = 0.6),
+        )
+        // Only AAPL has a pricing Greek — MSFT must fall back to its VaR delta.
+        coEvery { sodGreekRepo.findByBookIdAndDate(BOOK, TODAY) } returns listOf(
+            pricingGreek("AAPL", delta = 0.95),
+        )
+        coEvery { f.positionProvider.getPositions(BOOK) } returns listOf(
+            position("AAPL", quantity = "100", avgCost = "90.00", marketPrice = "110.00"),
+            position("MSFT", quantity = "50", avgCost = "190.00", marketPrice = "210.00"),
+        )
+        coEvery { f.pnlRepository.findLatest(BOOK) } returns null
+
+        val snapshot = f.service.recompute(BOOK, PnlTrigger.POSITION_CHANGE, correlationId = null)
+
+        snapshot.shouldNotBeNull()
+        // AAPL deltaPnl: pricing 0.95 * priceChange 10 = 9.5
+        // MSFT deltaPnl: VaR     0.60 * priceChange 10 = 6.0
+        // Sum = 15.5
+        snapshot.deltaPnl.toDouble() shouldBe (15.5 plusOrMinus 0.01)
+    }
+
+    test("cross-Greeks (vanna, volga, charm) are pulled from pricing snapshot only — VaR has no concept") {
+        val sodGreekRepo = mockk<SodGreekSnapshotRepository>()
+        val f = TestFixtures(sodGreekSnapshotRepo = sodGreekRepo)
+        coEvery { f.sodBaselineRepo.findByBookIdAndDate(BOOK, any()) } returns sodBaseline()
+        coEvery { f.dailyRiskSnapshotRepo.findByBookIdAndDate(BOOK, TODAY) } returns listOf(
+            sodSnapshot("AAPL", quantity = "100", marketPrice = "100.00", delta = 0.5),
+        )
+        coEvery { sodGreekRepo.findByBookIdAndDate(BOOK, TODAY) } returns listOf(
+            pricingGreek("AAPL", delta = 0.95, vanna = 0.01, volga = 0.02, charm = 0.03),
+        )
+        coEvery { f.positionProvider.getPositions(BOOK) } returns listOf(
+            position("AAPL", quantity = "100", avgCost = "90.00", marketPrice = "110.00"),
+        )
+        coEvery { f.pnlRepository.findLatest(BOOK) } returns null
+
+        val snapshot = f.service.recompute(BOOK, PnlTrigger.POSITION_CHANGE, correlationId = null)
+
+        snapshot.shouldNotBeNull()
+        // Cross-Greeks contribute non-zero attribution components proving the pricing Greeks
+        // were threaded all the way through buildAttributionInputs into the attribution service.
+        // Without the pricing path, all three would be zero (VaR has no vanna/volga/charm).
+        val anyCrossGreekFired = listOf(
+            snapshot.vannaPnl, snapshot.volgaPnl, snapshot.charmPnl,
+        ).any { it.signum() != 0 }
+        anyCrossGreekFired shouldBe true
     }
 })

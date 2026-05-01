@@ -539,6 +539,7 @@ fun Application.moduleWithRoutes() {
         volatilityServiceClient = effectiveVolatilityServiceClient,
         ratesServiceClient = effectiveRatesServiceClient,
         fxRateProvider = fxRateProvider,
+        sodGreekSnapshotRepository = sodGreekSnapshotRepository,
     )
 
     val stressTestStub = StressTestServiceGrpcKt.StressTestServiceCoroutineStub(channel)
