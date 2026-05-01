@@ -190,8 +190,9 @@ class CounterpartyRiskOrchestrationService(
         // We floor at zero — collateral cannot flip exposure to a receivable.
         val netNetExposure = (totalNetExposure - collateralHeld + collateralPosted).coerceAtLeast(0.0)
 
-        // Wrong-way risk: financial-sector counterparties create wrong-way risk correlation.
-        val wrongWayRiskFlags = computeWrongWayRiskFlags(counterparty)
+        // Wrong-way risk: fires only when the counterparty's WWR sector group matches a
+        // position's WWR sector group (per WrongWayRiskSectorMatch in counterparty-risk.allium).
+        val wrongWayRiskFlags = computeWrongWayRiskFlags(counterparty, positions)
 
         val snapshot = CounterpartyExposureSnapshot(
             counterpartyId = counterpartyId,
@@ -212,20 +213,44 @@ class CounterpartyRiskOrchestrationService(
     }
 
     /**
-     * Wrong-way risk arises when the counterparty's credit quality deteriorates at the same time
-     * as our exposure to them increases.  Financial-sector counterparties are the primary vector:
-     * they tend to be stressed precisely when financial markets are dislocated and our exposures peak.
+     * Wrong-way risk arises when the counterparty's credit quality deteriorates at the same
+     * time as our exposure to them increases. Per Basel CRE54, specific WWR is identified by
+     * a structural correlation between the counterparty's sector and the *position's* sector
+     * (e.g., a financial-sector counterparty holding a financial-sector instrument). A coarse
+     * counterparty-only flag generates false positives across cross-sector positions where
+     * no structural correlation exists.
+     *
+     * The flag fires once per (counterparty group, position group) match where the group is
+     * not [WrongWayRiskSectorGroup.OTHER]. Multiple matching positions in the same group
+     * collapse to a single flag — the per-instrument breakdown is captured upstream in the
+     * netting set exposure detail.
      */
-    private fun computeWrongWayRiskFlags(counterparty: CounterpartyDto): List<String> {
-        val flags = mutableListOf<String>()
-        if (counterparty.isFinancial) {
-            flags.add("FINANCIAL_SECTOR_WRONG_WAY_RISK: counterparty sector correlated with market stress")
+    private fun computeWrongWayRiskFlags(
+        counterparty: CounterpartyDto,
+        positions: List<PFEPositionInput>,
+    ): List<String> {
+        val cpGroup = WrongWayRiskSectorGroup.fromSector(counterparty.sector)
+        if (cpGroup == WrongWayRiskSectorGroup.OTHER) return emptyList()
+
+        val matchingGroups = positions
+            .map { WrongWayRiskSectorGroup.fromSector(it.sector) }
+            .filter { it == cpGroup }
+            .toSet()
+
+        return matchingGroups.map { group ->
+            when (group) {
+                WrongWayRiskSectorGroup.FINANCIALS ->
+                    "FINANCIAL_SECTOR_WRONG_WAY_RISK: counterparty and position both in financial sector"
+                WrongWayRiskSectorGroup.SOVEREIGN ->
+                    "SOVEREIGN_WRONG_WAY_RISK: counterparty and position both in sovereign sector"
+                WrongWayRiskSectorGroup.ENERGY_UTILITIES ->
+                    "ENERGY_UTILITIES_WRONG_WAY_RISK: counterparty and position both in energy/utilities sector"
+                WrongWayRiskSectorGroup.REAL_ESTATE ->
+                    "REAL_ESTATE_WRONG_WAY_RISK: counterparty and position both in real-estate sector"
+                WrongWayRiskSectorGroup.OTHER ->
+                    error("Unreachable: OTHER groups are filtered out above")
+            }
         }
-        val sector = counterparty.sector.uppercase()
-        if (sector in setOf("SOVEREIGN", "GOVERNMENT")) {
-            flags.add("SOVEREIGN_WRONG_WAY_RISK: sovereign counterparty exposure may spike during crises")
-        }
-        return flags
     }
 
     /**

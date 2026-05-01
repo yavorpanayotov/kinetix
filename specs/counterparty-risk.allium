@@ -348,17 +348,34 @@ rule DetectWrongWayRisk {
     let trades = trades_for_counterparty(counterparty_id, book_id)
 
     @guidance
-        -- Heuristic check per trade:
-        --   If counterparty.sector matches the instrument's sector
-        --   (e.g., counterparty is a bank AND position is in financial sector equity),
-        --   flag as potential wrong-way risk.
+        -- Per Basel CRE54, specific WWR is identified by a structural
+        -- correlation between the counterparty's sector and the position's
+        -- sector. The flag fires only when both sides resolve to the same
+        -- WWR sector group, and the group is not OTHER (a coarse
+        -- counterparty-only flag generates systematic false positives on
+        -- cross-sector positions where no structural correlation exists).
+        --
+        -- Sector-string -> WWR group taxonomy (case-insensitive,
+        -- whitespace-tolerant; mirrored by WrongWayRiskSectorGroup in
+        -- risk-orchestrator):
+        --   FINANCIALS       <- BANK, BROKER_DEALER, INSURANCE,
+        --                       ASSET_MANAGER, FINANCIAL, FINANCIALS
+        --   SOVEREIGN        <- SOVEREIGN, GOVERNMENT, SUPRANATIONAL,
+        --                       CENTRAL_BANK
+        --   ENERGY_UTILITIES <- ENERGY, OIL, OIL_GAS, GAS, UTILITIES
+        --   REAL_ESTATE      <- REAL_ESTATE, REIT, PROPERTY
+        --   OTHER            <- everything else (no flag fires)
+        --
+        -- Multiple matching positions in the same group collapse to a
+        -- single flag at the snapshot level; per-instrument detail lives
+        -- in the netting set exposure breakdown.
         --
         -- More rigorous (v2):
         --   Correlate counterparty CDS spread changes with position P&L
         --   over 90-day lookback. If correlation > 0.3, flag.
         --
-        -- The flag includes: which instrument, which sectors matched,
-        --   and the exposure amount in that position.
+        -- Implementation: risk-orchestrator/.../service/
+        -- CounterpartyRiskOrchestrationService.kt::computeWrongWayRiskFlags.
 }
 
 -- Collateral management

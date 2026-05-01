@@ -517,7 +517,76 @@ class CounterpartyRiskOrchestrationServiceTest : FunSpec({
             result.cvaEstimated shouldBe false
         }
 
-        test("wrong-way risk flag is set for financial-sector counterparties") {
+        test("wrong-way risk flag fires when counterparty and position sectors both map to FINANCIALS") {
+            coEvery { referenceDataClient.getCounterparty("CP-GS") } returns ClientResponse.Success(
+                COUNTERPARTY.copy(isFinancial = true)
+            )
+            coEvery { referenceDataClient.getNettingAgreements("CP-GS") } returns ClientResponse.Success(listOf(NETTING_AGREEMENT))
+            coEvery {
+                counterpartyRiskClient.calculatePFE(any(), any(), any(), any(), any(), any())
+            } returns pfeResult()
+            coEvery {
+                counterpartyRiskClient.calculateCVA(any(), any(), any(), any(), any(), any(), any(), any())
+            } returns cvaResult()
+            coEvery { repository.save(any()) } answers { args[0] as CounterpartyExposureSnapshot }
+
+            val financialPosition = PFEPositionInput("GS-BOND", 2_000_000.0, "FIXED_INCOME", 0.05, "FINANCIALS")
+
+            val result = service.computeAndPersistPFE("CP-GS", listOf(financialPosition))
+
+            result.wrongWayRiskFlags shouldNotBe null
+            result.wrongWayRiskFlags!!.any { it.contains("FINANCIAL", ignoreCase = true) } shouldBe true
+        }
+
+        test("wrong-way risk flag does NOT fire when financial counterparty holds only cross-sector positions") {
+            // Financial counterparty (Goldman Sachs) holding only utility-sector equity should
+            // not trigger a financial-WWR flag — there is no structural correlation between
+            // the bank's credit quality and the utility company's MtM trajectory.
+            coEvery { referenceDataClient.getCounterparty("CP-GS") } returns ClientResponse.Success(
+                COUNTERPARTY.copy(isFinancial = true)
+            )
+            coEvery { referenceDataClient.getNettingAgreements("CP-GS") } returns ClientResponse.Success(listOf(NETTING_AGREEMENT))
+            coEvery {
+                counterpartyRiskClient.calculatePFE(any(), any(), any(), any(), any(), any())
+            } returns pfeResult()
+            coEvery {
+                counterpartyRiskClient.calculateCVA(any(), any(), any(), any(), any(), any(), any(), any())
+            } returns cvaResult()
+            coEvery { repository.save(any()) } answers { args[0] as CounterpartyExposureSnapshot }
+
+            val utilityPosition = PFEPositionInput("DUK", 1_000_000.0, "EQUITY", 0.20, "UTILITIES")
+
+            val result = service.computeAndPersistPFE("CP-GS", listOf(utilityPosition))
+
+            result.wrongWayRiskFlags shouldNotBe null
+            result.wrongWayRiskFlags!!.isEmpty() shouldBe true
+        }
+
+        test("wrong-way risk flag fires when counterparty and position both map to SOVEREIGN") {
+            coEvery { referenceDataClient.getCounterparty("CP-GR") } returns ClientResponse.Success(
+                COUNTERPARTY.copy(counterpartyId = "CP-GR", legalName = "Greek Treasury", isFinancial = false, sector = "SOVEREIGN")
+            )
+            coEvery { referenceDataClient.getNettingAgreements("CP-GR") } returns ClientResponse.Success(listOf(NETTING_AGREEMENT.copy(counterpartyId = "CP-GR")))
+            coEvery {
+                counterpartyRiskClient.calculatePFE(any(), any(), any(), any(), any(), any())
+            } returns pfeResult()
+            coEvery {
+                counterpartyRiskClient.calculateCVA(any(), any(), any(), any(), any(), any(), any(), any())
+            } returns cvaResult()
+            coEvery { repository.save(any()) } answers { args[0] as CounterpartyExposureSnapshot }
+
+            val sovereignBond = PFEPositionInput("GGB-10Y", 5_000_000.0, "FIXED_INCOME", 0.10, "GOVERNMENT")
+
+            val result = service.computeAndPersistPFE("CP-GR", listOf(sovereignBond))
+
+            result.wrongWayRiskFlags shouldNotBe null
+            result.wrongWayRiskFlags!!.any { it.contains("SOVEREIGN", ignoreCase = true) } shouldBe true
+        }
+
+        test("wrong-way risk flag does NOT fire on empty positions even for in-scope counterparty sectors") {
+            // Strict sector-match policy: with no positions, there is nothing to match against,
+            // so no specific WWR is identifiable. Replaces the legacy behaviour of firing on
+            // counterparty sector alone.
             coEvery { referenceDataClient.getCounterparty("CP-GS") } returns ClientResponse.Success(
                 COUNTERPARTY.copy(isFinancial = true)
             )
@@ -533,10 +602,10 @@ class CounterpartyRiskOrchestrationServiceTest : FunSpec({
             val result = service.computeAndPersistPFE("CP-GS", emptyList())
 
             result.wrongWayRiskFlags shouldNotBe null
-            result.wrongWayRiskFlags!!.any { it.contains("FINANCIAL", ignoreCase = true) } shouldBe true
+            result.wrongWayRiskFlags!!.isEmpty() shouldBe true
         }
 
-        test("wrong-way risk flags are empty for non-financial counterparties") {
+        test("wrong-way risk flags are empty for non-financial counterparties with cross-sector positions") {
             coEvery { referenceDataClient.getCounterparty("CP-GS") } returns ClientResponse.Success(
                 COUNTERPARTY.copy(isFinancial = false, sector = "TECHNOLOGY")
             )
@@ -549,10 +618,40 @@ class CounterpartyRiskOrchestrationServiceTest : FunSpec({
             } returns cvaResult()
             coEvery { repository.save(any()) } answers { args[0] as CounterpartyExposureSnapshot }
 
-            val result = service.computeAndPersistPFE("CP-GS", emptyList())
+            val techPosition = PFEPositionInput("AAPL", 1_000_000.0, "EQUITY", 0.25, "TECHNOLOGY")
 
+            val result = service.computeAndPersistPFE("CP-GS", listOf(techPosition))
+
+            // Counterparty group = OTHER (TECHNOLOGY does not map to a WWR-relevant sector)
+            // so the flag list must be empty regardless of the position's group.
             result.wrongWayRiskFlags shouldNotBe null
             result.wrongWayRiskFlags!!.isEmpty() shouldBe true
+        }
+
+        test("wrong-way risk flag deduplicates across multiple matching positions in the same group") {
+            coEvery { referenceDataClient.getCounterparty("CP-GS") } returns ClientResponse.Success(
+                COUNTERPARTY.copy(isFinancial = true)
+            )
+            coEvery { referenceDataClient.getNettingAgreements("CP-GS") } returns ClientResponse.Success(listOf(NETTING_AGREEMENT))
+            coEvery {
+                counterpartyRiskClient.calculatePFE(any(), any(), any(), any(), any(), any())
+            } returns pfeResult()
+            coEvery {
+                counterpartyRiskClient.calculateCVA(any(), any(), any(), any(), any(), any(), any(), any())
+            } returns cvaResult()
+            coEvery { repository.save(any()) } answers { args[0] as CounterpartyExposureSnapshot }
+
+            val financialPositions = listOf(
+                PFEPositionInput("GS-BOND", 2_000_000.0, "FIXED_INCOME", 0.05, "FINANCIALS"),
+                PFEPositionInput("JPM", 1_000_000.0, "EQUITY", 0.20, "BANKS"),
+                PFEPositionInput("MS-BOND", 500_000.0, "FIXED_INCOME", 0.05, "BROKER_DEALER"),
+            )
+
+            val result = service.computeAndPersistPFE("CP-GS", financialPositions)
+
+            // Three FINANCIALS-group positions must yield exactly one flag (collapsed).
+            result.wrongWayRiskFlags shouldNotBe null
+            result.wrongWayRiskFlags!!.count { it.contains("FINANCIAL", ignoreCase = true) } shouldBe 1
         }
 
         test("netting set exposures contains one entry per netting agreement") {
