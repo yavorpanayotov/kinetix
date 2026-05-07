@@ -2,6 +2,7 @@ package com.kinetix.position.fix
 
 import com.kinetix.common.execution.CancelReason
 import com.kinetix.common.execution.OrderCancelEmitter
+import com.kinetix.common.execution.VenueOpenChecker
 import com.kinetix.common.model.Side
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -10,9 +11,37 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import java.math.BigDecimal
 import java.time.Clock
+import java.time.DayOfWeek
 import java.time.Instant
+import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZoneOffset
+import java.time.ZonedDateTime
+
+/**
+ * Test fixture: minimal in-process VenueOpenChecker that captures the policy
+ * the sweeper used to read directly off VenueCutoffRegistry. Limited to the
+ * launch venues (NYSE, NASDAQ, LSE, TSE, HKEX); production routes through
+ * GrpcVenueOpenChecker against fix-gateway's IsVenueOpen RPC.
+ */
+private class ClockBackedVenueOpenChecker : VenueOpenChecker {
+    private val zones: Map<String, Pair<ZoneId, Pair<LocalTime, LocalTime>>> = mapOf(
+        "NYSE"   to (ZoneId.of("America/New_York") to (LocalTime.of(9, 30) to LocalTime.of(16, 0))),
+        "NASDAQ" to (ZoneId.of("America/New_York") to (LocalTime.of(9, 30) to LocalTime.of(16, 0))),
+        "LSE"    to (ZoneId.of("Europe/London")    to (LocalTime.of(8, 0)  to LocalTime.of(16, 30))),
+        "TSE"    to (ZoneId.of("Asia/Tokyo")       to (LocalTime.of(9, 0)  to LocalTime.of(15, 0))),
+        "HKEX"   to (ZoneId.of("Asia/Hong_Kong")   to (LocalTime.of(9, 30) to LocalTime.of(16, 0))),
+    )
+
+    override fun isOpen(venue: String, at: Instant): Boolean {
+        val entry = zones[venue.uppercase()] ?: zones["NYSE"]!!
+        val (zone, window) = entry
+        val zdt: ZonedDateTime = ZonedDateTime.ofInstant(at, zone)
+        if (zdt.dayOfWeek == DayOfWeek.SATURDAY || zdt.dayOfWeek == DayOfWeek.SUNDAY) return false
+        val tod = zdt.toLocalTime()
+        return !tod.isBefore(window.first) && tod.isBefore(window.second)
+    }
+}
 
 class ScheduledOrderExpirySweeperTest : FunSpec({
 
@@ -56,7 +85,7 @@ class ScheduledOrderExpirySweeperTest : FunSpec({
         val emitter = mockk<OrderCancelEmitter>(relaxed = true)
         val sweeper = ScheduledOrderExpirySweeper(
             orderRepository = orderRepo,
-            venueCutoffRegistry = VenueCutoffRegistry(),
+            venueOpenChecker = ClockBackedVenueOpenChecker(),
             cancelEmitter = emitter,
             clock = pastNyseCutoff,
         )
@@ -84,7 +113,7 @@ class ScheduledOrderExpirySweeperTest : FunSpec({
         val emitter = mockk<OrderCancelEmitter>(relaxed = true)
         val sweeper = ScheduledOrderExpirySweeper(
             orderRepository = orderRepo,
-            venueCutoffRegistry = VenueCutoffRegistry(),
+            venueOpenChecker = ClockBackedVenueOpenChecker(),
             cancelEmitter = emitter,
             clock = duringNyseSession,
         )
@@ -105,7 +134,7 @@ class ScheduledOrderExpirySweeperTest : FunSpec({
         val emitter = mockk<OrderCancelEmitter>(relaxed = true)
         val sweeper = ScheduledOrderExpirySweeper(
             orderRepository = orderRepo,
-            venueCutoffRegistry = VenueCutoffRegistry(),
+            venueOpenChecker = ClockBackedVenueOpenChecker(),
             cancelEmitter = emitter,
             clock = Clock.fixed(now, ZoneOffset.UTC),
         )
@@ -137,7 +166,7 @@ class ScheduledOrderExpirySweeperTest : FunSpec({
         val emitter = mockk<OrderCancelEmitter>(relaxed = true)
         val sweeper = ScheduledOrderExpirySweeper(
             orderRepository = orderRepo,
-            venueCutoffRegistry = VenueCutoffRegistry(),
+            venueOpenChecker = ClockBackedVenueOpenChecker(),
             cancelEmitter = emitter,
             clock = Clock.fixed(now, ZoneOffset.UTC),
         )
@@ -157,7 +186,7 @@ class ScheduledOrderExpirySweeperTest : FunSpec({
         val emitter = mockk<OrderCancelEmitter>()
         val sweeper = ScheduledOrderExpirySweeper(
             orderRepository = orderRepo,
-            venueCutoffRegistry = VenueCutoffRegistry(),
+            venueOpenChecker = ClockBackedVenueOpenChecker(),
             cancelEmitter = emitter,
             clock = pastNyseCutoff,
         )
@@ -177,7 +206,7 @@ class ScheduledOrderExpirySweeperTest : FunSpec({
         val emitter = mockk<OrderCancelEmitter>(relaxed = true)
         val sweeper = ScheduledOrderExpirySweeper(
             orderRepository = orderRepo,
-            venueCutoffRegistry = VenueCutoffRegistry(),
+            venueOpenChecker = ClockBackedVenueOpenChecker(),
             cancelEmitter = emitter,
             clock = Clock.fixed(now, ZoneOffset.UTC),
         )
@@ -201,7 +230,7 @@ class ScheduledOrderExpirySweeperTest : FunSpec({
         val emitter = mockk<OrderCancelEmitter>()
         val sweeper = ScheduledOrderExpirySweeper(
             orderRepository = orderRepo,
-            venueCutoffRegistry = VenueCutoffRegistry(),
+            venueOpenChecker = ClockBackedVenueOpenChecker(),
             cancelEmitter = emitter,
             clock = pastNyseCutoff,
         )
@@ -218,7 +247,7 @@ class ScheduledOrderExpirySweeperTest : FunSpec({
         val emitter = mockk<OrderCancelEmitter>(relaxed = true)
         val sweeper = ScheduledOrderExpirySweeper(
             orderRepository = orderRepo,
-            venueCutoffRegistry = VenueCutoffRegistry(),
+            venueOpenChecker = ClockBackedVenueOpenChecker(),
             cancelEmitter = emitter,
             // Resolve every order to LSE for this test.
             venueResolver = { _ -> "LSE" },

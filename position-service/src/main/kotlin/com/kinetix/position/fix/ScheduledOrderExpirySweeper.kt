@@ -5,6 +5,7 @@ package com.kinetix.position.fix
 
 import com.kinetix.common.execution.CancelReason
 import com.kinetix.common.execution.OrderCancelEmitter
+import com.kinetix.common.execution.VenueOpenChecker
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import org.slf4j.LoggerFactory
@@ -31,9 +32,11 @@ import kotlin.coroutines.coroutineContext
  * tracked under ADR-0035.
  *
  * @param orderRepository    Source of candidate orders + status-transition target.
- * @param venueCutoffRegistry Resolves whether the venue session has closed.
- * @param cancelEmitter      Emits the venue cancel (FIX 35=F via fix-gateway when it
- *                           lands; [LoggingOrderCancelEmitter] until then).
+ * @param venueOpenChecker   Resolves whether the venue session is open (per ADR-0035
+ *                           phase 2 the canonical source is fix-gateway via the
+ *                           `IsVenueOpen` gRPC RPC; the in-process registry no
+ *                           longer lives in position-service).
+ * @param cancelEmitter      Emits the venue cancel (FIX 35=F via fix-gateway).
  * @param venueResolver      Maps an order to its venue. Defaults to NYSE for orders
  *                           without an explicit venue (matches existing routing).
  * @param intervalMillis     How often the sweeper runs (60s default).
@@ -41,7 +44,7 @@ import kotlin.coroutines.coroutineContext
  */
 class ScheduledOrderExpirySweeper(
     private val orderRepository: ExecutionOrderRepository,
-    private val venueCutoffRegistry: VenueCutoffRegistry,
+    private val venueOpenChecker: VenueOpenChecker,
     private val cancelEmitter: OrderCancelEmitter,
     private val venueResolver: (Order) -> String = { "NYSE" },
     private val intervalMillis: Long = 60_000L,
@@ -104,7 +107,7 @@ class ScheduledOrderExpirySweeper(
     }
 
     private fun expiryReasonFor(order: Order, now: Instant): CancelReason? = when (order.timeInForce) {
-        TimeInForce.DAY -> if (venueCutoffRegistry.isSessionClosed(venueResolver(order), now))
+        TimeInForce.DAY -> if (!venueOpenChecker.isOpen(venueResolver(order), now))
             CancelReason.DAY_ORDER_EXPIRY else null
         TimeInForce.GTD -> {
             val expiresAt = order.expiresAt

@@ -13,7 +13,7 @@ import java.time.Instant
  * back to "always open" + emits `venue_cutoff_check_failed_total{venue}`, matching the
  * existing degraded-routing failure mode.
  */
-interface VenueOpenChecker {
+fun interface VenueOpenChecker {
     /** True when [venue] is open at instant [at]. */
     fun isOpen(venue: String, at: Instant): Boolean
 }

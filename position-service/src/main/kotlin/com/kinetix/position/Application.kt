@@ -206,11 +206,39 @@ fun Application.moduleWithRoutes() {
     val reconciliationRepository = ExposedReconciliationRepository(db)
     val reconciliationJob = PositionReconciliationJob(reconciliationRepository)
 
-    // Day/GTD-order expiry sweeper (audit A-13, ADR-0035). The cancel emitter is the
-    // logging stub until fix-gateway phase 2 lands; the state-side EXPIRED transition
-    // is the spec-mandated behaviour and works today.
-    val orderCancelEmitter = com.kinetix.position.fix.LoggingOrderCancelEmitter()
-    val venueCutoffRegistry = com.kinetix.position.fix.VenueCutoffRegistry()
+    // Day/GTD-order expiry sweeper (audit A-13, ADR-0035). The default path
+    // routes the cancel through fix-gateway via gRPC (phase 2 commit 3); set
+    // FIX_GATEWAY_ENABLED=false to fall back to the in-process logging stub
+    // for local-dev / CI without a running fix-gateway.
+    val fixGatewayEnabled = System.getenv("FIX_GATEWAY_ENABLED")?.toBooleanStrictOrNull() ?: true
+    val fixGatewayChannel: io.grpc.ManagedChannel? = if (fixGatewayEnabled) {
+        val target = System.getenv("FIX_GATEWAY_TARGET") ?: "fix-gateway:9105"
+        io.grpc.ManagedChannelBuilder.forTarget(target).usePlaintext().build()
+    } else null
+
+    val orderCancelEmitter: com.kinetix.common.execution.OrderCancelEmitter = if (fixGatewayChannel != null) {
+        com.kinetix.position.fix.GrpcOrderCancelEmitter(
+            channel = fixGatewayChannel,
+            cancelAttemptRecorder = { orderId, venue, status, attemptedAt, detail ->
+                log.info("cancel_attempt orderId={} venue={} status={} attemptedAt={} detail={}",
+                    orderId, venue, status, attemptedAt, detail)
+            },
+        )
+    } else {
+        com.kinetix.position.fix.LoggingOrderCancelEmitter()
+    }
+    val venueOpenChecker: com.kinetix.common.execution.VenueOpenChecker = if (fixGatewayChannel != null) {
+        com.kinetix.position.fix.GrpcVenueOpenChecker(
+            channel = fixGatewayChannel,
+            onRpcFailure = { venue, error ->
+                log.warn("IsVenueOpen RPC failed venue={} error={}", venue, error.message)
+            },
+        )
+    } else {
+        // Local-dev fallback: assume venues are always open. Sweeper still
+        // performs state transitions on GTD; DAY orders are never expired.
+        com.kinetix.common.execution.VenueOpenChecker { _, _ -> true }
+    }
 
     val executionCostRepository = ExposedExecutionCostRepository(db)
     val primeBrokerReconciliationRepository = ExposedPrimeBrokerReconciliationRepository(db)
@@ -369,7 +397,7 @@ fun Application.moduleWithRoutes() {
 
     val orderExpirySweeper = com.kinetix.position.fix.ScheduledOrderExpirySweeper(
         orderRepository = executionOrderRepository,
-        venueCutoffRegistry = venueCutoffRegistry,
+        venueOpenChecker = venueOpenChecker,
         cancelEmitter = orderCancelEmitter,
     )
     launch {
