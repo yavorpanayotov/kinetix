@@ -7,6 +7,7 @@ import { Card, EmptyState } from './ui'
 import type { TradeHistoryDto } from '../types'
 import { InstrumentTypeBadge } from './InstrumentTypeBadge'
 import { INSTRUMENT_TYPE_OPTIONS, formatInstrumentTypeLabel } from '../utils/instrumentTypes'
+import { VenueRoutingStatusDot } from './VenueRoutingStatusDot'
 
 interface TradeBlotterProps {
   bookId: string | null
@@ -155,6 +156,13 @@ export function TradeBlotter({ bookId }: TradeBlotterProps) {
   return (
     <div>
       <div className="flex items-center gap-3 mb-4">
+        <span
+          data-testid="venue-routing-status"
+          className="inline-flex items-center gap-1.5 text-xs text-slate-500"
+        >
+          <span>Venue routing</span>
+          <VenueRoutingStatusDot />
+        </span>
         <input
           data-testid="filter-instrument"
           type="text"
