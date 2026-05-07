@@ -162,6 +162,19 @@ class DevDataSeederTest : FunSpec({
         // No interaction expected with any liquidity repo
     }
 
+    test("seeds every instrument that the position-service DevDataSeeder books trades against") {
+        // Without these, the gateway's PositionResponse / TradeResponse enrichment has no
+        // fallback when a position's stored instrument_type is null (legacy data, FIX flow,
+        // V12 backfill), so the UI shows "—" for the Type column.
+        val expectedIds = setOf(
+            "AUDUSD", "CL-P-70-DEC26", "EUR-ESTR-5Y", "EURGBP", "EURUSD-6M",
+            "GS-BOND-2029", "HG", "MSFT-BOND-2032", "NDX-SEP26", "NG", "NZDUSD",
+            "RTY-SEP26", "USD-SOFR-10Y", "USDCAD", "USDCHF", "USDJPY-3M",
+            "USDJPY-C-155-SEP26", "ZC",
+        )
+        (DevDataSeeder.INSTRUMENT_IDS.containsAll(expectedIds)) shouldBe true
+    }
+
     test("AAPL liquidity has HIGH_LIQUID tier ADV well above 10 million") {
         val liquidityRepository = mockk<InstrumentLiquidityRepository>()
         val seederWithLiquidity = DevDataSeeder(
