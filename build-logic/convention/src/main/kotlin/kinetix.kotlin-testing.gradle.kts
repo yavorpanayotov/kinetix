@@ -21,6 +21,7 @@ tasks.named<Test>("test") {
         excludeTestsMatching("*IntegrationTest")
         excludeTestsMatching("*AcceptanceTest")
         excludeTestsMatching("*End2EndTest")
+        excludeTestsMatching("*LoadTest")
     }
 }
 
@@ -58,4 +59,18 @@ val end2EndTest by tasks.registering(Test::class) {
         includeTestsMatching("*End2EndTest")
         isFailOnNoMatchingTests = false
     }
+}
+
+val loadTest by tasks.registering(Test::class) {
+    description = "Runs load / soak tests (e.g. fix-gateway throughput, ADR-0035 §3.13)."
+    group = "verification"
+    testClassesDirs = testSourceSets["test"].output.classesDirs
+    classpath = testSourceSets["test"].runtimeClasspath
+    filter {
+        includeTestsMatching("*LoadTest")
+        isFailOnNoMatchingTests = false
+    }
+    // Load tests dominate wall time and need their own forked JVM heap budget.
+    maxHeapSize = "2g"
+    timeout.set(java.time.Duration.ofMinutes(20))
 }

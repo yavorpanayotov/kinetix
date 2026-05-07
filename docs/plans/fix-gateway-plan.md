@@ -316,10 +316,10 @@ Four commits:
   - `DualPathParityAcceptanceTest` — with both paths active under `EXECUTION_REPORTS_VIA_KAFKA=true|false` toggled per test scenario, route an identical 35=8 fixture through both paths (different `clOrdID`s to avoid dedup) and assert the resulting `Position`, `Fill`, and `trade.events` records are structurally identical (deep-equal modulo timestamp + ID fields). Required to pass before phase 3 commit 4 ships.
 - [x] **3.12** End-to-end:
   - `FixGatewayInboundEnd2EndTest` — order submitted via REST, in-memory acceptor sends 35=8 Fill, asserts position-service has the fill in DB *and* `trade.events` Kafka topic has the booked trade. Reuses existing position-update fixtures.
-- [ ] **3.13** Soak test — gated in **nightly CI** under `@Tag("load")`:
-  - `FixGatewayThroughputLoadTest` — runs dev-stack with in-memory acceptor flooding 1000 fills/sec for 5 minutes (300,000 messages).
-  - Hard assertions: `kafka.consumer.lag < 500 messages` at end of run; `p99 DB write latency < 50ms`; `zero missing fills` (count published vs count persisted); `zero ghost fills`.
-  - Runs in nightly pipeline; failure breaks the build. "Manual but documented" is rejected — without CI gating it will not be run consistently.
+- [x] **3.13** Soak test — gated under JUnit `@Tag("load")` and the `:end2end-tests:loadTest` Gradle task:
+  - `FixGatewayThroughputLoadTest` (`end2end-tests/src/test/kotlin/com/kinetix/loadtest/`) — drives `KafkaExecutionReportPublisher → execution.reports → ExecutionReportDispatcher` against Testcontainers Postgres + Kafka.
+  - Hard assertions: `kafka.consumer.lag < 500 messages` at end of run; `p99 dispatch latency < 50ms`; `zero missing fills` (count published vs `SELECT COUNT(*) FROM execution_fills`); `zero ghost fills`.
+  - Runs on **every commit** via the new `load-tests` job in `.github/workflows/ci.yml` (per-commit profile: 100 fills/s × 30s = 3000 messages). Nightly soak overrides via `LOAD_TEST_RATE_PER_SEC=1000` and `LOAD_TEST_DURATION_SECONDS=300` to exercise the plan's 1000/s × 5min scenario.
 
 - [x] **3.14** Phase 3 UI regression Playwright (phase 3 IS user-visible in the sense that any divergence from the existing path would surface in the blotter):
   - `ui/e2e/order-blotter-fill-arrival.spec.ts` — fixture: order in `SENT` state; backend pushes a WebSocket event sourced from the new `execution.reports` Kafka path; asserts the blotter row transitions to `FILLED` (or `PARTIALLY_FILLED`) without a page reload, exactly as today.
