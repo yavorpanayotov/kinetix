@@ -34,6 +34,7 @@ class ExposedExecutionOrderRepository(private val db: Database? = null) : Execut
             it[currency] = order.currency.currencyCode
             it[timeInForce] = order.timeInForce.name
             it[expiresAt] = order.expiresAt?.atOffset(ZoneOffset.UTC)
+            it[instrumentType] = order.instrumentType
             it[createdAt] = OffsetDateTime.now(ZoneOffset.UTC)
             it[updatedAt] = OffsetDateTime.now(ZoneOffset.UTC)
         }
@@ -114,5 +115,6 @@ class ExposedExecutionOrderRepository(private val db: Database? = null) : Execut
         currency = runCatching { Currency.getInstance(this[ExecutionOrdersTable.currency]) }.getOrDefault(Currency.getInstance("USD")),
         timeInForce = runCatching { TimeInForce.valueOf(this[ExecutionOrdersTable.timeInForce]) }.getOrDefault(TimeInForce.GTC),
         expiresAt = this[ExecutionOrdersTable.expiresAt]?.toInstant(),
+        instrumentType = this[ExecutionOrdersTable.instrumentType],
     )
 }

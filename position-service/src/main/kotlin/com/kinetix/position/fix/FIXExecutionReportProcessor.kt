@@ -167,6 +167,7 @@ class FIXExecutionReportProcessor(
             quantity = event.lastQty,
             price = Money(event.lastPrice, order.currency),
             tradedAt = fill.fillTime,
+            instrumentType = order.instrumentType,
             correlationId = order.orderId,
         )
         tradeBookingService.handle(tradeCommand)

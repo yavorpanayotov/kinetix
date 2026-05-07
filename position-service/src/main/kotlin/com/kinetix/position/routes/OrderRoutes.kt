@@ -89,6 +89,7 @@ fun Route.orderRoutes(
                 arrivalPriceTimestamp = arrivalPriceTimestamp,
                 timeInForce = timeInForce,
                 expiresAt = expiresAt,
+                instrumentType = request.instrumentType,
             )
 
             call.respond(HttpStatusCode.Created, order.toResponse())

@@ -62,6 +62,7 @@ class OrderSubmissionService(
         timeInForce: TimeInForce = TimeInForce.DAY,
         expiresAt: Instant? = null,
         maxGtdHorizonDays: Long = 90,
+        instrumentType: String? = null,
     ): Order {
         require(quantity > BigDecimal.ZERO) { "Quantity must be positive" }
 
@@ -110,6 +111,7 @@ class OrderSubmissionService(
             currency = resolvedCurrency,
             timeInForce = timeInForce,
             expiresAt = expiresAt,
+            instrumentType = instrumentType,
         )
         orderRepository.save(order)
         logger.info(
@@ -126,6 +128,7 @@ class OrderSubmissionService(
             quantity = quantity,
             price = Money(arrivalPrice, resolvedCurrency),
             tradedAt = order.submittedAt,
+            instrumentType = instrumentType,
         )
 
         val checkResult = try {

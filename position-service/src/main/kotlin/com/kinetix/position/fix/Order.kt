@@ -30,6 +30,7 @@ data class Order(
      * venue's max-GTD horizon — see ADR-0035).
      */
     val expiresAt: Instant? = null,
+    val instrumentType: String? = null,
     val fills: List<ExecutionFill> = emptyList(),
 ) {
     init {

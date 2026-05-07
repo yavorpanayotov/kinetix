@@ -21,6 +21,7 @@ object ExecutionOrdersTable : Table("execution_orders") {
     val currency = varchar("currency", 10)
     val timeInForce = varchar("time_in_force", 10)
     val expiresAt = timestampWithTimeZone("expires_at").nullable()
+    val instrumentType = varchar("instrument_type", 50).nullable()
     val createdAt = timestampWithTimeZone("created_at")
     val updatedAt = timestampWithTimeZone("updated_at")
 

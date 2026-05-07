@@ -33,4 +33,10 @@ data class SubmitOrderRequest(
      * max-GTD horizon (typically 90 days) caps how far ahead this can be.
      */
     val expiresAt: String? = null,
+    /**
+     * Optional instrument-type code (e.g. CASH_EQUITY, EQUITY_OPTION). When supplied,
+     * it is persisted on the order and propagated to the trade booked from each fill,
+     * so positions and trade history carry a non-null Type.
+     */
+    val instrumentType: String? = null,
 )

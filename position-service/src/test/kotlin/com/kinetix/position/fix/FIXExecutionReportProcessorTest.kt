@@ -19,6 +19,7 @@ private fun makeOrder(
     status: OrderStatus = OrderStatus.SENT,
     assetClass: AssetClass = AssetClass.EQUITY,
     currency: Currency = Currency.getInstance("USD"),
+    instrumentType: String? = "CASH_EQUITY",
 ) = Order(
     orderId = orderId,
     bookId = "book-1",
@@ -35,6 +36,7 @@ private fun makeOrder(
     fixSessionId = "FIX-01",
     assetClass = assetClass,
     currency = currency,
+    instrumentType = instrumentType,
 )
 
 private fun fillEvent(
@@ -205,6 +207,26 @@ class FIXExecutionReportProcessorTest : FunSpec({
 
         coVerify(exactly = 1) { orderRepository.updateQuantityAndPrice("ord-8", BigDecimal("80"), BigDecimal("155.00")) }
         coVerify(exactly = 0) { tradeBookingService.handle(any()) }
+    }
+
+    test("fill books trade with instrumentType from the order, so the position carries a non-null type") {
+        val order = makeOrder(
+            "ord-9-it",
+            assetClass = AssetClass.DERIVATIVE,
+            instrumentType = "EQUITY_OPTION",
+        )
+        coEvery { orderRepository.findById("ord-9-it") } returns order
+        coEvery { fillRepository.existsByFixExecId("exec-it-1") } returns false
+        coEvery { fillRepository.findByOrderId("ord-9-it") } returns emptyList()
+
+        processor.process(fillEvent("ord-9-it", "exec-it-1", "F",
+            lastQty = BigDecimal("100"),
+            cumulativeQty = BigDecimal("100"),
+        ))
+
+        coVerify(exactly = 1) {
+            tradeBookingService.handle(match { it.instrumentType == "EQUITY_OPTION" })
+        }
     }
 
     test("fill books trade with asset class from the order, not hardcoded EQUITY") {
