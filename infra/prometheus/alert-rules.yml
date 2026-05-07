@@ -259,3 +259,60 @@ groups:
         annotations:
           summary: "Vol surface stale for {{ $labels.instrument_id }}"
           description: "Vol surface for {{ $labels.instrument_id }} has not been updated for {{ $value }}s. This is distinct from price staleness — vol surfaces may update on a different cadence."
+
+  # fix-gateway alert rules per ADR-0035 phase 2 plan §Observability.
+  - name: kinetix-fix-gateway
+    rules:
+      - alert: FixSessionDownDuringTradingHours
+        expr: fix_session_state == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "FIX session down for {{ $labels.venue }}"
+          description: "fix_session_state for {{ $labels.venue }} has been 0 for >60s. Cancel emission is best-effort; venue must be contacted directly to reconcile open orders."
+
+      - alert: FixGhostFillDetected
+        expr: increase(ghost_fill_detected_total[5m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Ghost fill detected on terminal-status order at {{ $labels.venue }}"
+          description: "A FIX 35=8 fill was received against an EXPIRED/CANCELLED/REJECTED order (prior_status={{ $labels.prior_status }}). Position has NOT been auto-updated; manual ops resolution required."
+
+      - alert: FixCancelAckLatencyHigh
+        expr: histogram_quantile(0.95, sum by (venue, le) (rate(cancel_ack_latency_seconds_bucket[5m]))) > 5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Cancel ack p95 > 5s for {{ $labels.venue }}"
+          description: "p95 cancel ack latency for {{ $labels.venue }} is {{ $value }}s. Sustained elevation indicates venue connectivity degradation."
+
+      - alert: FixUnacknowledgedOutbound
+        expr: increase(unacknowledged_outbound_total[5m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Unacknowledged outbound FIX message for {{ $labels.venue }}"
+          description: "An outbound 35=D / 35=F message older than 30 minutes has no corresponding inbound 35=8 / 35=9. msg_type={{ $labels.msg_type }}. Drop-copy reconciliation is post-launch; investigate via fix_message_log."
+
+      - alert: FixCorrelatorBackPressure
+        expr: rate(pending_new_correlator_back_pressure_total[5m]) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "PendingNewCorrelator back-pressure firing for {{ $labels.venue }}"
+          description: "Back-pressure semaphore at fix-gateway is rejecting >1 in-flight PlaceOrder per second for {{ $labels.venue }}. Venue is slow or correlator cap (500) is undersized."
+
+      - alert: FixExecReportDivergence
+        expr: increase(execution_report_path_divergence_total[5m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Phase-3 dual-path divergence for {{ $labels.venue }}"
+          description: "execution_report_path_divergence_total incremented during the phase-3 soak. divergence_kind={{ $labels.divergence_kind }} event_type={{ $labels.event_type }}. Required to be 0 for the full one-week window before the in-process processor wiring is removed."

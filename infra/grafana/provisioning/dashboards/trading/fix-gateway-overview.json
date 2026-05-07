@@ -1,0 +1,226 @@
+{
+  "uid": "kinetix-fix-gateway-overview",
+  "title": "FIX Gateway Overview",
+  "tags": ["kinetix", "trading", "fix-gateway", "execution"],
+  "timezone": "browser",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "links": [
+    { "title": "System Health", "type": "link", "url": "/d/kinetix-system-health", "icon": "dashboard" },
+    { "title": "Trade Flow", "type": "link", "url": "/d/kinetix-trade-flow", "icon": "dashboard" },
+    { "title": "Service Logs", "type": "link", "url": "/d/kinetix-service-logs", "icon": "dashboard" }
+  ],
+  "panels": [
+    {
+      "title": "FIX Session State (per venue)",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "fix_session_state",
+          "legendFormat": "{{venue}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          },
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+          ]
+        },
+        "overrides": []
+      }
+    },
+    {
+      "title": "Inbound Messages / sec (by venue + msg_type)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "targets": [
+        {
+          "expr": "sum by (venue, msg_type) (rate(fix_messages_in_total[5m]))",
+          "legendFormat": "{{venue}} / {{msg_type}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] }
+    },
+    {
+      "title": "Outbound Messages / sec (by venue + msg_type)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "targets": [
+        {
+          "expr": "sum by (venue, msg_type) (rate(fix_messages_out_total[5m]))",
+          "legendFormat": "{{venue}} / {{msg_type}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] }
+    },
+    {
+      "title": "Cancel Ack Latency p50 / p95 / p99 (by venue)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 14 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (venue, le) (rate(cancel_ack_latency_seconds_bucket[5m])))",
+          "legendFormat": "{{venue}} p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (venue, le) (rate(cancel_ack_latency_seconds_bucket[5m])))",
+          "legendFormat": "{{venue}} p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (venue, le) (rate(cancel_ack_latency_seconds_bucket[5m])))",
+          "legendFormat": "{{venue}} p99"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
+    },
+    {
+      "title": "Ghost Fill Detected (rate, last 5m)",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 22 },
+      "targets": [
+        {
+          "expr": "sum by (venue, prior_status) (rate(ghost_fill_detected_total[5m]))",
+          "legendFormat": "{{venue}} / prior={{prior_status}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 0.0001 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "title": "Cancel Attempts by Outcome (rate, by venue)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 22 },
+      "targets": [
+        {
+          "expr": "sum by (venue, reason) (rate(cancel_failed_total[5m]))",
+          "legendFormat": "{{venue}} / {{reason}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] }
+    },
+    {
+      "title": "Unacknowledged Outbound (counter, by venue)",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 22 },
+      "targets": [
+        {
+          "expr": "sum by (venue, msg_type) (unacknowledged_outbound_total)",
+          "legendFormat": "{{venue}} / {{msg_type}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "title": "PendingNewCorrelator: TTL Evictions (rate, by venue)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 28 },
+      "targets": [
+        {
+          "expr": "sum by (venue) (rate(pending_new_correlator_ttl_evictions_total[5m]))",
+          "legendFormat": "{{venue}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] }
+    },
+    {
+      "title": "PendingNewCorrelator: Back-Pressure (rate, by venue)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 28 },
+      "targets": [
+        {
+          "expr": "sum by (venue) (rate(pending_new_correlator_back_pressure_total[5m]))",
+          "legendFormat": "{{venue}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] }
+    },
+    {
+      "title": "Session Reconciliation Outcomes (post-reconnect 35=H sweep)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 36 },
+      "targets": [
+        {
+          "expr": "sum by (venue, outcome) (rate(fix_session_reconciliation_total[5m]))",
+          "legendFormat": "{{venue}} / {{outcome}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] }
+    },
+    {
+      "title": "fix_message_log Partitions Archived (counter)",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 44 },
+      "targets": [
+        {
+          "expr": "fix_message_log_partitions_archived_total",
+          "legendFormat": "Partitions archived"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] }
+    },
+    {
+      "title": "mTLS Handshake Failures (rate, by peer)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 44 },
+      "targets": [
+        {
+          "expr": "sum by (peer) (rate(mtls_handshake_failed_total[5m]))",
+          "legendFormat": "{{peer}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] }
+    }
+  ],
+  "schemaVersion": 39,
+  "version": 1
+}
