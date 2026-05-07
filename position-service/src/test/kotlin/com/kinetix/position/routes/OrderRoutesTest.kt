@@ -2,6 +2,8 @@ package com.kinetix.position.routes
 
 import com.kinetix.common.model.AssetClass
 import com.kinetix.common.model.Side
+import com.kinetix.position.fix.GhostFill
+import com.kinetix.position.fix.GhostFillRepository
 import com.kinetix.position.fix.Order
 import com.kinetix.position.fix.OrderStatus
 import com.kinetix.position.fix.OrderSubmissionService
@@ -48,7 +50,15 @@ private fun fakeOrder(): Order = Order(
     currency = Currency.getInstance("USD"),
 )
 
-private fun Application.testOrderRouteModule(service: OrderSubmissionService) {
+private object EmptyGhostFillRepository : GhostFillRepository {
+    override suspend fun save(fill: GhostFill) = Unit
+    override suspend fun findByOrderId(orderId: String): List<GhostFill> = emptyList()
+}
+
+private fun Application.testOrderRouteModule(
+    service: OrderSubmissionService,
+    ghostFillRepository: GhostFillRepository = EmptyGhostFillRepository,
+) {
     install(ContentNegotiation) { json() }
     install(StatusPages) {
         exception<IllegalArgumentException> { call, cause ->
@@ -58,7 +68,7 @@ private fun Application.testOrderRouteModule(service: OrderSubmissionService) {
             )
         }
     }
-    routing { orderRoutes(service) }
+    routing { orderRoutes(service, ghostFillRepository) }
 }
 
 class OrderRoutesTest : FunSpec({

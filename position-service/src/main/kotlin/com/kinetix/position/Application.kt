@@ -271,12 +271,17 @@ fun Application.moduleWithRoutes() {
         preTradeCheckService = preTradeCheckService,
     )
     val executionCostService = com.kinetix.position.fix.ExecutionCostService()
+    val ghostFillRepository = com.kinetix.position.fix.ExposedGhostFillRepository(db)
+    val riskBreakPublisher: com.kinetix.position.kafka.RiskBreakPublisher =
+        com.kinetix.position.kafka.NoOpRiskBreakPublisher()
     val fixExecutionReportProcessor = FIXExecutionReportProcessor(
         orderRepository = executionOrderRepository,
         fillRepository = executionFillRepository,
         tradeBookingService = tradeBookingService,
         executionCostService = executionCostService,
         executionCostRepository = executionCostRepository,
+        ghostFillRepository = ghostFillRepository,
+        riskBreakPublisher = riskBreakPublisher,
     )
 
     val priceUpdateService = PriceUpdateService(positionRepository)
@@ -377,7 +382,7 @@ fun Application.moduleWithRoutes() {
         preTradeCheckRoutes(preTradeCheckService)
         executionRoutes(executionCostRepository, primeBrokerReconciliationRepository, primeBrokerReconciliationService, positionRepository)
         fixSessionRoutes(fixSessionRepository)
-        orderRoutes(orderSubmissionService)
+        orderRoutes(orderSubmissionService, ghostFillRepository)
 
         val demoResetToken = System.getenv("DEMO_RESET_TOKEN")
         if (demoResetToken != null) {
