@@ -12,6 +12,7 @@ tasks.named<Test>("test") {
 dependencies {
     testImplementation(project(":common"))
     testImplementation(project(":position-service"))
+    testImplementation(project(":fix-gateway"))
     testImplementation(project(":audit-service"))
     testImplementation(project(":risk-orchestrator"))
     testImplementation(project(":regulatory-service"))
