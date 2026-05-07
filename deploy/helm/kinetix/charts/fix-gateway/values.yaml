@@ -1,0 +1,50 @@
+replicaCount: 1
+
+image:
+  repository: kinetix/fix-gateway
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8092
+  grpcPort: 9105
+
+env:
+  PORT: "8092"
+  GRPC_PORT: "9105"
+  DATABASE_URL: "jdbc:postgresql://kinetix-postgresql:5432/kinetix_fix_gateway"
+  KAFKA_BOOTSTRAP_SERVERS: "kinetix-kafka:9092"
+  OTEL_JAVA_GLOBAL_AUTOCONFIGURE_ENABLED: "true"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://kinetix-opentelemetry-collector:4317"
+  OTEL_SERVICE_NAME: "fix-gateway"
+  OTEL_LOGS_EXPORTER: "otlp"
+  OTEL_METRICS_EXPORTER: "none"
+  OTEL_TRACES_EXPORTER: "otlp"
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+# ADR-0035 open-question #3: fix-gateway is pinned to a single replica.
+# The pending-new correlator (phase 4) lives in-process; active-active or
+# active-passive HA requires a distributed store (Redis or similar) and is
+# a follow-on ADR scoped post-A-13.
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 1
+  targetCPUUtilizationPercentage: 70
+
+probes:
+  path: /health
+  readinessPath: /health/ready
+
+minReadySeconds: 10
+
+pdb:
+  enabled: false
+  minAvailable: 1

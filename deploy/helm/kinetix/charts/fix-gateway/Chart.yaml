@@ -1,0 +1,6 @@
+apiVersion: v2
+name: fix-gateway
+description: Kinetix FIX Gateway Service (ADR-0035)
+version: 0.1.0
+appVersion: "1.0.0"
+type: application

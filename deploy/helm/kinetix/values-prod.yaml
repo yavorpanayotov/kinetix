@@ -90,6 +90,18 @@ audit-service:
     maxReplicas: 8
     targetCPUUtilizationPercentage: 70
 
+# ADR-0035 open-question #3: fix-gateway is pinned to a single replica
+# until the in-process pending-new correlator is replaced with a distributed
+# store. Active-passive HA is a follow-on ADR.
+fix-gateway:
+  replicaCount: 1
+  env:
+    PORT: "8092"
+    GRPC_PORT: "9105"
+    DATABASE_URL: "jdbc:postgresql://kinetix-postgresql:5432/kinetix_fix_gateway"
+  autoscaling:
+    enabled: false
+
 regulatory-service:
   replicaCount: 3
   autoscaling:

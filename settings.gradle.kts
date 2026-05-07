@@ -25,6 +25,7 @@ include(
     "regulatory-service",
     "notification-service",
     "audit-service",
+    "fix-gateway",
     "reference-data-service",
     "volatility-service",
     "correlation-service",

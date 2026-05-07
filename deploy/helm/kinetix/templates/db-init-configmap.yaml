@@ -14,6 +14,7 @@ data:
     CREATE DATABASE kinetix_audit;
     CREATE DATABASE kinetix_notification;
     CREATE DATABASE kinetix_regulatory;
+    CREATE DATABASE kinetix_fix_gateway;
 
     -- Enable TimescaleDB on price database (time-series hypertables)
     \c kinetix_price

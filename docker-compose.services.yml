@@ -296,6 +296,42 @@ services:
         condition: service_healthy
     networks: [kinetix]
 
+  fix-gateway:
+    build:
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.kotlin
+      args:
+        SERVICE_NAME: fix-gateway
+    environment:
+      SERVICE_NAME: fix-gateway
+      PORT: "8092"
+      GRPC_PORT: "9105"
+      DATABASE_URL: jdbc:postgresql://postgres:5432/kinetix_fix_gateway
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      OTEL_JAVA_GLOBAL_AUTOCONFIGURE_ENABLED: "true"
+      OTEL_SERVICE_NAME: fix-gateway
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_LOGS_EXPORTER: otlp
+      OTEL_METRICS_EXPORTER: none
+      OTEL_TRACES_EXPORTER: none
+      JAVA_TOOL_OPTIONS: "-Xmx256m -Xms64m -XX:+UseG1GC -XX:MaxGCPauseMillis=100"
+    expose:
+      - "8092"
+      - "9105"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8092/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    networks: [kinetix]
+
   notification-service:
     build:
       context: ..

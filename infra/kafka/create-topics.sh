@@ -39,6 +39,26 @@ create_topic() {
     --replication-factor "$REPLICATION"
 }
 
+# Create a topic with extra --config overrides (e.g. retention.ms).
+create_topic_with_config() {
+  local name="$1"
+  local partitions="$2"
+  shift 2
+  echo "Creating topic: $name (partitions=$partitions, replication=$REPLICATION, configs: $*)"
+  local args=(
+    --bootstrap-server "$BOOTSTRAP"
+    --create
+    --if-not-exists
+    --topic "$name"
+    --partitions "$partitions"
+    --replication-factor "$REPLICATION"
+  )
+  for cfg in "$@"; do
+    args+=(--config "$cfg")
+  done
+  $KAFKA_TOPICS "${args[@]}"
+}
+
 # ── Core topics ──────────────────────────────────────────────────────
 create_topic "trades.lifecycle"   3
 create_topic "price.updates"     6
@@ -68,6 +88,15 @@ create_topic "correlation.matrices"  3
 
 # ── Governance audit ─────────────────────────────────────────────────
 create_topic "governance.audit"     3
+
+# ── FIX gateway (ADR-0035) ───────────────────────────────────────────
+# Inbound FIX 35=8/9/j events from venues. Partitioned by clOrdID for ordering;
+# 30-day retention extends the 7-day default to support MiFID II RTS 28 / MAR
+# audit-replay windows. fix_gateway.fix_message_log is the authoritative replay
+# source for events older than 30 days.
+create_topic_with_config "execution.reports" 12 \
+  "retention.ms=2592000000" \
+  "cleanup.policy=delete"
 
 # ── Dead-letter queues (same REPLICATION_FACTOR as regular topics) ────
 create_topic "trades.lifecycle.dlq"  1

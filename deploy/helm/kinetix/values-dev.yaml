@@ -56,6 +56,13 @@ audit-service:
     SEED_DATA: "true"
     DATABASE_URL: "jdbc:postgresql://kinetix-postgresql:5432/kinetix_audit"
 
+fix-gateway:
+  replicaCount: 1
+  env:
+    PORT: "8092"
+    GRPC_PORT: "9105"
+    DATABASE_URL: "jdbc:postgresql://kinetix-postgresql:5432/kinetix_fix_gateway"
+
 regulatory-service:
   replicaCount: 1
 

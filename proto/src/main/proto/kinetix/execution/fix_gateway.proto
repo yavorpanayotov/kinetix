@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package kinetix.execution;
+
+option java_package = "com.kinetix.proto.execution";
+option java_multiple_files = true;
+
+// FixGateway owns FIX session establishment, sequence-number management, and
+// the venue-protocol surface for outbound order placement / cancellation and
+// inbound execution-report ingestion. See ADR-0035.
+//
+// Phase 1 (this proto) declares an empty service so the Gradle proto build
+// wires the module. RPCs land in subsequent phases:
+//   - phase 2: CancelOrder, IsVenueOpen
+//   - phase 3: (no new RPCs — inbound flow moves to Kafka `execution.reports`)
+//   - phase 4: PlaceOrder
+service FixGateway {
+}

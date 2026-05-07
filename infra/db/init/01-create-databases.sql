@@ -11,6 +11,7 @@ SELECT 'CREATE DATABASE kinetix_rates' WHERE NOT EXISTS (SELECT FROM pg_database
 SELECT 'CREATE DATABASE kinetix_reference_data' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'kinetix_reference_data')\gexec
 SELECT 'CREATE DATABASE kinetix_volatility' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'kinetix_volatility')\gexec
 SELECT 'CREATE DATABASE kinetix_correlation' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'kinetix_correlation')\gexec
+SELECT 'CREATE DATABASE kinetix_fix_gateway' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'kinetix_fix_gateway')\gexec
 
 -- Enable TimescaleDB on all databases that use hypertables
 \c kinetix_price

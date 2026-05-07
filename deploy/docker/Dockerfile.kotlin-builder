@@ -20,6 +20,7 @@ COPY position-service/ position-service/
 COPY price-service/ price-service/
 COPY risk-orchestrator/ risk-orchestrator/
 COPY audit-service/ audit-service/
+COPY fix-gateway/ fix-gateway/
 COPY regulatory-service/ regulatory-service/
 COPY notification-service/ notification-service/
 COPY rates-service/ rates-service/
