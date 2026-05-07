@@ -3,6 +3,8 @@
 
 package com.kinetix.position.fix
 
+import com.kinetix.common.execution.CancelReason
+import com.kinetix.common.execution.OrderCancelEmitter
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import org.slf4j.LoggerFactory
@@ -68,7 +70,12 @@ class ScheduledOrderExpirySweeper(
         for (order in candidates) {
             val reason = expiryReasonFor(order, now) ?: continue
             try {
-                cancelEmitter.emitCancel(order, reason)
+                cancelEmitter.emitCancel(
+                    orderId = order.orderId,
+                    venue = venueResolver(order),
+                    venueOrderId = null,
+                    reason = reason,
+                )
             } catch (e: Exception) {
                 logger.warn(
                     "OrderCancelEmitter failed for orderId={} reason={}: {} — proceeding with state transition",

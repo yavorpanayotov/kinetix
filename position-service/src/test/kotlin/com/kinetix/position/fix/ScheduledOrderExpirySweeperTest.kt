@@ -1,5 +1,7 @@
 package com.kinetix.position.fix
 
+import com.kinetix.common.execution.CancelReason
+import com.kinetix.common.execution.OrderCancelEmitter
 import com.kinetix.common.model.Side
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -65,7 +67,15 @@ class ScheduledOrderExpirySweeperTest : FunSpec({
         val expired = sweeper.sweepOnce()
 
         expired shouldBe 1
-        coVerify(exactly = 1) { emitter.emitCancel(any(), CancelReason.DAY_ORDER_EXPIRY) }
+        coVerify(exactly = 1) {
+            emitter.emitCancel(
+                orderId = "ord-1",
+                venue = any(),
+                venueOrderId = null,
+                reason = CancelReason.DAY_ORDER_EXPIRY,
+                correlationId = any(),
+            )
+        }
         coVerify(exactly = 1) { orderRepo.updateStatus("ord-1", OrderStatus.EXPIRED, "DAY_ORDER_EXPIRY", any()) }
     }
 
@@ -84,7 +94,7 @@ class ScheduledOrderExpirySweeperTest : FunSpec({
         val expired = sweeper.sweepOnce()
 
         expired shouldBe 0
-        coVerify(exactly = 0) { emitter.emitCancel(any(), any()) }
+        coVerify(exactly = 0) { emitter.emitCancel(any(), any(), any(), any(), any()) }
         coVerify(exactly = 0) { orderRepo.updateStatus(any(), OrderStatus.EXPIRED, any(), any()) }
     }
 
@@ -108,7 +118,15 @@ class ScheduledOrderExpirySweeperTest : FunSpec({
         val expired = sweeper.sweepOnce()
 
         expired shouldBe 1
-        coVerify(exactly = 1) { emitter.emitCancel(any(), CancelReason.GTD_EXPIRY) }
+        coVerify(exactly = 1) {
+            emitter.emitCancel(
+                orderId = "gtd-1",
+                venue = any(),
+                venueOrderId = null,
+                reason = CancelReason.GTD_EXPIRY,
+                correlationId = any(),
+            )
+        }
         coVerify(exactly = 1) { orderRepo.updateStatus("gtd-1", OrderStatus.EXPIRED, "GTD_EXPIRY", any()) }
     }
 
@@ -145,7 +163,7 @@ class ScheduledOrderExpirySweeperTest : FunSpec({
         )
 
         coEvery { orderRepo.findOpenDayAndGtdOrders() } returns listOf(order())
-        coEvery { emitter.emitCancel(any(), any()) } throws RuntimeException("fix-gateway unavailable")
+        coEvery { emitter.emitCancel(any(), any(), any(), any(), any()) } throws RuntimeException("fix-gateway unavailable")
         coEvery { orderRepo.updateStatus(any(), any(), any(), any()) } returns Unit
 
         sweeper.sweepOnce() shouldBe 1
@@ -191,7 +209,7 @@ class ScheduledOrderExpirySweeperTest : FunSpec({
         coEvery { orderRepo.findOpenDayAndGtdOrders() } returns emptyList()
 
         sweeper.sweepOnce() shouldBe 0
-        coVerify(exactly = 0) { emitter.emitCancel(any(), any()) }
+        coVerify(exactly = 0) { emitter.emitCancel(any(), any(), any(), any(), any()) }
     }
 
     test("uses venueResolver to look up the right cutoff for non-NYSE orders") {
