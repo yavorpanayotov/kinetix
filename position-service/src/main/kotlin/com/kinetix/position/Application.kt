@@ -274,6 +274,8 @@ fun Application.moduleWithRoutes() {
     val ghostFillRepository = com.kinetix.position.fix.ExposedGhostFillRepository(db)
     val riskBreakPublisher: com.kinetix.position.kafka.RiskBreakPublisher =
         com.kinetix.position.kafka.NoOpRiskBreakPublisher()
+    val executionReportsMeterRegistry =
+        io.micrometer.core.instrument.simple.SimpleMeterRegistry()
     val fixExecutionReportProcessor = FIXExecutionReportProcessor(
         orderRepository = executionOrderRepository,
         fillRepository = executionFillRepository,
@@ -282,6 +284,7 @@ fun Application.moduleWithRoutes() {
         executionCostRepository = executionCostRepository,
         ghostFillRepository = ghostFillRepository,
         riskBreakPublisher = riskBreakPublisher,
+        meterRegistry = executionReportsMeterRegistry,
     )
 
     val priceUpdateService = PriceUpdateService(positionRepository)
@@ -307,11 +310,57 @@ fun Application.moduleWithRoutes() {
         liveFxRateProvider = liveFxRateProvider,
     )
 
+    // ADR-0035 phase 3 commit 3: subscribe to fix-gateway's execution.reports
+    // topic and dispatch to the existing FIXExecutionReportProcessor. The
+    // EXECUTION_REPORTS_VIA_KAFKA flag (default true) lets local-dev fall
+    // back to the dormant in-process path; production has no rollback once
+    // commit 4 lands.
+    val executionReportsViaKafka =
+        System.getenv("EXECUTION_REPORTS_VIA_KAFKA")?.toBooleanStrictOrNull() ?: true
+    val executionReportsParityMonitor = com.kinetix.position.kafka.ExecutionReportPathParityMonitor(
+        meterRegistry = executionReportsMeterRegistry,
+    )
+    val executionReportsDispatcher = com.kinetix.position.kafka.ExecutionReportDispatcher(
+        processor = fixExecutionReportProcessor,
+        meterRegistry = executionReportsMeterRegistry,
+    )
+    val executionReportConsumerProps = Properties().apply {
+        put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers)
+        put(ConsumerConfig.GROUP_ID_CONFIG, "position-service-execution-reports")
+        put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer::class.java.name)
+        put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer::class.java.name)
+        put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+        put(ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, "org.apache.kafka.clients.consumer.CooperativeStickyAssignor")
+        put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false")
+    }
+    val executionReportsTracker = ConsumerLivenessTracker(
+        topic = "execution.reports",
+        groupId = "position-service-execution-reports",
+    )
+    val executionReportConsumer = if (executionReportsViaKafka) {
+        com.kinetix.position.kafka.ExecutionReportConsumer(
+            consumer = KafkaConsumer<String, String>(executionReportConsumerProps),
+            dispatcher = executionReportsDispatcher,
+            livenessTracker = executionReportsTracker,
+            meterRegistry = executionReportsMeterRegistry,
+        )
+    } else {
+        log.warn(
+            "EXECUTION_REPORTS_VIA_KAFKA=false — execution.reports consumer NOT started. " +
+                "No inbound FIX path is active in this process.",
+        )
+        null
+    }
+
     val seedDone = AtomicBoolean(false)
+    val readinessTrackers = buildList<ConsumerLivenessTracker> {
+        add(priceTracker)
+        if (executionReportConsumer != null) add(executionReportsTracker)
+    }
     val readinessChecker = ReadinessChecker(
         dataSource = DatabaseFactory.dataSource,
         flywayLocation = DatabaseFactory.FLYWAY_LOCATION,
-        consumerTrackers = listOf(priceTracker),
+        consumerTrackers = readinessTrackers,
         seedComplete = { seedDone.get() },
     )
 
@@ -392,6 +441,11 @@ fun Application.moduleWithRoutes() {
 
     launch {
         priceConsumer.start()
+    }
+
+    if (executionReportConsumer != null) {
+        launch { executionReportConsumer.start() }
+        launch { executionReportsParityMonitor.start() }
     }
 
     launch {

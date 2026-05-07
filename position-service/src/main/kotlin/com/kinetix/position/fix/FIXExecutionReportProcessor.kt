@@ -9,6 +9,8 @@ import com.kinetix.position.kafka.NoOpRiskBreakPublisher
 import com.kinetix.position.kafka.RiskBreakPublisher
 import com.kinetix.position.service.BookTradeCommand
 import com.kinetix.position.service.TradeBookingService
+import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.slf4j.LoggerFactory
 import java.math.BigDecimal
 import java.time.Instant
@@ -37,6 +39,7 @@ class FIXExecutionReportProcessor(
     private val executionCostRepository: ExecutionCostRepository,
     private val ghostFillRepository: GhostFillRepository = NoOpGhostFillRepository,
     private val riskBreakPublisher: RiskBreakPublisher = NoOpRiskBreakPublisher(),
+    private val meterRegistry: MeterRegistry = SimpleMeterRegistry(),
     private val clock: () -> Instant = Instant::now,
 ) {
 
@@ -64,6 +67,10 @@ class FIXExecutionReportProcessor(
 
         val order = orderRepository.findById(event.orderId)
         if (order == null) {
+            meterRegistry.counter(
+                "orphan_fill_total",
+                "venue", event.venue ?: "UNKNOWN",
+            ).increment()
             logger.error("Fill arrived for unknown order: orderId={}, execId={}", event.orderId, event.execId)
             return
         }
@@ -93,6 +100,30 @@ class FIXExecutionReportProcessor(
         val existingFills = fillRepository.findByOrderId(order.orderId)
         val existingFilledQty = existingFills.fold(BigDecimal.ZERO) { acc, f -> acc + f.fillQty }
         if (existingFilledQty + event.lastQty > order.quantity) {
+            meterRegistry.counter(
+                "overfill_rejected_total",
+                "venue", event.venue ?: "UNKNOWN",
+            ).increment()
+            riskBreakPublisher.publish(
+                RiskBreakEvent(
+                    eventId = UUID.randomUUID().toString(),
+                    breakType = "OVERFILL",
+                    severity = "CRITICAL",
+                    message = "Overfill rejected — incoming fill ${event.lastQty} would push cumulative " +
+                        "${existingFilledQty + event.lastQty} past order quantity ${order.quantity}.",
+                    occurredAt = clock().toString(),
+                    orderId = order.orderId,
+                    bookId = order.bookId,
+                    instrumentId = order.instrumentId,
+                    venue = event.venue,
+                    attributes = mapOf(
+                        "orderQty" to order.quantity.toPlainString(),
+                        "alreadyFilled" to existingFilledQty.toPlainString(),
+                        "incomingQty" to event.lastQty.toPlainString(),
+                        "execId" to event.execId,
+                    ),
+                ),
+            )
             logger.error(
                 "Overfill rejected: orderId={}, orderQty={}, alreadyFilled={}, incomingQty={}",
                 order.orderId, order.quantity, existingFilledQty, event.lastQty,
