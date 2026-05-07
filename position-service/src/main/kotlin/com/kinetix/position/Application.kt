@@ -216,13 +216,11 @@ fun Application.moduleWithRoutes() {
         io.grpc.ManagedChannelBuilder.forTarget(target).usePlaintext().build()
     } else null
 
+    val cancelAttemptRecorder = com.kinetix.position.fix.ExposedCancelAttemptRecorder(db)
     val orderCancelEmitter: com.kinetix.common.execution.OrderCancelEmitter = if (fixGatewayChannel != null) {
         com.kinetix.position.fix.GrpcOrderCancelEmitter(
             channel = fixGatewayChannel,
-            cancelAttemptRecorder = { orderId, venue, status, attemptedAt, detail ->
-                log.info("cancel_attempt orderId={} venue={} status={} attemptedAt={} detail={}",
-                    orderId, venue, status, attemptedAt, detail)
-            },
+            cancelAttemptRecorder = cancelAttemptRecorder,
         )
     } else {
         com.kinetix.position.fix.LoggingOrderCancelEmitter()
