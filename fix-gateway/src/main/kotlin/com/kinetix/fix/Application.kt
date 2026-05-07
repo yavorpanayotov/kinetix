@@ -2,9 +2,14 @@ package com.kinetix.fix
 
 import com.kinetix.common.health.ReadinessResponse
 import com.kinetix.fix.grpc.FixGatewayServer
+import com.kinetix.fix.grpc.FixGatewayServiceImpl
 import com.kinetix.fix.health.FixGatewayReadiness
 import com.kinetix.fix.persistence.DatabaseConfig
 import com.kinetix.fix.persistence.DatabaseFactory
+import com.kinetix.fix.session.CancelMessageBuilder
+import com.kinetix.fix.session.NoOpFixSessionSender
+import com.kinetix.fix.venue.VenueCutoffRegistry
+import com.kinetix.fix.venue.VenueSessionRegistry
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
@@ -72,7 +77,20 @@ fun Application.moduleWithDependencies() {
     )
 
     val grpcPort = environment.config.propertyOrNull("grpc.port")?.getString()?.toInt() ?: 9105
-    val grpcServer = FixGatewayServer(port = grpcPort).start()
+    val venueSessionRegistry = VenueSessionRegistry()
+    val venueCutoffRegistry = VenueCutoffRegistry()
+    val fixGatewayService = FixGatewayServiceImpl(
+        venueSessionRegistry = venueSessionRegistry,
+        venueCutoffRegistry = venueCutoffRegistry,
+        cancelMessageBuilder = CancelMessageBuilder(),
+        sessionSender = NoOpFixSessionSender(),
+        // Phase 2 has no fix_message_log entries yet; phase 4 wires the real lookup.
+        originalOrderLookup = { _, _ -> null },
+    )
+    val grpcServer = FixGatewayServer(
+        port = grpcPort,
+        services = listOf(fixGatewayService),
+    ).start()
 
     monitor.subscribe(io.ktor.server.application.ApplicationStopping) {
         grpcServer.stop()

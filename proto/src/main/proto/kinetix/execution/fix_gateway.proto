@@ -5,14 +5,72 @@ package kinetix.execution;
 option java_package = "com.kinetix.proto.execution";
 option java_multiple_files = true;
 
+import "google/protobuf/timestamp.proto";
+
 // FixGateway owns FIX session establishment, sequence-number management, and
 // the venue-protocol surface for outbound order placement / cancellation and
 // inbound execution-report ingestion. See ADR-0035.
 //
-// Phase 1 (this proto) declares an empty service so the Gradle proto build
-// wires the module. RPCs land in subsequent phases:
-//   - phase 2: CancelOrder, IsVenueOpen
+// RPCs land per phase:
+//   - phase 2 (this commit): CancelOrder, IsVenueOpen
 //   - phase 3: (no new RPCs — inbound flow moves to Kafka `execution.reports`)
 //   - phase 4: PlaceOrder
 service FixGateway {
+  // Submit an OrderCancelRequest (FIX 35=F) on the venue session. The actual
+  // venue ack arrives asynchronously and is published to `execution.reports`.
+  rpc CancelOrder(CancelOrderRequest) returns (CancelOrderResponse);
+
+  // Resolves whether [venue] is in an open trading session at instant [at].
+  // Pure function over the venue cutoff registry; no FIX side effects.
+  rpc IsVenueOpen(IsVenueOpenRequest) returns (IsVenueOpenResponse);
+}
+
+// Why a cancel is being emitted. Mirrors `com.kinetix.common.execution.CancelReason`.
+enum CancelReason {
+  CANCEL_REASON_UNSPECIFIED = 0;
+  DAY_ORDER_EXPIRY = 1;
+  GTD_EXPIRY = 2;
+  USER_INITIATED = 3;
+  RISK_LIMIT_BREACH = 4;
+}
+
+message CancelOrderRequest {
+  // FIX tag 41 (OrigClOrdID) — original clOrdID being cancelled. Position-service
+  // mints this as a UUID v4. Reused as Kafka partition key for execution.reports;
+  // child-order schemes that share an origClOrdID parent stem must NOT be used as
+  // the partition key — they would create hot partitions and break ordering.
+  string cl_ord_id = 1;
+  // Venue identifier; VenueSessionRegistry normalises to upper-case. Typos → UNKNOWN_VENUE.
+  string venue = 2;
+  CancelReason reason = 3;
+  // Trace-propagation correlation id; empty lets fix-gateway generate one.
+  string correlation_id = 4;
+  // FIX tag 37 (OrderID assigned by venue) — required by most venues for 35=F.
+  // Empty only if the order never reached PENDING_NEW.
+  string venue_order_id = 5;
+}
+
+message CancelOrderResponse {
+  string cl_ord_id = 1;
+  Status status = 2;
+  enum Status {
+    STATUS_UNSPECIFIED = 0;
+    ACCEPTED = 1;
+    SESSION_DOWN = 2;
+    UNKNOWN_VENUE = 3;
+    INVALID_REQUEST = 4;
+  }
+  // Free-text explanation; never used as a metric label.
+  string detail = 3;
+}
+
+message IsVenueOpenRequest {
+  string venue = 1;
+  google.protobuf.Timestamp at = 2;
+}
+
+message IsVenueOpenResponse {
+  bool open = 1;
+  // Next session close after [at]; only populated when [open] is true.
+  google.protobuf.Timestamp next_close = 2;
 }

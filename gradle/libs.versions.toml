@@ -20,6 +20,7 @@ opentelemetry = "1.46.0"
 opentelemetry-instrumentation = "2.12.0-alpha"
 redis-lettuce = "6.5.3.RELEASE"
 ktor-openapi-tools = "5.6.0"
+quickfixj = "2.3.2"
 
 # Testing
 kotest = "5.9.1"
@@ -101,6 +102,11 @@ ktor-swagger-ui = { module = "io.github.smiley4:ktor-swagger-ui", version.ref = 
 
 # Redis
 redis-lettuce = { module = "io.lettuce:lettuce-core", version.ref = "redis-lettuce" }
+
+# QuickFIX/J (FIX protocol implementation — fix-gateway only, ADR-0035)
+quickfixj-core = { module = "org.quickfixj:quickfixj-core", version.ref = "quickfixj" }
+quickfixj-messages-fix42 = { module = "org.quickfixj:quickfixj-messages-fix42", version.ref = "quickfixj" }
+quickfixj-messages-fix44 = { module = "org.quickfixj:quickfixj-messages-fix44", version.ref = "quickfixj" }
 
 # Logging
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }

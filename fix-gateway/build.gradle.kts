@@ -18,8 +18,14 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.core)
 
+    // QuickFIX/J: ADR-0035 phase 2. fix-gateway is the sole consumer.
+    implementation(libs.quickfixj.core)
+    implementation(libs.quickfixj.messages.fix42)
+    implementation(libs.quickfixj.messages.fix44)
+
     testImplementation(libs.testcontainers.core)
     testImplementation(libs.testcontainers.postgresql)
     testImplementation(libs.testcontainers.kafka)
     testImplementation(libs.micrometer.prometheus)
+    testImplementation(libs.kotlinx.coroutines.test)
 }
