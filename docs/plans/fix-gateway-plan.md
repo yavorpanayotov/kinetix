@@ -294,7 +294,7 @@ Four commits:
   - Dispatches to existing `FIXExecutionReportProcessor.process(...)` — processor stays unchanged because the new event carries the raw `execType` field (3.1).
   - **Idempotency:** consumer dedups on `(venue, execID)` — `execID` (FIX tag 17) is the venue's unique exec-report identifier and is already persisted in `Fill`. A `seen_exec_ids` LRU cache (size 100k) plus a unique constraint on `fills(venue, exec_id)` provides defence-in-depth.
   - Manual offset commits *after* successful DB write to avoid lost events.
-- [ ] **3.7** Remove direct invocation of `FIXExecutionReportProcessor` from `position-service/.../Application.kt:248` (the in-process boot path).
+- [x] **3.7** Remove direct invocation of `FIXExecutionReportProcessor` from `position-service/.../Application.kt:248` (the in-process boot path).
 - [x] **3.8** **Migration safety net + parity monitoring:**
   - Feature flag `EXECUTION_REPORTS_VIA_KAFKA=true` (default true after this phase). When false, falls back to a direct in-process pipeline using a local QuickFIX/J acceptor (**dev-only** — prod has no rollback once commit 4 lands; the real prod safety net is consumer-side replay from Kafka).
   - **Parity-monitoring metric** `execution_report_path_divergence_total{venue, event_type, divergence_kind}` Prometheus counter — increments when an event appears on one path but not the other within 5s. `divergence_kind` ∈ `{kafka_only, in_process_only, content_mismatch}`. Required to be ZERO for the full one-week soak before commit 4 lands. Alert rule fires on any non-zero value.

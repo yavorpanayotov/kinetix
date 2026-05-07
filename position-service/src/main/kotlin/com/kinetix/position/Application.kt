@@ -310,16 +310,11 @@ fun Application.moduleWithRoutes() {
         liveFxRateProvider = liveFxRateProvider,
     )
 
-    // ADR-0035 phase 3 commit 3: subscribe to fix-gateway's execution.reports
-    // topic and dispatch to the existing FIXExecutionReportProcessor. The
-    // EXECUTION_REPORTS_VIA_KAFKA flag (default true) lets local-dev fall
-    // back to the dormant in-process path; production has no rollback once
-    // commit 4 lands.
-    val executionReportsViaKafka =
-        System.getenv("EXECUTION_REPORTS_VIA_KAFKA")?.toBooleanStrictOrNull() ?: true
-    val executionReportsParityMonitor = com.kinetix.position.kafka.ExecutionReportPathParityMonitor(
-        meterRegistry = executionReportsMeterRegistry,
-    )
+    // ADR-0035 phase 3 commit 4: fix-gateway is the sole inbound source for
+    // 35=8/9/j events. Position-service consumes them from `execution.reports`
+    // and dispatches to FIXExecutionReportProcessor. The legacy in-process
+    // wiring and the EXECUTION_REPORTS_VIA_KAFKA dual-path flag have been
+    // removed; on outage the Kafka consumer absorbs the gap via offset replay.
     val executionReportsDispatcher = com.kinetix.position.kafka.ExecutionReportDispatcher(
         processor = fixExecutionReportProcessor,
         meterRegistry = executionReportsMeterRegistry,
@@ -337,26 +332,15 @@ fun Application.moduleWithRoutes() {
         topic = "execution.reports",
         groupId = "position-service-execution-reports",
     )
-    val executionReportConsumer = if (executionReportsViaKafka) {
-        com.kinetix.position.kafka.ExecutionReportConsumer(
-            consumer = KafkaConsumer<String, String>(executionReportConsumerProps),
-            dispatcher = executionReportsDispatcher,
-            livenessTracker = executionReportsTracker,
-            meterRegistry = executionReportsMeterRegistry,
-        )
-    } else {
-        log.warn(
-            "EXECUTION_REPORTS_VIA_KAFKA=false — execution.reports consumer NOT started. " +
-                "No inbound FIX path is active in this process.",
-        )
-        null
-    }
+    val executionReportConsumer = com.kinetix.position.kafka.ExecutionReportConsumer(
+        consumer = KafkaConsumer<String, String>(executionReportConsumerProps),
+        dispatcher = executionReportsDispatcher,
+        livenessTracker = executionReportsTracker,
+        meterRegistry = executionReportsMeterRegistry,
+    )
 
     val seedDone = AtomicBoolean(false)
-    val readinessTrackers = buildList<ConsumerLivenessTracker> {
-        add(priceTracker)
-        if (executionReportConsumer != null) add(executionReportsTracker)
-    }
+    val readinessTrackers = listOf(priceTracker, executionReportsTracker)
     val readinessChecker = ReadinessChecker(
         dataSource = DatabaseFactory.dataSource,
         flywayLocation = DatabaseFactory.FLYWAY_LOCATION,
@@ -443,10 +427,7 @@ fun Application.moduleWithRoutes() {
         priceConsumer.start()
     }
 
-    if (executionReportConsumer != null) {
-        launch { executionReportConsumer.start() }
-        launch { executionReportsParityMonitor.start() }
-    }
+    launch { executionReportConsumer.start() }
 
     launch {
         reconciliationJob.start()
