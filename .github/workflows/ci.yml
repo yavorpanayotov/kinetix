@@ -261,26 +261,30 @@ jobs:
           distribution: temurin
           java-version: 21
       - uses: gradle/actions/setup-gradle@v4
-      - name: Load tests (fix-gateway throughput, ADR-0035 §3.13)
+      - name: Load tests (fix-gateway throughput + audit append throughput)
         env:
-          # Per-commit profile: 100 fills/s × 30s = 3000 messages.
-          # Nightly soak overrides via repo-level env to crank to the plan's 1000 × 300s.
+          # Per-commit profile: 100/s × 30s = 3000 events.
+          # Nightly soak overrides via repo-level env to crank to higher rates.
           LOAD_TEST_RATE_PER_SEC: '100'
           LOAD_TEST_DURATION_SECONDS: '30'
-        run: ./gradlew :end2end-tests:loadTest
+        run: ./gradlew :end2end-tests:loadTest :audit-service:loadTest
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: load-test-reports
-          path: 'end2end-tests/build/reports/tests/loadTest/'
+          path: |
+            end2end-tests/build/reports/tests/loadTest/
+            audit-service/build/reports/tests/loadTest/
           retention-days: 14
       - name: Upload test XML
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: load-test-xml
-          path: 'end2end-tests/build/test-results/loadTest/**/*.xml'
+          path: |
+            end2end-tests/build/test-results/loadTest/**/*.xml
+            audit-service/build/test-results/loadTest/**/*.xml
           retention-days: 1
 
   python-unit-tests:
