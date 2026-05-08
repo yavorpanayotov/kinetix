@@ -182,6 +182,35 @@ class ScheduledOrderExpirySweeperTest : FunSpec({
         coVerify(exactly = 0) { orderRepo.updateStatus(any(), OrderStatus.EXPIRED, any(), any()) }
     }
 
+    test("propagates the order's venueOrderId to the cancel emitter") {
+        // ADR-0035 phase 4: once OrderSubmissionService persists the venue's FIX 37 OrderID
+        // on PENDING_NEW, the sweeper must hand it to fix-gateway for outbound 35=F cancels
+        // (most venues require tag 37 to identify the order).
+        val orderRepo = mockk<ExecutionOrderRepository>()
+        val emitter = mockk<OrderCancelEmitter>(relaxed = true)
+        val sweeper = ScheduledOrderExpirySweeper(
+            orderRepository = orderRepo,
+            venueOpenChecker = ClockBackedVenueOpenChecker(),
+            cancelEmitter = emitter,
+            clock = pastNyseCutoff,
+        )
+
+        coEvery { orderRepo.findOpenDayAndGtdOrders() } returns listOf(order(venueOrderId = "NYSE-12345"))
+        coEvery { orderRepo.updateStatus(any(), any(), any(), any()) } returns Unit
+
+        sweeper.sweepOnce() shouldBe 1
+
+        coVerify(exactly = 1) {
+            emitter.emitCancel(
+                orderId = "ord-1",
+                venue = any(),
+                venueOrderId = "NYSE-12345",
+                reason = CancelReason.DAY_ORDER_EXPIRY,
+                correlationId = any(),
+            )
+        }
+    }
+
     test("proceeds with state transition when the cancel emitter throws") {
         // Venue connectivity failure must not block the state-side expiry — venue-side
         // reconciliation flows asynchronously via execution reports.
