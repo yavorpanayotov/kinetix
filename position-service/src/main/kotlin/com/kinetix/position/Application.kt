@@ -264,11 +264,22 @@ fun Application.moduleWithRoutes() {
     //
     // See: https://www.quickfixj.org/usermanual/2.3.0/usage/application.html
     val fixOrderSender = LoggingFIXOrderSender()
+    // ADR-0035 phase 4: route order placement through fix-gateway when the canary
+    // flag is on. Default off until the canary plan (1% → 5% → 10%) reaches each
+    // stage; flag flips per cohort. When unset, OrderSubmissionService falls back
+    // to the legacy in-process LoggingFIXOrderSender path above.
+    val fixGatewayPlaceOrderEnabled =
+        System.getenv("FIX_GATEWAY_PLACE_ORDER")?.toBooleanStrictOrNull() ?: false
+    val fixGatewayClient: com.kinetix.common.execution.FixGatewayClient? =
+        if (fixGatewayChannel != null && fixGatewayPlaceOrderEnabled) {
+            com.kinetix.position.fix.GrpcFixGatewayClient(channel = fixGatewayChannel)
+        } else null
     val orderSubmissionService = OrderSubmissionService(
         orderRepository = executionOrderRepository,
         sessionRepository = fixSessionRepository,
         fixOrderSender = fixOrderSender,
         preTradeCheckService = preTradeCheckService,
+        fixGatewayClient = fixGatewayClient,
     )
     val executionCostService = com.kinetix.position.fix.ExecutionCostService()
     val ghostFillRepository = com.kinetix.position.fix.ExposedGhostFillRepository(db)

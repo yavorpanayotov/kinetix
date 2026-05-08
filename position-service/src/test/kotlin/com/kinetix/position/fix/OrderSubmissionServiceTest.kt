@@ -1,5 +1,8 @@
 package com.kinetix.position.fix
 
+import com.kinetix.common.execution.FixGatewayClient
+import com.kinetix.common.execution.PlaceOrderResult
+import com.kinetix.common.execution.PlaceOrderStatus
 import com.kinetix.common.model.Side
 import com.kinetix.position.model.LimitBreach
 import com.kinetix.position.model.LimitBreachResult
@@ -504,5 +507,209 @@ class OrderSubmissionServiceTest : FunSpec({
 
         order.timeInForce shouldBe TimeInForce.GTD
         order.expiresAt shouldBe expires
+    }
+
+    // ---------------------------------------------------------------------
+    // ADR-0035 phase 4: FixGatewayClient routing (replaces legacy fixOrderSender)
+    // ---------------------------------------------------------------------
+
+    fun gatewayService(
+        fixGatewayClient: FixGatewayClient,
+        repository: ExecutionOrderRepository = orderRepository,
+    ) = OrderSubmissionService(
+        orderRepository = repository,
+        sessionRepository = sessionRepository,
+        fixOrderSender = fixOrderSender,
+        preTradeCheckService = preTradeCheckService,
+        fixGatewayClient = fixGatewayClient,
+    )
+
+    test("PENDING_NEW response transitions order to SENT and persists venueOrderId") {
+        coEvery { orderRepository.setVenueOrderId(any(), any()) } just runs
+        val client = mockk<FixGatewayClient>()
+        coEvery {
+            client.placeOrder(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+        } returns PlaceOrderResult(
+            clOrdId = "captured-later",
+            status = PlaceOrderStatus.PENDING_NEW,
+            venueOrderId = "NYSE-OID-99",
+        )
+
+        val order = gatewayService(client).submit(
+            bookId = "book-1", instrumentId = "AAPL", side = Side.BUY,
+            quantity = BigDecimal("100"), orderType = "LIMIT",
+            limitPrice = BigDecimal("150"), arrivalPrice = BigDecimal("149.90"),
+            fixSessionId = null, instrumentType = "CASH_EQUITY",
+            venue = "NYSE",
+        )
+
+        order.status shouldBe OrderStatus.SENT
+        order.venueOrderId shouldBe "NYSE-OID-99"
+        coVerify(exactly = 1) { orderRepository.setVenueOrderId(order.orderId, "NYSE-OID-99") }
+        coVerify(exactly = 1) { orderRepository.updateStatus(order.orderId, OrderStatus.SENT) }
+        coVerify(exactly = 0) { fixOrderSender.send(any(), any()) }
+    }
+
+    test("REJECTED response transitions order to REJECTED with reject reason in details") {
+        val client = mockk<FixGatewayClient>()
+        coEvery {
+            client.placeOrder(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+        } returns PlaceOrderResult(
+            clOrdId = "x",
+            status = PlaceOrderStatus.REJECTED,
+            rejectReason = "MARKET_HALT",
+        )
+
+        val order = gatewayService(client).submit(
+            bookId = "book-1", instrumentId = "AAPL", side = Side.BUY,
+            quantity = BigDecimal("10"), orderType = "MARKET",
+            limitPrice = null, arrivalPrice = BigDecimal("100"),
+            fixSessionId = null, instrumentType = "CASH_EQUITY",
+        )
+
+        order.status shouldBe OrderStatus.REJECTED
+        order.riskCheckResult shouldBe "REJECTED"
+        order.riskCheckDetails shouldContain "MARKET_HALT"
+    }
+
+    test("UNKNOWN_VENUE response surfaces as REJECTED") {
+        val client = mockk<FixGatewayClient>()
+        coEvery {
+            client.placeOrder(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+        } returns PlaceOrderResult(clOrdId = "x", status = PlaceOrderStatus.UNKNOWN_VENUE)
+
+        val order = gatewayService(client).submit(
+            bookId = "book-1", instrumentId = "AAPL", side = Side.BUY,
+            quantity = BigDecimal("1"), orderType = "MARKET",
+            limitPrice = null, arrivalPrice = BigDecimal("100"),
+            fixSessionId = null, instrumentType = "CASH_EQUITY",
+            venue = "MADEUP",
+        )
+
+        order.status shouldBe OrderStatus.REJECTED
+        order.riskCheckResult shouldBe "UNKNOWN_VENUE"
+    }
+
+    test("INVALID_REQUEST response surfaces as REJECTED") {
+        val client = mockk<FixGatewayClient>()
+        coEvery {
+            client.placeOrder(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+        } returns PlaceOrderResult(clOrdId = "x", status = PlaceOrderStatus.INVALID_REQUEST)
+
+        val order = gatewayService(client).submit(
+            bookId = "book-1", instrumentId = "AAPL", side = Side.BUY,
+            quantity = BigDecimal("1"), orderType = "MARKET",
+            limitPrice = null, arrivalPrice = BigDecimal("100"),
+            fixSessionId = null, instrumentType = "CASH_EQUITY",
+        )
+
+        order.status shouldBe OrderStatus.REJECTED
+        order.riskCheckResult shouldBe "INVALID_REQUEST"
+    }
+
+    test("SESSION_DOWN response transitions order to PENDING_FAILED") {
+        val client = mockk<FixGatewayClient>()
+        coEvery {
+            client.placeOrder(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+        } returns PlaceOrderResult(clOrdId = "x", status = PlaceOrderStatus.SESSION_DOWN)
+
+        val order = gatewayService(client).submit(
+            bookId = "book-1", instrumentId = "AAPL", side = Side.BUY,
+            quantity = BigDecimal("1"), orderType = "MARKET",
+            limitPrice = null, arrivalPrice = BigDecimal("100"),
+            fixSessionId = null, instrumentType = "CASH_EQUITY",
+        )
+
+        order.status shouldBe OrderStatus.PENDING_FAILED
+        order.riskCheckResult shouldBe "SESSION_DOWN"
+    }
+
+    test("DEADLINE_EXCEEDED response transitions order to PENDING_FAILED") {
+        val client = mockk<FixGatewayClient>()
+        coEvery {
+            client.placeOrder(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+        } returns PlaceOrderResult(
+            clOrdId = "x",
+            status = PlaceOrderStatus.DEADLINE_EXCEEDED,
+            rejectReason = "grpc:DEADLINE_EXCEEDED",
+        )
+
+        val order = gatewayService(client).submit(
+            bookId = "book-1", instrumentId = "AAPL", side = Side.BUY,
+            quantity = BigDecimal("1"), orderType = "MARKET",
+            limitPrice = null, arrivalPrice = BigDecimal("100"),
+            fixSessionId = null, instrumentType = "CASH_EQUITY",
+        )
+
+        order.status shouldBe OrderStatus.PENDING_FAILED
+        order.riskCheckResult shouldBe "DEADLINE_EXCEEDED"
+        order.riskCheckDetails shouldContain "DEADLINE_EXCEEDED"
+    }
+
+    test("DUPLICATE_IN_FLIGHT response transitions order to PENDING_FAILED with explanatory detail") {
+        val client = mockk<FixGatewayClient>()
+        coEvery {
+            client.placeOrder(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+        } returns PlaceOrderResult(clOrdId = "x", status = PlaceOrderStatus.DUPLICATE_IN_FLIGHT)
+
+        val order = gatewayService(client).submit(
+            bookId = "book-1", instrumentId = "AAPL", side = Side.BUY,
+            quantity = BigDecimal("1"), orderType = "MARKET",
+            limitPrice = null, arrivalPrice = BigDecimal("100"),
+            fixSessionId = null, instrumentType = "CASH_EQUITY",
+        )
+
+        order.status shouldBe OrderStatus.PENDING_FAILED
+        order.riskCheckResult shouldBe "DUPLICATE_IN_FLIGHT"
+    }
+
+    test("when fixGatewayClient is wired the legacy fixOrderSender path is bypassed entirely") {
+        val client = mockk<FixGatewayClient>()
+        coEvery {
+            client.placeOrder(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+        } returns PlaceOrderResult(
+            clOrdId = "x",
+            status = PlaceOrderStatus.PENDING_NEW,
+            venueOrderId = "V1",
+        )
+        coEvery { orderRepository.setVenueOrderId(any(), any()) } just runs
+
+        // Even when a fixSessionId is supplied (legacy hook), the gateway path takes precedence.
+        gatewayService(client).submit(
+            bookId = "book-1", instrumentId = "AAPL", side = Side.BUY,
+            quantity = BigDecimal("1"), orderType = "MARKET",
+            limitPrice = null, arrivalPrice = BigDecimal("100"),
+            fixSessionId = "FIX-LEGACY-01", instrumentType = "CASH_EQUITY",
+        )
+
+        coVerify(exactly = 0) { sessionRepository.findById(any()) }
+        coVerify(exactly = 0) { fixOrderSender.send(any(), any()) }
+    }
+
+    test("uses defaultVenue when caller passes no venue") {
+        val client = mockk<FixGatewayClient>()
+        val captured = slot<String>()
+        coEvery {
+            client.placeOrder(
+                clOrdId = any(), venue = capture(captured), instrumentId = any(),
+                side = any(), orderType = any(), quantity = any(), limitPrice = any(),
+                timeInForce = any(), expiresAt = any(), correlationId = any(),
+                venueAckTimeoutMs = any(),
+            )
+        } returns PlaceOrderResult(
+            clOrdId = "x",
+            status = PlaceOrderStatus.PENDING_NEW,
+            venueOrderId = "V1",
+        )
+        coEvery { orderRepository.setVenueOrderId(any(), any()) } just runs
+
+        gatewayService(client).submit(
+            bookId = "book-1", instrumentId = "AAPL", side = Side.BUY,
+            quantity = BigDecimal("1"), orderType = "MARKET",
+            limitPrice = null, arrivalPrice = BigDecimal("100"),
+            fixSessionId = null, instrumentType = "CASH_EQUITY",
+        )
+
+        captured.captured shouldBe "NYSE"
     }
 })

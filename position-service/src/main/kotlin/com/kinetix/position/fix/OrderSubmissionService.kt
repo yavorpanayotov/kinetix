@@ -1,5 +1,8 @@
 package com.kinetix.position.fix
 
+import com.kinetix.common.execution.FixGatewayClient
+import com.kinetix.common.execution.PlaceOrderResult
+import com.kinetix.common.execution.PlaceOrderStatus
 import com.kinetix.common.model.AssetClass
 import com.kinetix.common.model.BookId
 import com.kinetix.common.model.InstrumentId
@@ -39,6 +42,20 @@ class OrderSubmissionService(
     private val fixOrderSender: FIXOrderSender,
     private val preTradeCheckService: PreTradeCheckService,
     private val riskCheckTimeoutMs: Long = 500L,
+    /**
+     * Production order-routing collaborator (ADR-0035 phase 4). When non-null AND the
+     * caller passes a `venue` to [submit], approved orders are routed through
+     * fix-gateway via gRPC instead of the legacy in-process [fixOrderSender]. The
+     * legacy path stays in place behind the `FIX_GATEWAY_PLACE_ORDER` feature flag
+     * for canary rollback (Application.kt selects between the two).
+     */
+    private val fixGatewayClient: FixGatewayClient? = null,
+    /**
+     * Default venue used when the submit-time `venue` parameter is null. Matches
+     * the `ScheduledOrderExpirySweeper`'s NYSE default so cancel and place share
+     * the same routing assumption.
+     */
+    private val defaultVenue: String = "NYSE",
 ) {
 
     private val logger = LoggerFactory.getLogger(OrderSubmissionService::class.java)
@@ -63,6 +80,10 @@ class OrderSubmissionService(
         expiresAt: Instant? = null,
         maxGtdHorizonDays: Long = 90,
         instrumentType: String,
+        /** Target venue for the fix-gateway PlaceOrder route; null falls back to [defaultVenue]. */
+        venue: String? = null,
+        /** Per-call override of the per-venue ack timeout in fix-gateway; 0 = use venue default. */
+        venueAckTimeoutMs: Int = 0,
     ): Order {
         require(instrumentType.isNotBlank()) { "instrumentType must not be blank" }
         require(quantity > BigDecimal.ZERO) { "Quantity must be positive" }
@@ -173,6 +194,14 @@ class OrderSubmissionService(
             riskCheckDetails = riskDetails,
         )
 
+        if (fixGatewayClient != null) {
+            return routeThroughFixGateway(
+                approved = approved,
+                venue = venue ?: defaultVenue,
+                venueAckTimeoutMs = venueAckTimeoutMs,
+            )
+        }
+
         if (fixSessionId == null) {
             return approved
         }
@@ -191,6 +220,74 @@ class OrderSubmissionService(
         logger.info("Order dispatched via FIX: orderId={}, session={}", approved.orderId, fixSessionId)
 
         return approved.copy(status = OrderStatus.SENT)
+    }
+
+    /**
+     * Routes an APPROVED order through fix-gateway via [FixGatewayClient.placeOrder]
+     * and maps the [PlaceOrderResult.status] onto a terminal [OrderStatus].
+     *
+     * The clOrdId reuses [Order.orderId] (UUID v4) so a caller-side retry with the
+     * same orderId triggers fix-gateway's reconciliation via FIX 35=H rather than
+     * producing a duplicate venue order — see ADR-0035 §4.5.
+     */
+    private suspend fun routeThroughFixGateway(
+        approved: Order,
+        venue: String,
+        venueAckTimeoutMs: Int,
+    ): Order {
+        val client = fixGatewayClient ?: error("routeThroughFixGateway invoked without a FixGatewayClient")
+        val result = client.placeOrder(
+            clOrdId = approved.orderId,
+            venue = venue,
+            instrumentId = approved.instrumentId,
+            side = approved.side,
+            orderType = approved.orderType,
+            quantity = approved.quantity,
+            limitPrice = approved.limitPrice,
+            timeInForce = approved.timeInForce.name,
+            expiresAt = approved.expiresAt,
+            correlationId = approved.orderId,
+            venueAckTimeoutMs = venueAckTimeoutMs,
+        )
+
+        return when (result.status) {
+            PlaceOrderStatus.PENDING_NEW -> {
+                val venueOrderId = result.venueOrderId
+                if (!venueOrderId.isNullOrBlank()) {
+                    orderRepository.setVenueOrderId(approved.orderId, venueOrderId)
+                }
+                orderRepository.updateStatus(approved.orderId, OrderStatus.SENT)
+                logger.info(
+                    "Order routed via fix-gateway: orderId={} venue={} venueOrderId={}",
+                    approved.orderId, venue, venueOrderId,
+                )
+                approved.copy(status = OrderStatus.SENT, venueOrderId = venueOrderId)
+            }
+
+            PlaceOrderStatus.REJECTED,
+            PlaceOrderStatus.UNKNOWN_VENUE,
+            PlaceOrderStatus.INVALID_REQUEST -> {
+                val detail = "${result.status}: ${result.rejectReason ?: ""}".trim().trimEnd(':')
+                logger.warn(
+                    "Order rejected by fix-gateway: orderId={} venue={} status={} reason={}",
+                    approved.orderId, venue, result.status, result.rejectReason,
+                )
+                orderRepository.updateStatus(approved.orderId, OrderStatus.REJECTED, result.status.name, detail)
+                approved.copy(status = OrderStatus.REJECTED, riskCheckResult = result.status.name, riskCheckDetails = detail)
+            }
+
+            PlaceOrderStatus.SESSION_DOWN,
+            PlaceOrderStatus.DEADLINE_EXCEEDED,
+            PlaceOrderStatus.DUPLICATE_IN_FLIGHT -> {
+                val detail = "${result.status}: ${result.rejectReason ?: ""}".trim().trimEnd(':')
+                logger.warn(
+                    "Order routing failed: orderId={} venue={} status={} reason={}",
+                    approved.orderId, venue, result.status, result.rejectReason,
+                )
+                orderRepository.updateStatus(approved.orderId, OrderStatus.PENDING_FAILED, result.status.name, detail)
+                approved.copy(status = OrderStatus.PENDING_FAILED, riskCheckResult = result.status.name, riskCheckDetails = detail)
+            }
+        }
     }
 
     private fun resolveAssetClass(assetClass: String): AssetClass =
