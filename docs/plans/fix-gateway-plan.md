@@ -398,14 +398,14 @@ Four commits:
 
 ### position-service side
 
-- [ ] **4.5** `OrderSubmissionService.submit(...)`:
+- [x] **4.5** `OrderSubmissionService.submit(...)`:
   - After persistence and risk checks, call `FixGatewayClient.placeOrder(...)` (new collaborator).
   - On `PENDING_NEW`: persist `venueOrderId`, transition to `SENT`, return.
   - On `REJECTED` / `UNKNOWN_VENUE` / `INVALID_REQUEST`: transition to `REJECTED`, return error to caller.
   - On `SESSION_DOWN` or RPC timeout: transition to `PENDING_FAILED` (new status — needs migration), return 503 to caller. **Trader retry path is NOT a fresh `clOrdID`:** the UI's retry CTA reuses the original `clOrdID` so fix-gateway's idempotency check (4.3) reconciles via 35=H rather than producing a duplicate venue order. If the trader wants a genuinely new order they must close the failed ticket and submit fresh.
   - On `DUPLICATE_IN_FLIGHT`: surface the same 503 to the caller with explicit "previous submission still in flight, do not retry yet" copy. The blotter row stays in `PENDING` until the original RPC resolves.
   - **gRPC deadline propagation:** the gRPC client deadline is set to `venue_ack_timeout_ms + 500ms grace` (covers the venue wait + correlator overhead). The HTTP route deadline is set to `gRPC deadline + 500ms`. Without this layering the UI sees ambiguous timeouts where the RPC succeeded but the HTTP client gave up.
-- [ ] **4.6** New `OrderStatus.PENDING_FAILED` (Flyway migration `V23__order_status_pending_failed.sql` adds the enum value to the existing CHECK constraint). **Migration ordering constraint:** `V23` MUST be deployed before any position-service binary that references `OrderStatus.PENDING_FAILED` enters service. Helm chart `fix-gateway-deployment.yaml` and `position-service-deployment.yaml` MUST coordinate via initContainer or pre-deploy hook to guarantee this ordering; documented in the deploy runbook.
+- [x] **4.6** New `OrderStatus.PENDING_FAILED` (Flyway migration `V23__order_status_pending_failed.sql` adds the enum value to the existing CHECK constraint). **Migration ordering constraint:** `V23` MUST be deployed before any position-service binary that references `OrderStatus.PENDING_FAILED` enters service. Helm chart `fix-gateway-deployment.yaml` and `position-service-deployment.yaml` MUST coordinate via initContainer or pre-deploy hook to guarantee this ordering; documented in the deploy runbook.
 - [ ] **4.7** Staged rollout:
   - `FIX_GATEWAY_PLACE_ORDER=false` initially; flip to `true` per cohort.
   - **Canary plan (replaces 5%/48h):** 1% for 24h → 5% for 48h → **10% for 5 trading days** with statistical equivalence assertion before full rollout. Acceptance test: rejection rate, fill rate, and cancel-confirmation rate are within ±2σ of baseline (not "zero regression" which fails on noise). 5 trading days exercises overnight seq-num resets, GTD expiry, BusinessMessageReject, and weekend session rolls — none of which appear in 48h.
@@ -422,7 +422,7 @@ Four commits:
   - **Concurrent load test:** 50 simultaneous `PlaceOrderRequest`s against the in-memory acceptor with 100ms artificial venue delay; assert (a) p95 end-to-end PENDING_NEW arrival ≤ 250ms (no head-of-line blocking in the correlator), (b) zero deadlock, (c) `pending_new_correlator_back_pressure_total = 0`.
   - **Idempotency test:** same `clOrdID` sent twice in rapid succession; second call returns `DUPLICATE_IN_FLIGHT`. Then: same `clOrdID` retried after the first resolves with `SESSION_DOWN` outcome — fix-gateway sends `OrderStatusRequest` (35=H), acceptor responds with status, response status reflects venue's actual state (e.g. `PENDING_NEW` if venue did receive original).
   - **Mass-cancel-on-disconnect test:** mid-session, drop the FIX connection; submit a `PlaceOrder` RPC during the reconciliation window; assert it returns `SESSION_DOWN` with detail `reconciling`. Verify `OrderStatusRequest` (35=H) is sent for each pre-disconnect open order, and only after responses arrive does the session re-open for new outbound RPCs.
-- [ ] **4.10** `position-service` acceptance:
+- [x] **4.10** `position-service` acceptance:
   - Update `OrderSubmissionServiceAcceptanceTest`:
     - Stub `FixGatewayClient` returning each Status (PENDING_NEW, REJECTED, UNKNOWN_VENUE, INVALID_REQUEST, SESSION_DOWN, **DUPLICATE_IN_FLIGHT**, **DEADLINE_EXCEEDED** via gRPC `StatusRuntimeException`); assert order's terminal state for each.
     - **Latency split into two distinct measurements:**
