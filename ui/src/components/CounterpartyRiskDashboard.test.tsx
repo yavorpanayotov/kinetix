@@ -106,6 +106,32 @@ describe('CounterpartyRiskDashboard', () => {
     expect(screen.queryByTestId('wwf-badge-CP-SMALL-0')).not.toBeInTheDocument()
   })
 
+  it('shows the agreement-expired pill when agreementStatus is EXPIRED', () => {
+    mockUseCounterpartyRisk.mockReturnValue({
+      ...defaultHook,
+      exposures: [{ ...SAMPLE_EXPOSURE, agreementStatus: 'EXPIRED' }],
+    })
+
+    render(<CounterpartyRiskDashboard />)
+
+    expect(screen.getByTestId('agreement-expired-pill-CP-GS')).toHaveTextContent('Agreement Expired')
+  })
+
+  it('does not show the agreement-expired pill when agreementStatus is ACTIVE or absent', () => {
+    mockUseCounterpartyRisk.mockReturnValue({
+      ...defaultHook,
+      exposures: [
+        { ...SAMPLE_EXPOSURE, counterpartyId: 'CP-A', agreementStatus: 'ACTIVE' },
+        { ...SAMPLE_EXPOSURE, counterpartyId: 'CP-B' },
+      ],
+    })
+
+    render(<CounterpartyRiskDashboard />)
+
+    expect(screen.queryByTestId('agreement-expired-pill-CP-A')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('agreement-expired-pill-CP-B')).not.toBeInTheDocument()
+  })
+
   it('does not flag any counterparty when the universe is too small for a percentile', () => {
     mockUseCounterpartyRisk.mockReturnValue({
       ...defaultHook,

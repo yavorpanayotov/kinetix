@@ -178,6 +178,7 @@ interface CounterpartyRowProps {
 function CounterpartyRow({ exposure, isSelected, highThreshold, onSelect }: CounterpartyRowProps) {
   const hasHighExposure = highThreshold !== null && exposure.currentNetExposure >= highThreshold
   const hasCva = exposure.cva !== null
+  const isAgreementExpired = exposure.agreementStatus === 'EXPIRED'
 
   return (
     <tr
@@ -199,6 +200,17 @@ function CounterpartyRow({ exposure, isSelected, highThreshold, onSelect }: Coun
             />
           )}
           {exposure.counterpartyId}
+          {isAgreementExpired && (
+            <span
+              data-testid={`agreement-expired-pill-${exposure.counterpartyId}`}
+              aria-label="ISDA agreement expired"
+              title="ISDA / netting agreement has expired"
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded bg-red-900/40 text-red-300 border border-red-500/40"
+            >
+              <AlertTriangle className="h-2.5 w-2.5" />
+              Agreement Expired
+            </span>
+          )}
         </div>
       </td>
       <td className="px-4 py-2.5 text-sm text-right font-mono text-slate-200">

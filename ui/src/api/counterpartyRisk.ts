@@ -8,6 +8,8 @@ export interface ExposureAtTenorDto {
   pfe99: number
 }
 
+export type AgreementStatus = 'ACTIVE' | 'EXPIRED' | 'SUSPENDED'
+
 export interface CounterpartyExposureDto {
   counterpartyId: string
   calculatedAt: string
@@ -17,6 +19,10 @@ export interface CounterpartyExposureDto {
   cvaEstimated: boolean
   currency: string
   pfeProfile: ExposureAtTenorDto[]
+  // Optional until the Gap 8 anomaly contract lands (NettingAgreement.expiryDate
+  // → CounterpartyExposureResponse). Present means the gateway has agreement
+  // status data; null/undefined means no agreement is associated.
+  agreementStatus?: AgreementStatus | null
 }
 
 export async function fetchAllCounterpartyExposures(): Promise<CounterpartyExposureDto[]> {
