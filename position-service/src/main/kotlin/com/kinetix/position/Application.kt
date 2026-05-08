@@ -480,6 +480,20 @@ fun Application.moduleWithRoutes() {
     } else {
         seedDone.set(true)
     }
+
+    // Phase 1 Gap 7 — intraday tape replay. Generates 1–3 trades/min through the
+    // production booking path so the demo blotter scrolls and limit-breach
+    // notifications fire periodically. Gated by DEMO_TAPE_REPLAY_ENABLED so the
+    // sweeper stays off by default outside demo environments.
+    val replayEnabled = System.getenv("DEMO_TAPE_REPLAY_ENABLED")?.toBoolean() ?: false
+    if (replayEnabled) {
+        val replaySweeper = com.kinetix.position.seed.DemoTapeReplaySweeper(
+            tradeBookingService = seederBookingService,
+            instrumentsByBook = com.kinetix.position.seed.DevDataSeeder.INSTRUMENTS_BY_BOOK_FOR_TAPE,
+            readinessGate = { seedDone.get() },
+        )
+        launch { replaySweeper.start() }
+    }
 }
 
 private suspend fun seedDefaultFirmLimits(

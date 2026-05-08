@@ -81,28 +81,12 @@ class DevDataSeeder(
     }
 
     private suspend fun seedTapeTrades(repo: TradeEventRepository) {
-        val instrumentsByBook = BOOK_INSTRUMENTS.mapValues { (_, specs) ->
-            specs.map { spec ->
-                TradeTapeGenerator.TradeInstrumentSpec(
-                    id = spec.id,
-                    assetClass = spec.assetClass,
-                    instrumentType = spec.instrumentType,
-                    currency = spec.currency,
-                    typicalPrice = spec.typicalPrice,
-                    typicalQtyMin = spec.typicalQtyMin,
-                    typicalQtyMax = spec.typicalQtyMax,
-                    priceScale = if (spec.currency in setOf("USD", "EUR", "GBP", "CAD", "CHF", "JPY")) {
-                        if (spec.assetClass == AssetClass.FX) 4 else 2
-                    } else 2,
-                )
-            }
-        }
         val generator = TradeTapeGenerator(
-            instrumentsByBook = instrumentsByBook,
+            instrumentsByBook = INSTRUMENTS_BY_BOOK_FOR_TAPE,
             baseTradesPerBookPerDay = TradeTapeGenerator.DEFAULT_BASE_RATES,
         )
         val trades = generator.generate()
-        log.info("Bulk-inserting {} tape trades across {} books", trades.size, instrumentsByBook.size)
+        log.info("Bulk-inserting {} tape trades across {} books", trades.size, INSTRUMENTS_BY_BOOK_FOR_TAPE.size)
         repo.bulkInsertForSeed(trades)
         log.info("Tape trade bulk insert complete")
     }
@@ -111,6 +95,31 @@ class DevDataSeeder(
         private val USD = Currency.getInstance("USD")
         private val EUR = Currency.getInstance("EUR")
         private val BASE_TIME = Instant.parse("2026-02-21T14:00:00Z")
+
+        /**
+         * Per-book instrument catalogue in the shape consumed by the trade tape
+         * generator and the demo replay sweeper. Built lazily from BOOK_INSTRUMENTS
+         * so both Phase 1 Gap 3 (seed tape) and Gap 7 (intraday replay) operate on
+         * the same instrument universe.
+         */
+        val INSTRUMENTS_BY_BOOK_FOR_TAPE: Map<String, List<TradeTapeGenerator.TradeInstrumentSpec>> by lazy {
+            BOOK_INSTRUMENTS.mapValues { (_, specs) ->
+                specs.map { spec ->
+                    TradeTapeGenerator.TradeInstrumentSpec(
+                        id = spec.id,
+                        assetClass = spec.assetClass,
+                        instrumentType = spec.instrumentType,
+                        currency = spec.currency,
+                        typicalPrice = spec.typicalPrice,
+                        typicalQtyMin = spec.typicalQtyMin,
+                        typicalQtyMax = spec.typicalQtyMax,
+                        priceScale = if (spec.currency in setOf("USD", "EUR", "GBP", "CAD", "CHF", "JPY")) {
+                            if (spec.assetClass == AssetClass.FX) 4 else 2
+                        } else 2,
+                    )
+                }
+            }
+        }
 
         private fun usd(amount: String) = Money(BigDecimal(amount), USD)
         private fun eur(amount: String) = Money(BigDecimal(amount), EUR)

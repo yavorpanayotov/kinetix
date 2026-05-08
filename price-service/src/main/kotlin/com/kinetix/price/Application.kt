@@ -213,4 +213,26 @@ fun Application.moduleWithRoutes() {
             }
         }
     }
+
+    // Phase 1 Gap 7 — intraday demo tape replay. Ticks every few seconds (vs the
+    // 60s feed simulator above) so the demo screen visibly moves. Gated on
+    // DEMO_TAPE_REPLAY_ENABLED and the local seedDone flag so we never replay
+    // onto a half-seeded database.
+    val replayEnabled = System.getenv("DEMO_TAPE_REPLAY_ENABLED")?.toBoolean() ?: false
+    if (replayEnabled) {
+        val replaySeeds = DevDataSeeder.INSTRUMENTS.map { (id, config) ->
+            InstrumentSeed(
+                instrumentId = id,
+                initialPrice = BigDecimal(config.latestPrice.toString()),
+                currency = Currency.getInstance(config.currency),
+                assetClass = config.assetClass,
+            )
+        }
+        val replaySweeper = com.kinetix.price.feed.DemoTapeReplaySweeper.fromSeeds(
+            seeds = replaySeeds,
+            ingestionService = ingestionService,
+            readinessGate = { seedDone.get() },
+        )
+        launch { replaySweeper.start() }
+    }
 }
