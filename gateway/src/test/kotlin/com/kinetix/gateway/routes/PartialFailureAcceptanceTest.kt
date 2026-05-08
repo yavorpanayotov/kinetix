@@ -25,8 +25,10 @@ import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.install
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation as ServerContentNegotiation
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
+import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import kotlinx.coroutines.async
@@ -244,7 +246,7 @@ internal fun Route.systemHealthRoute(
             }.map { (name, deferred) -> name to deferred.await() }
         }
         val overall = if (results.all { it.second == "READY" }) "UP" else "DEGRADED"
-        call.respond(
+        call.respondText(
             """{"status":"$overall","services":{${results.joinToString(",") { (name, status) -> """"$name":{"status":"$status"}""" }}}}""",
             ContentType.Application.Json,
         )
