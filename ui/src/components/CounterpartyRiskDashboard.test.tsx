@@ -33,6 +33,22 @@ const HIGH_EXPOSURE = {
   cvaEstimated: false,
 }
 
+// 12-counterparty fleet: 9 small (each 100k * (i+1) → 100k..900k), 3 large
+// (5M, 6M, 8M). Top decile threshold lands on the 3rd-from-top.
+function buildFleet() {
+  const tail = Array.from({ length: 9 }, (_, i) => ({
+    ...SAMPLE_EXPOSURE,
+    counterpartyId: `CP-SMALL-${i}`,
+    currentNetExposure: 100_000 * (i + 1),
+  }))
+  const top = [
+    { ...SAMPLE_EXPOSURE, counterpartyId: 'CP-BIG-1', currentNetExposure: 5_000_000 },
+    { ...SAMPLE_EXPOSURE, counterpartyId: 'CP-BIG-2', currentNetExposure: 6_000_000 },
+    { ...SAMPLE_EXPOSURE, counterpartyId: 'CP-BIG-3', currentNetExposure: 8_000_000 },
+  ]
+  return [...tail, ...top]
+}
+
 const defaultHook = {
   exposures: [],
   selected: null,
@@ -74,7 +90,23 @@ describe('CounterpartyRiskDashboard', () => {
     expect(screen.getByTestId('counterparty-row-CP-JPM')).toBeInTheDocument()
   })
 
-  it('shows wrong-way risk flag for exposures over 5M', () => {
+  it('flags top-decile exposures (percentile threshold) when the universe is large enough', () => {
+    mockUseCounterpartyRisk.mockReturnValue({
+      ...defaultHook,
+      exposures: buildFleet(),
+    })
+
+    render(<CounterpartyRiskDashboard />)
+
+    // 12 CPs, 90th percentile lands at index floor(12*0.9)=10, value = 6M.
+    // CP-BIG-2 (6M) and CP-BIG-3 (8M) are flagged; CP-BIG-1 (5M) is not.
+    expect(screen.getByTestId('wwf-badge-CP-BIG-2')).toBeInTheDocument()
+    expect(screen.getByTestId('wwf-badge-CP-BIG-3')).toBeInTheDocument()
+    expect(screen.queryByTestId('wwf-badge-CP-BIG-1')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('wwf-badge-CP-SMALL-0')).not.toBeInTheDocument()
+  })
+
+  it('does not flag any counterparty when the universe is too small for a percentile', () => {
     mockUseCounterpartyRisk.mockReturnValue({
       ...defaultHook,
       exposures: [HIGH_EXPOSURE],
@@ -82,19 +114,82 @@ describe('CounterpartyRiskDashboard', () => {
 
     render(<CounterpartyRiskDashboard />)
 
-    expect(screen.getByTestId('wwf-flag-CP-JPM')).toBeInTheDocument()
-    expect(screen.getByTestId('wwf-badge-CP-JPM')).toBeInTheDocument()
+    // Below 10 counterparties the percentile threshold disengages.
+    expect(screen.queryByTestId('wwf-flag-CP-JPM')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('wwf-badge-CP-JPM')).not.toBeInTheDocument()
   })
 
-  it('does not show wrong-way risk flag for normal exposures', () => {
+  it('filters rows when the user types a search query', () => {
     mockUseCounterpartyRisk.mockReturnValue({
       ...defaultHook,
-      exposures: [SAMPLE_EXPOSURE],
+      exposures: buildFleet(),
     })
 
     render(<CounterpartyRiskDashboard />)
 
-    expect(screen.queryByTestId('wwf-flag-CP-GS')).not.toBeInTheDocument()
+    const search = screen.getByTestId('counterparty-search')
+    fireEvent.change(search, { target: { value: 'BIG' } })
+
+    expect(screen.getByTestId('counterparty-row-CP-BIG-1')).toBeInTheDocument()
+    expect(screen.getByTestId('counterparty-row-CP-BIG-2')).toBeInTheDocument()
+    expect(screen.queryByTestId('counterparty-row-CP-SMALL-0')).not.toBeInTheDocument()
+  })
+
+  it('shows a no-results message when the search query matches nothing', () => {
+    mockUseCounterpartyRisk.mockReturnValue({
+      ...defaultHook,
+      exposures: buildFleet(),
+    })
+
+    render(<CounterpartyRiskDashboard />)
+
+    fireEvent.change(screen.getByTestId('counterparty-search'), { target: { value: 'XYZ' } })
+
+    expect(screen.getByTestId('counterparty-no-search-results')).toBeInTheDocument()
+  })
+
+  it('default sort is by net exposure descending', () => {
+    mockUseCounterpartyRisk.mockReturnValue({
+      ...defaultHook,
+      exposures: buildFleet(),
+    })
+
+    render(<CounterpartyRiskDashboard />)
+
+    const rows = screen.getAllByTestId(/^counterparty-row-/)
+    expect(rows[0]).toHaveAttribute('data-testid', 'counterparty-row-CP-BIG-3')
+    expect(rows[1]).toHaveAttribute('data-testid', 'counterparty-row-CP-BIG-2')
+    expect(rows[2]).toHaveAttribute('data-testid', 'counterparty-row-CP-BIG-1')
+  })
+
+  it('clicking a column header toggles the sort direction', () => {
+    mockUseCounterpartyRisk.mockReturnValue({
+      ...defaultHook,
+      exposures: buildFleet(),
+    })
+
+    render(<CounterpartyRiskDashboard />)
+
+    // Click net exposure header — already active desc — should flip to asc.
+    fireEvent.click(screen.getByTestId('sort-header-currentNetExposure'))
+
+    const rows = screen.getAllByTestId(/^counterparty-row-/)
+    expect(rows[0]).toHaveAttribute('data-testid', 'counterparty-row-CP-SMALL-0')
+  })
+
+  it('clicking a different column switches sort to that column', () => {
+    mockUseCounterpartyRisk.mockReturnValue({
+      ...defaultHook,
+      exposures: buildFleet(),
+    })
+
+    render(<CounterpartyRiskDashboard />)
+
+    fireEvent.click(screen.getByTestId('sort-header-counterpartyId'))
+
+    const rows = screen.getAllByTestId(/^counterparty-row-/)
+    // CP-BIG-1 is the alphabetically smallest among 'CP-BIG-*' / 'CP-SMALL-*'.
+    expect(rows[0]).toHaveAttribute('data-testid', 'counterparty-row-CP-BIG-1')
   })
 
   it('calls selectCounterparty when a row is clicked', async () => {

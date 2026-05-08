@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Users, AlertTriangle, RefreshCw, Activity } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Users, AlertTriangle, RefreshCw, Activity, ArrowUp, ArrowDown, Search } from 'lucide-react'
 import { useCounterpartyRisk } from '../hooks/useCounterpartyRisk'
 import type { CounterpartyExposureDto, ExposureAtTenorDto } from '../api/counterpartyRisk'
 import { fetchSaCcr } from '../api/saCcr'
@@ -7,6 +7,48 @@ import type { SaCcrResultDto } from '../types'
 import { formatCurrency } from '../utils/format'
 import { Spinner } from './ui'
 import { SaCcrPanel } from './SaCcrPanel'
+
+type SortColumn = 'counterpartyId' | 'currentNetExposure' | 'peakPfe' | 'cva' | 'wwr'
+type SortDirection = 'asc' | 'desc'
+
+interface SortableHeaderProps {
+  column: SortColumn
+  label: string
+  align: 'left' | 'right' | 'center'
+  sortColumn: SortColumn
+  sortDirection: SortDirection
+  onSort: (column: SortColumn) => void
+}
+
+function SortableHeader({ column, label, align, sortColumn, sortDirection, onSort }: SortableHeaderProps) {
+  const isActive = sortColumn === column
+  const justify = align === 'right' ? 'justify-end' : align === 'center' ? 'justify-center' : 'justify-start'
+  return (
+    <th
+      data-testid={`sort-header-${column}`}
+      onClick={() => onSort(column)}
+      className={`px-4 py-2.5 text-${align} text-xs font-medium text-slate-400 uppercase tracking-wider cursor-pointer select-none hover:text-slate-200`}
+      aria-sort={isActive ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+    >
+      <span className={`inline-flex items-center gap-1 ${justify}`}>
+        {label}
+        {isActive && (sortDirection === 'asc'
+          ? <ArrowUp data-testid={`sort-indicator-${column}-asc`} className="h-3 w-3" />
+          : <ArrowDown data-testid={`sort-indicator-${column}-desc`} className="h-3 w-3" />)}
+      </span>
+    </th>
+  )
+}
+
+// Top-decile threshold: an exposure is flagged "high" if it is >= the 90th
+// percentile of the universe. Below 10 counterparties the sample is too small
+// to compute a meaningful percentile, so we fall back to disabling the flag.
+function topDecileThreshold(exposures: CounterpartyExposureDto[]): number | null {
+  if (exposures.length < 10) return null
+  const sorted = exposures.map((e) => e.currentNetExposure).sort((a, b) => a - b)
+  const idx = Math.floor(sorted.length * 0.9)
+  return sorted[idx] ?? null
+}
 
 // ---------------------------------------------------------------------------
 // PFE profile chart (SVG, no external chart library)
@@ -129,11 +171,12 @@ function PfeChart({ profile }: PfeChartProps) {
 interface CounterpartyRowProps {
   exposure: CounterpartyExposureDto
   isSelected: boolean
+  highThreshold: number | null
   onSelect: () => void
 }
 
-function CounterpartyRow({ exposure, isSelected, onSelect }: CounterpartyRowProps) {
-  const hasHighExposure = exposure.currentNetExposure > 5_000_000
+function CounterpartyRow({ exposure, isSelected, highThreshold, onSelect }: CounterpartyRowProps) {
+  const hasHighExposure = highThreshold !== null && exposure.currentNetExposure >= highThreshold
   const hasCva = exposure.cva !== null
 
   return (
@@ -315,6 +358,53 @@ export function CounterpartyRiskDashboard() {
   const [saCcrLoading, setSaCcrLoading] = useState(false)
   const [saCcrError, setSaCcrError] = useState<string | null>(null)
   const [prevSaCcrId, setPrevSaCcrId] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortColumn, setSortColumn] = useState<SortColumn>('currentNetExposure')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+
+  const highThreshold = useMemo(() => topDecileThreshold(exposures), [exposures])
+
+  const displayedExposures = useMemo(() => {
+    const trimmed = searchQuery.trim().toLowerCase()
+    const filtered = trimmed.length === 0
+      ? exposures
+      : exposures.filter((e) => e.counterpartyId.toLowerCase().includes(trimmed))
+
+    const sorted = [...filtered].sort((a, b) => {
+      let cmp: number
+      switch (sortColumn) {
+        case 'counterpartyId':
+          cmp = a.counterpartyId.localeCompare(b.counterpartyId)
+          break
+        case 'currentNetExposure':
+          cmp = a.currentNetExposure - b.currentNetExposure
+          break
+        case 'peakPfe':
+          cmp = a.peakPfe - b.peakPfe
+          break
+        case 'cva':
+          cmp = (a.cva ?? -Infinity) - (b.cva ?? -Infinity)
+          break
+        case 'wwr': {
+          const aHigh = highThreshold !== null && a.currentNetExposure >= highThreshold
+          const bHigh = highThreshold !== null && b.currentNetExposure >= highThreshold
+          cmp = (aHigh === bHigh) ? 0 : aHigh ? 1 : -1
+          break
+        }
+      }
+      return sortDirection === 'asc' ? cmp : -cmp
+    })
+    return sorted
+  }, [exposures, searchQuery, sortColumn, sortDirection, highThreshold])
+
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortColumn(column)
+      setSortDirection(column === 'counterpartyId' ? 'asc' : 'desc')
+    }
+  }
 
   if (selectedId !== prevSaCcrId) {
     setPrevSaCcrId(selectedId)
@@ -402,34 +492,83 @@ export function CounterpartyRiskDashboard() {
         <>
         <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
           {/* Counterparty list */}
-          <div className="xl:col-span-2">
+          <div className="xl:col-span-2 space-y-2">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
+              <input
+                data-testid="counterparty-search"
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search counterparty..."
+                aria-label="Search counterparty"
+                className="w-full pl-8 pr-3 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+            </div>
             <div className="rounded-lg bg-slate-800/60 border border-slate-700 overflow-hidden">
               <table className="w-full" aria-label="Counterparty exposures">
                 <thead>
                   <tr className="border-b border-slate-700">
-                    <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                      Counterparty
-                    </th>
-                    <th className="px-4 py-2.5 text-right text-xs font-medium text-slate-400 uppercase tracking-wider">
-                      Net Exposure
-                    </th>
-                    <th className="px-4 py-2.5 text-right text-xs font-medium text-slate-400 uppercase tracking-wider">
-                      Peak PFE
-                    </th>
-                    <th className="px-4 py-2.5 text-right text-xs font-medium text-slate-400 uppercase tracking-wider">
-                      CVA
-                    </th>
-                    <th className="px-4 py-2.5 text-center text-xs font-medium text-slate-400 uppercase tracking-wider">
-                      WWR
-                    </th>
+                    <SortableHeader
+                      column="counterpartyId"
+                      label="Counterparty"
+                      align="left"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={handleSort}
+                    />
+                    <SortableHeader
+                      column="currentNetExposure"
+                      label="Net Exposure"
+                      align="right"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={handleSort}
+                    />
+                    <SortableHeader
+                      column="peakPfe"
+                      label="Peak PFE"
+                      align="right"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={handleSort}
+                    />
+                    <SortableHeader
+                      column="cva"
+                      label="CVA"
+                      align="right"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={handleSort}
+                    />
+                    <SortableHeader
+                      column="wwr"
+                      label="WWR"
+                      align="center"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={handleSort}
+                    />
                   </tr>
                 </thead>
                 <tbody>
-                  {exposures.map((e) => (
+                  {displayedExposures.length === 0 && searchQuery.trim().length > 0 && (
+                    <tr>
+                      <td
+                        colSpan={5}
+                        data-testid="counterparty-no-search-results"
+                        className="px-4 py-6 text-center text-sm text-slate-500"
+                      >
+                        No counterparties match &quot;{searchQuery}&quot;
+                      </td>
+                    </tr>
+                  )}
+                  {displayedExposures.map((e) => (
                     <CounterpartyRow
                       key={e.counterpartyId}
                       exposure={e}
                       isSelected={selectedId === e.counterpartyId}
+                      highThreshold={highThreshold}
                       onSelect={() => handleSelect(e.counterpartyId)}
                     />
                   ))}
