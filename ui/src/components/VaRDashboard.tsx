@@ -6,6 +6,7 @@ import { useClickOutside } from '../hooks/useClickOutside'
 import { VaRGauge } from './VaRGauge'
 import { RiskSensitivities } from './RiskSensitivities'
 import { ComponentBreakdown } from './ComponentBreakdown'
+import { useStressWindows } from '../hooks/useStressWindows'
 import { VaRTrendChart } from './VaRTrendChart'
 import { GreeksTrendChart } from './GreeksTrendChart'
 import { TimeRangeSelector } from './TimeRangeSelector'
@@ -45,6 +46,7 @@ export function VaRDashboard({ varResult, filteredHistory, loading, historyLoadi
   const [tooltipOpen, setTooltipOpen] = useState(false)
   const [chartView, setChartView] = useState<'var' | 'greeks'>('var')
   const calcTypeRef = useRef<HTMLSpanElement>(null)
+  const { windows: stressWindows } = useStressWindows()
 
   const closeTooltip = useCallback(() => setTooltipOpen(false), [])
   useClickOutside(calcTypeRef, closeTooltip)
@@ -165,6 +167,7 @@ export function VaRDashboard({ varResult, filteredHistory, loading, historyLoadi
             onZoom={zoomIn}
             zoomDepth={zoomDepth}
             onResetZoom={resetZoom}
+            stressWindows={stressWindows}
           />
         ) : (
           <GreeksTrendChart

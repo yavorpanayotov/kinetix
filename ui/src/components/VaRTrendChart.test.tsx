@@ -638,4 +638,54 @@ describe('VaRTrendChart', () => {
       expect(screen.queryByTestId('var-trend-tooltip')).not.toBeInTheDocument()
     })
   })
+
+  describe('stress windows', () => {
+    it('renders a stress band that overlaps the visible time range', () => {
+      const timeRange: TimeRange = {
+        from: '2025-01-15T10:00:00Z',
+        to: '2025-01-15T12:00:00Z',
+        label: 'Custom',
+      }
+      const stressWindows = [
+        { label: '2020-analog', start: '2025-01-15T10:30:00Z', end: '2025-01-15T11:00:00Z' },
+      ]
+
+      render(<VaRTrendChart history={history} timeRange={timeRange} stressWindows={stressWindows} />)
+
+      expect(screen.getByTestId('stress-band-2020-analog')).toBeInTheDocument()
+      expect(screen.getByTestId('stress-label-2020-analog')).toHaveTextContent('2020-analog')
+    })
+
+    it('does not render a stress band that lies entirely outside the visible range', () => {
+      const timeRange: TimeRange = {
+        from: '2025-01-15T10:00:00Z',
+        to: '2025-01-15T12:00:00Z',
+        label: 'Custom',
+      }
+      const stressWindows = [
+        { label: 'far-past', start: '2024-01-01T00:00:00Z', end: '2024-01-02T00:00:00Z' },
+      ]
+
+      render(<VaRTrendChart history={history} timeRange={timeRange} stressWindows={stressWindows} />)
+
+      expect(screen.queryByTestId('stress-band-far-past')).not.toBeInTheDocument()
+    })
+
+    it('renders multiple bands when several windows are visible', () => {
+      const timeRange: TimeRange = {
+        from: '2025-01-15T10:00:00Z',
+        to: '2025-01-15T12:00:00Z',
+        label: 'Custom',
+      }
+      const stressWindows = [
+        { label: '2020-analog', start: '2025-01-15T10:15:00Z', end: '2025-01-15T10:30:00Z' },
+        { label: '2022-analog', start: '2025-01-15T11:15:00Z', end: '2025-01-15T11:45:00Z' },
+      ]
+
+      render(<VaRTrendChart history={history} timeRange={timeRange} stressWindows={stressWindows} />)
+
+      expect(screen.getByTestId('stress-band-2020-analog')).toBeInTheDocument()
+      expect(screen.getByTestId('stress-band-2022-analog')).toBeInTheDocument()
+    })
+  })
 })

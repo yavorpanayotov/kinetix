@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { RotateCcw } from 'lucide-react'
 import type { VaRHistoryEntry } from '../hooks/useVaR'
+import type { StressWindowDto } from '../api/stressWindows'
 import type { TimeRange } from '../types'
 import { formatTimeOnly, formatChartTime, formatCurrency } from '../utils/format'
 import { formatCompactCurrency } from '../utils/formatCompactCurrency'
@@ -15,6 +16,7 @@ interface VaRTrendChartProps {
   onZoom?: (range: TimeRange) => void
   zoomDepth?: number
   onResetZoom?: () => void
+  stressWindows?: StressWindowDto[]
 }
 
 const PADDING = { top: 32, right: 16, bottom: 32, left: 56 }
@@ -53,7 +55,7 @@ function computeNiceGridLines(min: number, max: number, count: number): number[]
   return lines
 }
 
-export function VaRTrendChart({ history, isLoading, timeRange, onZoom, zoomDepth = 0, onResetZoom }: VaRTrendChartProps) {
+export function VaRTrendChart({ history, isLoading, timeRange, onZoom, zoomDepth = 0, onResetZoom, stressWindows = [] }: VaRTrendChartProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
   const [containerWidth, setContainerWidth] = useState(DEFAULT_WIDTH)
@@ -235,6 +237,27 @@ export function VaRTrendChart({ history, isLoading, timeRange, onZoom, zoomDepth
     }
     return regions
   }, [history, timeExtent, toX])
+
+  // Stress-window bands: each window from the demo regime calendar renders
+  // as a vertical red band with its label. Bands clip to the visible time
+  // range; entirely-outside windows are skipped.
+  const stressBands = useMemo(() => {
+    if (!timeExtent || stressWindows.length === 0) return []
+    return stressWindows.flatMap((window) => {
+      const startMs = new Date(window.start).getTime()
+      const endMs = new Date(window.end).getTime()
+      const lo = Math.min(startMs, endMs)
+      const hi = Math.max(startMs, endMs)
+      if (hi < timeExtent.fromMs || lo > timeExtent.toMs) return []
+      const visibleLo = Math.max(lo, timeExtent.fromMs)
+      const visibleHi = Math.min(hi, timeExtent.toMs)
+      return [{
+        label: window.label,
+        x1: toX(visibleLo),
+        x2: toX(visibleHi),
+      }]
+    })
+  }, [stressWindows, timeExtent, toX])
 
   const polylinePoints = points.map((p) => `${p.x},${p.y}`).join(' ')
 
@@ -521,6 +544,31 @@ export function VaRTrendChart({ history, isLoading, timeRange, onZoom, zoomDepth
             strokeWidth={0.5}
             strokeDasharray="2 4"
           />
+        ))}
+
+        {/* Stress-window bands (regime annotations) */}
+        {stressBands.map((band, i) => (
+          <g key={`stress-${i}`} data-testid={`stress-band-${band.label}`}>
+            <rect
+              x={band.x1}
+              y={PADDING.top}
+              width={Math.max(band.x2 - band.x1, 1)}
+              height={plotHeight}
+              fill="rgba(220, 38, 38, 0.08)"
+              stroke="#dc2626"
+              strokeWidth={0.5}
+              strokeDasharray="3 3"
+            />
+            <text
+              x={band.x1 + 4}
+              y={PADDING.top + 12}
+              fill="#fca5a5"
+              fontSize={9}
+              data-testid={`stress-label-${band.label}`}
+            >
+              {band.label}
+            </text>
+          </g>
         ))}
 
         {/* ES area fill */}
