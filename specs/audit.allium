@@ -68,19 +68,21 @@ entity AuditEvent {
     submission_id: String?
     alert_id: String?
     details: String?
-}
 
--- Notes on AuditEvent representation:
---   quantity and price_amount are stored at NUMERIC(28,12) precision.
---   traded_at is truncated to microsecond precision.
---   Hash chain: each event's previous_hash = previous event's record_hash.
---   The first event in the chain has previous_hash = null.
---   Non-trade events leave trade fields null; their identity is carried
---   in model_name, scenario_id, limit_id, or submission_id as appropriate.
---   All fields (including nulls) are included in hash computation so that
---   the hash is deterministic regardless of event type.
---   details is a free-text field for additional context (e.g. scenario name,
---   model version info).
+    @guidance
+        -- Representation notes:
+        --   quantity and price_amount are stored at NUMERIC(28,12) precision.
+        --   traded_at is truncated to microsecond precision.
+        --   Hash chain: each event's previous_hash = previous event's record_hash.
+        --   The first event in the chain has previous_hash = null.
+        --   Non-trade events leave trade fields null; their identity is carried
+        --   in model_name, scenario_id, limit_id, submission_id or alert_id as
+        --   appropriate.
+        --   All fields (including nulls) are included in hash computation so
+        --   the hash is deterministic regardless of event type.
+        --   details is a free-text field for additional context (e.g. scenario
+        --   name, model version info, severity transition).
+}
 
 entity VerificationCheckpoint {
     last_event_id: Integer

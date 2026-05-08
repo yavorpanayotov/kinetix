@@ -98,7 +98,7 @@ entity IntradayPnlSnapshot {
 
     -- Derived
     pnl_vs_sod: total_pnl - sod_total_pnl
-    unexplained_pct: attribution.unexplained_pnl / total_pnl
+    unexplained_pct: if total_pnl != 0: attribution.unexplained_pnl / total_pnl else: 0
 
     @guidance
         -- high_water_mark is the maximum total_pnl observed since

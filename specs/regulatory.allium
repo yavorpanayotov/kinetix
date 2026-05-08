@@ -24,14 +24,14 @@ entity ModelVersion {
         terminal: retired
     }
 
-    parameters: String?
+    parameters: String
     registered_by: String
     created_at: Timestamp
     model_tier: String?
     validation_report_url: String?
     known_limitations: String?
     approved_use_cases: String?
-    next_validation_date: String?
+    next_validation_date: Timestamp?
     approved_by: String when status = approved | retired
     approved_at: Timestamp when status = approved | retired
 
