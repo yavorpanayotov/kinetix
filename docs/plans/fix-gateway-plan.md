@@ -430,7 +430,7 @@ Four commits:
       - `fix_venue_pending_new_latency_seconds{venue}` — measured at runtime against the in-memory acceptor with realistic per-venue delays. Grafana SLO, not build-gate. Plan the SLO with the trading desk before phase 4 canary.
     - mTLS handshake failure case (server presents untrusted cert) — circuit breaker opens after N consecutive failures, no stacktrace flood.
     - Channel close mid-call → clean propagation, order ends in `PENDING_FAILED`.
-- [ ] **4.11** End-to-end:
+- [x] **4.11** End-to-end:
   - `OrderPlacementEnd2EndTest` — full submit-via-REST → fix-gateway → in-memory acceptor → Pending New → REST response. Asserts user-visible response payload now contains `venueOrderId`.
 - [ ] **4.12** UI Playwright (full suite — phase 4 introduces a new error state, a new label, and a new latency profile, so one spec is not enough per CLAUDE.md):
   - `ui/e2e/order-placement.spec.ts` — golden path: submit → spinner shown on submit button (`Button.tsx`'s `loading` prop) → `PENDING_NEW` arrives → confirmation modal renders `Venue Order ID` label + value + clipboard-copy button.

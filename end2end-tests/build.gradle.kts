@@ -23,6 +23,7 @@ dependencies {
     testImplementation(project(":notification-service"))
     testImplementation(libs.bundles.exposed)
     testImplementation(libs.bundles.database)
+    testImplementation(libs.bundles.grpc)
     testImplementation(libs.testcontainers.core)
     testImplementation(libs.testcontainers.postgresql)
     testImplementation(libs.testcontainers.kafka)
@@ -30,4 +31,7 @@ dependencies {
     testImplementation(libs.kotlinx.serialization.json)
     testImplementation(libs.micrometer.prometheus)
     testImplementation(libs.ktor.server.test.host)
+    testImplementation(libs.ktor.server.content.negotiation)
+    testImplementation(libs.ktor.serialization.kotlinx.json)
+    testImplementation(libs.quickfixj.core)
 }

@@ -138,4 +138,5 @@ private fun Order.toResponse() = OrderResponse(
     fixSessionId = fixSessionId,
     timeInForce = timeInForce.name,
     expiresAt = expiresAt?.toString(),
+    venueOrderId = venueOrderId,
 )
