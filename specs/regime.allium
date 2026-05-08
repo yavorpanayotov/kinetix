@@ -156,10 +156,10 @@ rule DetectRegime {
     when: ScheduledRegimeDetectionTick()
 
     let signals = gather_signals()
-    let config = active_regime_config()
+    let regime_config = active_regime_config()
     let current = current_regime_state()
 
-    let classified = classify_regime(signals, config.thresholds)
+    let classified = classify_regime(signals, regime_config.thresholds)
 
     @guidance
         -- Runs every 15 minutes during market hours, hourly overnight.
@@ -188,7 +188,7 @@ rule DetectRegime {
 rule ConfirmRegimeTransition {
     when: RegimeClassified(new_regime, signals, consecutive_count)
     let current = current_regime_state()
-    let config = active_regime_config()
+    let regime_config = active_regime_config()
 
     -- Escalation: normal→elevated or elevated→crisis
     let is_escalation = severity(new_regime) > severity(current.regime)
@@ -197,10 +197,10 @@ rule ConfirmRegimeTransition {
     requires: consecutive_count >= required
     requires: new_regime != current.regime
 
-    let new_params = params_for_regime(new_regime, config)
+    let new_params = params_for_regime(new_regime, regime_config)
 
     ensures: current.regime = new_regime
-    ensures: current.confidence = classify_confidence(signals, config.thresholds)
+    ensures: current.confidence = classify_confidence(signals, regime_config.thresholds)
     ensures: current.signals = signals
     ensures: current.var_parameters = new_params
     ensures: current.consecutive_observations = consecutive_count
@@ -233,7 +233,7 @@ rule ConfirmRegimeTransition {
 rule RegimeNotYetConfirmed {
     when: RegimeClassified(new_regime, signals, consecutive_count)
     let current = current_regime_state()
-    let config = active_regime_config()
+    let regime_config = active_regime_config()
     let is_escalation = severity(new_regime) > severity(current.regime)
     let required = if is_escalation: config.escalation_debounce else: config.de_escalation_debounce
 
@@ -272,8 +272,8 @@ rule ApplyRegimeParameters {
 
 rule EarlyWarningCheck {
     when: RegimeClassified(new_regime, signals, consecutive_count)
-    let config = active_regime_config()
-    let thresholds = config.thresholds
+    let regime_config = active_regime_config()
+    let thresholds = regime_config.thresholds
 
     let warnings = detect_warnings(signals, thresholds)
 
@@ -352,20 +352,24 @@ rule OverrideVaRParameters {
     let regime = current_regime_state()
     requires: regime.is_confirmed
     requires: regime.regime != normal
+    requires: trigger_type != on_demand
 
     @guidance
-        -- When regime is ELEVATED_VOL or CRISIS and the VaR request
-        -- uses default parameters, override with regime-adapted parameters.
+        -- Regime adaptation applies only to scheduled and event-driven
+        -- calculations (TriggerType: scheduled, event_driven, etc.). On-demand
+        -- requests (HTTP/API or user-initiated) carry the caller's exact
+        -- parameter intent and MUST NOT be silently overridden — see
+        -- VaRCalculationService.applyRegimeOverride which short-circuits when
+        -- triggerType = ON_DEMAND.
+        --
+        -- When regime is ELEVATED_VOL or CRISIS, override the request's
+        -- calculation_type / confidence_level / time_horizon_days /
+        -- num_simulations with the regime-adapted parameters.
         --
         -- The job record captures BOTH:
         --   - requested parameters (what was asked for)
         --   - effective parameters (what was actually used)
         -- This audit trail is critical for governance.
-        --
-        -- If the request explicitly specifies non-default parameters
-        -- (e.g., a user-initiated calculation with specific settings),
-        -- do NOT override. Regime adaptation only applies to
-        -- scheduled and event-driven calculations.
 }
 
 -- Signal degradation handling

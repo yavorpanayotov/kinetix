@@ -189,13 +189,16 @@ deferred extract_metric
     --   risk_limit          -> event.var_value
     --   delta_breach        -> event.delta
     --   vega_breach         -> event.vega
-    --   concentration       -> max pct across event.position_risk_snapshot
-    --   margin_breach       -> derived from position-service margin signal
-    --                          (not carried on the job; see the Kafka DTO)
+    --   concentration       -> max pct across event.position_risk_snapshot, with
+    --       fallback to risk.RiskResultPayload.concentration_by_instrument
+    --       (delivered on the wire alongside the job outputs)
+    --   margin_breach       -> risk.RiskResultPayload.margin_utilisation;
+    --       sourced from the position-service margin signal and carried on
+    --       the wire-level RiskResultEvent (NOT a column on ValuationJob)
     --   data_staleness      -> null (stub — not yet implemented; rule never fires)
-    --   liquidity_concentration -> numeric encoding of a liquidity status flag
-    --       sourced from the liquidity pipeline: breached -> 2.0,
-    --       warning -> 1.0, ok -> 0.0, absent -> null.
+    --   liquidity_concentration -> numeric encoding of
+    --       risk.RiskResultPayload.liquidity_concentration_status:
+    --       breached -> 2.0, warning -> 1.0, ok -> 0.0, absent -> null.
     --       A rule with threshold=1.5, operator=greater_than fires only on breached.
     --       A rule with threshold=0.5, operator=greater_than fires on warning and breached.
     --   regime_change       -> not evaluated via MetricExtractor; uses the
@@ -219,6 +222,18 @@ rule AutoResolveAlerts {
         ensures: alert.status = resolved
         ensures: alert.resolved_at = now
         ensures: alert.resolved_reason = "AUTO_CLEARED"
+        ensures: GovernanceTransitionOccurred(
+            event_type: alert_resolved,
+            user_id: "system",
+            user_role: "SYSTEM",
+            model_name: null,
+            scenario_id: null,
+            limit_id: null,
+            submission_id: null,
+            alert_id: alert.id,
+            book_id: alert.book_id,
+            details: "AUTO_CLEARED"
+        )
 
     @guidance
         -- After evaluating all rules, check active alerts.
@@ -228,6 +243,12 @@ rule AutoResolveAlerts {
         -- edges triggered->resolved, acknowledged->resolved, escalated->resolved.
         -- Only applies when the rule still exists.
         -- Deleted rules cannot trigger auto-resolution.
+        --
+        -- Emits a GovernanceTransitionOccurred event with event_type
+        -- alert_resolved so the resolution is visible in the hash-chained
+        -- audit log. The audit event uses user_id=system / user_role=SYSTEM
+        -- because resolution is automatic (no human actor) and carries the
+        -- resolved_reason as details.
 }
 
 -- Suggested action generation
@@ -283,6 +304,27 @@ rule AcknowledgeAlert {
         acknowledged_at: now,
         notes: notes
     )
+    ensures: GovernanceTransitionOccurred(
+        event_type: alert_acknowledged,
+        user_id: acknowledged_by,
+        user_role: "UNKNOWN",
+        model_name: null,
+        scenario_id: null,
+        limit_id: null,
+        submission_id: null,
+        alert_id: alert.id,
+        book_id: alert.book_id,
+        details: notes
+    )
+
+    @guidance
+        -- Acknowledgement transitions the alert from triggered to
+        -- acknowledged, records the AlertAcknowledgement, and emits a
+        -- GovernanceTransitionOccurred event with event_type
+        -- alert_acknowledged. The audit module's
+        -- RecordGovernanceAuditEvent rule appends the corresponding
+        -- AuditEvent to the hash chain. Implementation:
+        -- notification-service Application.kt POST /alerts/{id}/ack.
 }
 
 rule AcknowledgeAlertRejectedAlreadyResolved {

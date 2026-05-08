@@ -290,6 +290,18 @@ deferred per_instrument_attribution
     -- Instruments without a SOD snapshot contribute to total_pnl
     -- but have null attribution (new position opened intraday).
 
+deferred current_correlation_id
+    -- Returns the correlation_id of the inbound stimulus driving the
+    -- current recompute (e.g. the originating PriceEvent or trade
+    -- correlation_id). Used to stitch the IntradayPnlSnapshot back to the
+    -- request chain that produced it.
+    --
+    -- Implementation: risk-orchestrator IntradayPnlService — reads from
+    -- the coroutine context / request scope set by the upstream Kafka
+    -- consumer or HTTP entry point.
+    -- May return null when the recompute is initiated outside a correlated
+    -- request (e.g. a manual recompute or a scheduled refresh).
+
 -- Trigger chaining: position changes originate from existing rules
 
 rule PriceChangeTriggersPositionChanged {

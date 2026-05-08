@@ -16,12 +16,12 @@ use "./audit.allium" as audit
 -- Enumerations
 ------------------------------------------------------------
 
-enum EscalationTarget { desk_head | risk_manager_cro }
-
--- Maps to the string values stored in AlertEvent.escalated_to:
---   desk_head       -> "desk-head"
---   risk_manager_cro -> "risk-manager,cro"
--- EscalationChannel is no longer needed as a separate enum.
+-- AlertEvent.escalated_to is persisted as a free-form String?, with the
+-- canonical values "desk-head" and "risk-manager,cro" used by the
+-- EscalateAlert / ProcessEscalation rules. We do not declare a named enum
+-- for these values: the identifiers travel beyond this spec (audit details
+-- payloads, downstream consumers) where the literal hyphenated form is
+-- what the wire formats expose.
 -- core/DeliveryChannel now includes pager_duty alongside in_app, email, webhook.
 
 ------------------------------------------------------------
@@ -63,15 +63,17 @@ rule ResolveEscalationTarget {
 
     ensures:
         if promoted_severity = critical:
-            escalation_target = risk_manager_cro
+            escalation_target = "risk-manager,cro"
         else:
-            escalation_target = desk_head
+            escalation_target = "desk-head"
 
     @guidance
         -- The target is derived from the PROMOTED severity, not the original.
         -- A WARNING alert that gets promoted to CRITICAL will be escalated
         -- to risk-manager,cro (not desk-head).
         -- This means all escalated WARNING alerts reach senior risk management.
+        -- The literal strings match AlertEvent.escalated_to (String?) on the
+        -- wire and are echoed verbatim into the audit details payload.
         -- Implemented in AlertEscalationService.escalationTargetFor().
 }
 
@@ -102,7 +104,7 @@ rule RouteEscalationDelivery {
 -- Scheduled escalation polling
 
 rule ScheduledEscalationPoll {
-    when: Timer(every: config.escalation_poll_interval)
+    when: Timer(every: alerts/config.escalation_poll_interval)
 
     ensures: EscalationCheckTriggered()
 
@@ -118,7 +120,7 @@ rule ScheduledEscalationPoll {
 
 rule ProcessEscalation {
     when: EscalationCheckTriggered()
-    let cutoff = now - config.escalation_timeout
+    let cutoff = now - alerts/config.escalation_timeout
 
     for alert in alerts/AlertEvents
         where status = acknowledged

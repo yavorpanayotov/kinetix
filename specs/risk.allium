@@ -86,6 +86,22 @@ value StressTestImpact {
     pnl_impact: Decimal
 }
 
+value ConcentrationItem {
+    instrument_id: String
+    percentage: Decimal
+}
+
+value RiskResultPayload {
+    -- Mirrors the on-the-wire RiskResultEvent (risk.results Kafka topic).
+    -- Most fields are sourced from the producing ValuationJob, but the
+    -- following derived signals are included on the wire for downstream
+    -- consumers (alerts engine, notification-service) and have no
+    -- corresponding column on the job entity:
+    margin_utilisation: Decimal?
+    concentration_by_instrument: List<ConcentrationItem>?
+    liquidity_concentration_status: String?
+}
+
 ------------------------------------------------------------
 -- Entities and Variants
 ------------------------------------------------------------

@@ -87,8 +87,8 @@ rule AutoCloseBookEvaluation {
     -- RiskResultPublished) handles promotion once the calculation completes.
     ensures: risk/CalculateVaRRequested(
         book_id: book_id,
-        calculation_type: parametric,
-        confidence_level: cl_99,
+        calculation_type: core/parametric,
+        confidence_level: core/cl_99,
         time_horizon_days: null,
         num_simulations: null,
         requested_outputs: { var, expected_shortfall, greeks, pv },

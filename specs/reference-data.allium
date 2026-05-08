@@ -427,8 +427,8 @@ invariant UniqueInstrumentIds {
 }
 
 invariant UniqueCounterpartyIds {
-    for c1 in Counterpartys:
-        for c2 in Counterpartys:
+    for c1 in Counterparties:
+        for c2 in Counterparties:
             c1 = c2 or c1.counterparty_id != c2.counterparty_id
 }
 
@@ -445,7 +445,7 @@ invariant UniqueBenchmarkIds {
 }
 
 invariant UniqueInstrumentLiquidityIds {
-    for l1 in InstrumentLiquiditys:
-        for l2 in InstrumentLiquiditys:
+    for l1 in InstrumentLiquidities:
+        for l2 in InstrumentLiquidities:
             l1 = l2 or l1.instrument_id != l2.instrument_id
 }

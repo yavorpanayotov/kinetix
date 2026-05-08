@@ -45,7 +45,7 @@ entity LimitDefinition {
     active: Boolean
 
     -- Relationships
-    temporary_increases: TemporaryIncrease with limit = this
+    temporary_increases: TemporaryLimitIncrease with limit = this
 
     -- Derived
     active_increase: temporary_increases where expires_at > now
@@ -60,7 +60,7 @@ entity LimitDefinition {
         --   Else use limit_value.
 }
 
-entity TemporaryIncrease {
+entity TemporaryLimitIncrease {
     id: String
     limit: LimitDefinition
     new_value: Decimal
@@ -124,7 +124,7 @@ rule UpdateLimit {
 rule RequestTemporaryIncrease {
     when: TemporaryIncreaseRequested(limit_id, new_value, approved_by, expires_at, reason)
     let limit = LimitDefinition{id: limit_id}
-    ensures: TemporaryIncrease.created(
+    ensures: TemporaryLimitIncrease.created(
         id: generated_id,
         limit: limit,
         new_value: new_value,

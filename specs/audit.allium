@@ -277,6 +277,52 @@ rule RecordAccessDenialAuditEvent {
         -- Emitted by the gateway's RBAC filter before returning 403 to caller.
 }
 
+rule RecordBookAccessDenialAuditEvent {
+    when: BookAccessDenied(user_id, user_role, book_id, resource_uri)
+    let latest_hash = latest_audit_event_hash
+
+    ensures: AuditEvent.created(
+        received_at: now,
+        user_id: user_id,
+        user_role: user_role,
+        event_type: book_access_denied,
+        book_id: book_id,
+        details: resource_uri,
+        previous_hash: latest_hash,
+        record_hash: compute_hash(all_fields, latest_hash)
+    )
+
+    @guidance
+        -- Emitted by the gateway BookAccessPlugin when a principal lacks
+        -- permission to access a specific book. Distinct from the
+        -- coarser rbac_access_denied event: this records book-scoped
+        -- denials carrying both the book_id and the request URI for
+        -- correlation with intrusion-detection workflows.
+}
+
+rule RecordReportGenerationAuditEvent {
+    when: ReportGenerated(user_id, user_role, book_id, report_type)
+    let latest_hash = latest_audit_event_hash
+
+    ensures: AuditEvent.created(
+        received_at: now,
+        user_id: user_id,
+        user_role: user_role,
+        event_type: report_generated,
+        book_id: book_id,
+        details: report_type,
+        previous_hash: latest_hash,
+        record_hash: compute_hash(all_fields, latest_hash)
+    )
+
+    @guidance
+        -- Emitted whenever a regulatory or risk report is materialised
+        -- for downstream consumption (e.g. FRTB capital reports, backtest
+        -- reports). Both regulatory-service routes (RegulatoryRoutes.kt
+        -- and BacktestRoutes.kt) publish this event. The details field
+        -- carries the report identifier (e.g. "FRTB", backtest name).
+}
+
 -- Hash chain verification
 
 rule VerifyAuditChain {
