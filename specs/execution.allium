@@ -28,6 +28,8 @@ enum ReconciliationBreakSeverity { normal | critical }
 
 enum FIXSessionStatus { connected | disconnected | reconnecting }
 
+enum TimeInForce { day | gtc | ioc | fok | gtd }
+
 ------------------------------------------------------------
 -- Value Types
 ------------------------------------------------------------
@@ -99,6 +101,8 @@ entity Order {
     risk_check_result: String when status = approved | rejected | sent | partial | filled | cancelled | expired
     risk_check_details: String? when status = approved | rejected | sent | partial | filled | cancelled | expired
     fix_session_id: String?
+    time_in_force: TimeInForce
+    expires_at: Timestamp?
 
     -- Derived
     is_terminal: status in {filled, cancelled, expired, rejected}
@@ -108,10 +112,28 @@ entity Order {
     -- Relationships
     fills: ExecutionFill with order = this
 
+    invariant ExpiresAtBindsToGtd {
+        -- expires_at must be set IFF time_in_force = gtd. The Kotlin domain
+        -- type enforces this in its init block; the spec mirrors the rule
+        -- so violations are visible at the behavioural level.
+        (time_in_force = gtd) = (expires_at != null)
+    }
+
     @guidance
         -- arrival_price: mid-price at order submission time.
         -- Captured from price-service at the moment the order enters the system.
         -- Used for slippage measurement: slippage = avg_fill_price - arrival_price.
+        --
+        -- time_in_force / expires_at lifecycle (ADR-0035):
+        --   day  - sweeper expires OPEN/PARTIAL day orders past venue-cutoff
+        --   gtc  - stays alive until filled or manually cancelled
+        --   gtd  - sweeper expires the order when expires_at <= now;
+        --          expires_at must be in the future and within the venue's
+        --          max-GTD horizon at submit time
+        --   ioc  - resolved at the venue at submission time
+        --   fok  - resolved at the venue at submission time
+        -- The ScheduledOrderExpirySweeper transitions OPEN/PARTIAL day and gtd
+        -- orders to OrderStatus.expired when their expiry condition is met.
 }
 
 entity ExecutionFill {
@@ -459,6 +481,13 @@ rule AlertOnReconciliationBreaks {
             -- Implementation: PrimeBrokerReconciliationService.kt and
             -- ReconciliationAlertPublisher.publishBreakAlert (per-break,
             -- partition key bookId|instrumentId).
+            --
+            -- Topic reuse: KafkaReconciliationAlertPublisher publishes the
+            -- per-break alert to the existing risk.results Kafka topic
+            -- alongside other risk-result events (see risk.allium). The
+            -- consumer differentiates reconciliation-break payloads from
+            -- VaR/risk results by inspecting the event envelope; no separate
+            -- topic is provisioned for reconciliation alerts.
 }
 
 -- Reconciliation break lifecycle

@@ -67,7 +67,7 @@ value BudgetUtilisation {
 -- Entities and Variants
 ------------------------------------------------------------
 
-entity BookHierarchyEntry {
+entity BookHierarchyMapping {
     book_id: String
     desk_id: String
     book_name: String?
@@ -159,7 +159,7 @@ rule ResolveHierarchy {
         -- Resolution:
         --   1. Fetch divisions from reference-data-service.
         --   2. Fetch desks per division from reference-data-service.
-        --   3. Map books to desks via BookHierarchyEntry.
+        --   3. Map books to desks via BookHierarchyMapping.
         --   4. Collect all book_ids under the requested entity.
 }
 

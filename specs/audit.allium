@@ -66,6 +66,7 @@ entity AuditEvent {
     scenario_id: String?
     limit_id: String?
     submission_id: String?
+    alert_id: String?
     details: String?
 }
 
@@ -193,7 +194,7 @@ rule RecordAuditEventOnCancel {
 -- Model governance, limit, scenario, submission, and access denial audit events
 
 rule RecordGovernanceAuditEvent {
-    when: GovernanceTransitionOccurred(event_type, user_id, user_role, model_name, scenario_id, limit_id, submission_id, book_id, details)
+    when: GovernanceTransitionOccurred(event_type, user_id, user_role, model_name, scenario_id, limit_id, submission_id, alert_id, book_id, details)
     let latest_hash = latest_audit_event_hash
 
     ensures: AuditEvent.created(
@@ -205,6 +206,7 @@ rule RecordGovernanceAuditEvent {
         scenario_id: scenario_id,
         limit_id: limit_id,
         submission_id: submission_id,
+        alert_id: alert_id,
         book_id: book_id,
         details: details,
         previous_hash: latest_hash,
@@ -213,15 +215,19 @@ rule RecordGovernanceAuditEvent {
 
     @guidance
         -- Covers model_status_changed, limit_breached, limit_increase_approved,
-        -- scenario_approved, scenario_retired, eod_promoted, submission_approved.
-        -- Triggered by the relevant service (regulatory-service, position-service)
-        -- publishing a GovernanceTransitionOccurred event to the audit Kafka topic.
-        -- All governance transitions must flow through the hash-chained trail
-        -- to satisfy four-eyes principle auditability requirements.
-        -- Exactly one of model_name, scenario_id, limit_id, submission_id
-        -- will be non-null depending on event_type.
+        -- scenario_approved, scenario_retired, eod_promoted, submission_approved,
+        -- alert_acknowledged, alert_escalated, alert_resolved.
+        -- Triggered by the relevant service (regulatory-service, position-service,
+        -- notification-service) publishing a GovernanceTransitionOccurred event
+        -- to the audit Kafka topic. All governance transitions must flow through
+        -- the hash-chained trail to satisfy four-eyes principle auditability
+        -- requirements.
+        -- Exactly one of model_name, scenario_id, limit_id, submission_id, alert_id
+        -- will be non-null depending on event_type. alert_id is a top-level field
+        -- on the wire event (GovernanceAuditEvent.alertId) — it is NOT embedded in
+        -- the free-text details payload.
         -- book_id is populated for stress test runs and risk calculation events.
-        -- details carries additional context (e.g. scenario name, model version).
+        -- details carries additional context (e.g. scenario name, severity change).
 }
 
 rule RecordRiskCalculationAuditEvent {

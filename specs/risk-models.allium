@@ -101,12 +101,20 @@ value SbmResult {
     total_sbm_charge: Decimal
 }
 
+value TenorCharge {
+    tenor_label: String
+    sensitivity: Decimal
+    risk_weight: Decimal
+    weighted_sensitivity: Decimal
+}
+
 value RiskClassCharge {
     risk_class: core/FrtbRiskClass
     delta_charge: Decimal
     vega_charge: Decimal
     curvature_charge: Decimal
     total_charge: Decimal
+    tenor_charges: List<TenorCharge>?
 }
 
 value DrcResult {

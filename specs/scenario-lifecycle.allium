@@ -109,6 +109,7 @@ rule ApproveScenario {
         scenario_id: scenario_id,
         limit_id: null,
         submission_id: null,
+        alert_id: null,
         book_id: null,
         details: scenario.name
     )
@@ -139,6 +140,7 @@ rule RetireScenario {
         scenario_id: scenario_id,
         limit_id: null,
         submission_id: null,
+        alert_id: null,
         book_id: null,
         details: scenario.name
     )
@@ -240,6 +242,7 @@ rule RunScenarioRequiresApproval {
         scenario_id: scenario_id,
         limit_id: null,
         submission_id: null,
+        alert_id: null,
         book_id: book_id,
         details: "modelVersion=<model_version>"
     )

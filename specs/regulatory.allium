@@ -127,15 +127,24 @@ entity RegulatorySubmission {
 
 -- FRTB calculation records
 
+value TenorCharge {
+    tenor_label: String
+    sensitivity: Decimal
+    risk_weight: Decimal
+    weighted_sensitivity: Decimal
+}
+
 value StoredRiskClassCharge {
     risk_class: String
     delta_charge: Decimal
     vega_charge: Decimal
     curvature_charge: Decimal
     total_charge: Decimal
+    tenor_charges: List<TenorCharge>?
 }
 
 entity FrtbCalculationRecord {
+    id: String
     book_id: String
     total_sbm_charge: Decimal
     gross_jtd: Decimal

@@ -327,8 +327,9 @@ rule EscalateAlert {
             scenario_id: null,
             limit_id: null,
             submission_id: null,
+            alert_id: alert.id,
             book_id: alert.book_id,
-            details: "alertId={alert.id} severity={alert.severity}->{promoted_severity} escalatedTo={target} type={alert.type}"
+            details: "severity={alert.severity}->{promoted_severity} escalatedTo={target} type={alert.type}"
         )
 
     @guidance
