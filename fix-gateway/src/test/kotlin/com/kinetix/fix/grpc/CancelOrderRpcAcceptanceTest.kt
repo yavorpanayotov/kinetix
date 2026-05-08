@@ -2,8 +2,11 @@ package com.kinetix.fix.grpc
 
 import com.kinetix.fix.session.CancelMessageBuilder
 import com.kinetix.fix.session.FixSessionSender
+import com.kinetix.fix.session.NewOrderSingleBuilder
+import com.kinetix.fix.session.PendingNewCorrelator
 import com.kinetix.fix.session.RecordingFixSessionSender
 import com.kinetix.fix.session.SendOutcome
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import com.kinetix.fix.venue.VenueCutoffRegistry
 import com.kinetix.fix.venue.VenueSessionRegistry
 import com.kinetix.proto.execution.CancelOrderRequest
@@ -41,6 +44,8 @@ class CancelOrderRpcAcceptanceTest : FunSpec({
         venueSessionRegistry = VenueSessionRegistry(),
         venueCutoffRegistry = VenueCutoffRegistry(),
         cancelMessageBuilder = CancelMessageBuilder(),
+        newOrderSingleBuilder = NewOrderSingleBuilder(),
+        pendingNewCorrelator = PendingNewCorrelator(meterRegistry = SimpleMeterRegistry()),
         sessionSender = sender,
         originalOrderLookup = { _, clOrdId -> knownOrders[clOrdId] },
         clock = fixedClock,

@@ -3,17 +3,24 @@ package com.kinetix.fix.grpc
 import com.google.protobuf.Timestamp
 import com.kinetix.fix.session.CancelMessageBuilder
 import com.kinetix.fix.session.FixSessionSender
+import com.kinetix.fix.session.NewOrderSingleBuilder
+import com.kinetix.fix.session.PendingNewCorrelator
 import com.kinetix.fix.session.SendOutcome
 import com.kinetix.fix.venue.VenueCutoffRegistry
+import com.kinetix.fix.venue.VenueSession
 import com.kinetix.fix.venue.VenueSessionRegistry
 import com.kinetix.proto.execution.CancelOrderRequest
 import com.kinetix.proto.execution.CancelOrderResponse
 import com.kinetix.proto.execution.FixGatewayGrpc
 import com.kinetix.proto.execution.IsVenueOpenRequest
 import com.kinetix.proto.execution.IsVenueOpenResponse
+import com.kinetix.proto.execution.PlaceOrderRequest
+import com.kinetix.proto.execution.PlaceOrderResponse
 import io.grpc.stub.StreamObserver
+import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 import java.math.BigDecimal
+import java.time.Duration
 import java.time.Instant
 
 /**
@@ -36,6 +43,8 @@ class FixGatewayServiceImpl(
     private val venueSessionRegistry: VenueSessionRegistry,
     private val venueCutoffRegistry: VenueCutoffRegistry,
     private val cancelMessageBuilder: CancelMessageBuilder,
+    private val newOrderSingleBuilder: NewOrderSingleBuilder,
+    private val pendingNewCorrelator: PendingNewCorrelator,
     private val sessionSender: FixSessionSender,
     private val originalOrderLookup: OriginalOrderLookup,
     private val clock: () -> Instant = Instant::now,
@@ -161,5 +170,157 @@ class FixGatewayServiceImpl(
                 .build()
         }
         return builder.build()
+    }
+
+    // -----------------------------------------------------------------------
+    // PlaceOrder (ADR-0035 phase 4)
+    // -----------------------------------------------------------------------
+
+    override fun placeOrder(
+        request: PlaceOrderRequest,
+        responseObserver: StreamObserver<PlaceOrderResponse>,
+    ) {
+        val response = handlePlaceOrder(request)
+        responseObserver.onNext(response)
+        responseObserver.onCompleted()
+    }
+
+    /**
+     * Synchronous PlaceOrder pipeline:
+     *
+     *   1. Reject blank/invalid input (INVALID_REQUEST).
+     *   2. Resolve venue (UNKNOWN_VENUE if not registered) and pick the per-venue
+     *      ack timeout, optionally overridden by `venue_ack_timeout_ms`.
+     *   3. Build the 35=D NewOrderSingle. Builder validation failures map to
+     *      INVALID_REQUEST so the trader sees the reason rather than a 5xx.
+     *   4. Register the correlator deferred BEFORE the on-wire send so an instant
+     *      35=8 still finds an entry. The send callback throws a typed exception
+     *      on SessionDown / UnknownVenue so the correlator unwinds the slot —
+     *      otherwise the permit would leak on every failed send.
+     *   5. Block on the deferred up to the venue-ack timeout; map outcomes onto
+     *      the proto Status enum.
+     *
+     * The correlator's per-venue back-pressure cap surfaces as SESSION_DOWN with
+     * detail `back_pressure` so the caller's UI bands it together with other
+     * "venue routing unavailable" cases (per the UX contract). The 24h
+     * fix_message_log idempotency lookup + 35=H reconciliation lands once the
+     * Postgres-backed store wires in (out of scope for this commit; the
+     * in-memory correlator already covers the in-flight duplicate case).
+     */
+    internal fun handlePlaceOrder(request: PlaceOrderRequest): PlaceOrderResponse {
+        if (request.clOrdId.isBlank()) {
+            return placeRejected(request, PlaceOrderResponse.Status.INVALID_REQUEST, "cl_ord_id must be non-empty")
+        }
+        if (request.instrumentId.isBlank()) {
+            return placeRejected(request, PlaceOrderResponse.Status.INVALID_REQUEST, "instrument_id must be non-empty")
+        }
+
+        val session = venueSessionRegistry.lookup(request.venue)
+            ?: return placeRejected(
+                request,
+                PlaceOrderResponse.Status.UNKNOWN_VENUE,
+                "venue '${request.venue}' is not registered",
+            )
+
+        val message = try {
+            newOrderSingleBuilder.build(session, request, clock())
+        } catch (e: IllegalArgumentException) {
+            return placeRejected(request, PlaceOrderResponse.Status.INVALID_REQUEST, e.message ?: "invalid request")
+        }
+
+        val timeout = resolveTimeout(session, request)
+
+        val response = try {
+            pendingNewCorrelator.register(session.venue, request.clOrdId) {
+                when (sessionSender.send(session.venue, message)) {
+                    SendOutcome.Sent -> Unit
+                    SendOutcome.SessionDown -> throw PlaceOrderSessionDown
+                    SendOutcome.UnknownVenue -> throw PlaceOrderUnknownVenue
+                }
+            }
+        } catch (_: PlaceOrderSessionDown) {
+            return placeRejected(
+                request,
+                PlaceOrderResponse.Status.SESSION_DOWN,
+                "FIX session for ${session.venue} is not connected",
+            )
+        } catch (_: PlaceOrderUnknownVenue) {
+            return placeRejected(
+                request,
+                PlaceOrderResponse.Status.UNKNOWN_VENUE,
+                "venue '${request.venue}' is not connected by the session manager",
+            )
+        }
+
+        return when (response) {
+            PendingNewCorrelator.Registration.DuplicateInFlight ->
+                placeRejected(
+                    request,
+                    PlaceOrderResponse.Status.DUPLICATE_IN_FLIGHT,
+                    "another PlaceOrder for cl_ord_id=${request.clOrdId} is already in flight",
+                )
+            PendingNewCorrelator.Registration.BackPressure ->
+                placeRejected(
+                    request,
+                    PlaceOrderResponse.Status.SESSION_DOWN,
+                    "back_pressure",
+                )
+            PendingNewCorrelator.Registration.Registered -> {
+                val outcome = runBlocking {
+                    pendingNewCorrelator.await(session.venue, request.clOrdId, timeout)
+                }
+                mapOutcome(request, outcome).also {
+                    logger.info(
+                        "PlaceOrder venue={} clOrdId={} timeoutMs={} status={} venueOrderId={}",
+                        session.venue, request.clOrdId, timeout.toMillis(), it.status, it.venueOrderId,
+                    )
+                }
+            }
+        }
+    }
+
+    private fun resolveTimeout(session: VenueSession, request: PlaceOrderRequest): Duration {
+        val override = request.venueAckTimeoutMs
+        return if (override > 0) Duration.ofMillis(override.toLong())
+        else Duration.ofMillis(session.defaultVenueAckTimeoutMs.toLong())
+    }
+
+    private fun mapOutcome(
+        request: PlaceOrderRequest,
+        outcome: PendingNewCorrelator.Outcome,
+    ): PlaceOrderResponse = when (outcome) {
+        is PendingNewCorrelator.Outcome.PendingNew -> PlaceOrderResponse.newBuilder()
+            .setClOrdId(request.clOrdId)
+            .setStatus(PlaceOrderResponse.Status.PENDING_NEW)
+            .setVenueOrderId(outcome.venueOrderId)
+            .build()
+        is PendingNewCorrelator.Outcome.Rejected -> PlaceOrderResponse.newBuilder()
+            .setClOrdId(request.clOrdId)
+            .setStatus(PlaceOrderResponse.Status.REJECTED)
+            .setRejectReason(outcome.reason)
+            .build()
+        PendingNewCorrelator.Outcome.Timeout -> PlaceOrderResponse.newBuilder()
+            .setClOrdId(request.clOrdId)
+            .setStatus(PlaceOrderResponse.Status.SESSION_DOWN)
+            .setRejectReason("venue did not acknowledge within deadline")
+            .build()
+    }
+
+    private fun placeRejected(
+        request: PlaceOrderRequest,
+        status: PlaceOrderResponse.Status,
+        reason: String,
+    ): PlaceOrderResponse = PlaceOrderResponse.newBuilder()
+        .setClOrdId(request.clOrdId)
+        .setStatus(status)
+        .setRejectReason(reason)
+        .build()
+
+    private object PlaceOrderSessionDown : RuntimeException() {
+        private fun readResolve(): Any = PlaceOrderSessionDown
+    }
+
+    private object PlaceOrderUnknownVenue : RuntimeException() {
+        private fun readResolve(): Any = PlaceOrderUnknownVenue
     }
 }

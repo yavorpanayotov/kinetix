@@ -7,7 +7,9 @@ import com.kinetix.fix.health.FixGatewayReadiness
 import com.kinetix.fix.persistence.DatabaseConfig
 import com.kinetix.fix.persistence.DatabaseFactory
 import com.kinetix.fix.session.CancelMessageBuilder
+import com.kinetix.fix.session.NewOrderSingleBuilder
 import com.kinetix.fix.session.NoOpFixSessionSender
+import com.kinetix.fix.session.PendingNewCorrelator
 import com.kinetix.fix.venue.VenueCutoffRegistry
 import com.kinetix.fix.venue.VenueSessionRegistry
 import io.ktor.http.ContentType
@@ -33,9 +35,10 @@ import java.util.UUID
 
 fun main(args: Array<String>): Unit = EngineMain.main(args)
 
-fun Application.module() {
+fun Application.module(
+    appMicrometerRegistry: PrometheusMeterRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT),
+) {
     log.info("Starting fix-gateway")
-    val appMicrometerRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
     install(MicrometerMetrics) { registry = appMicrometerRegistry }
     install(ContentNegotiation) {
         json(Json {
@@ -79,10 +82,14 @@ fun Application.moduleWithDependencies() {
     val grpcPort = environment.config.propertyOrNull("grpc.port")?.getString()?.toInt() ?: 9105
     val venueSessionRegistry = VenueSessionRegistry()
     val venueCutoffRegistry = VenueCutoffRegistry()
+    val appMicrometerRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
+    val pendingNewCorrelator = PendingNewCorrelator(meterRegistry = appMicrometerRegistry)
     val fixGatewayService = FixGatewayServiceImpl(
         venueSessionRegistry = venueSessionRegistry,
         venueCutoffRegistry = venueCutoffRegistry,
         cancelMessageBuilder = CancelMessageBuilder(),
+        newOrderSingleBuilder = NewOrderSingleBuilder(),
+        pendingNewCorrelator = pendingNewCorrelator,
         sessionSender = NoOpFixSessionSender(),
         // Phase 2 has no fix_message_log entries yet; phase 4 wires the real lookup.
         originalOrderLookup = { _, _ -> null },
@@ -96,7 +103,7 @@ fun Application.moduleWithDependencies() {
         grpcServer.stop()
     }
 
-    module()
+    module(appMicrometerRegistry)
 
     routing {
         get("/health/ready") {

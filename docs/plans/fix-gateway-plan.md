@@ -381,7 +381,7 @@ Four commits:
 
 ### fix-gateway side
 
-- [ ] **4.3** `FixGatewayServiceImpl.placeOrder`:
+- [x] **4.3** `FixGatewayServiceImpl.placeOrder`:
   - Validate venue + instrument format.
   - **Idempotency check:** lookup `clOrdID` in the in-flight correlator (4.4) AND in `fix_message_log` for the past 24h. If already in-flight → return `DUPLICATE_IN_FLIGHT`. If already submitted (35=D in log) and outcome unknown → fix-gateway sends `OrderStatusRequest` (35=H) to the venue and waits for the response before deciding the response status; this prevents the double-submit race that follows a caller-side retry on `PENDING_FAILED` (see 4.5).
   - Build 35=D `NewOrderSingle`.
@@ -414,7 +414,7 @@ Four commits:
 ### Tests
 
 - [x] **4.8** Proto consistency: `PlaceOrderProtoTest` in `schema-tests/` round-trips every enum.
-- [ ] **4.9** `fix-gateway` acceptance:
+- [x] **4.9** `fix-gateway` acceptance:
   - `PlaceOrderRpcAcceptanceTest` — sends `PlaceOrderRequest`, in-memory acceptor responds with 35=8 Pending New (delayed 1ms to expose race); asserts response is `PENDING_NEW` with `venue_order_id` populated.
   - Reject path: acceptor responds with 35=8 `OrdStatus = 8` (Rejected) → response is `REJECTED`.
   - Timeout path: acceptor doesn't respond → response is `SESSION_DOWN` after per-venue deadline.

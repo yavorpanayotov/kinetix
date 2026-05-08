@@ -2,7 +2,9 @@ package com.kinetix.fix.grpc
 
 import com.google.protobuf.Timestamp
 import com.kinetix.fix.session.CancelMessageBuilder
+import com.kinetix.fix.session.NewOrderSingleBuilder
 import com.kinetix.fix.session.NoOpFixSessionSender
+import com.kinetix.fix.session.PendingNewCorrelator
 import com.kinetix.fix.venue.VenueCutoffRegistry
 import com.kinetix.fix.venue.VenueSessionRegistry
 import com.kinetix.proto.execution.FixGatewayGrpc
@@ -10,6 +12,7 @@ import com.kinetix.proto.execution.IsVenueOpenRequest
 import io.grpc.ManagedChannelBuilder
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 
@@ -24,6 +27,8 @@ class IsVenueOpenRpcAcceptanceTest : FunSpec({
         venueSessionRegistry = VenueSessionRegistry(),
         venueCutoffRegistry = VenueCutoffRegistry(),
         cancelMessageBuilder = CancelMessageBuilder(),
+        newOrderSingleBuilder = NewOrderSingleBuilder(),
+        pendingNewCorrelator = PendingNewCorrelator(meterRegistry = SimpleMeterRegistry()),
         sessionSender = NoOpFixSessionSender(),
         originalOrderLookup = { _, _ -> null },
     )
