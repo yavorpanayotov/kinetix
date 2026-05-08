@@ -280,8 +280,16 @@ class DevDataSeeder(
                 EquityOption(underlyingId = "IDX-SPX", optionType = "PUT", strike = 4500.0, expiryDate = "2026-09-18", exerciseStyle = "EUROPEAN", contractMultiplier = 100.0),
                 "SPX Put 4500 Sep2026", "USD",
             ),
+            // VIX volatility index — cash-settled against the VIX fixing. Until the
+            // enum has a dedicated INDEX / VOL_INDEX type (separate ADR), it is
+            // classified as CashEquity to mirror IDX-SPX so the underlyingId
+            // reference from VIX-PUT-15 resolves cleanly.
+            "IDX-VIX" to InstrumentConfig(
+                CashEquity(currency = "USD", exchange = "CBOE", sector = "Index", countryCode = "US"),
+                "CBOE Volatility Index", "USD",
+            ),
             "VIX-PUT-15" to InstrumentConfig(
-                EquityOption(underlyingId = "VIX", optionType = "PUT", strike = 15.0, expiryDate = "2026-09-18", exerciseStyle = "EUROPEAN", contractMultiplier = 100.0),
+                EquityOption(underlyingId = "IDX-VIX", optionType = "PUT", strike = 15.0, expiryDate = "2026-09-18", exerciseStyle = "EUROPEAN", contractMultiplier = 100.0),
                 "VIX Put 15 Sep2026", "USD",
             ),
             "SPX-PUT-4800" to InstrumentConfig(
@@ -306,7 +314,7 @@ class DevDataSeeder(
             ),
             // ── Equity futures ──
             "SPX-SEP26" to InstrumentConfig(
-                EquityFuture(underlyingId = "SPX", expiryDate = "2026-09-18", contractSize = 50.0, currency = "USD"),
+                EquityFuture(underlyingId = "IDX-SPX", expiryDate = "2026-09-18", contractSize = 50.0, currency = "USD"),
                 "S&P 500 Sep2026 Future", "USD",
             ),
             // ── Government bonds ──
@@ -532,7 +540,7 @@ class DevDataSeeder(
             ),
             // ── Additional FX forwards ──
             "EURUSD-6M" to InstrumentConfig(
-                FxForward(baseCurrency = "EUR", quoteCurrency = "USD", deliveryDate = "2026-08-16", forwardRate = 1.088),
+                FxForward(baseCurrency = "EUR", quoteCurrency = "USD", deliveryDate = "2026-08-22", forwardRate = 1.088),
                 "EUR/USD 6M Forward", "USD",
             ),
             "USDJPY-3M" to InstrumentConfig(
