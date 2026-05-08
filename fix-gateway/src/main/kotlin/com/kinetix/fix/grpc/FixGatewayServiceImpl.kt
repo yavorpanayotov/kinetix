@@ -6,6 +6,7 @@ import com.kinetix.fix.session.FixSessionSender
 import com.kinetix.fix.session.NewOrderSingleBuilder
 import com.kinetix.fix.session.PendingNewCorrelator
 import com.kinetix.fix.session.SendOutcome
+import com.kinetix.fix.session.SessionReconciliationCoordinator
 import com.kinetix.fix.venue.VenueCutoffRegistry
 import com.kinetix.fix.venue.VenueSession
 import com.kinetix.fix.venue.VenueSessionRegistry
@@ -48,6 +49,7 @@ class FixGatewayServiceImpl(
     private val sessionSender: FixSessionSender,
     private val originalOrderLookup: OriginalOrderLookup,
     private val clock: () -> Instant = Instant::now,
+    private val reconciliationCoordinator: SessionReconciliationCoordinator? = null,
 ) : FixGatewayGrpc.FixGatewayImplBase() {
 
     private val logger = LoggerFactory.getLogger(FixGatewayServiceImpl::class.java)
@@ -87,6 +89,16 @@ class FixGatewayServiceImpl(
         }
         val session = venueSessionRegistry.lookup(request.venue)
             ?: return unknownVenue(request)
+
+        // Gate: block cancels during reconciliation — same policy as placeOrder.
+        if (reconciliationCoordinator != null && !reconciliationCoordinator.isActive(session.venue)) {
+            return CancelOrderResponse.newBuilder()
+                .setClOrdId(request.clOrdId)
+                .setStatus(CancelOrderResponse.Status.SESSION_DOWN)
+                .setDetail("reconciling")
+                .build()
+        }
+
         if (request.venueOrderId.isBlank()) {
             return reject(request, "venue_order_id is required (FIX tag 37)")
         }
@@ -221,6 +233,22 @@ class FixGatewayServiceImpl(
                 PlaceOrderResponse.Status.UNKNOWN_VENUE,
                 "venue '${request.venue}' is not registered",
             )
+
+        // Gate: reject new outbound orders while the session is reconciling post-reconnect.
+        // The coordinator is optional (null in dev mode when sessions are disabled).
+        if (reconciliationCoordinator != null && !reconciliationCoordinator.isActive(session.venue)) {
+            val state = reconciliationCoordinator.currentState(session.venue)
+            return placeRejected(
+                request,
+                PlaceOrderResponse.Status.SESSION_DOWN,
+                "reconciling",
+            ).also {
+                logger.info(
+                    "PlaceOrder blocked: venue={} clOrdId={} reason=reconciliation state={}",
+                    session.venue, request.clOrdId, state,
+                )
+            }
+        }
 
         val message = try {
             newOrderSingleBuilder.build(session, request, clock())
