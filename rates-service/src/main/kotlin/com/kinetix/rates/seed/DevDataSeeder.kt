@@ -1,5 +1,9 @@
 package com.kinetix.rates.seed
 
+import com.kinetix.common.demo.CurveAndVolDerivations
+import com.kinetix.common.demo.CurveDefinition
+import com.kinetix.common.demo.DemoTape
+import com.kinetix.common.demo.YieldCurveSnapshot
 import com.kinetix.common.model.CurvePoint
 import com.kinetix.common.model.ForwardCurve
 import com.kinetix.common.model.InstrumentId
@@ -12,13 +16,18 @@ import com.kinetix.rates.persistence.RiskFreeRateRepository
 import com.kinetix.rates.persistence.YieldCurveRepository
 import org.slf4j.LoggerFactory
 import java.math.BigDecimal
+import java.math.MathContext
+import java.math.RoundingMode
 import java.time.Instant
+import java.time.ZoneOffset
 import java.util.Currency
 
 class DevDataSeeder(
     private val yieldCurveRepository: YieldCurveRepository,
     private val riskFreeRateRepository: RiskFreeRateRepository,
     private val forwardCurveRepository: ForwardCurveRepository,
+    private val derivations: CurveAndVolDerivations = SHARED_DERIVATIONS,
+    private val curveCurrencies: List<String> = listOf("USD", "EUR", "GBP", "JPY"),
 ) {
     private val log = LoggerFactory.getLogger(DevDataSeeder::class.java)
 
@@ -29,28 +38,25 @@ class DevDataSeeder(
             return
         }
 
-        log.info("Seeding rates data")
+        log.info("Seeding rates data: 252 daily snapshots × {} currencies", curveCurrencies.size)
 
-        seedYieldCurves()
+        seedYieldCurveHistory()
         seedRiskFreeRates()
         seedForwardCurves()
 
         log.info("Rates data seeding complete")
     }
 
-    private suspend fun seedYieldCurves() {
-        for ((currency, rates) in YIELD_CURVE_DATA) {
-            val tenors = YIELD_CURVE_TENORS.zip(rates).map { (tenorFn, rate) -> tenorFn(rate) }
-            val curve = YieldCurve(
-                currency = Currency.getInstance(currency),
-                asOf = AS_OF,
-                tenors = tenors,
-                curveId = currency,
-                source = RateSource.CENTRAL_BANK,
-            )
-            yieldCurveRepository.save(curve)
+    private suspend fun seedYieldCurveHistory() {
+        var totalSnapshots = 0
+        for (currency in curveCurrencies) {
+            val snapshots = derivations.yieldCurveSnapshots(currency)
+            for (snap in snapshots) {
+                yieldCurveRepository.save(snap.toYieldCurve())
+                totalSnapshots++
+            }
         }
-        log.info("Seeded {} yield curves", YIELD_CURVE_DATA.size)
+        log.info("Seeded {} yield curve snapshots across {} currencies", totalSnapshots, curveCurrencies.size)
     }
 
     private suspend fun seedRiskFreeRates() {
@@ -92,6 +98,13 @@ class DevDataSeeder(
     companion object {
         val AS_OF: Instant = Instant.parse("2026-02-22T10:00:00Z")
 
+        // Phase 0 shared synthesis: rates, vol, prices, correlations, P&L all read from
+        // the same DemoTape so consistency checks reconcile.
+        internal val SHARED_TAPE: DemoTape = DemoTape()
+        internal val SHARED_DERIVATIONS: CurveAndVolDerivations = CurveAndVolDerivations(SHARED_TAPE)
+
+        // Kept for RatesFeedSimulator and legacy seeding paths; values align with
+        // the tape's day-0 snapshot for the supported tenor/currency set.
         internal val YIELD_CURVE_TENORS: List<(BigDecimal) -> Tenor> = listOf(
             Tenor::overnight,
             Tenor::oneWeek,
@@ -135,5 +148,29 @@ class DevDataSeeder(
             "CL" to ForwardCurveConfig("COMMODITY", listOf(78.10, 77.50, 76.30, 74.20, 70.80)),
             "SI" to ForwardCurveConfig("COMMODITY", listOf(23.70, 23.82, 23.98, 24.30, 24.95)),
         )
+
+        private fun YieldCurveSnapshot.toYieldCurve(): YieldCurve {
+            val tenorFactories = listOf<(BigDecimal) -> Tenor>(
+                Tenor::overnight, Tenor::oneWeek, Tenor::oneMonth, Tenor::threeMonths, Tenor::sixMonths,
+                Tenor::oneYear, Tenor::twoYears, Tenor::fiveYears, Tenor::tenYears, Tenor::thirtyYears,
+            )
+            require(rates.size == tenorFactories.size) {
+                "Snapshot has ${rates.size} rates but YieldCurve expects ${tenorFactories.size}"
+            }
+            val tenors = tenorFactories.zip(rates.toList()).map { (factory, rate) ->
+                factory(
+                    rate.coerceAtLeast(0.0)
+                        .toBigDecimal(MathContext.DECIMAL128)
+                        .setScale(6, RoundingMode.HALF_UP),
+                )
+            }
+            return YieldCurve(
+                currency = Currency.getInstance(currency),
+                asOf = date.atStartOfDay(ZoneOffset.UTC).toInstant(),
+                tenors = tenors,
+                curveId = currency,
+                source = RateSource.CENTRAL_BANK,
+            )
+        }
     }
 }

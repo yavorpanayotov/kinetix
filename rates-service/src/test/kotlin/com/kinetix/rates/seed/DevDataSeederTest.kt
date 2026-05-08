@@ -1,5 +1,6 @@
 package com.kinetix.rates.seed
 
+import com.kinetix.common.demo.RegimeCalendar
 import com.kinetix.common.model.CurvePoint
 import com.kinetix.common.model.ForwardCurve
 import com.kinetix.common.model.InstrumentId
@@ -18,7 +19,6 @@ import io.mockk.coVerify
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
-import io.mockk.slot
 import java.math.BigDecimal
 import java.util.Currency
 
@@ -27,13 +27,14 @@ class DevDataSeederTest : FunSpec({
     val yieldCurveRepository = mockk<YieldCurveRepository>()
     val riskFreeRateRepository = mockk<RiskFreeRateRepository>()
     val forwardCurveRepository = mockk<ForwardCurveRepository>()
-    val seeder = DevDataSeeder(yieldCurveRepository, riskFreeRateRepository, forwardCurveRepository)
+    val curveCurrencies = listOf("USD", "EUR", "GBP", "JPY")
+    val seeder = DevDataSeeder(yieldCurveRepository, riskFreeRateRepository, forwardCurveRepository, curveCurrencies = curveCurrencies)
 
     beforeEach {
         clearMocks(yieldCurveRepository, riskFreeRateRepository, forwardCurveRepository)
     }
 
-    test("seeds yield curves, risk-free rates, and forward curves when database is empty") {
+    test("seeds 252 daily yield curve snapshots per currency from the demo tape") {
         coEvery { yieldCurveRepository.findLatest("USD") } returns null
         coEvery { yieldCurveRepository.save(any()) } just runs
         coEvery { riskFreeRateRepository.save(any()) } just runs
@@ -41,7 +42,8 @@ class DevDataSeederTest : FunSpec({
 
         seeder.seed()
 
-        coVerify(exactly = 2) { yieldCurveRepository.save(any()) }
+        val expected = curveCurrencies.size * RegimeCalendar.DAYS
+        coVerify(exactly = expected) { yieldCurveRepository.save(any()) }
         coVerify(exactly = 2) { riskFreeRateRepository.save(any()) }
         coVerify(exactly = 6) { forwardCurveRepository.save(any()) }
     }
@@ -62,7 +64,7 @@ class DevDataSeederTest : FunSpec({
         coVerify(exactly = 0) { forwardCurveRepository.save(any()) }
     }
 
-    test("yield curves have correct tenors and source") {
+    test("seeded yield curves carry 10 tenors and CENTRAL_BANK source") {
         coEvery { yieldCurveRepository.findLatest("USD") } returns null
         val savedCurves = mutableListOf<YieldCurve>()
         coEvery { yieldCurveRepository.save(capture(savedCurves)) } just runs
@@ -71,14 +73,28 @@ class DevDataSeederTest : FunSpec({
 
         seeder.seed()
 
-        val usdCurve = savedCurves.first { it.curveId == "USD" }
-        usdCurve.tenors.size shouldBe 10
-        usdCurve.source shouldBe RateSource.CENTRAL_BANK
-        usdCurve.tenors.first().label shouldBe "O/N"
-        usdCurve.tenors.last().label shouldBe "30Y"
+        val usdCurves = savedCurves.filter { it.curveId == "USD" }
+        usdCurves.size shouldBe RegimeCalendar.DAYS
+        usdCurves.first().tenors.size shouldBe 10
+        usdCurves.first().source shouldBe RateSource.CENTRAL_BANK
+        usdCurves.first().tenors.first().label shouldBe "O/N"
+        usdCurves.first().tenors.last().label shouldBe "30Y"
     }
 
-    test("forward curves have correct asset classes") {
+    test("seeded yield curve dates span the full 252-day calendar") {
+        coEvery { yieldCurveRepository.findLatest("USD") } returns null
+        val savedCurves = mutableListOf<YieldCurve>()
+        coEvery { yieldCurveRepository.save(capture(savedCurves)) } just runs
+        coEvery { riskFreeRateRepository.save(any()) } just runs
+        coEvery { forwardCurveRepository.save(any()) } just runs
+
+        seeder.seed()
+
+        val usdDates = savedCurves.filter { it.curveId == "USD" }.map { it.asOf }.toSet()
+        usdDates.size shouldBe RegimeCalendar.DAYS
+    }
+
+    test("forward curves have correct asset classes (single snapshot, unchanged)") {
         coEvery { yieldCurveRepository.findLatest("USD") } returns null
         coEvery { yieldCurveRepository.save(any()) } just runs
         coEvery { riskFreeRateRepository.save(any()) } just runs

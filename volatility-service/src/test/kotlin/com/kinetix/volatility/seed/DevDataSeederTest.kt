@@ -1,5 +1,6 @@
 package com.kinetix.volatility.seed
 
+import com.kinetix.common.demo.RegimeCalendar
 import com.kinetix.common.model.InstrumentId
 import com.kinetix.common.model.VolSurface
 import com.kinetix.common.model.VolatilitySource
@@ -24,14 +25,15 @@ class DevDataSeederTest : FunSpec({
         clearMocks(volSurfaceRepository)
     }
 
-    test("seeds volatility surfaces for all underlyings when database is empty") {
+    test("seeds 252 daily snapshots per tape underlier plus standalone surfaces") {
         coEvery { volSurfaceRepository.findLatest(InstrumentId("SPX")) } returns null
         coEvery { volSurfaceRepository.save(any()) } just runs
 
         seeder.seed()
 
-        // 10 underlyings: SPX, VIX, NVDA, TSLA, AAPL, GOOGL, MSFT, META, JPM, BABA
-        coVerify(exactly = 10) { volSurfaceRepository.save(any()) }
+        // 9 tape-driven underliers × 252 days + 1 standalone (VIX) = 2269
+        val expected = 9 * RegimeCalendar.DAYS + 1
+        coVerify(exactly = expected) { volSurfaceRepository.save(any()) }
     }
 
     test("skips seeding when data already exists") {
@@ -55,21 +57,30 @@ class DevDataSeederTest : FunSpec({
 
         // 7 strikes × 5 maturities = 35 points per surface
         val expectedPoints = DevDataSeeder.STRIKE_PERCENTS.size * DevDataSeeder.MATURITY_DAYS.size
-        savedSurfaces.forEach { surface ->
-            surface.points.size shouldBe expectedPoints
-        }
+        savedSurfaces.forEach { surface -> surface.points.size shouldBe expectedPoints }
     }
 
-    test("surfaces have correct source and underlyings") {
+    test("surfaces cover the configured underlyings with EXCHANGE source") {
         coEvery { volSurfaceRepository.findLatest(InstrumentId("SPX")) } returns null
         val savedSurfaces = mutableListOf<VolSurface>()
         coEvery { volSurfaceRepository.save(capture(savedSurfaces)) } just runs
 
         seeder.seed()
 
-        val underlyings = savedSurfaces.map { it.instrumentId.value }
+        val underlyings = savedSurfaces.map { it.instrumentId.value }.distinct()
         underlyings shouldContainAll listOf("SPX", "VIX", "NVDA", "TSLA", "AAPL", "GOOGL", "MSFT", "META", "JPM", "BABA")
         savedSurfaces.forEach { it.source shouldBe VolatilitySource.EXCHANGE }
+    }
+
+    test("SPX surface dates span the full 252-day calendar") {
+        coEvery { volSurfaceRepository.findLatest(InstrumentId("SPX")) } returns null
+        val savedSurfaces = mutableListOf<VolSurface>()
+        coEvery { volSurfaceRepository.save(capture(savedSurfaces)) } just runs
+
+        seeder.seed()
+
+        val spxDates = savedSurfaces.filter { it.instrumentId.value == "SPX" }.map { it.asOf }.toSet()
+        spxDates.size shouldBe RegimeCalendar.DAYS
     }
 
     test("implied vol smile has higher vol for OTM puts than OTM calls") {
