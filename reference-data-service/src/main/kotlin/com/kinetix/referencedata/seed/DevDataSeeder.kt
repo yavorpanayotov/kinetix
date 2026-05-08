@@ -676,6 +676,34 @@ class DevDataSeeder(
             "derivatives-trading" to DeskConfig(name = "Derivatives Trading", divisionId = "multi-asset"),
         )
 
+        // ── Phase 1 Gap 5 — 30-counterparty universe ─────────────────────────────
+        //
+        // Composition: 6 G-SIBs + 10 mid-tier banks + 4 CCPs + 4 buy-side + 6 corporates.
+        // Buy-side and corporate names are scoped to OTC instruments only — the trade
+        // tape generator (Gap 3) enforces this when picking counterparties for trades.
+        // Exposure follows a log-normal/power-law shape: top 3 G-SIBs hold ~50-60% of
+        // gross, mid 10 hold ~30-35%, tail 17 share the rest.
+        // Higher-rated G-SIBs carry larger gross notionals at low spread × large notional;
+        // BB-rated corporates carry small notionals at high CVA charges.
+        //
+        // Tier definitions:
+        val G_SIB_COUNTERPARTY_IDS: List<String> = listOf("CP-GS", "CP-JPM", "CP-BARC", "CP-DB", "CP-UBS", "CP-CITI")
+        val MID_TIER_BANK_IDS: List<String> = listOf(
+            "CP-WFC", "CP-BNP", "CP-SOCG", "CP-MIZ", "CP-NMR", "CP-RBC",
+            "CP-ING", "CP-SAN", "CP-HAND", "CP-BBVA",
+        )
+        val CCP_IDS: List<String> = listOf("CP-LCH", "CP-CME", "CP-EUREX", "CP-ICE")
+        val BUY_SIDE_IDS: List<String> = listOf("CP-BLK", "CP-BRDG", "CP-CITDL", "CP-MIL")
+        val CORPORATE_IDS: List<String> = listOf("CP-AAPL", "CP-SHEL", "CP-TM", "CP-NESN", "CP-MSFT", "CP-BA")
+
+        // OTC-only counterparties — trade tape generator must restrict these to OTC
+        // instruments (FX forwards, FX options, swaps, swaptions). On listed flow they
+        // are nonsense and a credit-risk buyer flags it within 30 seconds.
+        val OTC_ONLY_COUNTERPARTY_IDS: Set<String> = (BUY_SIDE_IDS + CORPORATE_IDS).toSet()
+
+        // CCPs only appear on listed flow (ETD futures, options on futures, cleared swaps).
+        val LISTED_ONLY_COUNTERPARTY_IDS: Set<String> = CCP_IDS.toSet()
+
         // Counterparties covering the major banking counterparties referenced in seed trades.
         // These IDs match what will be set on position-service seed trades.
         val COUNTERPARTIES: List<Counterparty> = listOf(
@@ -781,6 +809,82 @@ class DevDataSeeder(
                 createdAt = AS_OF,
                 updatedAt = AS_OF,
             ),
+            // ── Mid-tier banks (general-purpose) ─────────────────────────────
+            Counterparty("CP-WFC", "Wells Fargo Bank, N.A.", "Wells Fargo", "KB1H1DSPRFMYMCUFXT09",
+                "A+", "Aa2", "AA-", "FINANCIALS", "US", true,
+                BigDecimal("0.00060"), BigDecimal("0.400000"), BigDecimal("70.00"), AS_OF, AS_OF),
+            Counterparty("CP-BNP", "BNP Paribas SA", "BNP Paribas", "R0MUWSFPU8MPRO8K5P83",
+                "A+", "Aa3", "A+", "FINANCIALS", "FR", true,
+                BigDecimal("0.00070"), BigDecimal("0.400000"), BigDecimal("75.00"), AS_OF, AS_OF),
+            Counterparty("CP-SOCG", "Société Générale SA", "SocGen", "O2RNE8IBXP4R0TD8PU41",
+                "A", "A1", "A", "FINANCIALS", "FR", true,
+                BigDecimal("0.00100"), BigDecimal("0.400000"), BigDecimal("90.00"), AS_OF, AS_OF),
+            Counterparty("CP-MIZ", "Mizuho Bank, Ltd.", "Mizuho", "RB0PEZSDGCO3JS6CEU02",
+                "A", "A1", "A-", "FINANCIALS", "JP", true,
+                BigDecimal("0.00080"), BigDecimal("0.400000"), BigDecimal("85.00"), AS_OF, AS_OF),
+            Counterparty("CP-NMR", "Nomura International plc", "Nomura", "549300CYO8R9Y2NTPI03",
+                "A-", "A3", "A-", "FINANCIALS", "JP", true,
+                BigDecimal("0.00120"), BigDecimal("0.400000"), BigDecimal("100.00"), AS_OF, AS_OF),
+            Counterparty("CP-RBC", "Royal Bank of Canada", "RBC", "ES7IP3U3RHIGC71XBU11",
+                "AA-", "Aa1", "AA", "FINANCIALS", "CA", true,
+                BigDecimal("0.00040"), BigDecimal("0.400000"), BigDecimal("55.00"), AS_OF, AS_OF),
+            Counterparty("CP-ING", "ING Bank N.V.", "ING", "3TK20IVIUJ8J3ZU0QE75",
+                "A+", "Aa3", "A+", "FINANCIALS", "NL", true,
+                BigDecimal("0.00070"), BigDecimal("0.400000"), BigDecimal("72.00"), AS_OF, AS_OF),
+            Counterparty("CP-SAN", "Banco Santander SA", "Santander", "5493006QMFDDMYWIAM13",
+                "A", "A2", "A", "FINANCIALS", "ES", true,
+                BigDecimal("0.00100"), BigDecimal("0.400000"), BigDecimal("95.00"), AS_OF, AS_OF),
+            Counterparty("CP-HAND", "Svenska Handelsbanken AB", "Handelsbanken", "NHBDILHZTYCNBV5UYZ31",
+                "AA-", "Aa1", "AA", "FINANCIALS", "SE", true,
+                BigDecimal("0.00050"), BigDecimal("0.400000"), BigDecimal("60.00"), AS_OF, AS_OF),
+            Counterparty("CP-BBVA", "Banco Bilbao Vizcaya Argentaria SA", "BBVA", "K8MS7FD7N5Z2WQ51AZ71",
+                "A", "A2", "A", "FINANCIALS", "ES", true,
+                BigDecimal("0.00100"), BigDecimal("0.400000"), BigDecimal("92.00"), AS_OF, AS_OF),
+            // ── CCPs (listed flow only) ─────────────────────────────────────
+            Counterparty("CP-LCH", "LCH Limited", "LCH", "F226TOH6YD6XJB17KS62",
+                "AA-", "Aa3", "AA-", "CCP", "GB", true,
+                BigDecimal("0.00010"), BigDecimal("0.200000"), BigDecimal("15.00"), AS_OF, AS_OF),
+            Counterparty("CP-CME", "Chicago Mercantile Exchange Inc.", "CME Clearing", "SNZ2OJLFK8MWHT7DLB81",
+                "AA", "Aa3", "AA-", "CCP", "US", true,
+                BigDecimal("0.00010"), BigDecimal("0.200000"), BigDecimal("12.00"), AS_OF, AS_OF),
+            Counterparty("CP-EUREX", "Eurex Clearing AG", "Eurex Clearing", "529900LN3S50JPU47S06",
+                "AA", "Aa3", "AA", "CCP", "DE", true,
+                BigDecimal("0.00010"), BigDecimal("0.200000"), BigDecimal("13.00"), AS_OF, AS_OF),
+            Counterparty("CP-ICE", "ICE Clear Europe Limited", "ICE Clear", "5493000F4ZO33MV32P92",
+                "AA-", "Aa3", "AA-", "CCP", "GB", true,
+                BigDecimal("0.00010"), BigDecimal("0.200000"), BigDecimal("14.00"), AS_OF, AS_OF),
+            // ── Buy-side (OTC swaps, FX forwards only) ──────────────────────
+            Counterparty("CP-BLK", "BlackRock Inc.", "BlackRock", "549300MS535KC2WH4487",
+                "AA-", "Aa3", "AA-", "INVESTMENT_MANAGER", "US", true,
+                BigDecimal("0.00030"), BigDecimal("0.450000"), BigDecimal("45.00"), AS_OF, AS_OF),
+            Counterparty("CP-BRDG", "Bridgewater Associates LP", "Bridgewater", "549300L4RW5IY32H1H68",
+                "A", "A2", "A", "HEDGE_FUND", "US", true,
+                BigDecimal("0.00150"), BigDecimal("0.500000"), BigDecimal("130.00"), AS_OF, AS_OF),
+            Counterparty("CP-CITDL", "Citadel LLC", "Citadel", "549300VBSWS2K05NDB18",
+                "A-", "A3", "A-", "HEDGE_FUND", "US", true,
+                BigDecimal("0.00200"), BigDecimal("0.500000"), BigDecimal("145.00"), AS_OF, AS_OF),
+            Counterparty("CP-MIL", "Millennium Capital Partners LLP", "Millennium", "549300RGGNH5VQXVOY42",
+                "A-", "A3", "A-", "HEDGE_FUND", "US", true,
+                BigDecimal("0.00200"), BigDecimal("0.500000"), BigDecimal("150.00"), AS_OF, AS_OF),
+            // ── Corporates (FX hedging only) ─────────────────────────────────
+            Counterparty("CP-AAPL", "Apple Inc.", "Apple", "HWUPKR0MPOU8FGXBT394",
+                "AA+", "Aaa", "AA+", "TECH_HARDWARE", "US", false,
+                BigDecimal("0.00020"), BigDecimal("0.450000"), BigDecimal("35.00"), AS_OF, AS_OF),
+            Counterparty("CP-SHEL", "Shell plc", "Shell", "21380068P1DRHMJ8KU70",
+                "AA-", "Aa2", "AA-", "ENERGY", "GB", false,
+                BigDecimal("0.00050"), BigDecimal("0.400000"), BigDecimal("60.00"), AS_OF, AS_OF),
+            Counterparty("CP-TM", "Toyota Motor Corporation", "Toyota", "G1RWGKVS5MS1Y4ZW1U68",
+                "A+", "A1", "A+", "AUTOMOTIVE", "JP", false,
+                BigDecimal("0.00080"), BigDecimal("0.400000"), BigDecimal("75.00"), AS_OF, AS_OF),
+            Counterparty("CP-NESN", "Nestlé S.A.", "Nestlé", "529900XOBXJZSZTFP812",
+                "AA-", "Aa3", "AA-", "CONSUMER_STAPLES", "CH", false,
+                BigDecimal("0.00040"), BigDecimal("0.400000"), BigDecimal("50.00"), AS_OF, AS_OF),
+            Counterparty("CP-MSFT", "Microsoft Corporation", "Microsoft", "INR2EJN1ERAN0W5ZP974",
+                "AAA", "Aaa", "AAA", "TECH_SOFTWARE", "US", false,
+                BigDecimal("0.00010"), BigDecimal("0.450000"), BigDecimal("25.00"), AS_OF, AS_OF),
+            Counterparty("CP-BA", "The Boeing Company", "Boeing", "KIQRTJM6ZCQEYHHWFV33",
+                "BBB-", "Baa3", "BBB-", "AEROSPACE_DEFENSE", "US", false,
+                BigDecimal("0.00400"), BigDecimal("0.400000"), BigDecimal("220.00"), AS_OF, AS_OF),
         )
 
         // Netting agreements: one per counterparty, ISDA 2002 close-out netting
@@ -845,6 +949,58 @@ class DevDataSeeder(
                 createdAt = AS_OF,
                 updatedAt = AS_OF,
             ),
+            // ── Mid-tier banks (ISDA 2002, smaller CSA thresholds) ───────────
+            isda("NS-WFC-001",  "CP-WFC",  BigDecimal("3000000.000000"), "USD"),
+            isda("NS-BNP-001",  "CP-BNP",  BigDecimal("2500000.000000"), "EUR"),
+            isda("NS-SOCG-001", "CP-SOCG", BigDecimal("2000000.000000"), "EUR"),
+            isda("NS-MIZ-001",  "CP-MIZ",  BigDecimal("2000000.000000"), "USD"),
+            isda("NS-NMR-001",  "CP-NMR",  BigDecimal("1500000.000000"), "USD"),
+            isda("NS-RBC-001",  "CP-RBC",  BigDecimal("3000000.000000"), "USD"),
+            isda("NS-ING-001",  "CP-ING",  BigDecimal("2500000.000000"), "EUR"),
+            isda("NS-SAN-001",  "CP-SAN",  BigDecimal("2000000.000000"), "EUR"),
+            isda("NS-HAND-001", "CP-HAND", BigDecimal("3000000.000000"), "USD"),
+            isda("NS-BBVA-001", "CP-BBVA", BigDecimal("2000000.000000"), "EUR"),
+            // ── CCPs (clearing agreement, no CSA threshold — IM/VM posted daily) ──
+            ccp("NS-LCH-001",   "CP-LCH",   "GBP"),
+            ccp("NS-CME-001",   "CP-CME",   "USD"),
+            ccp("NS-EUREX-001", "CP-EUREX", "EUR"),
+            ccp("NS-ICE-001",   "CP-ICE",   "GBP"),
+            // ── Buy-side (ISDA 2002 with CSA, daily margining) ───────────────
+            isda("NS-BLK-001",   "CP-BLK",   BigDecimal("1000000.000000"), "USD"),
+            isda("NS-BRDG-001",  "CP-BRDG",  BigDecimal("500000.000000"),  "USD"),
+            isda("NS-CITDL-001", "CP-CITDL", BigDecimal("500000.000000"),  "USD"),
+            isda("NS-MIL-001",   "CP-MIL",   BigDecimal("500000.000000"),  "USD"),
+            // ── Corporates (ISDA 2002 — FX hedging only, smaller thresholds) ─
+            isda("NS-AAPL-001", "CP-AAPL", BigDecimal("1000000.000000"), "USD"),
+            isda("NS-SHEL-001", "CP-SHEL", BigDecimal("750000.000000"),  "USD"),
+            isda("NS-TM-001",   "CP-TM",   BigDecimal("500000.000000"),  "USD"),
+            isda("NS-NESN-001", "CP-NESN", BigDecimal("750000.000000"),  "EUR"),
+            isda("NS-MSFT-001", "CP-MSFT", BigDecimal("1500000.000000"), "USD"),
+            isda("NS-BA-001",   "CP-BA",   BigDecimal("250000.000000"),  "USD"),
         )
+
+        private fun isda(nettingSetId: String, counterpartyId: String, csaThreshold: BigDecimal, currency: String) =
+            NettingAgreement(
+                nettingSetId = nettingSetId,
+                counterpartyId = counterpartyId,
+                agreementType = "ISDA_2002",
+                closeOutNetting = true,
+                csaThreshold = csaThreshold,
+                currency = currency,
+                createdAt = AS_OF,
+                updatedAt = AS_OF,
+            )
+
+        private fun ccp(nettingSetId: String, counterpartyId: String, currency: String) =
+            NettingAgreement(
+                nettingSetId = nettingSetId,
+                counterpartyId = counterpartyId,
+                agreementType = "CCP_CLEARING",
+                closeOutNetting = true,
+                csaThreshold = BigDecimal.ZERO,
+                currency = currency,
+                createdAt = AS_OF,
+                updatedAt = AS_OF,
+            )
     }
 }

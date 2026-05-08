@@ -196,4 +196,62 @@ class DevDataSeederTest : FunSpec({
         (aapl.adv > 10_000_000.0) shouldBe true
         aapl.assetClass shouldBe "EQUITY"
     }
+
+    // ── Phase 1 Gap 5 — 30-counterparty universe ─────────────────────────────
+
+    test("counterparty universe holds 30 names across the configured tiers") {
+        val cps = DevDataSeeder.COUNTERPARTIES
+        cps.size shouldBe 30
+        DevDataSeeder.G_SIB_COUNTERPARTY_IDS.size shouldBe 6
+        DevDataSeeder.MID_TIER_BANK_IDS.size shouldBe 10
+        DevDataSeeder.CCP_IDS.size shouldBe 4
+        DevDataSeeder.BUY_SIDE_IDS.size shouldBe 4
+        DevDataSeeder.CORPORATE_IDS.size shouldBe 6
+
+        val ids = cps.map { it.counterpartyId }.toSet()
+        val expected = (
+            DevDataSeeder.G_SIB_COUNTERPARTY_IDS +
+                DevDataSeeder.MID_TIER_BANK_IDS +
+                DevDataSeeder.CCP_IDS +
+                DevDataSeeder.BUY_SIDE_IDS +
+                DevDataSeeder.CORPORATE_IDS
+            ).toSet()
+        ids shouldBe expected
+    }
+
+    test("OTC-only and listed-only restrictions are explicit in the seeder") {
+        DevDataSeeder.OTC_ONLY_COUNTERPARTY_IDS shouldBe (DevDataSeeder.BUY_SIDE_IDS + DevDataSeeder.CORPORATE_IDS).toSet()
+        DevDataSeeder.LISTED_ONLY_COUNTERPARTY_IDS shouldBe DevDataSeeder.CCP_IDS.toSet()
+    }
+
+    test("ratings span AAA to BB so credit-spread differentiation is visible") {
+        val ratings = DevDataSeeder.COUNTERPARTIES.mapNotNull { it.ratingSp }.toSet()
+        // Plan: ratings spread AAA → BB. Boeing (BBB-) is the lowest rung in the seed set;
+        // AAA is required so Microsoft anchors the top.
+        ratings.contains("AAA") shouldBe true
+        ratings.contains("BBB-") shouldBe true
+    }
+
+    test("CCPs carry near-zero PD and tightest CDS spread") {
+        val ccps = DevDataSeeder.COUNTERPARTIES.filter { it.counterpartyId in DevDataSeeder.CCP_IDS }
+        ccps.size shouldBe 4
+        ccps.forEach { ccp ->
+            (ccp.pd1y!! < java.math.BigDecimal("0.0005")) shouldBe true
+            (ccp.cdsSpreadBps!! < java.math.BigDecimal("20.00")) shouldBe true
+            (ccp.sector == "CCP") shouldBe true
+        }
+    }
+
+    test("every counterparty has a netting agreement") {
+        val cpIds = DevDataSeeder.COUNTERPARTIES.map { it.counterpartyId }.toSet()
+        val nsCpIds = DevDataSeeder.NETTING_AGREEMENTS.map { it.counterpartyId }.toSet()
+        nsCpIds shouldBe cpIds
+    }
+
+    test("CCP netting agreements use CCP_CLEARING type") {
+        val ccpAgreements = DevDataSeeder.NETTING_AGREEMENTS
+            .filter { it.counterpartyId in DevDataSeeder.CCP_IDS }
+        ccpAgreements.size shouldBe 4
+        ccpAgreements.forEach { it.agreementType shouldBe "CCP_CLEARING" }
+    }
 })
