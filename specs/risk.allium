@@ -160,6 +160,18 @@ entity ValuationJob {
     promoted_by: String?
     manifest_id: String?
 
+    transitions run_label {
+        -- Transient adhoc/sod/intraday/overnight labels are assigned at
+        -- run-start and never re-classified within a job's lifetime.
+        -- The promotion lifecycle moves a pre_close job through to
+        -- official_eod, and a subsequent EOD promotion supersedes the
+        -- previous one. Demotion clears the label (handled by setting
+        -- run_label to null, outside the transition graph).
+        pre_close -> official_eod
+        official_eod -> superseded_eod
+        terminal: adhoc, sod, intraday, overnight, superseded_eod
+    }
+
     -- Derived
     is_promoted: promoted_at != null
     duration_ms: Integer when status = completed | failed

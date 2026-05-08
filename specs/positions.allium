@@ -24,21 +24,22 @@ value PortfolioSummary {
     currency_breakdown: List<CurrencyExposure>
 }
 
-value NettingSetExposure {
+value BookCounterpartyNettingSummary {
     netting_set_id: String?
     net_exposure: Decimal
     position_count: Integer
 }
--- Distinct from counterparty-risk/NettingSetExposure (which carries
--- agreement_type and peak_pfe). This positions-level value is the lightweight
--- summary surfaced on portfolio aggregates.
+-- Per-book per-counterparty netting summary surfaced on portfolio aggregates.
+-- Distinct from counterparty-risk/NettingSetExposure, which is the
+-- netting-set-level exposure entry carrying agreement_type and peak_pfe;
+-- this lightweight summary lives on book-level rollups.
 
 value CounterpartyExposure {
     counterparty_id: String
     net_exposure: Decimal
     gross_exposure: Decimal
     position_count: Integer
-    netting_set_breakdown: List<NettingSetExposure>?
+    netting_set_breakdown: List<BookCounterpartyNettingSummary>?
 
     @guidance
         -- net_exposure is the sum of per-netting-set net exposures, each floored at zero.
