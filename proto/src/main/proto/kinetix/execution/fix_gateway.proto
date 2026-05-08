@@ -12,10 +12,17 @@ import "google/protobuf/timestamp.proto";
 // inbound execution-report ingestion. See ADR-0035.
 //
 // RPCs land per phase:
-//   - phase 2 (this commit): CancelOrder, IsVenueOpen
+//   - phase 2: CancelOrder, IsVenueOpen
 //   - phase 3: (no new RPCs — inbound flow moves to Kafka `execution.reports`)
-//   - phase 4: PlaceOrder
+//   - phase 4 (this commit): PlaceOrder
 service FixGateway {
+  // Submit a NewOrderSingle (FIX 35=D) on the venue session and synchronously
+  // wait for the venue's first ExecutionReport (35=8 OrdStatus=A "Pending New")
+  // up to the per-venue timeout from VenueSessionRegistry (or per-call override
+  // via `venue_ack_timeout_ms`). The full execution lifecycle (subsequent fills
+  // / cancels) continues to flow asynchronously on `execution.reports`.
+  rpc PlaceOrder(PlaceOrderRequest) returns (PlaceOrderResponse);
+
   // Submit an OrderCancelRequest (FIX 35=F) on the venue session. The actual
   // venue ack arrives asynchronously and is published to `execution.reports`.
   rpc CancelOrder(CancelOrderRequest) returns (CancelOrderResponse);
@@ -23,6 +30,94 @@ service FixGateway {
   // Resolves whether [venue] is in an open trading session at instant [at].
   // Pure function over the venue cutoff registry; no FIX side effects.
   rpc IsVenueOpen(IsVenueOpenRequest) returns (IsVenueOpenResponse);
+}
+
+// FIX tag 54 Side. Mirrors `com.kinetix.common.model.Side`.
+enum Side {
+  SIDE_UNSPECIFIED = 0;
+  BUY = 1;
+  SELL = 2;
+}
+
+// FIX tag 40 OrdType. Phase 4 launches with MARKET and LIMIT only; STOP/STOP_LIMIT
+// reserved for future phases.
+enum OrderType {
+  ORDER_TYPE_UNSPECIFIED = 0;
+  MARKET = 1;
+  LIMIT = 2;
+}
+
+// FIX tag 59 TimeInForce. Mirrors `com.kinetix.position.fix.TimeInForce`. The
+// proto value names are forced to differ from `OrderType.MARKET` (they share an
+// enum-value namespace per protobuf rules) by the `TIF_` prefix on each entry.
+enum TimeInForce {
+  TIME_IN_FORCE_UNSPECIFIED = 0;
+  TIF_DAY = 1;
+  TIF_GTC = 2;
+  TIF_IOC = 3;
+  TIF_FOK = 4;
+  TIF_GTD = 5;
+}
+
+// Synchronous order-placement request. clOrdID is minted by position-service as
+// a UUID v4; fix-gateway never mints. Idempotency: a second PlaceOrder with the
+// same clOrdID while the first is still in-flight returns DUPLICATE_IN_FLIGHT;
+// retried after the first resolves, fix-gateway reconciles via FIX 35=H
+// OrderStatusRequest before deciding whether to re-submit (see ADR-0035 §4.3).
+message PlaceOrderRequest {
+  // FIX tag 11 ClOrdID. Reused as Kafka partition key for execution.reports.
+  string cl_ord_id = 1;
+  // Venue identifier; VenueSessionRegistry normalises to upper-case.
+  string venue = 2;
+  // Reference-data instrument id; fix-gateway resolves to FIX tag 55 Symbol.
+  string instrument_id = 3;
+  Side side = 4;
+  OrderType order_type = 5;
+  // Decimal as string (avoids float drift; matches the `Money` convention in
+  // common/types.proto). Negative or zero quantity → INVALID_REQUEST.
+  string quantity = 6;
+  // Decimal as string. Empty for MARKET orders. Preserved verbatim for synthetic
+  // instruments (negative limits are valid for some).
+  string limit_price = 7;
+  TimeInForce time_in_force = 8;
+  // ISO-8601 instant; only populated when time_in_force = TIF_GTD.
+  string expires_at_iso = 9;
+  // Trace-propagation correlation id; empty lets fix-gateway generate one.
+  string correlation_id = 10;
+  // Optional per-call override of the per-venue default in VenueSessionRegistry
+  // (NYSE/NASDAQ co-lo 200ms; LSE 500ms; TSE/HKEX 1000ms; EM brokers 5000ms).
+  // 0 = use venue default.
+  int32 venue_ack_timeout_ms = 11;
+}
+
+message PlaceOrderResponse {
+  string cl_ord_id = 1;
+  // FIX tag 37 OrderID assigned by venue. Populated on PENDING_NEW only.
+  string venue_order_id = 2;
+  Status status = 3;
+  // Free-text venue reject reason (FIX tag 58/103). Never used as a metric label;
+  // ops dashboards normalise to a bounded `reject_reason` enum (see ADR-0035).
+  string reject_reason = 4;
+
+  enum Status {
+    STATUS_UNSPECIFIED = 0;
+    // Venue acknowledged the order with FIX 35=8 OrdStatus=A. venue_order_id is set.
+    PENDING_NEW = 1;
+    // Venue rejected (35=8 OrdStatus=8 or 35=j business-reject). reject_reason is set.
+    REJECTED = 2;
+    // FIX session for the venue was down; caller may retry with the SAME clOrdID
+    // once fix-gateway is healthy — fix-gateway will reconcile via 35=H rather
+    // than producing a duplicate venue order.
+    SESSION_DOWN = 3;
+    // venue is not registered in VenueSessionRegistry.
+    UNKNOWN_VENUE = 4;
+    // Request failed validation server-side (e.g. zero quantity, malformed price).
+    INVALID_REQUEST = 5;
+    // A previous PlaceOrder for the same clOrdID is still in-flight. Caller MUST
+    // NOT retry with the same clOrdID until the original resolves; either wait
+    // or surface "previous submission still in flight" to the trader.
+    DUPLICATE_IN_FLIGHT = 6;
+  }
 }
 
 // Why a cancel is being emitted. Mirrors `com.kinetix.common.execution.CancelReason`.

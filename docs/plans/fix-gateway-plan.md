@@ -347,7 +347,7 @@ Four commits:
 
 ### gRPC contract
 
-- [ ] **4.1** Extend `fix_gateway.proto`:
+- [x] **4.1** Extend `fix_gateway.proto`:
   ```proto
   service FixGateway {
     rpc PlaceOrder(PlaceOrderRequest) returns (PlaceOrderResponse);
@@ -377,7 +377,7 @@ Four commits:
   - **Per-venue venue-ack timeout (replaces single 2s default):** `VenueSessionRegistry` declares per-venue defaults — NYSE/NASDAQ co-lo `200ms`, LSE `500ms`, TSE/HKEX `1000ms`, EM brokers `5000ms`. The 2s default is rejected as a one-size-fits-all that is too long for co-lo and too short for some EM venues. Per-call override allowed via `venue_ack_timeout_ms`.
   - **`DUPLICATE_IN_FLIGHT` status** — new in this revision; returned when fix-gateway has an in-flight RPC for the same `clOrdID`. Caller must NOT retry with the same `clOrdID`; either wait for the original RPC to settle or mint a fresh `clOrdID` only after reconciliation.
   - Note on nested enum codegen: `PlaceOrderResponse.Status` is a nested enum. Verify the Kotlin gRPC generator produces sane names (`PlaceOrderResponse.Status.PENDING_NEW`) before committing — some generators flatten nested enums in confusing ways. Test in `PlaceOrderProtoTest` (4.8).
-- [ ] **4.2** Side / OrderType / TimeInForce enums in proto match the Kotlin enums in `common/`.
+- [x] **4.2** Side / OrderType / TimeInForce enums in proto match the Kotlin enums in `common/`.
 
 ### fix-gateway side
 
@@ -413,7 +413,7 @@ Four commits:
 
 ### Tests
 
-- [ ] **4.8** Proto consistency: `PlaceOrderProtoTest` in `schema-tests/` round-trips every enum.
+- [x] **4.8** Proto consistency: `PlaceOrderProtoTest` in `schema-tests/` round-trips every enum.
 - [ ] **4.9** `fix-gateway` acceptance:
   - `PlaceOrderRpcAcceptanceTest` — sends `PlaceOrderRequest`, in-memory acceptor responds with 35=8 Pending New (delayed 1ms to expose race); asserts response is `PENDING_NEW` with `venue_order_id` populated.
   - Reject path: acceptor responds with 35=8 `OrdStatus = 8` (Rejected) → response is `REJECTED`.

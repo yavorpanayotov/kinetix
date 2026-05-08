@@ -12,6 +12,8 @@ tasks.named<Test>("test") {
 
 dependencies {
     testImplementation(project(":common"))
+    testImplementation(project(":proto"))
+    testImplementation(libs.bundles.grpc)
     testImplementation(project(":risk-orchestrator"))
     testImplementation(project(":notification-service"))
     testImplementation(project(":position-service"))
