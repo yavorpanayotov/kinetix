@@ -42,6 +42,7 @@ object ValuationJobsTable : Table("valuation_jobs") {
     val requestedCalculationType = varchar("requested_calculation_type", 50).nullable()
     val requestedConfidenceLevel = varchar("requested_confidence_level", 10).nullable()
     val requestedTimeHorizonDays = integer("requested_time_horizon_days").nullable()
+    val correlationId = varchar("correlation_id", 255).nullable()
 
     override val primaryKey = PrimaryKey(jobId)
 }

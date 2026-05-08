@@ -49,4 +49,6 @@ data class ValuationJob(
     val requestedConfidenceLevel: String? = null,
     /** The time horizon (in days) as originally requested, before any regime override. */
     val requestedTimeHorizonDays: Int? = null,
+    /** Correlation id from the originating CalculateVaRRequested trigger; propagated end-to-end for traceability. */
+    val correlationId: String? = null,
 )

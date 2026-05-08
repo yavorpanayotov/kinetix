@@ -25,6 +25,7 @@ import com.kinetix.risk.model.ValuationOutput
 import com.kinetix.risk.model.ValuationResult
 import com.kinetix.risk.model.ChartBucketRow
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.inspectors.forAll
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
@@ -242,6 +243,51 @@ class VaRCalculationServiceAuditTrailTest : FunSpec({
         completedJob.requestedCalculationType shouldNotBe null
         completedJob.requestedConfidenceLevel shouldNotBe null
         completedJob.requestedTimeHorizonDays shouldNotBe null
+    }
+
+    test("correlation id from the trigger is recorded on the persisted ValuationJob") {
+        val capturedJobs = mutableListOf<ValuationJob>()
+
+        val service = makeService(
+            regimeStateProvider = null,
+            jobRecorder = auditCapturingRecorder(capturedJobs),
+        )
+
+        service.calculateVaR(
+            VaRCalculationRequest(
+                bookId = BookId("book-1"),
+                calculationType = CalculationType.PARAMETRIC,
+                confidenceLevel = ConfidenceLevel.CL_95,
+                timeHorizonDays = 1,
+            ),
+            triggerType = TriggerType.ON_DEMAND,
+            correlationId = "trace-corr-42",
+            triggeredBy = "alice",
+        )
+
+        capturedJobs.forAll { it.correlationId shouldBe "trace-corr-42" }
+    }
+
+    test("correlation id is null when the caller did not supply one") {
+        val capturedJobs = mutableListOf<ValuationJob>()
+
+        val service = makeService(
+            regimeStateProvider = null,
+            jobRecorder = auditCapturingRecorder(capturedJobs),
+        )
+
+        service.calculateVaR(
+            VaRCalculationRequest(
+                bookId = BookId("book-1"),
+                calculationType = CalculationType.PARAMETRIC,
+                confidenceLevel = ConfidenceLevel.CL_95,
+                timeHorizonDays = 1,
+            ),
+            triggerType = TriggerType.ON_DEMAND,
+            triggeredBy = "alice",
+        )
+
+        capturedJobs.forAll { it.correlationId shouldBe null }
     }
 })
 

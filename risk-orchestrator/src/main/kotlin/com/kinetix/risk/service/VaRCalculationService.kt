@@ -68,6 +68,7 @@ class VaRCalculationService(
                 timeHorizonDays = request.timeHorizonDays,
                 runLabel = runLabel,
                 triggeredBy = triggeredBy,
+                correlationId = correlationId,
             )
         )
 
@@ -391,6 +392,7 @@ class VaRCalculationService(
                 requestedCalculationType = request.calculationType.name,
                 requestedConfidenceLevel = request.confidenceLevel.name,
                 requestedTimeHorizonDays = request.timeHorizonDays,
+                correlationId = correlationId,
             )
             updateJobSafely(job)
 
@@ -424,6 +426,7 @@ class VaRCalculationService(
                 error = jobError,
                 runLabel = runLabel,
                 triggeredBy = triggeredBy,
+                correlationId = correlationId,
             )
             updateJobSafely(job)
             throw e

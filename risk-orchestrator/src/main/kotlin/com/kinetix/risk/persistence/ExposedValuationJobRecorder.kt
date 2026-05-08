@@ -58,6 +58,7 @@ class ExposedValuationJobRecorder(private val db: Database? = null) : ValuationJ
             it[requestedCalculationType] = job.requestedCalculationType
             it[requestedConfidenceLevel] = job.requestedConfidenceLevel
             it[requestedTimeHorizonDays] = job.requestedTimeHorizonDays
+            it[correlationId] = job.correlationId
         }
     }
 
@@ -96,6 +97,7 @@ class ExposedValuationJobRecorder(private val db: Database? = null) : ValuationJ
             it[requestedCalculationType] = job.requestedCalculationType
             it[requestedConfidenceLevel] = job.requestedConfidenceLevel
             it[requestedTimeHorizonDays] = job.requestedTimeHorizonDays
+            it[correlationId] = job.correlationId
         }
     }
 
@@ -530,6 +532,7 @@ class ExposedValuationJobRecorder(private val db: Database? = null) : ValuationJ
         requestedCalculationType = this[ValuationJobsTable.requestedCalculationType],
         requestedConfidenceLevel = this[ValuationJobsTable.requestedConfidenceLevel],
         requestedTimeHorizonDays = this[ValuationJobsTable.requestedTimeHorizonDays],
+        correlationId = this[ValuationJobsTable.correlationId],
     )
 
     override suspend fun findChartData(
