@@ -61,38 +61,38 @@ Per ADR-0035 (Accepted), this plan introduces:
 
 ### Module setup
 
-- [ ] **1.1** New Gradle module `fix-gateway/`.
+- [x] **1.1** New Gradle module `fix-gateway/`.
   - `build.gradle.kts` mirrors `audit-service/build.gradle.kts` (uses `kinetix.kotlin-service` + `kinetix.kotlin-testing` convention plugins).
   - Add `"fix-gateway"` to `settings.gradle.kts`.
   - Dependencies: `:common`, `:proto`, `libs.bundles.exposed`, `libs.bundles.database`, `libs.kafka.clients`, `libs.kotlinx.serialization.json`. **Do not** add QuickFIX/J yet — that lands in phase 2.
-- [ ] **1.2** Package skeleton:
+- [x] **1.2** Package skeleton:
   - `fix-gateway/src/main/kotlin/com/kinetix/fix/Application.kt` — Ktor server boot + Prometheus + Loki + Tempo wiring (copy patterns from `audit-service/.../Application.kt`).
   - `fix-gateway/src/main/kotlin/com/kinetix/fix/health/ReadinessChecker.kt` — DB + Kafka readiness checks.
-- [ ] **1.3** New Postgres schema `fix_gateway` per ADR-0011:
+- [x] **1.3** New Postgres schema `fix_gateway` per ADR-0011:
   - `fix-gateway/src/main/resources/db/migration/V1__create_fix_gateway_schema.sql` — empty schema + `flyway_schema_history` boot row. Real tables added in phase 2.
-- [ ] **1.4** Empty gRPC server:
+- [x] **1.4** Empty gRPC server:
   - `proto/src/main/proto/kinetix/execution/fix_gateway.proto` — declares `FixGateway` service stub with no RPCs (so build wires the proto).
   - `fix-gateway/src/main/kotlin/com/kinetix/fix/grpc/FixGatewayServer.kt` — Netty `ServerBuilder` boot at fixed port (default `9105`); no service implementations bound yet.
-- [ ] **1.5** Observability:
+- [x] **1.5** Observability:
   - Prometheus metrics endpoint on `/metrics`.
   - Loki structured logging (JSON formatter — copy `common`'s pattern).
   - Tempo OpenTelemetry tracer (mirror existing services).
 
 ### Deploy & infra
 
-- [ ] **1.6** Helm chart additions in `deploy/helm/kinetix/templates/`:
+- [x] **1.6** Helm chart additions in `deploy/helm/kinetix/templates/`:
   - `fix-gateway-deployment.yaml`, `fix-gateway-service.yaml`, `fix-gateway-configmap.yaml` (copy `audit-service-*.yaml` shape).
   - **HPA pinned to 1 replica** per ADR open-question #3 (active-passive HA is post-launch).
-- [ ] **1.7** `deploy/redeploy.sh` and any docker-compose under `deploy/` learn about `fix-gateway`.
-- [ ] **1.8** New Postgres database `fix_gateway` provisioned in `deploy/db-init-configmap.yaml` (or equivalent init script).
-- [ ] **1.9** Kafka topic created up front (empty in phase 1):
+- [x] **1.7** `deploy/redeploy.sh` and any docker-compose under `deploy/` learn about `fix-gateway`.
+- [x] **1.8** New Postgres database `fix_gateway` provisioned in `deploy/db-init-configmap.yaml` (or equivalent init script).
+- [x] **1.9** Kafka topic created up front (empty in phase 1):
   - `execution.reports` — partitions `12`, replication `3`, retention `30 days` (extended from `trade.events`'s 7-day default to support MiFID II RTS 28 / MAR audit-replay windows). Partition by `clOrdID` for ordering. `clOrdID` is UUID v4 minted by position-service (see "clOrdID minting") — uniform distribution over 12 partitions; child-order schemes that share a parent `clOrdID` are explicitly out-of-scope and would break ordering.
   - **Authoritative replay source for events older than 30 days:** `fix_gateway.fix_message_log` (table introduced at 2.6 with declarative monthly partitioning).
 
 ### Tests
 
-- [ ] **1.10** `FixGatewayApplicationAcceptanceTest` — boots the service against Testcontainers Postgres + Kafka; asserts `/health/ready` returns 200 and `/metrics` exposes `up` gauge.
-- [ ] **1.11** `FixGatewayServerAcceptanceTest` — boots the gRPC server, opens a channel, asserts an empty `ListServices` reflection call succeeds.
+- [x] **1.10** `FixGatewayApplicationAcceptanceTest` — boots the service against Testcontainers Postgres + Kafka; asserts `/health/ready` returns 200 and `/metrics` exposes `up` gauge.
+- [x] **1.11** `FixGatewayServerAcceptanceTest` — boots the gRPC server, opens a channel, asserts an empty `ListServices` reflection call succeeds.
 
 ### Acceptance criteria
 
@@ -113,7 +113,7 @@ Per ADR-0035 (Accepted), this plan introduces:
 
 ### gRPC contract
 
-- [ ] **2.1** Extend `proto/src/main/proto/kinetix/execution/fix_gateway.proto`:
+- [x] **2.1** Extend `proto/src/main/proto/kinetix/execution/fix_gateway.proto`:
   ```proto
   service FixGateway {
     rpc CancelOrder(CancelOrderRequest) returns (CancelOrderResponse);
@@ -162,11 +162,11 @@ Per ADR-0035 (Accepted), this plan introduces:
 
 ### QuickFIX/J integration
 
-- [ ] **2.2** Add QuickFIX/J to `gradle/libs.versions.toml`: `quickfixj-core` 2.3+. Approved by ADR-0035; this is the only new external dependency.
-- [ ] **2.3** Move `position-service/.../fix/VenueCutoffRegistry.kt` → `fix-gateway/.../venue/VenueCutoffRegistry.kt`. **Sole owner: fix-gateway.** Position-service consumes cutoff data via the new `IsVenueOpen` RPC (see 2.10) — no copy in `common/`. Rationale: the registry will become runtime-stateful when the holiday calendar (phase 2.5) layers in YAML loaders + future vendor feeds; placing it in `common/` would force every downstream consumer to drag in venue-policy logic. The sweeper invokes `IsVenueOpen` once per sweep pass (not per order) so the RPC cost is negligible.
-- [ ] **2.4** New `fix-gateway/.../venue/VenueSessionRegistry.kt` — maps venue → QuickFIX/J `SessionID` + connection config.
-- [ ] **2.5** New `fix-gateway/.../session/FixSessionManager.kt` — wraps QuickFIX/J `Initiator`, exposes per-venue session lifecycle. Recovers sequence numbers from Postgres on boot.
-- [ ] **2.6** Postgres tables (new migration `V2__fix_session_state.sql`):
+- [x] **2.2** Add QuickFIX/J to `gradle/libs.versions.toml`: `quickfixj-core` 2.3+. Approved by ADR-0035; this is the only new external dependency.
+- [x] **2.3** Move `position-service/.../fix/VenueCutoffRegistry.kt` → `fix-gateway/.../venue/VenueCutoffRegistry.kt`. **Sole owner: fix-gateway.** Position-service consumes cutoff data via the new `IsVenueOpen` RPC (see 2.10) — no copy in `common/`. Rationale: the registry will become runtime-stateful when the holiday calendar (phase 2.5) layers in YAML loaders + future vendor feeds; placing it in `common/` would force every downstream consumer to drag in venue-policy logic. The sweeper invokes `IsVenueOpen` once per sweep pass (not per order) so the RPC cost is negligible.
+- [x] **2.4** New `fix-gateway/.../venue/VenueSessionRegistry.kt` — maps venue → QuickFIX/J `SessionID` + connection config.
+- [x] **2.5** New `fix-gateway/.../session/FixSessionManager.kt` — wraps QuickFIX/J `Initiator`, exposes per-venue session lifecycle. Recovers sequence numbers from Postgres on boot.
+- [x] **2.6** Postgres tables (new migration `V2__fix_session_state.sql`):
   - `fix_session_state(venue PRIMARY KEY, sender_seq_num, target_seq_num, last_logon_at, last_logout_at)` — single row per venue (CHECK constraint enforces uniqueness so reconciliation logic can't see two seq states for one venue).
   - `fix_message_log(id, venue, direction, msg_type, raw_message, clord_id, sent_at)` — append-only, **declaratively partitioned by `sent_at` month** (Postgres native range partitioning). Indexes: `(venue, clord_id)` for outbound-vs-inbound reconciliation; `(venue, msg_type, sent_at)` for ad-hoc queries.
   - **Retention policy:** keep 90 days of partitions hot in Postgres; older partitions detached and archived to S3 in Parquet (cold-archive pipeline lands in phase 2 commit 2). At sustained 50 fills/sec this caps the hot table at ~1.3B rows; partition pruning keeps queries fast.
@@ -174,7 +174,7 @@ Per ADR-0035 (Accepted), this plan introduces:
 
 ### Server-side RPC
 
-- [ ] **2.7** `fix-gateway/.../grpc/FixGatewayServiceImpl.kt` — implements `CancelOrder` and `IsVenueOpen`:
+- [x] **2.7** `fix-gateway/.../grpc/FixGatewayServiceImpl.kt` — implements `CancelOrder` and `IsVenueOpen`:
   - **CancelOrder:**
     - Validate venue against `VenueSessionRegistry`. Unknown venue → `UNKNOWN_VENUE`.
     - Validate `venue_order_id` is non-empty for venues that require FIX tag 37 (most do). Empty `venue_order_id` for an `OrigClOrdID` that fix-gateway has previously seen confirmed (PENDING_NEW or beyond) → `INVALID_REQUEST`.
@@ -185,37 +185,37 @@ Per ADR-0035 (Accepted), this plan introduces:
 
 ### Client-side adapter (in `position-service`)
 
-- [ ] **2.8** Promote `OrderCancelEmitter` (interface), `CancelReason` (enum), and a new `VenueOpenChecker` (interface) to `common/`:
+- [x] **2.8** Promote `OrderCancelEmitter` (interface), `CancelReason` (enum), and a new `VenueOpenChecker` (interface) to `common/`:
   - `common/src/main/kotlin/com/kinetix/common/execution/OrderCancelEmitter.kt`.
   - `common/src/main/kotlin/com/kinetix/common/execution/CancelReason.kt`.
   - `common/src/main/kotlin/com/kinetix/common/execution/VenueOpenChecker.kt` — interface with `fun isOpen(venue: String, at: Instant): Boolean`. Sweeper depends on this; `GrpcVenueOpenChecker` (in position-service) implements it via `IsVenueOpen` RPC.
   - Position-service keeps `LoggingOrderCancelEmitter` for local-dev fallback.
-- [ ] **2.9** New `position-service/.../fix/GrpcOrderCancelEmitter.kt` and `position-service/.../fix/GrpcVenueOpenChecker.kt`:
+- [x] **2.9** New `position-service/.../fix/GrpcOrderCancelEmitter.kt` and `position-service/.../fix/GrpcVenueOpenChecker.kt`:
   - `GrpcOrderCancelEmitter` adapter implements `OrderCancelEmitter`, calls `fix-gateway` via the generated gRPC stub.
   - Maps `Order` → `CancelOrderRequest` (uses `order.orderId` as `clOrdID`, `order.venueOrderId` as `venue_order_id` (FIX tag 37) — non-null because cancel only fires on orders that reached PENDING_NEW; if null, throw `IllegalStateException` so the caller surfaces a defect rather than emitting a malformed 35=F).
   - Translates response: `ACCEPTED` → no-op (success); `SESSION_DOWN` / `INVALID_REQUEST` → emit `cancel_failed_total{venue, reason}` Prometheus counter, log warn, **and write a `cancel_attempt(order_id, status, attempted_at)` row to a new `position.cancel_attempts` table** so the phase 2 ghost-fill alerter (2.7b) can detect EXPIRED orders that received fills despite a failed cancel.
   - `GrpcVenueOpenChecker` adapter implements `VenueOpenChecker` via `IsVenueOpen` RPC; sweeper consumes it instead of importing the registry.
-- [ ] **2.10** **`ScheduledOrderExpirySweeper` consumes cutoff data via `IsVenueOpen` gRPC**, not via a duplicate registry:
+- [x] **2.10** **`ScheduledOrderExpirySweeper` consumes cutoff data via `IsVenueOpen` gRPC**, not via a duplicate registry:
   - Decision: **Option B (revised)**. Sweeper invokes `IsVenueOpen(venue, now)` once per sweep pass — single RPC per sweep regardless of order count, so RPC cost is negligible.
   - Rationale: registry will become runtime-stateful when phase 2.5 holiday calendar layers in YAML loaders; placing it in `common/` would force every consumer to drag in venue-policy logic and make HA migration harder.
   - Fallback: if the RPC fails or fix-gateway is down, sweeper falls back to a hardcoded "always open" assumption (sweeper still performs state transitions, but emits `venue_cutoff_check_failed_total{venue}` counter for ops alerting). This matches today's "best-effort" failure mode.
-- [ ] **2.11** Wire selection in `position-service/.../Application.kt:212`:
+- [x] **2.11** Wire selection in `position-service/.../Application.kt:212`:
   - `LoggingOrderCancelEmitter` becomes the dev-mode fallback (env-var gated: `FIX_GATEWAY_ENABLED=false`).
   - Default: `GrpcOrderCancelEmitter` pointing at `fix-gateway:9105`.
 
 ### Ghost-fill detection (closes the cancel-race / EXPIRED-with-fill hole)
 
-- [ ] **2.11b** Update `FIXExecutionReportProcessor` to detect ghost fills:
+- [x] **2.11b** Update `FIXExecutionReportProcessor` to detect ghost fills:
   - When an inbound 35=8 references an order whose status is already `EXPIRED`, `CANCELLED`, or `REJECTED`, do not silently no-op. Instead:
     - Persist the fill against a new `orders.ghost_fills` table (preserves audit trail).
     - Emit `ghost_fill_detected_total{venue, prior_status}` Prometheus counter.
     - Publish a `RiskBreak` event on the `risk.breaks` Kafka topic with severity `CRITICAL` so it surfaces in the ops alerting pipeline AND the trader-facing `RiskAlertBanner`.
     - Do NOT update `Position` automatically — manual resolution required (the operator decides whether the position is real or whether the venue made a mistake).
-- [ ] **2.11c** Update `position-service/.../routes/OrdersRoute.kt` to expose `GET /orders/{id}/ghost-fills` so the UI can render attached ghost fills on the order detail panel.
+- [x] **2.11c** Update `position-service/.../routes/OrdersRoute.kt` to expose `GET /orders/{id}/ghost-fills` so the UI can render attached ghost fills on the order detail panel.
 
 ### Tests
 
-- [ ] **2.12** `fix-gateway` unit + integration:
+- [x] **2.12** `fix-gateway` unit + integration:
   - `VenueCutoffRegistryTest` (move from position-service) — covers regular sessions, cutoff-boundary minutes, and (post-2.5) holiday entries.
   - `VenueSessionRegistryTest` — covers venue normalisation (lowercase → upper, whitespace stripped).
   - `FixSessionManagerTest` (unit + Testcontainers Postgres — see CLAUDE.md: this lives in fix-gateway as integration-level, not in `common`):
@@ -234,13 +234,13 @@ Per ADR-0035 (Accepted), this plan introduces:
   - `IsVenueOpenRpcAcceptanceTest` — covers regular session (open), pre-open (closed), post-cutoff (closed), unknown venue (NOT_FOUND gRPC status).
   - `FixGatewayDurabilityAcceptanceTest` — fix-gateway receives one 35=8, test injects a fault between QuickFIX/J callback and Kafka `send()` (via spy on `KafkaProducer`), kills the process, restarts, asserts venue replays the message on logon AND exactly one `ExecutionReportEvent` lands on `execution.reports` (no duplicate from replay-plus-pre-crash-publish).
   - `MassCancelOnDisconnectAcceptanceTest` — acceptor drops session mid-flow with 3 open orders; assert fix-gateway on reconnect (a) does NOT accept new outbound order requests until reconciliation completes, (b) sends `OrderStatusRequest` (35=H) for each open `clOrdID` recorded in `fix_message_log`, (c) emits `fix_session_reconciliation_total{venue, outcome}` counter.
-- [ ] **2.14** `position-service` acceptance:
+- [x] **2.14** `position-service` acceptance:
   - `GrpcOrderCancelEmitterAcceptanceTest` — uses the in-JVM gRPC stub-server pattern from `CLAUDE.md` (bind a fake `FixGatewayImplBase` to `NettyServerBuilder.forPort(0)`); asserts `Order` → `CancelOrderRequest` mapping for each `CancelReason`.
   - Coverage adds: **gRPC `DEADLINE_EXCEEDED`** — stub returns `Status.DEADLINE_EXCEEDED.asException()`; assert sweeper logs structured error and writes a `cancel_attempt(status=TIMEOUT)` row, does not hang. **mTLS handshake failure** — stub server presents an untrusted certificate; assert structured error logged once (not stacktrace flood), circuit breaker opens after 5 consecutive failures, `mtls_handshake_failed_total{peer}` increments. **Channel close mid-call** — server closes the channel after RPC start; assert clean error propagation.
   - `GrpcVenueOpenCheckerAcceptanceTest` — asserts sweeper reads cutoff via RPC; on RPC failure falls back to "always open" + emits `venue_cutoff_check_failed_total`.
   - `GhostFillDetectionAcceptanceTest` — fixture: one EXPIRED order; publish a 35=8 Fill referencing it; assert (a) fill persisted in `orders.ghost_fills`, (b) `Position` not updated, (c) `RiskBreak` event published to `risk.breaks` Kafka topic with severity CRITICAL, (d) `ghost_fill_detected_total` counter increments.
   - Update existing `ScheduledOrderExpirySweeperTest` minimally — emitter is still mocked; the new adapter has its own tests.
-- [ ] **2.15** End-to-end:
+- [x] **2.15** End-to-end:
   - `FixGatewayCancelEnd2EndTest` in `end2end-tests/` — boots position-service + fix-gateway + Postgres + Kafka + an in-memory acceptor; submits an order, advances clock past venue cutoff, runs the sweeper, asserts the acceptor receives a 35=F with all required tags.
   - **Multi-venue concurrent fixture:** the test exercises two venues (NYSE + LSE) simultaneously to expose any venue-keyed session-state collision.
 
