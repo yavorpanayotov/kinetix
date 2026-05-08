@@ -8,14 +8,32 @@ import org.jetbrains.exposed.sql.max
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
+import java.sql.Connection
 import java.time.Instant
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
 
+// Stable bigint key for pg_advisory_xact_lock — any constant works as long as every
+// audit-chain writer agrees on it. Picked to avoid collisions with other advisory locks
+// in the platform; "kinetix.audit.chain".hashCode() materialised as a long.
+private const val AUDIT_CHAIN_LOCK_KEY: Long = 7_345_920_188_731L
+
 class ExposedAuditEventRepository(private val db: Database? = null) : AuditEventRepository {
 
-    override suspend fun save(event: AuditEvent): Unit = newSuspendedTransaction(db = db) {
+    override suspend fun save(event: AuditEvent): Unit = newSuspendedTransaction(
+        transactionIsolation = Connection.TRANSACTION_READ_COMMITTED,
+        db = db,
+    ) {
+        // Serialize chain appends across the cluster. The chain is intrinsically serial
+        // (each recordHash depends on the prior recordHash) — without this, two concurrent
+        // writers can both read the same latest hash and produce two events claiming the
+        // same previousHash, breaking verifyChain. Auto-released on COMMIT/ROLLBACK.
+        // Runs at READ_COMMITTED so the SELECT below sees the prior holder's COMMIT;
+        // the pool's REPEATABLE_READ default would freeze the snapshot at the lock
+        // acquisition and serve stale data even with the lock held.
+        exec("SELECT pg_advisory_xact_lock($AUDIT_CHAIN_LOCK_KEY)") { rs -> rs.next() }
+
         val latestHash = AuditEventsTable
             .select(AuditEventsTable.recordHash)
             .orderBy(AuditEventsTable.id, SortOrder.DESC)
