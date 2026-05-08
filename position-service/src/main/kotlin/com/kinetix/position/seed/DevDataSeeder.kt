@@ -9,6 +9,7 @@ import com.kinetix.position.model.LimitLevel
 import com.kinetix.position.model.LimitType
 import com.kinetix.position.persistence.LimitDefinitionRepository
 import com.kinetix.position.persistence.PositionRepository
+import com.kinetix.position.persistence.TradeEventRepository
 import com.kinetix.position.service.BookTradeCommand
 import com.kinetix.position.service.TradeBookingService
 import org.slf4j.LoggerFactory
@@ -23,6 +24,8 @@ class DevDataSeeder(
     private val positionRepository: PositionRepository,
     private val limitDefinitionRepo: LimitDefinitionRepository? = null,
     private val executionCostRepo: ExecutionCostRepository? = null,
+    private val tradeEventRepository: TradeEventRepository? = null,
+    private val tapeTradesEnabled: Boolean = true,
 ) {
     private val log = LoggerFactory.getLogger(DevDataSeeder::class.java)
 
@@ -50,6 +53,14 @@ class DevDataSeeder(
                     }
                 }
             }
+
+            // Phase 1 Gap 3 — 252-day tape trades, bulk-inserted to fill the blotter
+            // and counterparty exposure history without paying the per-trade booking
+            // cost. Skips position table updates: the live position set comes from
+            // CORE_TRADES above.
+            if (tapeTradesEnabled && tradeEventRepository != null) {
+                seedTapeTrades(tradeEventRepository)
+            }
         } else {
             log.info("Seed data already present ({} books), skipping trades/prices/limits", existing.size)
         }
@@ -67,6 +78,33 @@ class DevDataSeeder(
         }
 
         log.info("Dev data seeding complete")
+    }
+
+    private suspend fun seedTapeTrades(repo: TradeEventRepository) {
+        val instrumentsByBook = BOOK_INSTRUMENTS.mapValues { (_, specs) ->
+            specs.map { spec ->
+                TradeTapeGenerator.TradeInstrumentSpec(
+                    id = spec.id,
+                    assetClass = spec.assetClass,
+                    instrumentType = spec.instrumentType,
+                    currency = spec.currency,
+                    typicalPrice = spec.typicalPrice,
+                    typicalQtyMin = spec.typicalQtyMin,
+                    typicalQtyMax = spec.typicalQtyMax,
+                    priceScale = if (spec.currency in setOf("USD", "EUR", "GBP", "CAD", "CHF", "JPY")) {
+                        if (spec.assetClass == AssetClass.FX) 4 else 2
+                    } else 2,
+                )
+            }
+        }
+        val generator = TradeTapeGenerator(
+            instrumentsByBook = instrumentsByBook,
+            baseTradesPerBookPerDay = TradeTapeGenerator.DEFAULT_BASE_RATES,
+        )
+        val trades = generator.generate()
+        log.info("Bulk-inserting {} tape trades across {} books", trades.size, instrumentsByBook.size)
+        repo.bulkInsertForSeed(trades)
+        log.info("Tape trade bulk insert complete")
     }
 
     companion object {

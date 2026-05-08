@@ -4,6 +4,7 @@ import com.kinetix.common.model.*
 import com.kinetix.common.model.instrument.InstrumentTypeCode
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.batchInsert
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.update
@@ -83,6 +84,35 @@ class ExposedTradeEventRepository(private val db: Database? = null) : TradeEvent
             .selectAll()
             .where { TradeEventsTable.createdAt greaterEq since.atOffset(ZoneOffset.UTC) }
             .count()
+    }
+
+    override suspend fun bulkInsertForSeed(trades: List<Trade>) {
+        if (trades.isEmpty()) return
+        // Exposed's batchInsert collapses to a single multi-row INSERT inside one
+        // transaction. For 50–100k seed trades on Postgres this finishes in seconds.
+        // Chunk to 5k per transaction so the WAL doesn't bloat.
+        trades.chunked(5_000).forEach { chunk ->
+            newSuspendedTransaction(db = db) {
+                TradeEventsTable.batchInsert(chunk, shouldReturnGeneratedValues = false) { trade ->
+                    this[TradeEventsTable.tradeId] = trade.tradeId.value
+                    this[TradeEventsTable.bookId] = trade.bookId.value
+                    this[TradeEventsTable.instrumentId] = trade.instrumentId.value
+                    this[TradeEventsTable.assetClass] = trade.assetClass.name
+                    this[TradeEventsTable.side] = trade.side.name
+                    this[TradeEventsTable.quantity] = trade.quantity
+                    this[TradeEventsTable.priceAmount] = trade.price.amount
+                    this[TradeEventsTable.priceCurrency] = trade.price.currency.currencyCode
+                    this[TradeEventsTable.tradedAt] = trade.tradedAt.atOffset(ZoneOffset.UTC)
+                    this[TradeEventsTable.createdAt] = OffsetDateTime.now(ZoneOffset.UTC)
+                    this[TradeEventsTable.eventType] = trade.eventType.name
+                    this[TradeEventsTable.status] = trade.status.name
+                    this[TradeEventsTable.originalTradeId] = trade.originalTradeId?.value
+                    this[TradeEventsTable.counterpartyId] = trade.counterpartyId
+                    this[TradeEventsTable.instrumentType] = trade.instrumentType.name
+                    this[TradeEventsTable.strategyId] = trade.strategyId
+                }
+            }
+        }
     }
 
     private fun ResultRow.toTrade(): Trade = Trade(

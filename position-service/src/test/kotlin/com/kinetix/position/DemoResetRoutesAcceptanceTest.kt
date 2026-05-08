@@ -42,7 +42,14 @@ class DemoResetRoutesAcceptanceTest : FunSpec({
     fun Application.configureDemoResetApp() {
         install(ContentNegotiation) { json() }
         routing {
-            demoResetRoutes(db, tradeBookingService, positionRepository, limitDefinitionRepo, executionCostRepo, resetToken)
+            demoResetRoutes(
+                db = db,
+                tradeBookingService = tradeBookingService,
+                positionRepository = positionRepository,
+                limitDefinitionRepo = limitDefinitionRepo,
+                executionCostRepo = executionCostRepo,
+                resetToken = resetToken,
+            )
         }
     }
 

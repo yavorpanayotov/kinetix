@@ -686,23 +686,15 @@ class DevDataSeeder(
         // Higher-rated G-SIBs carry larger gross notionals at low spread × large notional;
         // BB-rated corporates carry small notionals at high CVA charges.
         //
-        // Tier definitions:
-        val G_SIB_COUNTERPARTY_IDS: List<String> = listOf("CP-GS", "CP-JPM", "CP-BARC", "CP-DB", "CP-UBS", "CP-CITI")
-        val MID_TIER_BANK_IDS: List<String> = listOf(
-            "CP-WFC", "CP-BNP", "CP-SOCG", "CP-MIZ", "CP-NMR", "CP-RBC",
-            "CP-ING", "CP-SAN", "CP-HAND", "CP-BBVA",
-        )
-        val CCP_IDS: List<String> = listOf("CP-LCH", "CP-CME", "CP-EUREX", "CP-ICE")
-        val BUY_SIDE_IDS: List<String> = listOf("CP-BLK", "CP-BRDG", "CP-CITDL", "CP-MIL")
-        val CORPORATE_IDS: List<String> = listOf("CP-AAPL", "CP-SHEL", "CP-TM", "CP-NESN", "CP-MSFT", "CP-BA")
-
-        // OTC-only counterparties — trade tape generator must restrict these to OTC
-        // instruments (FX forwards, FX options, swaps, swaptions). On listed flow they
-        // are nonsense and a credit-risk buyer flags it within 30 seconds.
-        val OTC_ONLY_COUNTERPARTY_IDS: Set<String> = (BUY_SIDE_IDS + CORPORATE_IDS).toSet()
-
-        // CCPs only appear on listed flow (ETD futures, options on futures, cleared swaps).
-        val LISTED_ONLY_COUNTERPARTY_IDS: Set<String> = CCP_IDS.toSet()
+        // Tier definitions are owned by common/demo/CounterpartyTiers so the position-
+        // service trade tape generator and reference-data seeder agree on membership.
+        val G_SIB_COUNTERPARTY_IDS: List<String> = com.kinetix.common.demo.CounterpartyTiers.G_SIB_IDS
+        val MID_TIER_BANK_IDS: List<String> = com.kinetix.common.demo.CounterpartyTiers.MID_TIER_BANK_IDS
+        val CCP_IDS: List<String> = com.kinetix.common.demo.CounterpartyTiers.CCP_IDS
+        val BUY_SIDE_IDS: List<String> = com.kinetix.common.demo.CounterpartyTiers.BUY_SIDE_IDS
+        val CORPORATE_IDS: List<String> = com.kinetix.common.demo.CounterpartyTiers.CORPORATE_IDS
+        val OTC_ONLY_COUNTERPARTY_IDS: Set<String> = com.kinetix.common.demo.CounterpartyTiers.OTC_ONLY_IDS
+        val LISTED_ONLY_COUNTERPARTY_IDS: Set<String> = com.kinetix.common.demo.CounterpartyTiers.LISTED_ONLY_IDS
 
         // Counterparties covering the major banking counterparties referenced in seed trades.
         // These IDs match what will be set on position-service seed trades.

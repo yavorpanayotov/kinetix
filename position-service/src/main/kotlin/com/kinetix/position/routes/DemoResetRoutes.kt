@@ -3,6 +3,7 @@ package com.kinetix.position.routes
 import com.kinetix.position.fix.ExecutionCostRepository
 import com.kinetix.position.persistence.LimitDefinitionRepository
 import com.kinetix.position.persistence.PositionRepository
+import com.kinetix.position.persistence.TradeEventRepository
 import com.kinetix.position.seed.DevDataSeeder
 import com.kinetix.position.service.TradeBookingService
 import io.ktor.http.*
@@ -21,6 +22,7 @@ fun Route.demoResetRoutes(
     positionRepository: PositionRepository,
     limitDefinitionRepo: LimitDefinitionRepository,
     executionCostRepo: ExecutionCostRepository? = null,
+    tradeEventRepository: TradeEventRepository? = null,
     resetToken: String,
 ) {
     route("/api/v1/internal/position") {
@@ -42,7 +44,13 @@ fun Route.demoResetRoutes(
                 exec("TRUNCATE TABLE execution_cost_analysis RESTART IDENTITY CASCADE")
             }
 
-            DevDataSeeder(tradeBookingService, positionRepository, limitDefinitionRepo, executionCostRepo).seed()
+            DevDataSeeder(
+                tradeBookingService = tradeBookingService,
+                positionRepository = positionRepository,
+                limitDefinitionRepo = limitDefinitionRepo,
+                executionCostRepo = executionCostRepo,
+                tradeEventRepository = tradeEventRepository,
+            ).seed()
 
             call.respond(DemoResetResponse("ok", "Position data reset and reseeded"))
         }

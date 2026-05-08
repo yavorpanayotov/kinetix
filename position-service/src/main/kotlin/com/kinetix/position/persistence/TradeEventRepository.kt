@@ -19,4 +19,12 @@ interface TradeEventRepository {
      * Used to derive per-counterparty netting-set membership.
      */
     suspend fun findByCounterpartyId(counterpartyId: String): List<Trade>
+
+    /**
+     * Demo-mode bulk insert for the 252-day seed trade tape. Bypasses the per-trade
+     * Kafka publish + audit chain — the booking path is exercised by acceptance tests,
+     * not the seeder. Production callers must continue to route through
+     * TradeBookingService.handle().
+     */
+    suspend fun bulkInsertForSeed(trades: List<Trade>)
 }
