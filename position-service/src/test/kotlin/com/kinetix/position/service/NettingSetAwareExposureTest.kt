@@ -31,6 +31,7 @@ private fun trade(
     price = Money(BigDecimal(price), USD),
     tradedAt = TRADED_AT,
     counterpartyId = counterpartyId,
+    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
 )
 
 class NettingSetAwareExposureTest : FunSpec({

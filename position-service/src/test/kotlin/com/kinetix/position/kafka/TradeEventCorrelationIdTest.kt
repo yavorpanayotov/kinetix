@@ -24,6 +24,7 @@ private fun trade(tradeId: String = "t-1") = Trade(
     quantity = BigDecimal("100"),
     price = Money(BigDecimal("150.00"), USD),
     tradedAt = Instant.parse("2025-01-15T10:00:00Z"),
+    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
 )
 
 class TradeEventCorrelationIdTest : FunSpec({

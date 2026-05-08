@@ -68,6 +68,7 @@ private fun trade(
     price = Money(BigDecimal(priceAmount), USD),
     tradedAt = Instant.parse("2025-06-01T12:00:00Z"),
     counterpartyId = counterpartyId,
+    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
 )
 
 class CounterpartyRoutesAcceptanceTest : FunSpec({

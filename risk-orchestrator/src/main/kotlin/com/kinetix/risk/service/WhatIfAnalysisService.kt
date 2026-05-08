@@ -31,6 +31,7 @@ class WhatIfAnalysisService(
                     quantity = trade.quantity,
                     price = trade.price,
                     tradedAt = Instant.now(),
+                    instrumentType = trade.instrumentType,
                 )
                 positionsByInstrument[trade.instrumentId] = existing.applyTrade(asTrade)
             } else {
@@ -42,6 +43,7 @@ class WhatIfAnalysisService(
                     quantity = signedQty,
                     averageCost = trade.price,
                     marketPrice = trade.price,
+                    instrumentType = trade.instrumentType,
                 )
                 positionsByInstrument[trade.instrumentId] = newPosition
             }

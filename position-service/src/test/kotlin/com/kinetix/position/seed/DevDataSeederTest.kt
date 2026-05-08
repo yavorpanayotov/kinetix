@@ -43,8 +43,17 @@ class DevDataSeederTest : FunSpec({
                     quantity = cmd.quantity,
                     price = cmd.price,
                     tradedAt = cmd.tradedAt,
+                    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
                 ),
-                position = Position.empty(cmd.bookId, cmd.instrumentId, cmd.assetClass, cmd.price.currency),
+                position = Position(
+                    bookId = cmd.bookId,
+                    instrumentId = cmd.instrumentId,
+                    assetClass = cmd.assetClass,
+                    quantity = java.math.BigDecimal.ZERO,
+                    averageCost = com.kinetix.common.model.Money.zero(cmd.price.currency),
+                    marketPrice = com.kinetix.common.model.Money.zero(cmd.price.currency),
+                    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.fromString(cmd.instrumentType),
+                ),
             )
         }
         coEvery { positionRepository.findByKey(any(), any()) } returns null

@@ -173,6 +173,7 @@ class TradeLifecycleEnd2EndTest : BehaviorSpec({
                     quantity = BigDecimal("100"),
                     price = Money(BigDecimal("150.00"), Currency.getInstance("USD")),
                     tradedAt = Instant.parse("2025-01-15T10:00:00Z"),
+                    instrumentType = "CASH_EQUITY",
                 )
             )
 
@@ -187,6 +188,7 @@ class TradeLifecycleEnd2EndTest : BehaviorSpec({
                     quantity = BigDecimal("200"),
                     price = Money(BigDecimal("160.00"), Currency.getInstance("USD")),
                     tradedAt = Instant.parse("2025-01-15T11:00:00Z"),
+                    instrumentType = "CASH_EQUITY",
                 )
             )
 
@@ -237,6 +239,7 @@ class TradeLifecycleEnd2EndTest : BehaviorSpec({
                     quantity = BigDecimal("100"),
                     price = Money(BigDecimal("150.00"), Currency.getInstance("USD")),
                     tradedAt = Instant.parse("2025-01-15T10:00:00Z"),
+                    instrumentType = "CASH_EQUITY",
                 )
             )
 
@@ -285,6 +288,7 @@ class TradeLifecycleEnd2EndTest : BehaviorSpec({
                     quantity = BigDecimal("100"),
                     price = Money(BigDecimal("150.00"), Currency.getInstance("USD")),
                     tradedAt = Instant.parse("2025-01-15T10:00:00Z"),
+                    instrumentType = "CASH_EQUITY",
                 )
             )
 
@@ -298,6 +302,7 @@ class TradeLifecycleEnd2EndTest : BehaviorSpec({
                     quantity = BigDecimal("30"),
                     price = Money(BigDecimal("160.00"), Currency.getInstance("USD")),
                     tradedAt = Instant.parse("2025-01-15T11:00:00Z"),
+                    instrumentType = "CASH_EQUITY",
                 )
             )
 
@@ -342,6 +347,7 @@ class TradeLifecycleEnd2EndTest : BehaviorSpec({
                     quantity = BigDecimal("100"),
                     price = Money(BigDecimal("150.00"), Currency.getInstance("USD")),
                     tradedAt = Instant.parse("2025-01-15T10:00:00Z"),
+                    instrumentType = "CASH_EQUITY",
                 )
             )
 
@@ -365,6 +371,7 @@ class TradeLifecycleEnd2EndTest : BehaviorSpec({
                             quantity = BigDecimal("200"),
                             price = Money(BigDecimal("155.00"), Currency.getInstance("USD")),
                             tradedAt = Instant.parse("2025-01-15T12:00:00Z"),
+                            instrumentType = "CASH_EQUITY",
                         )
                     )
                 }
@@ -389,6 +396,7 @@ class TradeLifecycleEnd2EndTest : BehaviorSpec({
                     quantity = BigDecimal("100"),
                     price = Money(BigDecimal("150.00"), Currency.getInstance("USD")),
                     tradedAt = Instant.parse("2025-01-15T10:00:00Z"),
+                    instrumentType = "CASH_EQUITY",
                 )
             )
 
@@ -430,6 +438,7 @@ class TradeLifecycleEnd2EndTest : BehaviorSpec({
                             quantity = BigDecimal("1001"),
                             price = Money(BigDecimal("150.00"), Currency.getInstance("USD")),
                             tradedAt = Instant.parse("2025-01-15T10:00:00Z"),
+                            instrumentType = "CASH_EQUITY",
                         )
                     )
                 }
@@ -461,6 +470,7 @@ class TradeLifecycleEnd2EndTest : BehaviorSpec({
                     quantity = BigDecimal("800"),
                     price = Money(BigDecimal("150.00"), Currency.getInstance("USD")),
                     tradedAt = Instant.parse("2025-01-15T10:00:00Z"),
+                    instrumentType = "CASH_EQUITY",
                 )
             )
 
@@ -474,6 +484,7 @@ class TradeLifecycleEnd2EndTest : BehaviorSpec({
                     quantity = BigDecimal("50"),
                     price = Money(BigDecimal("150.00"), Currency.getInstance("USD")),
                     tradedAt = Instant.parse("2025-01-15T11:00:00Z"),
+                    instrumentType = "CASH_EQUITY",
                 )
             )
 
@@ -516,6 +527,7 @@ class TradeLifecycleEnd2EndTest : BehaviorSpec({
                     quantity = BigDecimal("100"),
                     price = Money(BigDecimal("150.00"), Currency.getInstance("USD")),
                     tradedAt = Instant.parse("2025-01-15T10:00:00Z"),
+                    instrumentType = "CASH_EQUITY",
                 )
             )
 
@@ -529,6 +541,7 @@ class TradeLifecycleEnd2EndTest : BehaviorSpec({
                     quantity = BigDecimal("50"),
                     price = Money(BigDecimal("160.00"), Currency.getInstance("USD")),
                     tradedAt = Instant.parse("2025-01-15T10:30:00Z"),
+                    instrumentType = "CASH_EQUITY",
                 )
             )
 
@@ -542,6 +555,7 @@ class TradeLifecycleEnd2EndTest : BehaviorSpec({
                     quantity = BigDecimal("30"),
                     price = Money(BigDecimal("155.00"), Currency.getInstance("USD")),
                     tradedAt = Instant.parse("2025-01-15T11:00:00Z"),
+                    instrumentType = "CASH_EQUITY",
                 )
             )
 

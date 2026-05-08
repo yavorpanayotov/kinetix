@@ -62,8 +62,9 @@ class OrderSubmissionService(
         timeInForce: TimeInForce = TimeInForce.DAY,
         expiresAt: Instant? = null,
         maxGtdHorizonDays: Long = 90,
-        instrumentType: String? = null,
+        instrumentType: String,
     ): Order {
+        require(instrumentType.isNotBlank()) { "instrumentType must not be blank" }
         require(quantity > BigDecimal.ZERO) { "Quantity must be positive" }
 
         if (arrivalPriceTimestamp != null) {

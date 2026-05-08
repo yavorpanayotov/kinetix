@@ -102,7 +102,7 @@ class RebalancingAcceptanceTest : FunSpec({
                                 "side": "SELL",
                                 "quantity": "50",
                                 "priceAmount": "170.00",
-                                "priceCurrency": "USD",
+                                "priceCurrency": "USD", "instrumentType": "CASH_EQUITY",
                                 "bidAskSpreadBps": 5.0
                             }
                         ]
@@ -167,7 +167,7 @@ class RebalancingAcceptanceTest : FunSpec({
                                 "side": "SELL",
                                 "quantity": "50",
                                 "priceAmount": "170.00",
-                                "priceCurrency": "USD"
+                                "priceCurrency": "USD", "instrumentType": "CASH_EQUITY"
                             }
                         ]
                     }

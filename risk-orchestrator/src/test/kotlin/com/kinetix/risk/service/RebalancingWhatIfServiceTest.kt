@@ -30,6 +30,7 @@ private fun position(
     quantity = BigDecimal(quantity),
     averageCost = Money(BigDecimal(averageCost), USD),
     marketPrice = Money(BigDecimal(marketPrice), USD),
+    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
 )
 
 private fun rebalancingTrade(
@@ -46,6 +47,7 @@ private fun rebalancingTrade(
     quantity = BigDecimal(quantity),
     price = Money(BigDecimal(price), USD),
     bidAskSpreadBps = bidAskSpreadBps,
+    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
 )
 
 private fun valuationResult(

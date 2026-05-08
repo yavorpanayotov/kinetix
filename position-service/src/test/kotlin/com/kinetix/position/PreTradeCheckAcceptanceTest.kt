@@ -49,7 +49,8 @@ private val validRequest = """
         "side": "BUY",
         "quantity": "100",
         "priceAmount": "150.00",
-        "priceCurrency": "USD"
+        "priceCurrency": "USD",
+        "instrumentType": "CASH_EQUITY"
     }
 """.trimIndent()
 
@@ -143,7 +144,8 @@ class PreTradeCheckAcceptanceTest : FunSpec({
                         "side": "BUY",
                         "quantity": "0",
                         "priceAmount": "150.00",
-                        "priceCurrency": "USD"
+                        "priceCurrency": "USD",
+                        "instrumentType": "CASH_EQUITY"
                     }
                     """.trimIndent()
                 )

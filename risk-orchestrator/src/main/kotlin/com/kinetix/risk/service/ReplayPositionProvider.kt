@@ -1,6 +1,7 @@
 package com.kinetix.risk.service
 
 import com.kinetix.common.model.*
+import com.kinetix.common.model.instrument.InstrumentTypeCode
 import com.kinetix.risk.client.PositionProvider
 import com.kinetix.risk.model.PositionSnapshotEntry
 import java.util.Currency
@@ -20,6 +21,7 @@ class ReplayPositionProvider(
                 quantity = entry.quantity,
                 averageCost = Money(entry.averageCostAmount, currency),
                 marketPrice = Money(entry.marketPriceAmount, currency),
+                instrumentType = InstrumentTypeCode.fromString(entry.instrumentType),
             )
         }
     }

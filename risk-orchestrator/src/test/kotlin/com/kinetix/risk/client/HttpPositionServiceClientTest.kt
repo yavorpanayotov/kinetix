@@ -34,7 +34,8 @@ class HttpPositionServiceClientTest : FunSpec({
                         "marketPrice": {"amount": "170.00", "currency": "USD"},
                         "marketValue": {"amount": "17000.00", "currency": "USD"},
                         "unrealizedPnl": {"amount": "2000.00", "currency": "USD"},
-                        "realizedPnl": {"amount": "500.00", "currency": "USD"}
+                        "realizedPnl": {"amount": "500.00", "currency": "USD"},
+                        "instrumentType": "CASH_EQUITY"
                     }
                 ]""",
                 headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),

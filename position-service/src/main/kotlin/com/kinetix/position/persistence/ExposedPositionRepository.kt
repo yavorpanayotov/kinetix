@@ -30,7 +30,7 @@ class ExposedPositionRepository(private val db: Database? = null) : PositionRepo
             it[currency] = position.currency.currencyCode
             it[updatedAt] = OffsetDateTime.now(ZoneOffset.UTC)
             it[realizedPnlAmount] = position.realizedPnl.amount
-            it[instrumentType] = position.instrumentType?.name ?: "UNKNOWN"
+            it[instrumentType] = position.instrumentType.name
             it[strategyId] = position.strategyId
         }
     }

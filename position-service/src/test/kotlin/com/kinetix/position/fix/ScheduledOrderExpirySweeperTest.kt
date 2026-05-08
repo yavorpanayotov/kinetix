@@ -50,6 +50,7 @@ class ScheduledOrderExpirySweeperTest : FunSpec({
         timeInForce: TimeInForce = TimeInForce.DAY,
         expiresAt: Instant? = null,
         status: OrderStatus = OrderStatus.SENT,
+        venueOrderId: String? = null,
     ) = Order(
         orderId = orderId,
         bookId = "book-1",
@@ -66,6 +67,8 @@ class ScheduledOrderExpirySweeperTest : FunSpec({
         fixSessionId = null,
         timeInForce = timeInForce,
         expiresAt = expiresAt,
+        instrumentType = "CASH_EQUITY",
+        venueOrderId = venueOrderId,
     )
 
     /** 16:30 ET on 2026-05-04 (a Monday) — past NYSE 16:00 cutoff. */

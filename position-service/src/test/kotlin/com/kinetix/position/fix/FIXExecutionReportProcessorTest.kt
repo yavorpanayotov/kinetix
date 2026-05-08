@@ -19,7 +19,7 @@ private fun makeOrder(
     status: OrderStatus = OrderStatus.SENT,
     assetClass: AssetClass = AssetClass.EQUITY,
     currency: Currency = Currency.getInstance("USD"),
-    instrumentType: String? = "CASH_EQUITY",
+    instrumentType: String = "CASH_EQUITY",
 ) = Order(
     orderId = orderId,
     bookId = "book-1",

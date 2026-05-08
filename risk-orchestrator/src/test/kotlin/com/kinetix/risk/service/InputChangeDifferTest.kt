@@ -55,6 +55,7 @@ private fun position(
     currency = currency,
     marketValueAmount = BigDecimal(quantity) * BigDecimal(marketPrice),
     unrealizedPnlAmount = BigDecimal("500.00"),
+    instrumentType = "CASH_EQUITY",
 )
 
 private fun marketDataRef(

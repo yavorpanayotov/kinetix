@@ -33,6 +33,7 @@ private fun position(
     quantity = BigDecimal(quantity),
     averageCost = money(averageCost, currency),
     marketPrice = money(marketPrice, currency),
+    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
 )
 
 class PortfolioAggregationServiceTest : FunSpec({

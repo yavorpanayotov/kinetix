@@ -47,6 +47,7 @@ private fun trade(
     eventType = TradeEventType.NEW,
     status = TradeStatus.LIVE,
     strategyId = strategyId,
+    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
 )
 
 class TradeStrategyServiceTest : FunSpec({

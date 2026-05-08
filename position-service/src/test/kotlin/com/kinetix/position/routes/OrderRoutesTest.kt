@@ -48,6 +48,7 @@ private fun fakeOrder(): Order = Order(
     fixSessionId = null,
     assetClass = AssetClass.EQUITY,
     currency = Currency.getInstance("USD"),
+    instrumentType = "CASH_EQUITY",
 )
 
 private object EmptyGhostFillRepository : GhostFillRepository {
@@ -89,6 +90,7 @@ class OrderRoutesTest : FunSpec({
                 assetClass = any(),
                 currency = any(),
                 arrivalPriceTimestamp = captureNullable(captured),
+                instrumentType = "CASH_EQUITY",
             )
         } returns fakeOrder()
 
@@ -100,7 +102,7 @@ class OrderRoutesTest : FunSpec({
                     """
                     {"bookId":"book-1","instrumentId":"AAPL","side":"BUY","quantity":"100",
                      "orderType":"LIMIT","limitPrice":"150.00","arrivalPrice":"149.90",
-                     "arrivalPriceTimestamp":"2026-04-30T11:59:55Z"}
+                     "arrivalPriceTimestamp":"2026-04-30T11:59:55Z","instrumentType":"CASH_EQUITY"}
                     """.trimIndent(),
                 )
             }
@@ -126,6 +128,7 @@ class OrderRoutesTest : FunSpec({
                 assetClass = any(),
                 currency = any(),
                 arrivalPriceTimestamp = captureNullable(captured),
+                instrumentType = "CASH_EQUITY",
             )
         } returns fakeOrder()
 
@@ -136,7 +139,7 @@ class OrderRoutesTest : FunSpec({
                 setBody(
                     """
                     {"bookId":"book-1","instrumentId":"AAPL","side":"BUY","quantity":"100",
-                     "orderType":"LIMIT","limitPrice":"150.00","arrivalPrice":"149.90"}
+                     "orderType":"LIMIT","limitPrice":"150.00","arrivalPrice":"149.90","instrumentType":"CASH_EQUITY"}
                     """.trimIndent(),
                 )
             }
@@ -157,7 +160,7 @@ class OrderRoutesTest : FunSpec({
                     """
                     {"bookId":"book-1","instrumentId":"AAPL","side":"BUY","quantity":"100",
                      "orderType":"LIMIT","limitPrice":"150.00","arrivalPrice":"149.90",
-                     "arrivalPriceTimestamp":"not-a-timestamp"}
+                     "arrivalPriceTimestamp":"not-a-timestamp","instrumentType":"CASH_EQUITY"}
                     """.trimIndent(),
                 )
             }
@@ -166,7 +169,7 @@ class OrderRoutesTest : FunSpec({
         }
 
         coVerify(exactly = 0) {
-            service.submit(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+            service.submit(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), instrumentType = any())
         }
     }
 
@@ -185,6 +188,7 @@ class OrderRoutesTest : FunSpec({
                 assetClass = any(),
                 currency = any(),
                 arrivalPriceTimestamp = any(),
+                instrumentType = "CASH_EQUITY",
             )
         } throws IllegalArgumentException("Arrival price is stale: observed 45000ms ago, limit is 30000ms")
 
@@ -196,7 +200,7 @@ class OrderRoutesTest : FunSpec({
                     """
                     {"bookId":"book-1","instrumentId":"AAPL","side":"BUY","quantity":"100",
                      "orderType":"LIMIT","limitPrice":"150.00","arrivalPrice":"149.90",
-                     "arrivalPriceTimestamp":"2026-04-30T11:59:00Z"}
+                     "arrivalPriceTimestamp":"2026-04-30T11:59:00Z","instrumentType":"CASH_EQUITY"}
                     """.trimIndent(),
                 )
             }

@@ -31,6 +31,7 @@ private fun trade(
     quantity = quantity,
     price = price,
     tradedAt = tradedAt,
+    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
 )
 
 class KafkaTradeEventPublisherIntegrationTest : FunSpec({

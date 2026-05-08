@@ -32,6 +32,7 @@ private fun position(
     quantity = BigDecimal(quantity),
     averageCost = usd(averageCost),
     marketPrice = usd(marketPrice),
+    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
 )
 
 class PositionRepositoryIntegrationTest : FunSpec({

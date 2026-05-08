@@ -45,6 +45,7 @@ private fun position(instrumentId: String = "AAPL", quantity: String = "100") = 
     quantity = BigDecimal(quantity),
     averageCost = Money(BigDecimal("150.00"), USD),
     marketPrice = Money(BigDecimal("170.00"), USD),
+    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
 )
 
 private fun job(

@@ -29,6 +29,7 @@ private fun position(
     quantity = BigDecimal(quantity),
     averageCost = averageCost,
     marketPrice = marketPrice,
+    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
 )
 
 class PriceUpdateServiceTest : FunSpec({

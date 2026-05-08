@@ -22,6 +22,7 @@ class WhatIfMapperTest : FunSpec({
             quantity = "500",
             priceAmount = "450.00",
             priceCurrency = "USD",
+                    instrumentType = "CASH_EQUITY",
         )
 
         val domain = dto.toDomain()
@@ -42,6 +43,7 @@ class WhatIfMapperTest : FunSpec({
             quantity = "100",
             priceAmount = "175.00",
             priceCurrency = "USD",
+                    instrumentType = "CASH_EQUITY",
         )
 
         val domain = dto.toDomain()
@@ -128,7 +130,8 @@ class WhatIfMapperTest : FunSpec({
                 quantity = "1",
                 priceAmount = "100.00",
                 priceCurrency = "USD",
-            )
+                        instrumentType = "CASH_EQUITY",
+        )
             dto.toDomain().assetClass shouldBe assetClass
         }
     }
@@ -141,6 +144,7 @@ class WhatIfMapperTest : FunSpec({
             quantity = "100",
             priceAmount = "450.00",
             priceCurrency = "USD",
+                    instrumentType = "CASH_EQUITY",
         )
 
         shouldThrow<IllegalArgumentException> {
@@ -156,6 +160,7 @@ class WhatIfMapperTest : FunSpec({
             quantity = "100",
             priceAmount = "450.00",
             priceCurrency = "USD",
+                    instrumentType = "CASH_EQUITY",
         )
 
         shouldThrow<IllegalArgumentException> {

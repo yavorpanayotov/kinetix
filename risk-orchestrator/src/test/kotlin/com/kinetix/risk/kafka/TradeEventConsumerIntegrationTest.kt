@@ -132,6 +132,7 @@ class TradeEventConsumerIntegrationTest : FunSpec({
             quantity = BigDecimal("1000"),
             averageCost = Money(BigDecimal("100.00"), USD),
             marketPrice = Money(BigDecimal("100.00"), USD),
+            instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
         )
         coEvery { positionProvider.getPositions(BookId("port-liq")) } returns listOf(existingPosition)
 
@@ -197,6 +198,7 @@ class TradeEventConsumerIntegrationTest : FunSpec({
             quantity = BigDecimal("1000"),
             averageCost = Money(BigDecimal("100.00"), USD),
             marketPrice = Money(BigDecimal("100.00"), USD),
+            instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
         )
         coEvery { positionProvider.getPositions(BookId("port-liq2")) } returns listOf(existingPosition)
 

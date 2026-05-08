@@ -48,6 +48,7 @@ class ExposedRunManifestRepository(private val db: Database? = null) : RunManife
             this[RunPositionSnapshotsTable.currency] = entry.currency
             this[RunPositionSnapshotsTable.marketValueAmount] = entry.marketValueAmount
             this[RunPositionSnapshotsTable.unrealizedPnlAmount] = entry.unrealizedPnlAmount
+            this[RunPositionSnapshotsTable.instrumentType] = entry.instrumentType
         }
     }
 
@@ -99,6 +100,7 @@ class ExposedRunManifestRepository(private val db: Database? = null) : RunManife
                         currency = row[RunPositionSnapshotsTable.currency],
                         marketValueAmount = row[RunPositionSnapshotsTable.marketValueAmount],
                         unrealizedPnlAmount = row[RunPositionSnapshotsTable.unrealizedPnlAmount],
+                        instrumentType = row[RunPositionSnapshotsTable.instrumentType],
                     )
                 }
         }

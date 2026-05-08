@@ -68,6 +68,7 @@ class RiskEngineGrpcContractIntegrationTest : FunSpec({
                 quantity = BigDecimal("100"),
                 averageCost = Money(BigDecimal("150.00"), USD),
                 marketPrice = Money(BigDecimal("170.00"), USD),
+                instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
             ),
         )
         val request = VaRCalculationRequest(
@@ -98,6 +99,7 @@ class RiskEngineGrpcContractIntegrationTest : FunSpec({
                 quantity = BigDecimal("50"),
                 averageCost = Money(BigDecimal("300.00"), USD),
                 marketPrice = Money(BigDecimal("320.00"), USD),
+                instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
             ),
         )
         val request = VaRCalculationRequest(
@@ -123,6 +125,7 @@ class RiskEngineGrpcContractIntegrationTest : FunSpec({
                 quantity = BigDecimal("100"),
                 averageCost = Money(BigDecimal("150.00"), USD),
                 marketPrice = Money(BigDecimal("170.00"), USD),
+                instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
             ),
             Position(
                 bookId = BookId("contract-port-3"),
@@ -131,6 +134,7 @@ class RiskEngineGrpcContractIntegrationTest : FunSpec({
                 quantity = BigDecimal("50"),
                 averageCost = Money(BigDecimal("9800.00"), USD),
                 marketPrice = Money(BigDecimal("10000.00"), USD),
+                instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
             ),
         )
         val request = VaRCalculationRequest(
@@ -154,6 +158,7 @@ class RiskEngineGrpcContractIntegrationTest : FunSpec({
                 quantity = BigDecimal("25"),
                 averageCost = Money(BigDecimal("2800.00"), USD),
                 marketPrice = Money(BigDecimal("2900.00"), USD),
+                instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
             ),
         )
         val request = VaRCalculationRequest(
@@ -181,6 +186,7 @@ class RiskEngineGrpcContractIntegrationTest : FunSpec({
                 quantity = BigDecimal("100"),
                 averageCost = Money(BigDecimal("150.00"), USD),
                 marketPrice = Money(BigDecimal("170.00"), USD),
+                instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
             ),
         )
 

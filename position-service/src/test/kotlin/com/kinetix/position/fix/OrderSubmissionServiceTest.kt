@@ -46,6 +46,7 @@ class OrderSubmissionServiceTest : FunSpec({
             limitPrice = BigDecimal("150.00"),
             arrivalPrice = BigDecimal("149.90"),
             fixSessionId = null,
+            instrumentType = "CASH_EQUITY",
         )
 
         order.shouldNotBeNull()
@@ -80,6 +81,7 @@ class OrderSubmissionServiceTest : FunSpec({
             limitPrice = null,
             arrivalPrice = BigDecimal("149.80"),
             fixSessionId = "FIX-01",
+            instrumentType = "CASH_EQUITY",
         )
 
         order.status shouldBe OrderStatus.SENT
@@ -107,6 +109,7 @@ class OrderSubmissionServiceTest : FunSpec({
             limitPrice = BigDecimal("160.00"),
             arrivalPrice = BigDecimal("159.90"),
             fixSessionId = "FIX-02",
+            instrumentType = "CASH_EQUITY",
         )
 
         order.status shouldBe OrderStatus.APPROVED
@@ -125,6 +128,7 @@ class OrderSubmissionServiceTest : FunSpec({
             limitPrice = null,
             arrivalPrice = BigDecimal("150.00"),
             fixSessionId = "MISSING",
+            instrumentType = "CASH_EQUITY",
         )
 
         order.status shouldBe OrderStatus.APPROVED
@@ -142,6 +146,7 @@ class OrderSubmissionServiceTest : FunSpec({
                 limitPrice = null,
                 arrivalPrice = BigDecimal("150.00"),
                 fixSessionId = null,
+                instrumentType = "CASH_EQUITY",
             )
         }
 
@@ -162,6 +167,7 @@ class OrderSubmissionServiceTest : FunSpec({
                 arrivalPrice = BigDecimal("150.00"),
                 fixSessionId = null,
                 arrivalPriceTimestamp = staleTimestamp,
+                instrumentType = "CASH_EQUITY",
             )
         }
 
@@ -181,6 +187,7 @@ class OrderSubmissionServiceTest : FunSpec({
             arrivalPrice = BigDecimal("150.00"),
             fixSessionId = null,
             arrivalPriceTimestamp = freshTimestamp,
+            instrumentType = "CASH_EQUITY",
         )
 
         order.status shouldBe OrderStatus.APPROVED
@@ -198,6 +205,7 @@ class OrderSubmissionServiceTest : FunSpec({
             arrivalPrice = BigDecimal("150.00"),
             fixSessionId = null,
             arrivalPriceTimestamp = null,
+            instrumentType = "CASH_EQUITY",
         )
 
         order.status shouldBe OrderStatus.APPROVED
@@ -216,6 +224,7 @@ class OrderSubmissionServiceTest : FunSpec({
             limitPrice = null,
             arrivalPrice = BigDecimal("150.00"),
             fixSessionId = null,
+            instrumentType = "CASH_EQUITY",
         )
 
         order.status shouldBe OrderStatus.APPROVED
@@ -243,6 +252,7 @@ class OrderSubmissionServiceTest : FunSpec({
             limitPrice = null,
             arrivalPrice = BigDecimal("150.00"),
             fixSessionId = null,
+            instrumentType = "CASH_EQUITY",
         )
 
         order.status shouldBe OrderStatus.APPROVED
@@ -274,6 +284,7 @@ class OrderSubmissionServiceTest : FunSpec({
             limitPrice = null,
             arrivalPrice = BigDecimal("150.00"),
             fixSessionId = null,
+            instrumentType = "CASH_EQUITY",
         )
 
         order.status shouldBe OrderStatus.REJECTED
@@ -308,6 +319,7 @@ class OrderSubmissionServiceTest : FunSpec({
             limitPrice = null,
             arrivalPrice = BigDecimal("150.00"),
             fixSessionId = null,
+            instrumentType = "CASH_EQUITY",
         )
 
         order.status shouldBe OrderStatus.REJECTED
@@ -335,6 +347,7 @@ class OrderSubmissionServiceTest : FunSpec({
             limitPrice = null,
             arrivalPrice = BigDecimal("150.00"),
             fixSessionId = null,
+            instrumentType = "CASH_EQUITY",
         )
 
         order.riskCheckDetails.shouldNotBeNull()
@@ -355,6 +368,7 @@ class OrderSubmissionServiceTest : FunSpec({
             fixSessionId = null,
             assetClass = "FIXED_INCOME",
             currency = "EUR",
+            instrumentType = "CASH_EQUITY",
         )
 
         order.assetClass shouldBe com.kinetix.common.model.AssetClass.FIXED_INCOME
@@ -375,6 +389,7 @@ class OrderSubmissionServiceTest : FunSpec({
             limitPrice = null,
             arrivalPrice = BigDecimal("150.00"),
             fixSessionId = null,
+            instrumentType = "CASH_EQUITY",
         )
 
         order.timeInForce shouldBe TimeInForce.DAY
@@ -392,6 +407,7 @@ class OrderSubmissionServiceTest : FunSpec({
             arrivalPrice = BigDecimal("150.00"),
             fixSessionId = null,
             timeInForce = TimeInForce.GTC,
+            instrumentType = "CASH_EQUITY",
         )
 
         order.timeInForce shouldBe TimeInForce.GTC
@@ -411,6 +427,7 @@ class OrderSubmissionServiceTest : FunSpec({
                 fixSessionId = null,
                 timeInForce = TimeInForce.GTD,
                 expiresAt = null,
+                instrumentType = "CASH_EQUITY",
             )
         }.message!! shouldContain "expiresAt is required"
     }
@@ -428,6 +445,7 @@ class OrderSubmissionServiceTest : FunSpec({
                 fixSessionId = null,
                 timeInForce = TimeInForce.GTD,
                 expiresAt = Instant.now().minusSeconds(60),
+                instrumentType = "CASH_EQUITY",
             )
         }.message!! shouldContain "must be in the future"
     }
@@ -445,6 +463,7 @@ class OrderSubmissionServiceTest : FunSpec({
                 fixSessionId = null,
                 timeInForce = TimeInForce.GTD,
                 expiresAt = Instant.now().plusSeconds(100L * 24 * 3600),
+                instrumentType = "CASH_EQUITY",
             )
         }.message!! shouldContain "max-GTD horizon"
     }
@@ -462,6 +481,7 @@ class OrderSubmissionServiceTest : FunSpec({
                 fixSessionId = null,
                 timeInForce = TimeInForce.DAY,
                 expiresAt = Instant.now().plusSeconds(3600),
+                instrumentType = "CASH_EQUITY",
             )
         }.message!! shouldContain "expiresAt must be null"
     }
@@ -479,6 +499,7 @@ class OrderSubmissionServiceTest : FunSpec({
             fixSessionId = null,
             timeInForce = TimeInForce.GTD,
             expiresAt = expires,
+            instrumentType = "CASH_EQUITY",
         )
 
         order.timeInForce shouldBe TimeInForce.GTD

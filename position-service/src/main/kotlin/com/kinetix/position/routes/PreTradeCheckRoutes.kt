@@ -63,6 +63,7 @@ fun Route.preTradeCheckRoutes(preTradeCheckService: PreTradeCheckService) {
                 quantity = qty,
                 price = Money(priceAmt, Currency.getInstance(request.priceCurrency)),
                 tradedAt = Instant.now(),
+                instrumentType = request.instrumentType,
             )
 
             // Fail-safe on timeout: reject the order rather than allowing it through

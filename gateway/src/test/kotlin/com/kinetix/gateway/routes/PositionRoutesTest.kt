@@ -72,6 +72,7 @@ class PositionRoutesTest : FunSpec({
             quantity = BigDecimal("100"),
             price = usd("150.00"),
             tradedAt = Instant.parse("2025-01-15T10:00:00Z"),
+            instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
         )
         val position = Position(
             bookId = BookId("port-1"),
@@ -80,6 +81,7 @@ class PositionRoutesTest : FunSpec({
             quantity = BigDecimal("100"),
             averageCost = usd("150.00"),
             marketPrice = usd("155.00"),
+            instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
         )
         coEvery { positionClient.bookTrade(any()) } returns BookTradeResult(trade, position)
 
@@ -96,8 +98,7 @@ class PositionRoutesTest : FunSpec({
                         "quantity": "100",
                         "priceAmount": "150.00",
                         "priceCurrency": "USD",
-                        "tradedAt": "2025-01-15T10:00:00Z"
-                    }
+                        "tradedAt": "2025-01-15T10:00:00Z","instrumentType":"CASH_EQUITY"}
                 """.trimIndent())
             }
             response.status shouldBe HttpStatusCode.Created
@@ -119,6 +120,7 @@ class PositionRoutesTest : FunSpec({
             quantity = BigDecimal("50"),
             price = usd("300.00"),
             tradedAt = Instant.parse("2025-01-15T10:00:00Z"),
+            instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
         )
         val position = Position(
             bookId = BookId("my-port"),
@@ -127,6 +129,7 @@ class PositionRoutesTest : FunSpec({
             quantity = BigDecimal("50"),
             averageCost = usd("300.00"),
             marketPrice = usd("300.00"),
+            instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
         )
         coEvery { positionClient.bookTrade(capture(commandSlot)) } returns BookTradeResult(trade, position)
 
@@ -143,8 +146,7 @@ class PositionRoutesTest : FunSpec({
                         "quantity": "50",
                         "priceAmount": "300.00",
                         "priceCurrency": "USD",
-                        "tradedAt": "2025-01-15T10:00:00Z"
-                    }
+                        "tradedAt": "2025-01-15T10:00:00Z","instrumentType":"CASH_EQUITY"}
                 """.trimIndent())
             }
             commandSlot.captured.bookId shouldBe BookId("my-port")
@@ -165,8 +167,7 @@ class PositionRoutesTest : FunSpec({
                         "quantity": "100",
                         "priceAmount": "150.00",
                         "priceCurrency": "USD",
-                        "tradedAt": "2025-01-15T10:00:00Z"
-                    }
+                        "tradedAt": "2025-01-15T10:00:00Z","instrumentType":"CASH_EQUITY"}
                 """.trimIndent())
             }
             response.status shouldBe HttpStatusCode.BadRequest
@@ -187,8 +188,7 @@ class PositionRoutesTest : FunSpec({
                         "quantity": "-100",
                         "priceAmount": "150.00",
                         "priceCurrency": "USD",
-                        "tradedAt": "2025-01-15T10:00:00Z"
-                    }
+                        "tradedAt": "2025-01-15T10:00:00Z","instrumentType":"CASH_EQUITY"}
                 """.trimIndent())
             }
             response.status shouldBe HttpStatusCode.BadRequest
@@ -209,8 +209,7 @@ class PositionRoutesTest : FunSpec({
                         "quantity": "100",
                         "priceAmount": "150.00",
                         "priceCurrency": "USD",
-                        "tradedAt": "2025-01-15T10:00:00Z"
-                    }
+                        "tradedAt": "2025-01-15T10:00:00Z","instrumentType":"CASH_EQUITY"}
                 """.trimIndent())
             }
             response.status shouldBe HttpStatusCode.BadRequest
@@ -227,6 +226,7 @@ class PositionRoutesTest : FunSpec({
             quantity = BigDecimal("100"),
             price = usd("150.00"),
             tradedAt = Instant.parse("2025-01-15T10:00:00Z"),
+            instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
         )
         val position = Position(
             bookId = BookId("port-1"),
@@ -235,6 +235,7 @@ class PositionRoutesTest : FunSpec({
             quantity = BigDecimal("100"),
             averageCost = usd("150.00"),
             marketPrice = usd("155.00"),
+            instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
         )
         coEvery { positionClient.bookTrade(any()) } returns BookTradeResult(trade, position)
 
@@ -251,8 +252,7 @@ class PositionRoutesTest : FunSpec({
                         "quantity": "100",
                         "priceAmount": "150.00",
                         "priceCurrency": "USD",
-                        "tradedAt": "2025-01-15T10:00:00Z"
-                    }
+                        "tradedAt": "2025-01-15T10:00:00Z","instrumentType":"CASH_EQUITY"}
                 """.trimIndent())
             }
             val posObj = Json.parseToJsonElement(response.bodyAsText())
@@ -275,6 +275,7 @@ class PositionRoutesTest : FunSpec({
                 quantity = BigDecimal("100"),
                 price = usd("150.00"),
                 tradedAt = Instant.parse("2025-01-15T10:00:00Z"),
+                instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
             ),
             Trade(
                 tradeId = TradeId("t-2"),
@@ -285,6 +286,7 @@ class PositionRoutesTest : FunSpec({
                 quantity = BigDecimal("50"),
                 price = usd("300.00"),
                 tradedAt = Instant.parse("2025-01-15T11:00:00Z"),
+                instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
             ),
         )
         coEvery { positionClient.getTradeHistory(BookId("port-1")) } returns trades
@@ -324,6 +326,7 @@ class PositionRoutesTest : FunSpec({
             price = usd("150.00"),
             tradedAt = Instant.parse("2025-01-15T10:00:00Z"),
             status = TradeStatus.LIVE,
+            instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
         )
         val cancelledTrade = Trade(
             tradeId = TradeId("t-cancelled"),
@@ -335,6 +338,7 @@ class PositionRoutesTest : FunSpec({
             price = usd("300.00"),
             tradedAt = Instant.parse("2025-01-15T11:00:00Z"),
             status = TradeStatus.CANCELLED,
+            instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
         )
         coEvery { positionClient.getTradeHistory(BookId("port-1")) } returns listOf(liveTrade, cancelledTrade)
 
@@ -359,6 +363,7 @@ class PositionRoutesTest : FunSpec({
                 quantity = BigDecimal("100"),
                 averageCost = usd("150.00"),
                 marketPrice = usd("155.00"),
+                instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
             ),
             Position(
                 bookId = BookId("port-1"),
@@ -367,6 +372,7 @@ class PositionRoutesTest : FunSpec({
                 quantity = BigDecimal("50"),
                 averageCost = usd("300.00"),
                 marketPrice = usd("310.00"),
+                instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
             ),
         )
         coEvery { positionClient.getPositions(BookId("port-1")) } returns positions
@@ -402,6 +408,7 @@ class PositionRoutesTest : FunSpec({
             quantity = BigDecimal("100"),
             averageCost = usd("50.00"),
             marketPrice = usd("55.00"),
+            instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
         )
         coEvery { positionClient.getPositions(BookId("port-1")) } returns listOf(position)
 
@@ -431,8 +438,7 @@ class PositionRoutesTest : FunSpec({
                         "quantity": "100",
                         "priceAmount": "150.00",
                         "priceCurrency": "USD",
-                        "tradedAt": "2025-01-15T10:00:00Z"
-                    }
+                        "tradedAt": "2025-01-15T10:00:00Z","instrumentType":"CASH_EQUITY"}
                 """.trimIndent())
             }
             response.status shouldBe HttpStatusCode.BadRequest
@@ -463,7 +469,7 @@ class PositionRoutesTest : FunSpec({
             quantity = BigDecimal("100"),
             averageCost = usd("150.00"),
             marketPrice = usd("155.00"),
-            instrumentType = null,
+            instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
         )
         coEvery { positionClient.getPositions(BookId("port-1")) } returns listOf(position)
         coEvery { instrumentClient.fetchAll() } returns listOf(
@@ -514,6 +520,7 @@ class PositionRoutesTest : FunSpec({
             quantity = BigDecimal("100"),
             price = usd("150.00"),
             tradedAt = Instant.parse("2025-01-15T10:00:00Z"),
+            instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
         )
         val position = Position(
             bookId = BookId("port-1"),
@@ -522,6 +529,7 @@ class PositionRoutesTest : FunSpec({
             quantity = BigDecimal("100"),
             averageCost = usd("150.00"),
             marketPrice = usd("150.00"),
+            instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
         )
         coEvery { positionClient.bookTrade(capture(commandSlot)) } returns BookTradeResult(trade, position)
 

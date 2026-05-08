@@ -22,7 +22,7 @@ data class BookTradeRequest(
     val priceAmount: String,
     val priceCurrency: String,
     val tradedAt: String,
-    val instrumentType: String? = null,
+    val instrumentType: String,
 )
 
 fun BookTradeRequest.toCommand(bookId: BookId): BookTradeCommand {

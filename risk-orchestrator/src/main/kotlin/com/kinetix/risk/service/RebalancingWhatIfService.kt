@@ -148,4 +148,5 @@ private fun RebalancingTrade.toHypotheticalTrade() = HypotheticalTrade(
     side = side,
     quantity = quantity,
     price = price,
+    instrumentType = instrumentType,
 )

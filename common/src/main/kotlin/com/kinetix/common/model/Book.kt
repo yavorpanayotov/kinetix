@@ -25,12 +25,7 @@ data class Book(
         require(trade.bookId == id) { "Trade bookId does not match book" }
 
         val existing = positions[trade.instrumentId]
-            ?: Position.empty(
-                bookId = id,
-                instrumentId = trade.instrumentId,
-                assetClass = trade.assetClass,
-                currency = trade.price.currency,
-            )
+            ?: Position.fromFirstTrade(trade)
 
         val updated = existing.applyTrade(trade)
         return copy(positions = positions + (trade.instrumentId to updated))

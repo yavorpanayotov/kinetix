@@ -108,6 +108,7 @@ class PnlComputationServiceVolRateTest : FunSpec({
                 quantity = BigDecimal("100"),
                 averageCost = Money(BigDecimal("145.00"), USD),
                 marketPrice = Money(BigDecimal("155.00"), USD),
+                instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
             ),
         )
 
@@ -160,6 +161,7 @@ class PnlComputationServiceVolRateTest : FunSpec({
                 quantity = BigDecimal("100"),
                 averageCost = Money(BigDecimal("145.00"), USD),
                 marketPrice = Money(BigDecimal("155.00"), USD),
+                instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
             ),
         )
 
@@ -205,6 +207,7 @@ class PnlComputationServiceVolRateTest : FunSpec({
                 quantity = BigDecimal("100"),
                 averageCost = Money(BigDecimal("145.00"), USD),
                 marketPrice = Money(BigDecimal("155.00"), USD),
+                instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
             ),
         )
 
@@ -242,6 +245,7 @@ class PnlComputationServiceVolRateTest : FunSpec({
                 quantity = BigDecimal("100"),
                 averageCost = Money(BigDecimal("145.00"), USD),
                 marketPrice = Money(BigDecimal("155.00"), USD),
+                instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
             ),
         )
 
@@ -280,6 +284,7 @@ class PnlComputationServiceVolRateTest : FunSpec({
                 quantity = BigDecimal("100"),
                 averageCost = Money(BigDecimal("145.00"), USD),
                 marketPrice = Money(BigDecimal("155.00"), USD),
+                instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
             ),
         )
 
@@ -329,6 +334,7 @@ class PnlComputationServiceVolRateTest : FunSpec({
                 quantity = BigDecimal("100"),
                 averageCost = Money(BigDecimal("145.00"), USD),
                 marketPrice = Money(BigDecimal("158.00"), USD),
+                instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
             ),
         )
 

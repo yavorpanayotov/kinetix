@@ -17,7 +17,7 @@ data class Trade(
     val status: TradeStatus = TradeStatus.LIVE,
     val originalTradeId: TradeId? = null,
     val counterpartyId: String? = null,
-    val instrumentType: InstrumentTypeCode? = null,
+    val instrumentType: InstrumentTypeCode,
     val strategyId: String? = null,
 ) {
     init {

@@ -34,9 +34,9 @@ data class SubmitOrderRequest(
      */
     val expiresAt: String? = null,
     /**
-     * Optional instrument-type code (e.g. CASH_EQUITY, EQUITY_OPTION). When supplied,
-     * it is persisted on the order and propagated to the trade booked from each fill,
-     * so positions and trade history carry a non-null Type.
+     * Required instrument-type code (e.g. CASH_EQUITY, EQUITY_OPTION). Persisted on
+     * the order and propagated to the trade booked from each fill so positions and
+     * trade history always carry a real Type. Must match an `InstrumentTypeCode` value.
      */
-    val instrumentType: String? = null,
+    val instrumentType: String,
 )

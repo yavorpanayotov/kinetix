@@ -14,6 +14,7 @@ data class AmendTradeCommand(
     val quantity: BigDecimal,
     val price: Money,
     val tradedAt: Instant,
+    val instrumentType: String,
     val userId: String? = null,
     val userRole: String? = null,
     val counterpartyId: String? = null,

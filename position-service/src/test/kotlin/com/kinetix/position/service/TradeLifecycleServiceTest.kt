@@ -43,6 +43,7 @@ private fun trade(
     eventType = eventType,
     status = status,
     originalTradeId = originalTradeId,
+    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
 )
 
 private fun position(
@@ -61,6 +62,7 @@ private fun position(
     averageCost = usd(averageCost),
     marketPrice = usd(marketPrice),
     realizedPnl = usd(realizedPnl),
+    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
 )
 
 private val noOpTransaction = object : TransactionalRunner {
@@ -99,6 +101,7 @@ class TradeLifecycleServiceTest : FunSpec({
             quantity = BigDecimal("200"),
             price = usd("160.00"),
             tradedAt = Instant.parse("2025-01-15T11:00:00Z"),
+            instrumentType = "CASH_EQUITY",
         )
 
         val result = service.handleAmend(command)
@@ -131,6 +134,7 @@ class TradeLifecycleServiceTest : FunSpec({
             quantity = BigDecimal("200"),
             price = usd("160.00"),
             tradedAt = Instant.parse("2025-01-15T11:00:00Z"),
+            instrumentType = "CASH_EQUITY",
         )
 
         service.handleAmend(command)
@@ -216,6 +220,7 @@ class TradeLifecycleServiceTest : FunSpec({
             quantity = BigDecimal("200"),
             price = usd("160.00"),
             tradedAt = Instant.parse("2025-01-15T11:00:00Z"),
+            instrumentType = "CASH_EQUITY",
         )
 
         val result = service.handleAmend(command)
@@ -243,6 +248,7 @@ class TradeLifecycleServiceTest : FunSpec({
             quantity = BigDecimal("200"),
             price = usd("160.00"),
             tradedAt = Instant.parse("2025-01-15T11:00:00Z"),
+            instrumentType = "CASH_EQUITY",
         )
 
         shouldThrow<InvalidTradeStateException> {
@@ -266,6 +272,7 @@ class TradeLifecycleServiceTest : FunSpec({
             quantity = BigDecimal("200"),
             price = usd("160.00"),
             tradedAt = Instant.parse("2025-01-15T11:00:00Z"),
+            instrumentType = "CASH_EQUITY",
         )
 
         shouldThrow<InvalidTradeStateException> {
@@ -300,6 +307,7 @@ class TradeLifecycleServiceTest : FunSpec({
             quantity = BigDecimal("100"),
             price = usd("150.00"),
             tradedAt = Instant.parse("2025-01-15T10:00:00Z"),
+            instrumentType = "CASH_EQUITY",
         )
 
         val ex = shouldThrow<TradeNotFoundException> {
@@ -328,6 +336,7 @@ class TradeLifecycleServiceTest : FunSpec({
             quantity = BigDecimal("200"),
             price = usd("160.00"),
             tradedAt = Instant.parse("2025-01-15T11:00:00Z"),
+            instrumentType = "CASH_EQUITY",
         )
 
         service.handleAmend(command)
@@ -357,6 +366,7 @@ class TradeLifecycleServiceTest : FunSpec({
             quantity = BigDecimal("200"),
             price = usd("160.00"),
             tradedAt = Instant.parse("2025-01-15T11:00:00Z"),
+            instrumentType = "CASH_EQUITY",
         )
 
         val result = service.handleAmend(command)

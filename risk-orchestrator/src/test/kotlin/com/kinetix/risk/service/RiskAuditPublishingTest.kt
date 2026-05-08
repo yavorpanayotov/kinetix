@@ -21,6 +21,7 @@ private fun testPosition(instrumentId: String = "AAPL") = Position(
     quantity = BigDecimal("100"),
     averageCost = Money(BigDecimal("150.00"), USD),
     marketPrice = Money(BigDecimal("170.00"), USD),
+    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
 )
 
 class RiskAuditPublishingTest : FunSpec({

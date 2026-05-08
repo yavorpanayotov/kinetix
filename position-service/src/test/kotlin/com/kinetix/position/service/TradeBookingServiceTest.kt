@@ -35,6 +35,7 @@ private fun command(
     quantity = BigDecimal(quantity),
     price = usd(price),
     tradedAt = tradedAt,
+    instrumentType = "CASH_EQUITY",
 )
 
 private fun position(
@@ -51,6 +52,7 @@ private fun position(
     quantity = BigDecimal(quantity),
     averageCost = usd(averageCost),
     marketPrice = usd(marketPrice),
+    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
 )
 
 private val noOpTransaction = object : TransactionalRunner {
@@ -111,6 +113,7 @@ class TradeBookingServiceTest : FunSpec({
             quantity = BigDecimal("100"),
             price = usd("150.00"),
             tradedAt = Instant.parse("2025-01-15T10:00:00Z"),
+            instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
         )
         val existingPosition = position()
 
@@ -189,6 +192,7 @@ class TradeBookingServiceTest : FunSpec({
             quantity = BigDecimal("100"),
             price = usd("150.00"),
             tradedAt = Instant.parse("2025-01-15T10:00:00Z"),
+            instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
         )
 
         coEvery { tradeRepo.findByTradeId(TradeId("t-1")) } returns existingTrade

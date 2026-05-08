@@ -12,6 +12,7 @@ object RunPositionSnapshotsTable : Table("run_position_snapshots") {
     val currency = varchar("currency", 3)
     val marketValueAmount = decimal("market_value_amount", 28, 12)
     val unrealizedPnlAmount = decimal("unrealized_pnl_amount", 28, 12)
+    val instrumentType = varchar("instrument_type", 32)
 
     override val primaryKey = PrimaryKey(manifestId, instrumentId)
 }

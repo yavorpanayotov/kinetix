@@ -28,7 +28,7 @@ class TradeLifecycleService(
                 logger.info("Trade already amended (idempotent): originalTradeId={}, newTradeId={}",
                     command.originalTradeId.value, command.newTradeId.value)
                 val currentPosition = positionRepository.findByKey(originalTrade.bookId, originalTrade.instrumentId)
-                    ?: Position.empty(originalTrade.bookId, originalTrade.instrumentId, originalTrade.assetClass, originalTrade.price.currency)
+                    ?: Position.fromFirstTrade(originalTrade)
                 return BookTradeResult(existingAmend, currentPosition)
             }
             throw InvalidTradeStateException(command.originalTradeId.value, originalTrade.status, "amend")
@@ -41,7 +41,7 @@ class TradeLifecycleService(
             tradeEventRepository.updateStatus(command.originalTradeId, TradeStatus.AMENDED)
 
             val currentPosition = positionRepository.findByKey(originalTrade.bookId, originalTrade.instrumentId)
-                ?: Position.empty(originalTrade.bookId, originalTrade.instrumentId, originalTrade.assetClass, originalTrade.price.currency)
+                ?: Position.fromFirstTrade(originalTrade)
 
             val reverseTrade = createReverseTrade(originalTrade)
             val positionAfterReversal = currentPosition.applyTrade(reverseTrade)
@@ -59,7 +59,7 @@ class TradeLifecycleService(
                 status = TradeStatus.LIVE,
                 originalTradeId = command.originalTradeId,
                 counterpartyId = command.counterpartyId,
-                instrumentType = originalTrade.instrumentType,
+                instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.fromString(command.instrumentType),
             )
 
             val finalPosition = positionAfterReversal.applyTrade(amendTrade)
@@ -88,7 +88,7 @@ class TradeLifecycleService(
         if (trade.status == TradeStatus.CANCELLED) {
             logger.info("Trade already cancelled (idempotent): tradeId={}", command.tradeId.value)
             val currentPosition = positionRepository.findByKey(trade.bookId, trade.instrumentId)
-                ?: Position.empty(trade.bookId, trade.instrumentId, trade.assetClass, trade.price.currency)
+                ?: Position.fromFirstTrade(trade)
             return BookTradeResult(trade, currentPosition)
         }
         if (trade.status != TradeStatus.LIVE) {
@@ -99,7 +99,7 @@ class TradeLifecycleService(
             tradeEventRepository.updateStatus(command.tradeId, TradeStatus.CANCELLED)
 
             val currentPosition = positionRepository.findByKey(trade.bookId, trade.instrumentId)
-                ?: Position.empty(trade.bookId, trade.instrumentId, trade.assetClass, trade.price.currency)
+                ?: Position.fromFirstTrade(trade)
 
             val reverseTrade = createReverseTrade(trade)
             val updatedPosition = currentPosition.applyTrade(reverseTrade)

@@ -11,4 +11,5 @@ data class PositionSnapshotEntry(
     val currency: String,
     val marketValueAmount: BigDecimal,
     val unrealizedPnlAmount: BigDecimal,
+    val instrumentType: String,
 )

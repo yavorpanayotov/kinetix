@@ -47,6 +47,7 @@ private fun position() = Position(
     quantity = BigDecimal("100"),
     averageCost = Money(BigDecimal("150.00"), USD),
     marketPrice = Money(BigDecimal("155.00"), USD),
+    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
 )
 
 private fun stressResponse(scenarioName: String, pnlImpact: Double) =

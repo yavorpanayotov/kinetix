@@ -46,6 +46,7 @@ private fun sampleTrade(id: String, tradedAt: Instant) = Trade(
     quantity = BigDecimal("100"),
     price = Money(BigDecimal("150.00"), USD),
     tradedAt = tradedAt,
+    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
 )
 
 class InternalRoutesAcceptanceTest : FunSpec({

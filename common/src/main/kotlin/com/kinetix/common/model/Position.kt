@@ -13,7 +13,7 @@ data class Position(
     val averageCost: Money,
     val marketPrice: Money,
     val realizedPnl: Money = Money.zero(marketPrice.currency),
-    val instrumentType: InstrumentTypeCode? = null,
+    val instrumentType: InstrumentTypeCode,
     val strategyId: String? = null,
     val strategyType: String? = null,
     val strategyName: String? = null,
@@ -86,23 +86,24 @@ data class Position(
             quantity = newQuantity,
             averageCost = newAverageCost,
             realizedPnl = realizedPnl + Money(tradeRealizedPnl, currency),
-            instrumentType = instrumentType ?: trade.instrumentType,
         )
     }
 
     companion object {
-        fun empty(
-            bookId: BookId,
-            instrumentId: InstrumentId,
-            assetClass: AssetClass,
-            currency: Currency,
-        ): Position = Position(
-            bookId = bookId,
-            instrumentId = instrumentId,
-            assetClass = assetClass,
+        /**
+         * Construct a zero-quantity position seeded from the metadata of the first trade
+         * being booked into a (bookId, instrumentId) pair. Replaces the previous
+         * `empty()` factory: every position now carries a non-null instrumentType,
+         * which we can only know once the first trade has arrived.
+         */
+        fun fromFirstTrade(trade: Trade): Position = Position(
+            bookId = trade.bookId,
+            instrumentId = trade.instrumentId,
+            assetClass = trade.assetClass,
             quantity = BigDecimal.ZERO,
-            averageCost = Money.zero(currency),
-            marketPrice = Money.zero(currency),
+            averageCost = Money.zero(trade.price.currency),
+            marketPrice = Money.zero(trade.price.currency),
+            instrumentType = trade.instrumentType,
         )
     }
 }

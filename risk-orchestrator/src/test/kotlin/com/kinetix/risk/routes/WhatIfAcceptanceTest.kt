@@ -106,7 +106,7 @@ class WhatIfAcceptanceTest : FunSpec({
                                 "side": "BUY",
                                 "quantity": "50",
                                 "priceAmount": "180.00",
-                                "priceCurrency": "USD"
+                                "priceCurrency": "USD", "instrumentType": "CASH_EQUITY"
                             }
                         ]
                     }
@@ -168,7 +168,7 @@ class WhatIfAcceptanceTest : FunSpec({
                                 "side": "BUY",
                                 "quantity": "50",
                                 "priceAmount": "180.00",
-                                "priceCurrency": "USD"
+                                "priceCurrency": "USD", "instrumentType": "CASH_EQUITY"
                             }
                         ]
                     }

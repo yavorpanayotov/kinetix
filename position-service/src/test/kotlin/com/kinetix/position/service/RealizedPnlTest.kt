@@ -13,7 +13,15 @@ private val AAPL = InstrumentId("AAPL")
 
 private fun usd(amount: String) = Money(BigDecimal(amount), USD)
 
-private fun emptyPosition() = Position.empty(PORTFOLIO, AAPL, AssetClass.EQUITY, USD)
+private fun emptyPosition() = Position(
+    bookId = PORTFOLIO,
+    instrumentId = AAPL,
+    assetClass = AssetClass.EQUITY,
+    quantity = BigDecimal.ZERO,
+    averageCost = Money.zero(USD),
+    marketPrice = Money.zero(USD),
+    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
+)
 
 private fun buyTrade(
     quantity: String,
@@ -28,6 +36,7 @@ private fun buyTrade(
     quantity = BigDecimal(quantity),
     price = usd(price),
     tradedAt = Instant.parse("2025-01-15T10:00:00Z"),
+    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
 )
 
 private fun sellTrade(
@@ -43,6 +52,7 @@ private fun sellTrade(
     quantity = BigDecimal(quantity),
     price = usd(price),
     tradedAt = Instant.parse("2025-01-15T11:00:00Z"),
+    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
 )
 
 class RealizedPnlTest : FunSpec({

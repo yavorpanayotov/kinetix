@@ -83,6 +83,7 @@ class LimitEnforcementAcceptanceTest : FunSpec({
                     quantity = BigDecimal("3000"),
                     price = Money(BigDecimal("100.00"), USD),
                     tradedAt = TRADED_AT,
+                    instrumentType = "CASH_EQUITY",
                 ),
             )
         } catch (e: LimitBreachException) {
@@ -124,6 +125,7 @@ class LimitEnforcementAcceptanceTest : FunSpec({
                 quantity = BigDecimal("4000"),
                 averageCost = Money(BigDecimal("100.00"), USD),
                 marketPrice = Money(BigDecimal("100.00"), USD),
+                instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
             ),
         )
         positionRepo.save(
@@ -134,6 +136,7 @@ class LimitEnforcementAcceptanceTest : FunSpec({
                 quantity = BigDecimal("4000"),
                 averageCost = Money(BigDecimal("100.00"), USD),
                 marketPrice = Money(BigDecimal("100.00"), USD),
+                instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
             ),
         )
 
@@ -149,6 +152,7 @@ class LimitEnforcementAcceptanceTest : FunSpec({
                     quantity = BigDecimal("1"),
                     price = Money(BigDecimal("100.00"), USD),
                     tradedAt = TRADED_AT,
+                    instrumentType = "CASH_EQUITY",
                 ),
             )
         } catch (e: LimitBreachException) {
@@ -202,6 +206,7 @@ class LimitEnforcementAcceptanceTest : FunSpec({
                     quantity = BigDecimal("3000"),
                     price = Money(BigDecimal("100.00"), USD),
                     tradedAt = TRADED_AT,
+                    instrumentType = "CASH_EQUITY",
                 ),
             )
         } catch (e: LimitBreachException) {

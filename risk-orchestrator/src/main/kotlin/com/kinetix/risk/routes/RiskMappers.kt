@@ -104,6 +104,7 @@ internal fun HypotheticalTradeDto.toDomain() = HypotheticalTrade(
     side = Side.valueOf(side),
     quantity = BigDecimal(quantity),
     price = Money(BigDecimal(priceAmount), Currency.getInstance(priceCurrency)),
+    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.fromString(instrumentType),
 )
 
 internal fun WhatIfResult.toResponse() = WhatIfResponse(
@@ -300,6 +301,7 @@ internal fun RebalancingTradeDto.toDomain() = RebalancingTrade(
     side = com.kinetix.common.model.Side.valueOf(side),
     quantity = java.math.BigDecimal(quantity),
     price = com.kinetix.common.model.Money(java.math.BigDecimal(priceAmount), java.util.Currency.getInstance(priceCurrency)),
+    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.fromString(instrumentType),
     bidAskSpreadBps = bidAskSpreadBps,
 )
 

@@ -23,7 +23,7 @@ data class BookTradeCommand(
     val quantity: BigDecimal,
     val price: Money,
     val tradedAt: Instant,
-    val instrumentType: String? = null,
+    val instrumentType: String,
     val userId: String? = null,
     val userRole: String? = null,
     val strategyId: String? = null,
@@ -101,14 +101,14 @@ class TradeBookingService(
             val existing = tradeEventRepository.findByTradeId(trade.tradeId)
             if (existing != null) {
                 val position = positionRepository.findByKey(trade.bookId, trade.instrumentId)
-                    ?: Position.empty(trade.bookId, trade.instrumentId, trade.assetClass, trade.price.currency)
+                    ?: Position.fromFirstTrade(trade)
                 return@run Pair(BookTradeResult(existing, position, warnings), false)
             }
 
             tradeEventRepository.save(trade)
 
             val currentPosition = positionRepository.findByKey(trade.bookId, trade.instrumentId)
-                ?: Position.empty(trade.bookId, trade.instrumentId, trade.assetClass, trade.price.currency)
+                ?: Position.fromFirstTrade(trade)
 
             val updatedPosition = currentPosition.applyTrade(trade)
                 .let { pos -> if (trade.strategyId != null) pos.copy(strategyId = trade.strategyId) else pos }

@@ -174,6 +174,7 @@ class FixGatewayThroughputLoadTest : FunSpec({
                     riskCheckDetails = null,
                     fixSessionId = "FIX.4.4:KX->LOAD",
                     timeInForce = TimeInForce.DAY,
+                    instrumentType = "CASH_EQUITY",
                 ),
             )
             orderId

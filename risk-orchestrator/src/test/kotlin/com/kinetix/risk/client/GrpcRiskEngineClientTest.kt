@@ -44,6 +44,7 @@ class GrpcRiskEngineClientTest : FunSpec({
                 quantity = BigDecimal("100"),
                 averageCost = Money(BigDecimal("150.00"), USD),
                 marketPrice = Money(BigDecimal("170.00"), USD),
+                instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
             ),
         )
         val request = VaRCalculationRequest(
@@ -115,6 +116,7 @@ class GrpcRiskEngineClientTest : FunSpec({
                 quantity = BigDecimal("100"),
                 averageCost = Money(BigDecimal("150.00"), USD),
                 marketPrice = Money(BigDecimal("170.00"), USD),
+                instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
             ),
         )
         val request = VaRCalculationRequest(
@@ -153,6 +155,7 @@ class GrpcRiskEngineClientTest : FunSpec({
                 quantity = BigDecimal("100"),
                 averageCost = Money(BigDecimal("150.00"), USD),
                 marketPrice = Money(BigDecimal("170.00"), USD),
+                instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
             ),
             Position(
                 bookId = BookId("port-1"),
@@ -161,6 +164,7 @@ class GrpcRiskEngineClientTest : FunSpec({
                 quantity = BigDecimal("50"),
                 averageCost = Money(BigDecimal("9800.00"), USD),
                 marketPrice = Money(BigDecimal("10000.00"), USD),
+                instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
             ),
         )
         val request = VaRCalculationRequest(

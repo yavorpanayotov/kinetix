@@ -52,6 +52,7 @@ private fun position(
     averageCost = Money(bd(avgCost), USD),
     marketPrice = Money(bd(marketPrice), USD),
     realizedPnl = Money(bd(realizedPnl), USD),
+    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
 )
 
 private fun sodSnapshot(
@@ -459,6 +460,7 @@ class IntradayPnlServiceTest : FunSpec({
                 averageCost = Money(bd("90.00"), EUR),
                 marketPrice = Money(bd("110.00"), EUR),
                 realizedPnl = Money(bd("0.00"), EUR),
+                instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
             ),
         )
         coEvery { f.pnlRepository.findLatest(BOOK) } returns null
@@ -492,6 +494,7 @@ class IntradayPnlServiceTest : FunSpec({
                 averageCost = Money(bd("190.00"), GBP),
                 marketPrice = Money(bd("210.00"), GBP),
                 realizedPnl = Money(bd("0.00"), GBP),
+                instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
             ),
         )
         coEvery { f.pnlRepository.findLatest(BOOK) } returns null

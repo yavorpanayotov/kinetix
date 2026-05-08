@@ -123,7 +123,7 @@ private data class StrategyTradeRequest(
     val priceAmount: String,
     val priceCurrency: String,
     val tradedAt: String,
-    val instrumentType: String? = null,
+    val instrumentType: String,
     val userId: String? = null,
     val userRole: String? = null,
 )

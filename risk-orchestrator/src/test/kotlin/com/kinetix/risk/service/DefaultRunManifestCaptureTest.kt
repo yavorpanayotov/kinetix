@@ -27,6 +27,7 @@ private fun testPosition(
     quantity = BigDecimal(quantity),
     averageCost = Money(BigDecimal("150.00"), USD),
     marketPrice = Money(BigDecimal(marketPrice), USD),
+    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
 )
 
 class DefaultRunManifestCaptureTest : FunSpec({

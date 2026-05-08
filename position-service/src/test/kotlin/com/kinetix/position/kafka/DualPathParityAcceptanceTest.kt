@@ -210,6 +210,7 @@ class DualPathParityAcceptanceTest : FunSpec({
             riskCheckResult = "APPROVED",
             riskCheckDetails = null,
             fixSessionId = "FIX.4.4:KX->VENUE",
+            instrumentType = "CASH_EQUITY",
         )
 
         private fun makeFillEvent(clOrdId: String, execId: String) = ExecutionReportEvent(

@@ -65,6 +65,7 @@ class HistoricalReplayAcceptanceTest : FunSpec({
                 quantity = java.math.BigDecimal("100"),
                 averageCost = com.kinetix.common.model.Money(java.math.BigDecimal("150.00"), java.util.Currency.getInstance("USD")),
                 marketPrice = com.kinetix.common.model.Money(java.math.BigDecimal("155.00"), java.util.Currency.getInstance("USD")),
+                instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
             )
         )
     }

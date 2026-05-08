@@ -22,11 +22,11 @@ class PositionsUpdatedAtIntegrationTest : FunSpec({
                 INSERT INTO positions (
                     book_id, instrument_id, asset_class, quantity,
                     avg_cost_amount, market_price_amount, currency, updated_at,
-                    realized_pnl_amount
+                    realized_pnl_amount, instrument_type
                 ) VALUES (
                     'upd-port-1', 'AAPL', 'EQUITY', 100.00,
                     150.00, 155.00, 'USD', '2025-01-01T00:00:00Z',
-                    0.00
+                    0.00, 'CASH_EQUITY'
                 )
                 """.trimIndent()
             )

@@ -86,6 +86,7 @@ class PnlComputationServiceTest : FunSpec({
                 quantity = BigDecimal("100"),
                 averageCost = Money(BigDecimal("145.00"), Currency.getInstance("USD")),
                 marketPrice = Money(BigDecimal("155.00"), Currency.getInstance("USD")),
+                instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
             ),
         )
         coEvery { positionProvider.getPositions(PORTFOLIO) } returns currentPositions
@@ -131,6 +132,7 @@ class PnlComputationServiceTest : FunSpec({
                 quantity = BigDecimal("100"),
                 averageCost = Money(BigDecimal("145.00"), Currency.getInstance("USD")),
                 marketPrice = Money(BigDecimal("155.00"), Currency.getInstance("USD")),
+                instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
             ),
         )
         coEvery { positionProvider.getPositions(PORTFOLIO) } returns currentPositions

@@ -53,6 +53,7 @@ class GhostFillDetectionTest : FunSpec({
         status = status, riskCheckResult = "APPROVED", riskCheckDetails = null,
         fixSessionId = "SESSION-1", assetClass = AssetClass.EQUITY,
         currency = Currency.getInstance("USD"),
+        instrumentType = "CASH_EQUITY",
     )
 
     fun fill() = FIXInboundFillEvent(

@@ -30,7 +30,15 @@ data class Order(
      * venue's max-GTD horizon — see ADR-0035).
      */
     val expiresAt: Instant? = null,
-    val instrumentType: String? = null,
+    val instrumentType: String,
+    /**
+     * FIX tag 37 OrderID assigned by the venue at PENDING_NEW. Populated by the
+     * fix-gateway PlaceOrder flow (ADR-0035 phase 4); null for orders that
+     * never reached the venue (PENDING_RISK_CHECK / REJECTED / PENDING_FAILED)
+     * and for legacy rows that pre-date phase 4. Required by most venues for
+     * outbound FIX 35=F cancels.
+     */
+    val venueOrderId: String? = null,
     val fills: List<ExecutionFill> = emptyList(),
 ) {
     init {

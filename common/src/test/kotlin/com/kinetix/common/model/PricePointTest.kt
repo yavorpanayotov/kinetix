@@ -74,11 +74,14 @@ class PricePointTest : FunSpec({
 
     test("PricePoint price is compatible with Position.markToMarket") {
         val point = pricePoint(price = usd("155.00"))
-        val position = Position.empty(
+        val position = Position(
             bookId = BookId("p1"),
             instrumentId = AAPL,
             assetClass = AssetClass.EQUITY,
-            currency = USD,
+            quantity = java.math.BigDecimal.ZERO,
+            averageCost = Money.zero(USD),
+            marketPrice = Money.zero(USD),
+            instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
         )
         val updated = position.markToMarket(point.price)
         updated.marketPrice shouldBe usd("155.00")

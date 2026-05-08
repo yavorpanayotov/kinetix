@@ -41,6 +41,7 @@ class DefaultRunManifestCapture(
                 currency = pos.currency.currencyCode,
                 marketValueAmount = pos.marketValue.amount,
                 unrealizedPnlAmount = pos.unrealizedPnl.amount,
+                instrumentType = pos.instrumentType.name,
             )
         }
 

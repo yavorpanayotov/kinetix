@@ -37,6 +37,7 @@ class PositionMapperTest : FunSpec({
             quantity = BigDecimal("100"),
             averageCost = Money(BigDecimal("150.00"), USD),
             marketPrice = Money(BigDecimal("170.00"), USD),
+            instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
         )
 
         val proto = position.toProto()
@@ -66,6 +67,7 @@ class PositionMapperTest : FunSpec({
                 quantity = BigDecimal("10"),
                 averageCost = Money(BigDecimal("100.00"), USD),
                 marketPrice = Money(BigDecimal("100.00"), USD),
+                instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
             )
             position.toProto().assetClass shouldBe proto
         }
@@ -79,6 +81,7 @@ class PositionMapperTest : FunSpec({
             quantity = BigDecimal("-50"),
             averageCost = Money(BigDecimal("150.00"), USD),
             marketPrice = Money(BigDecimal("170.00"), USD),
+            instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
         )
 
         val proto = position.toProto()
@@ -94,6 +97,7 @@ class PositionMapperTest : FunSpec({
             quantity = BigDecimal("10"),
             averageCost = Money(BigDecimal("5.00"), USD),
             marketPrice = Money(BigDecimal("8.00"), USD),
+            instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
         )
         val instrument = instrumentDto(
             "AAPL-C-150",
@@ -120,6 +124,7 @@ class PositionMapperTest : FunSpec({
             quantity = BigDecimal("100"),
             averageCost = Money(BigDecimal("98.00"), USD),
             marketPrice = Money(BigDecimal("99.50"), USD),
+            instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
         )
         val instrument = instrumentDto(
             "UST-10Y",
@@ -143,6 +148,7 @@ class PositionMapperTest : FunSpec({
             quantity = BigDecimal("1"),
             averageCost = Money(BigDecimal("0.00"), USD),
             marketPrice = Money(BigDecimal("25000.00"), USD),
+            instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
         )
         val instrument = instrumentDto(
             "IRS-5Y",
@@ -167,6 +173,7 @@ class PositionMapperTest : FunSpec({
             quantity = BigDecimal("100"),
             averageCost = Money(BigDecimal("100.00"), USD),
             marketPrice = Money(BigDecimal("100.00"), USD),
+            instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
         )
 
         val proto = position.toProto(null)

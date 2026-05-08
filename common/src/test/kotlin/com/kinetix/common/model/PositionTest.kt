@@ -26,6 +26,7 @@ private fun position(
     quantity = BigDecimal(quantity),
     averageCost = usd(averageCost),
     marketPrice = usd(marketPrice),
+    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
 )
 
 private fun buyTrade(
@@ -42,6 +43,7 @@ private fun buyTrade(
     quantity = BigDecimal(quantity),
     price = usd(price),
     tradedAt = Instant.now(),
+    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
 )
 
 private fun sellTrade(
@@ -58,6 +60,7 @@ private fun sellTrade(
     quantity = BigDecimal(quantity),
     price = usd(price),
     tradedAt = Instant.now(),
+    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
 )
 
 class PositionTest : FunSpec({
@@ -79,6 +82,7 @@ class PositionTest : FunSpec({
                 quantity = BigDecimal("100"),
                 averageCost = usd("50.00"),
                 marketPrice = Money(BigDecimal("55.00"), EUR),
+                instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
             )
         }
     }
@@ -152,7 +156,7 @@ class PositionTest : FunSpec({
     // Apply trade — increasing position
 
     test("apply BUY trade to flat position creates long position") {
-        val pos = Position.empty(BOOK, AAPL, AssetClass.EQUITY, USD)
+        val pos = Position.fromFirstTrade(buyTrade(quantity = "1", price = "0.01"))
         val updated = pos.applyTrade(buyTrade(quantity = "100", price = "50.00"))
         updated.quantity shouldBe BigDecimal("100")
         updated.averageCost shouldBe usd("50.00")
@@ -234,7 +238,7 @@ class PositionTest : FunSpec({
     // Instrument type propagation
 
     test("apply trade propagates instrumentType to position without one") {
-        val pos = Position.empty(BOOK, AAPL, AssetClass.EQUITY, USD)
+        val pos = Position.fromFirstTrade(buyTrade(quantity = "1", price = "0.01"))
         val trade = buyTrade(quantity = "100", price = "50.00").copy(instrumentType = InstrumentTypeCode.CASH_EQUITY)
         val updated = pos.applyTrade(trade)
         updated.instrumentType shouldBe InstrumentTypeCode.CASH_EQUITY
@@ -256,11 +260,12 @@ class PositionTest : FunSpec({
 
     // Factory
 
-    test("Position.empty creates flat position with zero values") {
-        val pos = Position.empty(BOOK, AAPL, AssetClass.EQUITY, USD)
+    test("Position.fromFirstTrade seeds a flat position from a trade and carries its instrumentType") {
+        val pos = Position.fromFirstTrade(buyTrade(quantity = "100", price = "50.00"))
         pos.quantity shouldBe BigDecimal.ZERO
         pos.averageCost shouldBe Money.zero(USD)
         pos.marketPrice shouldBe Money.zero(USD)
         pos.currency shouldBe USD
+        pos.instrumentType shouldBe com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY
     }
 })

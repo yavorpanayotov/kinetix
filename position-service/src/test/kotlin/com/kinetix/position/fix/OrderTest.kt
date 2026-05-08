@@ -24,6 +24,7 @@ class OrderTest : FunSpec({
         riskCheckResult = null,
         riskCheckDetails = null,
         fixSessionId = "SESSION-1",
+        instrumentType = "CASH_EQUITY",
     )
 
     test("pending_risk_check is not a terminal status") {

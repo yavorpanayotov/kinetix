@@ -30,12 +30,12 @@ class TradeEventImmutabilityIntegrationTest : FunSpec({
                 INSERT INTO trade_events (
                     trade_id, book_id, instrument_id, asset_class, side,
                     quantity, price_amount, price_currency, traded_at, created_at,
-                    event_type, status
+                    event_type, status, instrument_type
                 ) VALUES (
                     '$tradeId', 'port-1', 'AAPL', 'EQUITY', 'BUY',
                     100.00, 150.00, 'USD',
                     '2025-01-15T10:00:00Z', '2025-01-15T10:00:00Z',
-                    'NEW', 'LIVE'
+                    'NEW', 'LIVE', 'CASH_EQUITY'
                 )
                 """.trimIndent()
             )

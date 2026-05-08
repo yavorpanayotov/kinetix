@@ -42,7 +42,7 @@ data class PositionDto(
     val marketPrice: MoneyDto,
     val marketValue: MoneyDto,
     val unrealizedPnl: MoneyDto,
-    val instrumentType: String? = null,
+    val instrumentType: String,
     val strategyId: String? = null,
     val strategyType: String? = null,
     val strategyName: String? = null,
@@ -58,7 +58,7 @@ data class TradeDto(
     val quantity: String,
     val price: MoneyDto,
     val tradedAt: String,
-    val instrumentType: String? = null,
+    val instrumentType: String,
 )
 
 @Serializable
@@ -77,7 +77,7 @@ data class BookTradeRequestDto(
     val priceAmount: String,
     val priceCurrency: String,
     val tradedAt: String,
-    val instrumentType: String? = null,
+    val instrumentType: String,
     val userId: String? = null,
     val userRole: String? = null,
 )

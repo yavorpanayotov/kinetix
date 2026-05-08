@@ -55,6 +55,7 @@ class VaRCalculationServiceAuditTrailTest : FunSpec({
         quantity = BigDecimal("100"),
         averageCost = Money(BigDecimal("150.00"), Currency.getInstance("USD")),
         marketPrice = Money(BigDecimal("170.00"), Currency.getInstance("USD")),
+        instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
     )
 
     fun valuationResult(calculationType: CalculationType = CalculationType.PARAMETRIC) = ValuationResult(

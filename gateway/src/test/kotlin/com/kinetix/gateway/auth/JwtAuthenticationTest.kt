@@ -152,6 +152,7 @@ class JwtAuthenticationTest : FunSpec({
             quantity = BigDecimal("100"),
             price = usd("150.00"),
             tradedAt = Instant.parse("2025-01-15T10:00:00Z"),
+            instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
         )
         val position = Position(
             bookId = BookId("port-1"),
@@ -160,6 +161,7 @@ class JwtAuthenticationTest : FunSpec({
             quantity = BigDecimal("100"),
             averageCost = usd("150.00"),
             marketPrice = usd("155.00"),
+            instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
         )
         coEvery { positionClient.bookTrade(any()) } returns BookTradeResult(trade, position)
         val token = TestJwtHelper.generateToken(roles = listOf(Role.TRADER))

@@ -76,7 +76,7 @@ class ScheduledOrderExpirySweeper(
                 cancelEmitter.emitCancel(
                     orderId = order.orderId,
                     venue = venueResolver(order),
-                    venueOrderId = null,
+                    venueOrderId = order.venueOrderId,
                     reason = reason,
                 )
             } catch (e: Exception) {

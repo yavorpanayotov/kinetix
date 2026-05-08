@@ -5,6 +5,7 @@ import com.kinetix.common.model.InstrumentId
 import com.kinetix.common.model.Money
 import com.kinetix.common.model.BookId
 import com.kinetix.common.model.Position
+import com.kinetix.common.model.instrument.InstrumentTypeCode
 import kotlinx.serialization.Serializable
 import java.math.BigDecimal
 
@@ -19,6 +20,7 @@ data class PositionDto(
     val marketValue: MoneyDto,
     val unrealizedPnl: MoneyDto,
     val realizedPnl: MoneyDto,
+    val instrumentType: String,
 ) {
     fun toDomain(): Position = Position(
         bookId = BookId(bookId),
@@ -28,5 +30,6 @@ data class PositionDto(
         averageCost = averageCost.toDomain(),
         marketPrice = marketPrice.toDomain(),
         realizedPnl = realizedPnl.toDomain(),
+        instrumentType = InstrumentTypeCode.fromString(instrumentType),
     )
 }

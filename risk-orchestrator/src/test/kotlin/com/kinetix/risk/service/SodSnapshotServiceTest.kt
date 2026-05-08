@@ -37,6 +37,7 @@ private fun position(
     quantity = BigDecimal(quantity),
     averageCost = Money(BigDecimal(price), Currency.getInstance("USD")),
     marketPrice = Money(BigDecimal(price), Currency.getInstance("USD")),
+    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
 )
 
 private fun valuationResult(

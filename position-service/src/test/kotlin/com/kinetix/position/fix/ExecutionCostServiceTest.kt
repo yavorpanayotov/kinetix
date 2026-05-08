@@ -31,6 +31,7 @@ class ExecutionCostServiceTest : FunSpec({
         riskCheckDetails = null,
         fixSessionId = "SESSION-1",
         fills = fills,
+        instrumentType = "CASH_EQUITY",
     )
 
     fun makeFill(qty: BigDecimal, price: BigDecimal) = ExecutionFill(

@@ -57,6 +57,7 @@ class TradeLifecycleAcceptanceTest : FunSpec({
                 quantity = BigDecimal("100"),
                 price = Money(BigDecimal("150.00"), USD),
                 tradedAt = TRADED_AT,
+                instrumentType = "CASH_EQUITY",
             ),
         )
         lifecycle.handleAmend(
@@ -70,6 +71,7 @@ class TradeLifecycleAcceptanceTest : FunSpec({
                 quantity = BigDecimal("200"),
                 price = Money(BigDecimal("160.00"), USD),
                 tradedAt = TRADED_AT,
+                instrumentType = "CASH_EQUITY",
             ),
         )
 
@@ -104,6 +106,7 @@ class TradeLifecycleAcceptanceTest : FunSpec({
                 quantity = BigDecimal("100"),
                 price = Money(BigDecimal("150.00"), USD),
                 tradedAt = TRADED_AT,
+                instrumentType = "CASH_EQUITY",
             ),
         )
         lifecycle.handleCancel(
@@ -134,6 +137,7 @@ class TradeLifecycleAcceptanceTest : FunSpec({
                 quantity = BigDecimal("200"),
                 price = Money(BigDecimal("100.00"), USD),
                 tradedAt = TRADED_AT,
+                instrumentType = "CASH_EQUITY",
             ),
         )
         booking.handle(
@@ -146,6 +150,7 @@ class TradeLifecycleAcceptanceTest : FunSpec({
                 quantity = BigDecimal("50"),
                 price = Money(BigDecimal("120.00"), USD),
                 tradedAt = TRADED_AT,
+                instrumentType = "CASH_EQUITY",
             ),
         )
 

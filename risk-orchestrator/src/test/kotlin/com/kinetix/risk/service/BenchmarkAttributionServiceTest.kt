@@ -37,6 +37,7 @@ private fun position(instrumentId: String, marketValue: Double) = Position(
     averageCost = Money(BigDecimal.valueOf(marketValue), USD),
     marketPrice = Money(BigDecimal.valueOf(marketValue), USD),
     assetClass = AssetClass.EQUITY,
+    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
 )
 
 private val POSITIONS = listOf(

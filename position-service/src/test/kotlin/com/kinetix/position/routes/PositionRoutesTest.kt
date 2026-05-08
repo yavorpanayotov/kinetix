@@ -53,6 +53,7 @@ private fun position(
     quantity = BigDecimal(quantity),
     averageCost = usd(averageCost),
     marketPrice = usd(marketPrice),
+    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
 )
 
 @Serializable
@@ -181,6 +182,7 @@ class PositionRoutesTest : FunSpec({
                 quantity = BigDecimal("100"),
                 price = usd("150.00"),
                 tradedAt = Instant.parse("2025-01-15T10:00:00Z"),
+                instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
             )
             val pos = position()
             coEvery { tradeBookingService.handle(any<BookTradeCommand>()) } returns BookTradeResult(trade, pos)
@@ -197,8 +199,7 @@ class PositionRoutesTest : FunSpec({
                         "quantity": "100",
                         "priceAmount": "150.00",
                         "priceCurrency": "USD",
-                        "tradedAt": "2025-01-15T10:00:00Z"
-                    }
+                        "tradedAt": "2025-01-15T10:00:00Z","instrumentType":"CASH_EQUITY"}
                     """.trimIndent(),
                 )
             }
@@ -225,6 +226,7 @@ class PositionRoutesTest : FunSpec({
                     quantity = BigDecimal("100"),
                     price = usd("150.00"),
                     tradedAt = Instant.parse("2025-01-15T10:00:00Z"),
+                    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
                 ),
             )
             coEvery { tradeEventRepository.findByBookId(PORTFOLIO) } returns trades
@@ -266,8 +268,7 @@ class PositionRoutesTest : FunSpec({
                         "quantity": "-10",
                         "priceAmount": "150.00",
                         "priceCurrency": "USD",
-                        "tradedAt": "2025-01-15T10:00:00Z"
-                    }
+                        "tradedAt": "2025-01-15T10:00:00Z","instrumentType":"CASH_EQUITY"}
                     """.trimIndent(),
                 )
             }
@@ -297,8 +298,7 @@ class PositionRoutesTest : FunSpec({
                         "quantity": "200",
                         "priceAmount": "160.00",
                         "priceCurrency": "USD",
-                        "tradedAt": "2025-01-15T10:00:00Z"
-                    }
+                        "tradedAt": "2025-01-15T10:00:00Z","instrumentType":"CASH_EQUITY"}
                     """.trimIndent(),
                 )
             }

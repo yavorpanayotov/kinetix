@@ -68,6 +68,7 @@ class IntradayPnlServiceVolRateTest : FunSpec({
         quantity = BigDecimal(quantity),
         averageCost = Money(BigDecimal(avgCost), USD),
         marketPrice = Money(BigDecimal(marketPrice), USD),
+        instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
     )
 
     fun sodSnapshot(

@@ -23,6 +23,7 @@ class ReplayPositionProviderTest : FunSpec({
                 currency = "USD",
                 marketValueAmount = BigDecimal("17000.00"),
                 unrealizedPnlAmount = BigDecimal("2000.00"),
+                instrumentType = "CASH_EQUITY",
             ),
             PositionSnapshotEntry(
                 instrumentId = "MSFT",
@@ -33,6 +34,7 @@ class ReplayPositionProviderTest : FunSpec({
                 currency = "USD",
                 marketValueAmount = BigDecimal("21000.00"),
                 unrealizedPnlAmount = BigDecimal("2000.00"),
+                instrumentType = "CASH_EQUITY",
             ),
         )
 

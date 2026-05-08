@@ -142,6 +142,7 @@ class HttpPositionServiceClientTest : FunSpec({
             quantity = BigDecimal("50"),
             price = Money(BigDecimal("152.00"), Currency.getInstance("USD")),
             tradedAt = tradedAt,
+            instrumentType = "CASH_EQUITY",
         )
 
         val result = sut.bookTrade(command)
@@ -244,6 +245,7 @@ class HttpPositionServiceClientTest : FunSpec({
                     quantity = BigDecimal("50"),
                     price = Money(BigDecimal("152.00"), Currency.getInstance("USD")),
                     tradedAt = Instant.parse("2025-03-15T14:30:00Z"),
+                    instrumentType = "CASH_EQUITY",
                 )
             )
         }

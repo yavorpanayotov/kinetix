@@ -51,6 +51,7 @@ private fun command(
     quantity = BigDecimal(quantity),
     price = usd(price),
     tradedAt = Instant.parse("2025-01-15T10:00:00Z"),
+    instrumentType = "CASH_EQUITY",
 )
 
 private fun position(
@@ -66,6 +67,7 @@ private fun position(
     quantity = BigDecimal(quantity),
     averageCost = usd(averageCost),
     marketPrice = usd(marketPrice),
+    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
 )
 
 private fun bookLimit(limitType: LimitType, limitValue: String) = LimitDefinition(

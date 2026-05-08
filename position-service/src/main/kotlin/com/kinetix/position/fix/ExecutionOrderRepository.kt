@@ -4,6 +4,12 @@ interface ExecutionOrderRepository {
     suspend fun save(order: Order)
     suspend fun updateStatus(orderId: String, status: OrderStatus, riskCheckResult: String? = null, riskCheckDetails: String? = null)
     suspend fun updateQuantityAndPrice(orderId: String, quantity: java.math.BigDecimal, limitPrice: java.math.BigDecimal?)
+
+    /**
+     * Persist the FIX tag 37 OrderID assigned by the venue at PENDING_NEW (ADR-0035 phase 4).
+     * Called by `OrderSubmissionService` after a successful `FixGatewayClient.placeOrder`.
+     */
+    suspend fun setVenueOrderId(orderId: String, venueOrderId: String)
     suspend fun findById(orderId: String): Order?
     suspend fun findByBookId(bookId: String): List<Order>
 

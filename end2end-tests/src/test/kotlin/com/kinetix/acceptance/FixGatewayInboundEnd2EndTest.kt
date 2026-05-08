@@ -279,6 +279,7 @@ private suspend fun seedOrder(
             riskCheckDetails = null,
             fixSessionId = "FIX.4.4:KX->NYSE",
             timeInForce = TimeInForce.DAY,
+            instrumentType = "CASH_EQUITY",
         )
     )
 }

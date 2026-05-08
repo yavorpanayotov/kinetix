@@ -117,6 +117,7 @@ class PnlComputationServiceCrossGreekTest : FunSpec({
                 quantity = BigDecimal("100"),
                 averageCost = Money(BigDecimal("148.00"), USD),
                 marketPrice = Money(BigDecimal("160.00"), USD),
+                instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
             ),
         )
         coEvery { positionProvider.getPositions(BOOK) } returns currentPositions
@@ -162,6 +163,7 @@ class PnlComputationServiceCrossGreekTest : FunSpec({
                 quantity = BigDecimal("100"),
                 averageCost = Money(BigDecimal("148.00"), USD),
                 marketPrice = Money(BigDecimal("155.00"), USD),
+                instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
             ),
         )
         coEvery { positionProvider.getPositions(BOOK) } returns currentPositions

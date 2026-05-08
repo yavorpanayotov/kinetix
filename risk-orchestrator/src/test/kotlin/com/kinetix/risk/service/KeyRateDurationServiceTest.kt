@@ -34,6 +34,7 @@ private fun bondPosition(
     quantity = BigDecimal("1"),
     averageCost = Money(BigDecimal("1000000"), USD),
     marketPrice = Money(BigDecimal("1000000"), USD),
+    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
 )
 
 private fun equityPosition(
@@ -46,6 +47,7 @@ private fun equityPosition(
     quantity = BigDecimal("100"),
     averageCost = Money(BigDecimal("150"), USD),
     marketPrice = Money(BigDecimal("170"), USD),
+    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
 )
 
 private fun flatYieldCurve() = YieldCurve(

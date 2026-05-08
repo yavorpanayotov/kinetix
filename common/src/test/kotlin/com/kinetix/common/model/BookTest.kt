@@ -31,6 +31,7 @@ private fun trade(
     quantity = BigDecimal(quantity),
     price = usd(price),
     tradedAt = Instant.now(),
+    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
 )
 
 class BookTest : FunSpec({

@@ -35,7 +35,18 @@ class ExposedExecutionOrderRepository(private val db: Database? = null) : Execut
             it[timeInForce] = order.timeInForce.name
             it[expiresAt] = order.expiresAt?.atOffset(ZoneOffset.UTC)
             it[instrumentType] = order.instrumentType
+            it[venueOrderId] = order.venueOrderId
             it[createdAt] = OffsetDateTime.now(ZoneOffset.UTC)
+            it[updatedAt] = OffsetDateTime.now(ZoneOffset.UTC)
+        }
+    }
+
+    override suspend fun setVenueOrderId(
+        orderId: String,
+        venueOrderId: String,
+    ): Unit = newSuspendedTransaction(db = db) {
+        ExecutionOrdersTable.update({ ExecutionOrdersTable.orderId eq orderId }) {
+            it[ExecutionOrdersTable.venueOrderId] = venueOrderId
             it[updatedAt] = OffsetDateTime.now(ZoneOffset.UTC)
         }
     }
@@ -116,5 +127,6 @@ class ExposedExecutionOrderRepository(private val db: Database? = null) : Execut
         timeInForce = runCatching { TimeInForce.valueOf(this[ExecutionOrdersTable.timeInForce]) }.getOrDefault(TimeInForce.GTC),
         expiresAt = this[ExecutionOrdersTable.expiresAt]?.toInstant(),
         instrumentType = this[ExecutionOrdersTable.instrumentType],
+        venueOrderId = this[ExecutionOrdersTable.venueOrderId],
     )
 }

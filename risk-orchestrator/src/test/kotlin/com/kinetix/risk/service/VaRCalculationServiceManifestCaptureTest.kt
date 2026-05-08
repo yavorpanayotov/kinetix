@@ -27,6 +27,7 @@ private fun pos(instrumentId: String = "AAPL") = Position(
     quantity = BigDecimal("100"),
     averageCost = Money(BigDecimal("150.00"), USD),
     marketPrice = Money(BigDecimal("170.00"), USD),
+    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
 )
 
 private fun result(modelVersion: String? = "0.1.0-abc12345") = ValuationResult(

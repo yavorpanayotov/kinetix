@@ -222,6 +222,7 @@ private fun makeOrder(orderId: String, bookId: String, status: OrderStatus) = Or
     riskCheckResult = null,
     riskCheckDetails = null,
     fixSessionId = "SESSION-1",
+    instrumentType = "CASH_EQUITY",
 )
 
 private fun makeFill(
