@@ -9,6 +9,7 @@ import com.kinetix.volatility.cache.RedisVolatilityCache
 import com.kinetix.volatility.feed.VolSurfaceFeedSimulator
 import com.kinetix.volatility.kafka.KafkaVolatilityPublisher
 import com.kinetix.volatility.persistence.DatabaseConfig
+import com.kinetix.volatility.routes.demoResetRoutes
 import com.kinetix.volatility.seed.DevDataSeeder
 import com.kinetix.volatility.persistence.DatabaseFactory
 import com.kinetix.volatility.persistence.ExposedVolSurfaceRepository
@@ -152,6 +153,11 @@ fun Application.moduleWithRoutes() {
     module(volSurfaceRepository, ingestionService)
 
     routing {
+        val demoResetToken = System.getenv("DEMO_RESET_TOKEN")
+        if (demoResetToken != null) {
+            demoResetRoutes(db, volSurfaceRepository, demoResetToken)
+        }
+
         get("/health/ready") {
             val response = readinessChecker.check()
             val status = if (response.status == "READY") HttpStatusCode.OK else HttpStatusCode.ServiceUnavailable

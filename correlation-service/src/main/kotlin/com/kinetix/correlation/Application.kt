@@ -8,6 +8,7 @@ import com.kinetix.correlation.feed.CorrelationFeedSimulator
 import com.kinetix.correlation.kafka.KafkaCorrelationPublisher
 import com.kinetix.correlation.persistence.CorrelationMatrixRepository
 import com.kinetix.correlation.persistence.DatabaseConfig
+import com.kinetix.correlation.routes.demoResetRoutes
 import com.kinetix.correlation.seed.DevDataSeeder
 import com.kinetix.correlation.persistence.DatabaseFactory
 import com.kinetix.correlation.persistence.ExposedCorrelationMatrixRepository
@@ -149,6 +150,11 @@ fun Application.moduleWithRoutes() {
     module(correlationMatrixRepository, ingestionService)
 
     routing {
+        val demoResetToken = System.getenv("DEMO_RESET_TOKEN")
+        if (demoResetToken != null) {
+            demoResetRoutes(db, correlationMatrixRepository, demoResetToken)
+        }
+
         get("/health/ready") {
             val response = readinessChecker.check()
             val status = if (response.status == "READY") HttpStatusCode.OK else HttpStatusCode.ServiceUnavailable

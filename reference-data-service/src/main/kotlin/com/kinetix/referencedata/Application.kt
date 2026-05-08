@@ -5,6 +5,7 @@ import com.kinetix.referencedata.cache.RedisReferenceDataCache
 import com.kinetix.referencedata.kafka.KafkaReferenceDataPublisher
 import com.kinetix.referencedata.persistence.CreditSpreadRepository
 import com.kinetix.referencedata.persistence.DatabaseConfig
+import com.kinetix.referencedata.routes.demoResetRoutes
 import com.kinetix.referencedata.seed.DevDataSeeder
 import com.kinetix.referencedata.persistence.DatabaseFactory
 import com.kinetix.referencedata.persistence.DeskRepository
@@ -211,6 +212,22 @@ fun Application.moduleWithRoutes() {
     module(dividendYieldRepository, creditSpreadRepository, ingestionService, instrumentService, divisionService, deskService, liquidityService, counterpartyService, benchmarkService)
 
     routing {
+        val demoResetToken = System.getenv("DEMO_RESET_TOKEN")
+        if (demoResetToken != null) {
+            demoResetRoutes(
+                db = db,
+                dividendYieldRepository = dividendYieldRepository,
+                creditSpreadRepository = creditSpreadRepository,
+                instrumentRepository = instrumentRepository,
+                divisionRepository = divisionRepository,
+                deskRepository = deskRepository,
+                liquidityRepository = liquidityRepository,
+                counterpartyRepository = counterpartyRepository,
+                nettingAgreementRepository = nettingAgreementRepository,
+                resetToken = demoResetToken,
+            )
+        }
+
         get("/health/ready") {
             val response = readinessChecker.check()
             val status = if (response.status == "READY") HttpStatusCode.OK else HttpStatusCode.ServiceUnavailable

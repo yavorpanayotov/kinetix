@@ -12,6 +12,7 @@ import com.kinetix.rates.cache.RedisRatesCache
 import com.kinetix.rates.feed.RatesFeedSimulator
 import com.kinetix.rates.kafka.KafkaRatesPublisher
 import com.kinetix.rates.persistence.DatabaseConfig
+import com.kinetix.rates.routes.demoResetRoutes
 import com.kinetix.rates.seed.DevDataSeeder
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -167,6 +168,11 @@ fun Application.moduleWithRoutes() {
     module(yieldCurveRepository, riskFreeRateRepository, forwardCurveRepository, ingestionService)
 
     routing {
+        val demoResetToken = System.getenv("DEMO_RESET_TOKEN")
+        if (demoResetToken != null) {
+            demoResetRoutes(db, yieldCurveRepository, riskFreeRateRepository, forwardCurveRepository, demoResetToken)
+        }
+
         get("/health/ready") {
             val response = readinessChecker.check()
             val status = if (response.status == "READY") HttpStatusCode.OK else HttpStatusCode.ServiceUnavailable

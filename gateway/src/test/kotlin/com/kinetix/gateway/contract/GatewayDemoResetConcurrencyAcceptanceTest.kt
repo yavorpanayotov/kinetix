@@ -2,6 +2,7 @@ package com.kinetix.gateway.contract
 
 import com.kinetix.gateway.routes.demoAdminRoutes
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldContain as shouldContainElement
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.ktor.client.HttpClient
@@ -31,6 +32,11 @@ private fun Application.configureDemoAdmin(mockEngine: MockEngine) {
             positionUrl = "http://position",
             auditUrl = "http://audit",
             riskUrl = "http://risk",
+            priceUrl = "http://price",
+            ratesUrl = "http://rates",
+            volatilityUrl = "http://volatility",
+            correlationUrl = "http://correlation",
+            referenceDataUrl = "http://reference-data",
             adminKey = "admin-key",
             resetToken = "reset-token",
         )
@@ -40,10 +46,10 @@ private fun Application.configureDemoAdmin(mockEngine: MockEngine) {
 class GatewayDemoResetConcurrencyAcceptanceTest : FunSpec({
 
     test("a second concurrent demo-reset returns 409 with reset_in_progress while the first is in flight") {
-        // Each backend call sleeps 250ms. The full reset is ~750ms (3 sequential calls).
-        // The second request fires after 100ms, well inside the first's window.
+        // Each backend call sleeps 100ms. The full reset is ~800ms (8 sequential calls).
+        // The second request fires after 50ms, well inside the first's window.
         val mockEngine = MockEngine { _ ->
-            delay(250)
+            delay(100)
             respond(
                 content = """{"status":"ok"}""",
                 status = HttpStatusCode.OK,
@@ -62,7 +68,7 @@ class GatewayDemoResetConcurrencyAcceptanceTest : FunSpec({
                 }
 
                 // Let the first request enter the route and acquire the guard.
-                delay(100)
+                delay(50)
 
                 val second = client.post("/api/v1/admin/demo-reset") {
                     header("X-Demo-Admin-Key", "admin-key")
@@ -75,6 +81,44 @@ class GatewayDemoResetConcurrencyAcceptanceTest : FunSpec({
                 second.status shouldBe HttpStatusCode.Conflict
                 secondBody shouldContain "reset_in_progress"
             }
+        }
+    }
+
+    test("a successful demo-reset fans out to all 8 backend services") {
+        val visitedPaths = mutableListOf<String>()
+        val mockEngine = MockEngine { request ->
+            synchronized(visitedPaths) { visitedPaths.add(request.url.encodedPath) }
+            respond(
+                content = """{"status":"ok"}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+            )
+        }
+
+        testApplication {
+            application { configureDemoAdmin(mockEngine) }
+
+            val response = client.post("/api/v1/admin/demo-reset") {
+                header("X-Demo-Admin-Key", "admin-key")
+            }
+            val body = response.bodyAsText()
+
+            response.status shouldBe HttpStatusCode.OK
+            visitedPaths shouldContainElement "/api/v1/internal/position/demo-reset"
+            visitedPaths shouldContainElement "/api/v1/internal/audit/demo-reset"
+            visitedPaths shouldContainElement "/api/v1/internal/risk/demo-reset"
+            visitedPaths shouldContainElement "/api/v1/internal/price/demo-reset"
+            visitedPaths shouldContainElement "/api/v1/internal/rates/demo-reset"
+            visitedPaths shouldContainElement "/api/v1/internal/volatility/demo-reset"
+            visitedPaths shouldContainElement "/api/v1/internal/correlation/demo-reset"
+            visitedPaths shouldContainElement "/api/v1/internal/reference-data/demo-reset"
+
+            body shouldContain "\"position\":\"ok\""
+            body shouldContain "\"price\":\"ok\""
+            body shouldContain "\"rates\":\"ok\""
+            body shouldContain "\"volatility\":\"ok\""
+            body shouldContain "\"correlation\":\"ok\""
+            body shouldContain "\"referenceData\":\"ok\""
         }
     }
 

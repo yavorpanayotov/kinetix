@@ -9,6 +9,7 @@ import com.kinetix.price.persistence.DatabaseConfig
 import com.kinetix.price.persistence.DatabaseFactory
 import com.kinetix.price.persistence.ExposedPriceRepository
 import com.kinetix.price.persistence.PriceRepository
+import com.kinetix.price.routes.demoResetRoutes
 import com.kinetix.price.routes.priceRoutes
 import com.kinetix.price.feed.InstrumentSeed
 import com.kinetix.price.feed.PriceFeedSimulator
@@ -177,6 +178,11 @@ fun Application.moduleWithRoutes() {
     }
     routing {
         priceRoutes(repository, ingestionService)
+
+        val demoResetToken = System.getenv("DEMO_RESET_TOKEN")
+        if (demoResetToken != null) {
+            demoResetRoutes(db, repository, demoResetToken)
+        }
     }
 
     val seedEnabled = environment.config.propertyOrNull("seed.enabled")?.getString()?.toBoolean() ?: true

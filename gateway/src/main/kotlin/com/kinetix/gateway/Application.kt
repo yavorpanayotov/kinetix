@@ -520,7 +520,19 @@ fun Application.devModule() {
     val demoResetToken = System.getenv("DEMO_RESET_TOKEN")
     if (demoAdminKey != null && demoResetToken != null) {
         routing {
-            demoAdminRoutes(httpClient, positionUrl, auditUrl, riskUrl, demoAdminKey, demoResetToken)
+            demoAdminRoutes(
+                httpClient = httpClient,
+                positionUrl = positionUrl,
+                auditUrl = auditUrl,
+                riskUrl = riskUrl,
+                priceUrl = priceUrl,
+                ratesUrl = ratesUrl,
+                volatilityUrl = volatilityUrl,
+                correlationUrl = correlationUrl,
+                referenceDataUrl = referenceDataUrl,
+                adminKey = demoAdminKey,
+                resetToken = demoResetToken,
+            )
         }
     }
 
