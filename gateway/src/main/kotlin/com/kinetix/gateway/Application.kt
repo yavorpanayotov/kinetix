@@ -57,6 +57,7 @@ import com.kinetix.gateway.routes.executionProxyRoutes
 import com.kinetix.gateway.routes.liquidityRiskRoutes
 import com.kinetix.gateway.routes.limitsRoutes
 import com.kinetix.gateway.routes.marginRoutes
+import com.kinetix.gateway.routes.demoScenarioRoutes
 import com.kinetix.gateway.routes.demoStressWindowsRoutes
 import com.kinetix.gateway.routes.marketRegimeRoutes
 import com.kinetix.gateway.routes.varRoutes
@@ -485,6 +486,7 @@ fun Application.devModule() {
                 saCcrRoutes(riskClient)
                 volSurfaceRoutes(volatilityClient)
                 demoStressWindowsRoutes()
+                demoScenarioRoutes()
             }
             requirePermission(Permission.READ_REGULATORY, authEnabled = authEnabled) {
                 requireBookAccess(bookAccessService) {

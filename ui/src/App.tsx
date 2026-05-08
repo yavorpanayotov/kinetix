@@ -35,6 +35,8 @@ import { useDataQuality } from './hooks/useDataQuality'
 import { DataQualityIndicator } from './components/DataQualityIndicator'
 import { useMarketRegime } from './hooks/useMarketRegime'
 import { RegimeIndicator } from './components/RegimeIndicator'
+import { useActiveScenario } from './hooks/useActiveScenario'
+import { ScenarioIndicator } from './components/ScenarioIndicator'
 import { useWorkspace } from './hooks/useWorkspace'
 import { useAuth } from './auth/useAuth'
 import { DEMO_MODE } from './auth/demoPersonas'
@@ -133,6 +135,7 @@ function App() {
   const { isDark, toggle: toggleTheme } = useTheme()
   const dataQuality = useDataQuality()
   const marketRegime = useMarketRegime()
+  const activeScenario = useActiveScenario()
 
   const [disconnectElapsed, setDisconnectElapsed] = useState(0)
   useEffect(() => {
@@ -164,6 +167,7 @@ function App() {
         </div>
         <div className="flex items-center gap-3">
           <HierarchySelector hierarchy={hierarchy} />
+          <ScenarioIndicator scenario={activeScenario.scenario} loading={activeScenario.loading} />
           <RegimeIndicator regime={marketRegime.regime} loading={marketRegime.loading} />
           <DataQualityIndicator
             status={(() => {
