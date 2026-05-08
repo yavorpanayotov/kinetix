@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Download, Inbox } from 'lucide-react'
+import { Copy, Download, Inbox } from 'lucide-react'
 import { useTradeHistory } from '../hooks/useTradeHistory'
 import { formatMoney, formatQuantity, formatTimestamp } from '../utils/format'
 import { formatCompactCurrency } from '../utils/formatCompactCurrency'
@@ -24,20 +24,25 @@ function tradeStatus(trade: TradeHistoryDto): string {
 function statusBadgeClass(status: string): string {
   switch (status) {
     case 'CANCELLED':
+    case 'REJECTED':
       return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
     case 'AMENDED':
+    case 'PENDING_FAILED':
       return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
+    case 'PENDING':
+    case 'EXPIRED':
+      return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
     default:
       return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
   }
 }
 
 function exportToCsv(trades: TradeHistoryDto[]) {
-  const header = 'Time,Instrument,Name,Type,Side,Qty,Price,Currency,Notional,Status'
+  const header = 'Time,Instrument,Name,Type,Side,Qty,Price,Currency,Notional,Status,VenueOrderId'
   const rows = trades.map((t) => {
     const n = notional(t)
     const name = (t.displayName || t.instrumentId).replace(/,/g, ' ')
-    return `${t.tradedAt},${t.instrumentId},${name},${t.instrumentType || ''},${t.side},${t.quantity},${t.price.amount},${t.price.currency},${n.toFixed(2)},${tradeStatus(t)}`
+    return `${t.tradedAt},${t.instrumentId},${name},${t.instrumentType || ''},${t.side},${t.quantity},${t.price.amount},${t.price.currency},${n.toFixed(2)},${tradeStatus(t)},${t.venueOrderId ?? ''}`
   })
   const csv = [header, ...rows].join('\n')
   const blob = new Blob([csv], { type: 'text/csv' })
@@ -49,6 +54,11 @@ function exportToCsv(trades: TradeHistoryDto[]) {
   URL.revokeObjectURL(url)
 }
 
+async function copyVenueOrderId(value: string | undefined): Promise<void> {
+  if (!value || typeof navigator === 'undefined' || !navigator.clipboard) return
+  await navigator.clipboard.writeText(value)
+}
+
 export function TradeBlotter({ bookId }: TradeBlotterProps) {
   const { trades, loading, error } = useTradeHistory(bookId)
   const [instrumentFilter, setInstrumentFilter] = useState('')
@@ -56,6 +66,7 @@ export function TradeBlotter({ bookId }: TradeBlotterProps) {
   const [instrumentTypeFilter, setInstrumentTypeFilter] = useState('')
   const [filterResetNotice, setFilterResetNotice] = useState<string | null>(null)
   const [page, setPage] = useState(0)
+  const [showVenueOrderId, setShowVenueOrderId] = useState(false)
   const PAGE_SIZE = 50
 
   const instrumentTypeOptions = useMemo(() => {
@@ -213,6 +224,14 @@ export function TradeBlotter({ bookId }: TradeBlotterProps) {
         )}
         <div className="flex-1" />
         <button
+          data-testid="toggle-venue-order-id-column"
+          aria-pressed={showVenueOrderId}
+          onClick={() => setShowVenueOrderId((v) => !v)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-surface-600 rounded-md hover:bg-slate-50 dark:hover:bg-surface-700 transition-colors"
+        >
+          {showVenueOrderId ? 'Hide' : 'Show'} Venue Order ID
+        </button>
+        <button
           data-testid="csv-export-button"
           onClick={() => exportToCsv(filtered)}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-surface-600 rounded-md hover:bg-slate-50 dark:hover:bg-surface-700 transition-colors"
@@ -236,12 +255,15 @@ export function TradeBlotter({ bookId }: TradeBlotterProps) {
                 <th className="px-4 py-2 text-right text-sm font-semibold text-slate-700 dark:text-slate-300">Price</th>
                 <th className="px-4 py-2 text-right text-sm font-semibold text-slate-700 dark:text-slate-300">Notional</th>
                 <th className="px-4 py-2 text-left text-sm font-semibold text-slate-700 dark:text-slate-300">Status</th>
+                {showVenueOrderId && (
+                  <th className="px-4 py-2 text-right text-sm font-semibold text-slate-700 dark:text-slate-300">Venue Order ID</th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-surface-700">
               {paginatedTrades.length === 0 && filtered.length === 0 && trades.length > 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center">
+                  <td colSpan={showVenueOrderId ? 10 : 9} className="px-4 py-8 text-center">
                     <EmptyState title="No trades match your filters." />
                   </td>
                 </tr>
@@ -285,6 +307,29 @@ export function TradeBlotter({ bookId }: TradeBlotterProps) {
                         {tradeStatus(trade)}
                       </span>
                     </td>
+                    {showVenueOrderId && (
+                      <td className="px-4 py-2 text-sm">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <span
+                            data-testid={`trade-venue-order-id-${trade.tradeId}`}
+                            aria-label="Venue order ID"
+                            className="font-mono text-right text-xs text-slate-700 dark:text-slate-300"
+                          >
+                            {trade.venueOrderId ?? '—'}
+                          </span>
+                          {trade.venueOrderId && (
+                            <button
+                              data-testid={`copy-venue-order-id-${trade.tradeId}`}
+                              aria-label="Copy venue order ID"
+                              onClick={() => copyVenueOrderId(trade.venueOrderId)}
+                              className="p-1 rounded hover:bg-slate-100 dark:hover:bg-surface-700"
+                            >
+                              <Copy className="h-3 w-3 text-slate-500" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))
               )}

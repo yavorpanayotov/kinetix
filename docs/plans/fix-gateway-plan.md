@@ -432,7 +432,7 @@ Four commits:
     - Channel close mid-call → clean propagation, order ends in `PENDING_FAILED`.
 - [x] **4.11** End-to-end:
   - `OrderPlacementEnd2EndTest` — full submit-via-REST → fix-gateway → in-memory acceptor → Pending New → REST response. Asserts user-visible response payload now contains `venueOrderId`.
-- [ ] **4.12** UI Playwright (full suite — phase 4 introduces a new error state, a new label, and a new latency profile, so one spec is not enough per CLAUDE.md):
+- [x] **4.12** UI Playwright (full suite — phase 4 introduces a new error state, a new label, and a new latency profile, so one spec is not enough per CLAUDE.md):
   - `ui/e2e/order-placement.spec.ts` — golden path: submit → spinner shown on submit button (`Button.tsx`'s `loading` prop) → `PENDING_NEW` arrives → confirmation modal renders `Venue Order ID` label + value + clipboard-copy button.
   - `ui/e2e/order-placement-timeout.spec.ts` — mock gateway returning 503 after 2s delay; assert (a) submit button disabled during wait, (b) `PENDING_FAILED` amber badge appears in blotter, (c) `RiskAlertBanner` (WARNING severity) renders "Order routing timed out — call venue to confirm before retry", (d) retry CTA is present and reuses original `clOrdID`.
   - `ui/e2e/order-placement-rejected.spec.ts` — mock REJECTED response; assert distinct red badge styling vs PENDING_FAILED amber, no retry CTA, reject reason copy from `reject_reason` field.
@@ -441,7 +441,7 @@ Four commits:
   - `ui/e2e/venue-routing-degraded.spec.ts` — mock health endpoint returning fix-gateway DOWN; assert `StatusDot` indicator on blotter header turns amber, tooltip shows venue-specific session state.
   - `cd ui && npm run lint` before committing.
 
-- [ ] **4.13** UI implementation tasks (referenced by Playwright specs above):
+- [x] **4.13** UI implementation tasks (referenced by Playwright specs above):
   - Add `PENDING_FAILED` and `PENDING` cases to `TradeBlotter.tsx` `statusBadgeClass()` — amber for PENDING_FAILED, neutral grey for PENDING.
   - Wire `Button.tsx` `loading` prop to the order-submit flow; disable submit while waiting; show "Sending to venue..." copy.
   - Add `Venue Order ID` column to `TradeBlotter.tsx` — opt-in via column-visibility toggle, clipboard button, sortable, ARIA-labelled.

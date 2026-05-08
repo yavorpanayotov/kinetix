@@ -57,6 +57,42 @@ export interface TradeHistoryDto {
   instrumentType?: string
   displayName?: string
   status?: string
+  venueOrderId?: string
+}
+
+export type OrderTimeInForce = 'DAY' | 'GTC' | 'IOC' | 'FOK' | 'GTD'
+
+export interface SubmitOrderRequestDto {
+  bookId: string
+  instrumentId: string
+  side: 'BUY' | 'SELL'
+  quantity: string
+  orderType: string
+  limitPrice?: string
+  arrivalPrice: string
+  assetClass?: string
+  currency?: string
+  timeInForce?: OrderTimeInForce
+  expiresAt?: string
+  instrumentType: string
+}
+
+export interface OrderResponseDto {
+  orderId: string
+  bookId: string
+  instrumentId: string
+  side: string
+  quantity: string
+  orderType: string
+  limitPrice?: string | null
+  arrivalPrice: string
+  submittedAt: string
+  status: string
+  fixSessionId?: string | null
+  timeInForce: OrderTimeInForce
+  expiresAt?: string | null
+  venueOrderId?: string | null
+  rejectReason?: string | null
 }
 
 export interface BookDto {

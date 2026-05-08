@@ -3,6 +3,7 @@ import { Activity, BarChart3, ScrollText, TrendingUp, Shield, FlaskConical, Scal
 import { ErrorBoundary, SectionErrorCard } from './components/ErrorBoundary'
 import { PositionGrid } from './components/PositionGrid'
 import { TradeBlotter } from './components/TradeBlotter'
+import { PlaceOrderPanel } from './components/PlaceOrderPanel'
 import { ExecutionCostPanel } from './components/ExecutionCostPanel'
 import { ReconciliationPanel } from './components/ReconciliationPanel'
 import { NotificationCenter } from './components/NotificationCenter'
@@ -63,7 +64,7 @@ function App() {
     (workspace.preferences.defaultTab as Tab) || 'positions',
   )
   const [whatIfOpen, setWhatIfOpen] = useState(false)
-  const [tradesSubTab, setTradesSubTab] = useState<'blotter' | 'cost' | 'reconciliation'>('blotter')
+  const [tradesSubTab, setTradesSubTab] = useState<'blotter' | 'place' | 'cost' | 'reconciliation'>('blotter')
   const tabRefs = useRef<Map<Tab, HTMLButtonElement>>(new Map())
 
   const handleTabKeyDown = (e: React.KeyboardEvent) => {
@@ -425,7 +426,7 @@ function App() {
             {activeTab === 'trades' && (
                   <div>
                     <div className="flex gap-1 mb-4 border-b border-slate-200" role="tablist" aria-label="Trades sections">
-                      {(['blotter', 'cost', 'reconciliation'] as const).map((subTab) => (
+                      {(['blotter', 'place', 'cost', 'reconciliation'] as const).map((subTab) => (
                         <button
                           key={subTab}
                           role="tab"
@@ -439,12 +440,14 @@ function App() {
                           }`}
                         >
                           {subTab === 'blotter' && 'Trade Blotter'}
+                          {subTab === 'place' && 'Place Order'}
                           {subTab === 'cost' && 'Execution Cost'}
                           {subTab === 'reconciliation' && 'Reconciliation'}
                         </button>
                       ))}
                     </div>
                     {tradesSubTab === 'blotter' && <TradeBlotter bookId={bookId} />}
+                    {tradesSubTab === 'place' && <PlaceOrderPanel bookId={bookId ?? ''} />}
                     {tradesSubTab === 'cost' && <ExecutionCostPanel bookId={bookId} />}
                     {tradesSubTab === 'reconciliation' && <ReconciliationPanel bookId={bookId} />}
                   </div>

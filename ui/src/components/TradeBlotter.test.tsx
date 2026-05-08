@@ -369,4 +369,98 @@ describe('TradeBlotter', () => {
       expect(screen.getByTestId('filter-reset-notice')).toBeInTheDocument()
     })
   })
+
+  describe('order status badges and Venue Order ID column (ADR-0035 phase 4)', () => {
+    const phase4Trades: TradeHistoryDto[] = [
+      {
+        tradeId: 'order-pending',
+        bookId: 'book-1',
+        instrumentId: 'AAPL',
+        assetClass: 'EQUITY',
+        side: 'BUY',
+        quantity: '100',
+        price: { amount: '150.00', currency: 'USD' },
+        tradedAt: '2026-05-08T10:00:00Z',
+        status: 'PENDING',
+      },
+      {
+        tradeId: 'order-pending-failed',
+        bookId: 'book-1',
+        instrumentId: 'MSFT',
+        assetClass: 'EQUITY',
+        side: 'BUY',
+        quantity: '50',
+        price: { amount: '300.00', currency: 'USD' },
+        tradedAt: '2026-05-08T10:01:00Z',
+        status: 'PENDING_FAILED',
+      },
+      {
+        tradeId: 'order-sent',
+        bookId: 'book-1',
+        instrumentId: 'GOOGL',
+        assetClass: 'EQUITY',
+        side: 'BUY',
+        quantity: '10',
+        price: { amount: '2800.00', currency: 'USD' },
+        tradedAt: '2026-05-08T10:02:00Z',
+        status: 'SENT',
+        venueOrderId: 'NYSE-99887766',
+      },
+    ]
+
+    function setupPhase4(overrides?: Partial<ReturnType<typeof useTradeHistory>>) {
+      mockUseTradeHistory.mockReturnValue({
+        trades: phase4Trades,
+        loading: false,
+        error: null,
+        refetch: vi.fn(),
+        ...overrides,
+      })
+    }
+
+    it('renders an amber badge for PENDING_FAILED orders', () => {
+      setupPhase4()
+      render(<TradeBlotter bookId="book-1" />)
+
+      const badge = screen.getByTestId('trade-status-order-pending-failed')
+      expect(badge).toHaveTextContent('PENDING_FAILED')
+      expect(badge.className).toMatch(/amber/)
+    })
+
+    it('renders a neutral grey badge for PENDING orders', () => {
+      setupPhase4()
+      render(<TradeBlotter bookId="book-1" />)
+
+      const badge = screen.getByTestId('trade-status-order-pending')
+      expect(badge).toHaveTextContent('PENDING')
+      expect(badge.className).toMatch(/slate|gray|grey/i)
+    })
+
+    it('shows the Venue Order ID column toggle and reveals the column when enabled', () => {
+      setupPhase4()
+      render(<TradeBlotter bookId="book-1" />)
+
+      // Column hidden by default
+      expect(screen.queryByText('Venue Order ID')).toBeNull()
+
+      const toggle = screen.getByTestId('toggle-venue-order-id-column')
+      fireEvent.click(toggle)
+
+      expect(screen.getByText('Venue Order ID')).toBeInTheDocument()
+      const cell = screen.getByTestId('trade-venue-order-id-order-sent')
+      expect(cell).toHaveTextContent('NYSE-99887766')
+      expect(cell).toHaveAttribute('aria-label', 'Venue order ID')
+      expect(cell.className).toMatch(/font-mono|right/)
+    })
+
+    it('renders a clipboard-copy button per row in the Venue Order ID column', () => {
+      setupPhase4()
+      render(<TradeBlotter bookId="book-1" />)
+
+      fireEvent.click(screen.getByTestId('toggle-venue-order-id-column'))
+
+      const copyBtn = screen.getByTestId('copy-venue-order-id-order-sent')
+      expect(copyBtn).toHaveAttribute('aria-label', 'Copy venue order ID')
+    })
+  })
 })
