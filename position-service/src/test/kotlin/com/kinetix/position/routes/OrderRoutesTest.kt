@@ -173,6 +173,49 @@ class OrderRoutesTest : FunSpec({
         }
     }
 
+    test("POST /api/v1/orders surfaces rejectReason from the order's riskCheckResult so the UI can distinguish PENDING_FAILED variants") {
+        val service = mockk<OrderSubmissionService>()
+        val rejectedOrder = fakeOrder().copy(
+            status = OrderStatus.PENDING_FAILED,
+            riskCheckResult = "DUPLICATE_IN_FLIGHT",
+            riskCheckDetails = "DUPLICATE_IN_FLIGHT: original RPC still in flight",
+        )
+        coEvery {
+            service.submit(
+                bookId = any(),
+                instrumentId = any(),
+                side = any(),
+                quantity = any(),
+                orderType = any(),
+                limitPrice = any(),
+                arrivalPrice = any(),
+                fixSessionId = any(),
+                assetClass = any(),
+                currency = any(),
+                arrivalPriceTimestamp = any(),
+                instrumentType = "CASH_EQUITY",
+            )
+        } returns rejectedOrder
+
+        testApplication {
+            application { testOrderRouteModule(service) }
+            val response = client.post("/api/v1/orders") {
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """
+                    {"bookId":"book-1","instrumentId":"AAPL","side":"BUY","quantity":"100",
+                     "orderType":"LIMIT","limitPrice":"150.00","arrivalPrice":"149.90",
+                     "instrumentType":"CASH_EQUITY"}
+                    """.trimIndent(),
+                )
+            }
+            response.status shouldBe HttpStatusCode.Created
+            val body = response.bodyAsText()
+            body.contains("\"status\":\"PENDING_FAILED\"") shouldBe true
+            body.contains("\"rejectReason\":\"DUPLICATE_IN_FLIGHT\"") shouldBe true
+        }
+    }
+
     test("POST /api/v1/orders surfaces a stale arrival-price rejection from the service as 400") {
         val service = mockk<OrderSubmissionService>()
         coEvery {

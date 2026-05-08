@@ -139,4 +139,5 @@ private fun Order.toResponse() = OrderResponse(
     timeInForce = timeInForce.name,
     expiresAt = expiresAt?.toString(),
     venueOrderId = venueOrderId,
+    rejectReason = riskCheckResult,
 )
