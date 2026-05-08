@@ -89,6 +89,18 @@ entity FxRate {
     -- named `updated_at`; the in-memory model exposes it as `asOf`. Spec
     -- preserves the model-level name.
     as_of: Timestamp
+
+    @guidance
+        -- Naming translation between spec/DB and Kotlin domain:
+        --   from_currency  <-> baseCurrency   (Kotlin: FxRate.baseCurrency)
+        --   to_currency    <-> quoteCurrency  (Kotlin: FxRate.quoteCurrency)
+        --   as_of          <-> updatedAt      (DB column: updated_at)
+        -- The spec uses ISO-style `from`/`to` labels which match the DB
+        -- migration column names. The in-memory Kotlin model
+        -- (common/.../model/FxRate.kt) uses the FX-market convention of
+        -- `base` / `quote`. Both spellings refer to the same value: the
+        -- amount of `to`/`quote` currency per unit of `from`/`base`.
+        -- The Kotlin renaming is deferred to a separate refactor.
 }
 
 ------------------------------------------------------------
