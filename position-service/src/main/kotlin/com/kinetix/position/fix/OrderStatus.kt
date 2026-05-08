@@ -12,7 +12,15 @@ enum class OrderStatus {
     PARTIAL,
     FILLED,
     CANCELLED,
-    EXPIRED;
+    EXPIRED,
+
+    /**
+     * Routing to fix-gateway failed (FIX session was down or gRPC RPC exceeded its
+     * deadline) per ADR-0035 phase 4. Non-terminal: the trader retries via the UI's
+     * retry CTA, which reuses the original `clOrdId` so fix-gateway reconciles via
+     * FIX 35=H `OrderStatusRequest` rather than producing a duplicate venue order.
+     */
+    PENDING_FAILED;
 
     val isTerminal: Boolean
         get() = this in setOf(FILLED, CANCELLED, EXPIRED, REJECTED)
