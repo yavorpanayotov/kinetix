@@ -1,5 +1,7 @@
 package com.kinetix.gateway.routes
 
+import com.kinetix.common.demo.SeedProfile
+import com.kinetix.common.demo.UnknownScenarioException
 import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -19,6 +21,7 @@ data class DemoResetStatus(
     val volatility: String,
     val correlation: String,
     val referenceData: String,
+    val scenario: String,
 )
 
 @Serializable
@@ -56,6 +59,31 @@ fun Route.demoAdminRoutes(
             return@post
         }
 
+        val rawScenario = call.request.queryParameters["scenario"]
+        val profile = try {
+            SeedProfile.parseOrDefault(rawScenario)
+        } catch (e: UnknownScenarioException) {
+            call.respond(
+                HttpStatusCode.BadRequest,
+                DemoResetErrorResponse(
+                    errorCode = "UNKNOWN_SCENARIO",
+                    message = "Unknown scenario '${e.scenario}'. Allowed: ${SeedProfile.all().joinToString { it.id }}.",
+                ),
+            )
+            return@post
+        }
+
+        if (!profile.implemented) {
+            call.respond(
+                HttpStatusCode.BadRequest,
+                DemoResetErrorResponse(
+                    errorCode = "SCENARIO_NOT_AVAILABLE",
+                    message = "Scenario '${profile.id}' is recognised but not yet implemented.",
+                ),
+            )
+            return@post
+        }
+
         if (!demoResetInProgress.compareAndSet(false, true)) {
             call.respond(
                 HttpStatusCode.Conflict,
@@ -80,8 +108,10 @@ fun Route.demoAdminRoutes(
             )
 
             val results = backends.associate { backend ->
-                backend.name to fanOutReset(httpClient, backend.url + backend.path, resetToken)
+                backend.name to fanOutReset(httpClient, backend.url + backend.path, resetToken, profile.id)
             }
+
+            setActiveScenario(profile.id)
 
             call.respond(
                 DemoResetStatus(
@@ -93,6 +123,7 @@ fun Route.demoAdminRoutes(
                     volatility = results.getValue("volatility"),
                     correlation = results.getValue("correlation"),
                     referenceData = results.getValue("referenceData"),
+                    scenario = profile.id,
                 ),
             )
         } finally {
@@ -101,9 +132,9 @@ fun Route.demoAdminRoutes(
     }
 }
 
-private suspend fun fanOutReset(httpClient: HttpClient, url: String, resetToken: String): String {
+private suspend fun fanOutReset(httpClient: HttpClient, url: String, resetToken: String, scenario: String): String {
     return try {
-        val resp = httpClient.post(url) {
+        val resp = httpClient.post("$url?scenario=$scenario") {
             header("X-Demo-Reset-Token", resetToken)
         }
         if (resp.status.isSuccess()) "ok" else "failed: ${resp.status}"
