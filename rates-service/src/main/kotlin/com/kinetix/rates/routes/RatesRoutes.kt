@@ -29,6 +29,8 @@ fun Route.ratesRoutes(
     forwardCurveRepository: ForwardCurveRepository,
     ingestionService: RateIngestionService,
 ) {
+    val log = org.slf4j.LoggerFactory.getLogger("com.kinetix.rates.routes.RatesRoutes")
+
     route("/api/v1/rates") {
         route("/yield-curves/{curveId}") {
             route("/latest") {
@@ -46,6 +48,42 @@ fun Route.ratesRoutes(
                     } else {
                         call.respond(HttpStatusCode.NotFound)
                     }
+                }
+            }
+
+            route("/tenor/{tenor}") {
+                get({
+                    summary = "Get the rate at a specific tenor; interpolates linearly when the node is missing"
+                    tags = listOf("Yield Curves", "Data Quality")
+                    request {
+                        pathParameter<String>("curveId") { description = "Yield curve identifier" }
+                        pathParameter<String>("tenor") { description = "Tenor label, e.g. 5Y" }
+                    }
+                    response {
+                        code(HttpStatusCode.OK) { body<YieldCurveTenorResponse>() }
+                        code(HttpStatusCode.NotFound) {}
+                    }
+                }) {
+                    val curveId = call.requirePathParam("curveId")
+                    val tenorLabel = call.requirePathParam("tenor")
+                    val curve = yieldCurveRepository.findLatest(curveId)
+                        ?: return@get call.respond(HttpStatusCode.NotFound)
+                    val resolved = resolveTenor(curve, tenorLabel)
+                        ?: return@get call.respond(HttpStatusCode.NotFound)
+                    if (resolved.interpolated) {
+                        log.warn(
+                            "Yield curve {} missing tenor {} — returning interpolated value {} (data_quality_intent=intentional_anomaly_demo)",
+                            curveId, tenorLabel, resolved.value,
+                        )
+                    }
+                    call.respond(
+                        YieldCurveTenorResponse(
+                            curveId = curveId,
+                            tenor = tenorLabel,
+                            value = resolved.value.toPlainString(),
+                            interpolated = resolved.interpolated,
+                        )
+                    )
                 }
             }
 
@@ -213,6 +251,29 @@ private fun YieldCurve.toResponse() = YieldCurveResponse(
     asOfDate = asOf.toString(),
     source = source.name,
 )
+
+private data class ResolvedTenor(val value: BigDecimal, val interpolated: Boolean)
+
+private val TENOR_DAYS: Map<String, Int> = mapOf(
+    "O/N" to 1, "1W" to 7, "1M" to 30, "3M" to 90, "6M" to 180,
+    "1Y" to 365, "2Y" to 730, "5Y" to 1825, "10Y" to 3650, "30Y" to 10950,
+)
+
+private fun resolveTenor(curve: YieldCurve, tenorLabel: String): ResolvedTenor? {
+    curve.tenors.firstOrNull { it.label == tenorLabel }?.let {
+        return ResolvedTenor(it.rate, interpolated = false)
+    }
+    val targetDays = TENOR_DAYS[tenorLabel] ?: curve.tenors.firstOrNull { it.label == tenorLabel }?.days
+        ?: return null
+    val sorted = curve.tenors.sortedBy { it.days }
+    val below = sorted.lastOrNull { it.days < targetDays }
+    val above = sorted.firstOrNull { it.days > targetDays }
+    if (below == null || above == null) return null
+    val span = (above.days - below.days).toBigDecimal()
+    val offset = (targetDays - below.days).toBigDecimal()
+    val interpolated = below.rate + (above.rate - below.rate) * offset.divide(span, java.math.MathContext.DECIMAL64)
+    return ResolvedTenor(interpolated.setScale(6, java.math.RoundingMode.HALF_UP), interpolated = true)
+}
 
 private fun RiskFreeRate.toResponse() = RiskFreeRateResponse(
     currency = currency.currencyCode,

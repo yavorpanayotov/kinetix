@@ -52,11 +52,27 @@ class DevDataSeeder(
         for (currency in curveCurrencies) {
             val snapshots = derivations.yieldCurveSnapshots(currency)
             for (snap in snapshots) {
-                yieldCurveRepository.save(snap.toYieldCurve())
+                val curve = snap.toYieldCurve()
+                yieldCurveRepository.save(curve.withAnomalyMutations())
                 totalSnapshots++
             }
         }
+        if (MISSING_TENORS_BY_CURRENCY.isNotEmpty()) {
+            for ((currency, tenors) in MISSING_TENORS_BY_CURRENCY) {
+                log.warn(
+                    "data_quality_intent=intentional_anomaly_demo: yield curve {} omits tenor(s) {} — Gap 8 anomaly contract",
+                    currency, tenors,
+                )
+            }
+        }
         log.info("Seeded {} yield curve snapshots across {} currencies", totalSnapshots, curveCurrencies.size)
+    }
+
+    private fun YieldCurve.withAnomalyMutations(): YieldCurve {
+        val toOmit = MISSING_TENORS_BY_CURRENCY[currency.currencyCode] ?: return this
+        if (toOmit.isEmpty()) return this
+        val filtered = tenors.filterNot { it.label in toOmit }
+        return copy(tenors = filtered)
     }
 
     private suspend fun seedRiskFreeRates() {
@@ -97,6 +113,15 @@ class DevDataSeeder(
 
     companion object {
         val AS_OF: Instant = Instant.parse("2026-02-22T10:00:00Z")
+
+        // data_quality_intent: intentional_anomaly_demo
+        // Gap 8 anomaly: GBP yield curves are missing the 5Y node.
+        // Surface: GET /api/v1/rates/yield-curves/GBP/tenor/5Y returns
+        // { value, interpolated: true } and the seeder logs WARN.
+        // The interpolation is linear between the adjacent tenors (2Y and 10Y).
+        internal val MISSING_TENORS_BY_CURRENCY: Map<String, Set<String>> = mapOf(
+            "GBP" to setOf("5Y"),
+        )
 
         // Phase 0 shared synthesis: rates, vol, prices, correlations, P&L all read from
         // the same DemoTape so consistency checks reconcile.

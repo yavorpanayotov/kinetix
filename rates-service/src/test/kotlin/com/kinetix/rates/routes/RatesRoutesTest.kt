@@ -332,4 +332,69 @@ class RatesRoutesTest : FunSpec({
             response.bodyAsText() shouldContain "EURUSD"
         }
     }
+
+    test("GET yield-curve tenor returns the rate with interpolated=false when present") {
+        val curve = YieldCurve(
+            currency = Currency.getInstance("GBP"),
+            asOf = NOW,
+            tenors = listOf(
+                Tenor.twoYears(BigDecimal("0.0420")),
+                Tenor.fiveYears(BigDecimal("0.0445")),
+                Tenor.tenYears(BigDecimal("0.0470")),
+            ),
+            curveId = "GBP",
+            source = RateSource.CENTRAL_BANK,
+        )
+        coEvery { yieldCurveRepo.findLatest("GBP") } returns curve
+
+        testApplication {
+            application { module(yieldCurveRepo, riskFreeRateRepo, forwardCurveRepo, ingestionService) }
+
+            val response = client.get("/api/v1/rates/yield-curves/GBP/tenor/5Y")
+            response.status shouldBe HttpStatusCode.OK
+            val body = response.bodyAsText()
+            body shouldContain "\"tenor\":\"5Y\""
+            body shouldContain "\"interpolated\":false"
+            body shouldContain "0.0445"
+        }
+    }
+
+    test("GET yield-curve tenor linearly interpolates when the requested node is missing") {
+        val curve = YieldCurve(
+            currency = Currency.getInstance("GBP"),
+            asOf = NOW,
+            tenors = listOf(
+                Tenor.twoYears(BigDecimal("0.0420")),
+                // 5Y omitted — Gap 8 anomaly
+                Tenor.tenYears(BigDecimal("0.0470")),
+            ),
+            curveId = "GBP",
+            source = RateSource.CENTRAL_BANK,
+        )
+        coEvery { yieldCurveRepo.findLatest("GBP") } returns curve
+
+        testApplication {
+            application { module(yieldCurveRepo, riskFreeRateRepo, forwardCurveRepo, ingestionService) }
+
+            val response = client.get("/api/v1/rates/yield-curves/GBP/tenor/5Y")
+            response.status shouldBe HttpStatusCode.OK
+            val body = response.bodyAsText()
+            body shouldContain "\"interpolated\":true"
+            // Linear interp between 2Y (0.0420) and 10Y (0.0470) at 5Y (1825 days):
+            //   below=730, above=3650, span=2920, offset=1095
+            //   value = 0.0420 + (0.0470-0.0420) * 1095/2920 ≈ 0.043875
+            body shouldContain "0.043875"
+        }
+    }
+
+    test("GET yield-curve tenor returns 404 when the curve is unknown") {
+        coEvery { yieldCurveRepo.findLatest("UNKNOWN") } returns null
+
+        testApplication {
+            application { module(yieldCurveRepo, riskFreeRateRepo, forwardCurveRepo, ingestionService) }
+
+            val response = client.get("/api/v1/rates/yield-curves/UNKNOWN/tenor/5Y")
+            response.status shouldBe HttpStatusCode.NotFound
+        }
+    }
 })
