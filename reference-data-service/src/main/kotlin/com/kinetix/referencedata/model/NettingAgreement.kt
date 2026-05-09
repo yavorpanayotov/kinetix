@@ -12,4 +12,5 @@ data class NettingAgreement(
     val currency: String?,
     val createdAt: Instant,
     val updatedAt: Instant,
+    val expiryDate: Instant? = null,
 )

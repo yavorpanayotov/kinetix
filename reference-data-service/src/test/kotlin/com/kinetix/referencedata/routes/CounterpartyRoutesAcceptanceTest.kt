@@ -258,4 +258,36 @@ class CounterpartyRoutesAcceptanceTest : FunSpec({
             response.status shouldBe HttpStatusCode.NotFound
         }
     }
+
+    test("response includes agreementStatus=EXPIRED when expiryDate is in the past") {
+        counterpartyRepo.upsert(sampleCounterparty())
+        val expiredAgreement = sampleNettingAgreement().copy(
+            expiryDate = Instant.parse("2025-12-01T00:00:00Z"),
+        )
+        nettingRepo.upsert(expiredAgreement)
+
+        testApplication {
+            application { module(dividendYieldRepo, creditSpreadRepo, ingestionService, counterpartyService = counterpartyService) }
+
+            val response = client.get("/api/v1/netting-agreements/NS-GS-001")
+            response.status shouldBe HttpStatusCode.OK
+            val body: JsonObject = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+            body["agreementStatus"]?.jsonPrimitive?.content shouldBe "EXPIRED"
+            body["expiryDate"]?.jsonPrimitive?.content shouldBe "2025-12-01T00:00:00Z"
+        }
+    }
+
+    test("response includes agreementStatus=ACTIVE when expiryDate is null") {
+        counterpartyRepo.upsert(sampleCounterparty())
+        nettingRepo.upsert(sampleNettingAgreement())
+
+        testApplication {
+            application { module(dividendYieldRepo, creditSpreadRepo, ingestionService, counterpartyService = counterpartyService) }
+
+            val response = client.get("/api/v1/netting-agreements/NS-GS-001")
+            response.status shouldBe HttpStatusCode.OK
+            val body: JsonObject = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+            body["agreementStatus"]?.jsonPrimitive?.content shouldBe "ACTIVE"
+        }
+    }
 })

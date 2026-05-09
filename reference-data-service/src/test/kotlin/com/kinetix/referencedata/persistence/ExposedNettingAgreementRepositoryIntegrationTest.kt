@@ -36,6 +36,7 @@ private fun agreement(
     closeOutNetting: Boolean = true,
     csaThreshold: BigDecimal? = BigDecimal("1000000.00"),
     currency: String? = "USD",
+    expiryDate: Instant? = null,
 ) = NettingAgreement(
     nettingSetId = nettingSetId,
     counterpartyId = counterpartyId,
@@ -45,6 +46,7 @@ private fun agreement(
     currency = currency,
     createdAt = NOW,
     updatedAt = NOW,
+    expiryDate = expiryDate,
 )
 
 class ExposedNettingAgreementRepositoryIntegrationTest : FunSpec({
@@ -138,5 +140,27 @@ class ExposedNettingAgreementRepositoryIntegrationTest : FunSpec({
         val retrieved = repository.findById("NS-NO-CSA")!!
         retrieved.csaThreshold.shouldBeNull()
         retrieved.currency.shouldBeNull()
+    }
+
+    test("expiryDate round-trips when set and is null when omitted") {
+        seedCounterparty("CP-GS")
+        val expiry = Instant.parse("2026-01-23T00:00:00Z")
+        repository.upsert(
+            agreement(
+                nettingSetId = "NS-EXPIRED",
+                counterpartyId = "CP-GS",
+                expiryDate = expiry,
+            )
+        )
+        repository.upsert(
+            agreement(
+                nettingSetId = "NS-ACTIVE",
+                counterpartyId = "CP-GS",
+                expiryDate = null,
+            )
+        )
+
+        repository.findById("NS-EXPIRED")!!.expiryDate shouldBe expiry
+        repository.findById("NS-ACTIVE")!!.expiryDate.shouldBeNull()
     }
 })

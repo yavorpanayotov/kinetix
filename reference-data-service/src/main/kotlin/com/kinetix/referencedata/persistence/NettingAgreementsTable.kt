@@ -12,6 +12,7 @@ object NettingAgreementsTable : Table("netting_agreements") {
     val currency = varchar("currency", 3).nullable()
     val createdAt = timestampWithTimeZone("created_at")
     val updatedAt = timestampWithTimeZone("updated_at")
+    val expiryDate = timestampWithTimeZone("expiry_date").nullable()
 
     override val primaryKey = PrimaryKey(nettingSetId)
 }

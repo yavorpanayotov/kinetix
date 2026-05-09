@@ -42,6 +42,7 @@ class ExposedNettingAgreementRepository(
                 it[currency] = agreement.currency
                 it[createdAt] = now
                 it[updatedAt] = now
+                it[expiryDate] = agreement.expiryDate?.atOffset(ZoneOffset.UTC)
             }
         }
 
@@ -54,5 +55,6 @@ class ExposedNettingAgreementRepository(
         currency = this[NettingAgreementsTable.currency],
         createdAt = this[NettingAgreementsTable.createdAt].toInstant(),
         updatedAt = this[NettingAgreementsTable.updatedAt].toInstant(),
+        expiryDate = this[NettingAgreementsTable.expiryDate]?.toInstant(),
     )
 }

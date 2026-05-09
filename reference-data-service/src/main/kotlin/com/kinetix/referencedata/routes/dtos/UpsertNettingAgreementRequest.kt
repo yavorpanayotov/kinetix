@@ -10,4 +10,5 @@ data class UpsertNettingAgreementRequest(
     val closeOutNetting: Boolean = true,
     val csaThreshold: Double? = null,
     val currency: String? = null,
+    val expiryDate: String? = null,
 )

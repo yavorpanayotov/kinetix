@@ -12,4 +12,6 @@ data class NettingAgreementResponse(
     val currency: String?,
     val createdAt: String,
     val updatedAt: String,
+    val expiryDate: String? = null,
+    val agreementStatus: String,
 )

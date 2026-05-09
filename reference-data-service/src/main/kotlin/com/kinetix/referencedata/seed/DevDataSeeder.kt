@@ -911,6 +911,10 @@ class DevDataSeeder(
                 createdAt = AS_OF,
                 updatedAt = AS_OF,
             ),
+            // data_quality_intent: intentional_anomaly_demo
+            // CP-DB carries an expired ISDA agreement (Gap 8 anomaly contract).
+            // Surface: CounterpartyRiskDashboard pill; agreementStatus = EXPIRED.
+            // Booking new trades to this CP must be rejected with 422 + COUNTERPARTY_AGREEMENT_EXPIRED.
             NettingAgreement(
                 nettingSetId = "NS-DB-001",
                 counterpartyId = "CP-DB",
@@ -920,6 +924,7 @@ class DevDataSeeder(
                 currency = "EUR",
                 createdAt = AS_OF,
                 updatedAt = AS_OF,
+                expiryDate = AS_OF.minusSeconds(30L * 86_400L),
             ),
             NettingAgreement(
                 nettingSetId = "NS-UBS-001",

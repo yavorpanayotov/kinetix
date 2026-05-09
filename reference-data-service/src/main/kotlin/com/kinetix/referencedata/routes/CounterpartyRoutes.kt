@@ -136,6 +136,7 @@ private fun UpsertNettingAgreementRequest.toDomain() = NettingAgreement(
     currency = currency,
     createdAt = Instant.now(),
     updatedAt = Instant.now(),
+    expiryDate = expiryDate?.let { Instant.parse(it) },
 )
 
 private fun Counterparty.toResponse() = CounterpartyResponse(
@@ -165,4 +166,6 @@ private fun NettingAgreement.toResponse() = NettingAgreementResponse(
     currency = currency,
     createdAt = createdAt.toString(),
     updatedAt = updatedAt.toString(),
+    expiryDate = expiryDate?.toString(),
+    agreementStatus = if (expiryDate != null && expiryDate.isBefore(Instant.now())) "EXPIRED" else "ACTIVE",
 )
