@@ -1,9 +1,19 @@
 import { useCallback, useState } from 'react'
-import { Copy } from 'lucide-react'
+import { AlertTriangle, Copy } from 'lucide-react'
 import { Button, Card, Input, Select } from './ui'
 import { OrderPlacementErrorBanner } from './OrderPlacementErrorBanner'
 import { useOrderPlacement } from '../hooks/useOrderPlacement'
 import type { OrderTimeInForce, SubmitOrderRequestDto } from '../types'
+
+/**
+ * Launch venues with regular-session cutoffs in `VenueCutoffRegistry` (ADR-0035 §2.3).
+ * Until phase 2.5 lands the holiday calendar, any venue NOT in this set falls back to
+ * regular-session-only cutoff data — for DAY/GTD orders that's a real exposure (a venue
+ * holiday could expire the order at the wrong moment), so the trader gets a maintenance
+ * banner asking them to verify the session is open before submitting.
+ */
+const LAUNCH_VENUES = ['NYSE', 'NASDAQ', 'LSE', 'TSE', 'HKEX'] as const
+type Venue = typeof LAUNCH_VENUES[number] | 'OTHER'
 
 /**
  * Minimal order ticket panel introduced for ADR-0035 phase 4 §4.13. Calls the
@@ -29,7 +39,12 @@ export function PlaceOrderPanel({ bookId }: PlaceOrderPanelProps) {
   const [limitPrice, setLimitPrice] = useState('')
   const [arrivalPrice, setArrivalPrice] = useState('')
   const [timeInForce, setTimeInForce] = useState<OrderTimeInForce>('DAY')
+  const [venue, setVenue] = useState<Venue>('NYSE')
   const [copyConfirmed, setCopyConfirmed] = useState(false)
+
+  const holidayWarning =
+    (timeInForce === 'DAY' || timeInForce === 'GTD') &&
+    !LAUNCH_VENUES.includes(venue as typeof LAUNCH_VENUES[number])
 
   const { state, submit, reset } = useOrderPlacement()
 
@@ -175,7 +190,36 @@ export function PlaceOrderPanel({ bookId }: PlaceOrderPanelProps) {
               ))}
             </Select>
           </label>
+
+          <label className="text-xs text-slate-500 col-span-2">
+            Venue
+            <Select
+              data-testid="place-order-venue"
+              value={venue}
+              onChange={(e) => setVenue(e.target.value as Venue)}
+              className="w-full mt-1"
+              disabled={submitting}
+            >
+              {LAUNCH_VENUES.map((v) => (
+                <option key={v} value={v}>{v}</option>
+              ))}
+              <option value="OTHER">OTHER</option>
+            </Select>
+          </label>
         </div>
+
+        {holidayWarning && (
+          <div
+            data-testid="place-order-holiday-warning"
+            role="alert"
+            className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/40 dark:bg-amber-900/20"
+          >
+            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
+            <p className="text-sm text-amber-800 dark:text-amber-200">
+              Holiday calendar incomplete for {venue} — verify session is open before submitting
+            </p>
+          </div>
+        )}
 
         <OrderPlacementErrorBanner state={state} onRetry={handleRetry} />
 

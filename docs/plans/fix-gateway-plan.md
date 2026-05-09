@@ -244,7 +244,7 @@ Per ADR-0035 (Accepted), this plan introduces:
   - `FixGatewayCancelEnd2EndTest` in `end2end-tests/` — boots position-service + fix-gateway + Postgres + Kafka + an in-memory acceptor; submits an order, advances clock past venue cutoff, runs the sweeper, asserts the acceptor receives a 35=F with all required tags.
   - **Multi-venue concurrent fixture:** the test exercises two venues (NYSE + LSE) simultaneously to expose any venue-keyed session-state collision.
 
-- [ ] **2.16** UI Playwright (phase 2 IS user-visible — see UX contract):
+- [x] **2.16** UI Playwright (phase 2 IS user-visible — see UX contract):
   - `ui/e2e/order-blotter-degraded-routing.spec.ts` — mocks the gateway-aggregator health endpoint to report `fix-gateway: DOWN`; asserts the venue-routing-degraded `StatusDot` indicator becomes amber + tooltip reads "Cancel confirmation unavailable — call venue directly to confirm cancel".
   - `ui/e2e/order-detail-ghost-fills.spec.ts` — mocks an EXPIRED order with attached ghost fills; asserts the order detail panel shows a `RiskAlertBanner` (CRITICAL severity) with "Fill received after cancel — contact ops" copy and the ghost-fill list renders below the order row.
   - `cd ui && npm run lint` before committing.

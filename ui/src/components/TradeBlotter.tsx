@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Copy, Download, Inbox } from 'lucide-react'
+import { ChevronDown, ChevronRight, Copy, Download, Inbox } from 'lucide-react'
 import { useTradeHistory } from '../hooks/useTradeHistory'
 import { formatMoney, formatQuantity, formatTimestamp } from '../utils/format'
 import { formatCompactCurrency } from '../utils/formatCompactCurrency'
@@ -8,6 +8,9 @@ import type { TradeHistoryDto } from '../types'
 import { InstrumentTypeBadge } from './InstrumentTypeBadge'
 import { INSTRUMENT_TYPE_OPTIONS, formatInstrumentTypeLabel } from '../utils/instrumentTypes'
 import { VenueRoutingStatusDot } from './VenueRoutingStatusDot'
+import { OrderGhostFills } from './OrderGhostFills'
+
+const TERMINAL_STATUSES = new Set(['EXPIRED', 'CANCELLED', 'REJECTED'])
 
 interface TradeBlotterProps {
   bookId: string | null
@@ -67,6 +70,7 @@ export function TradeBlotter({ bookId }: TradeBlotterProps) {
   const [filterResetNotice, setFilterResetNotice] = useState<string | null>(null)
   const [page, setPage] = useState(0)
   const [showVenueOrderId, setShowVenueOrderId] = useState(false)
+  const [expandedTradeId, setExpandedTradeId] = useState<string | null>(null)
   const PAGE_SIZE = 50
 
   const instrumentTypeOptions = useMemo(() => {
@@ -246,6 +250,7 @@ export function TradeBlotter({ bookId }: TradeBlotterProps) {
           <table className="min-w-full divide-y divide-slate-200 dark:divide-surface-700">
             <thead>
               <tr className="bg-slate-50 dark:bg-surface-800">
+                <th className="px-2 py-2 w-8" aria-label="Expand row" />
                 <th className="px-4 py-2 text-left text-sm font-semibold text-slate-700 dark:text-slate-300">Time</th>
                 <th className="px-4 py-2 text-left text-sm font-semibold text-slate-700 dark:text-slate-300">Instrument</th>
                 <th className="px-4 py-2 text-left text-sm font-semibold text-slate-700 dark:text-slate-300">Name</th>
@@ -263,17 +268,42 @@ export function TradeBlotter({ bookId }: TradeBlotterProps) {
             <tbody className="divide-y divide-slate-100 dark:divide-surface-700">
               {paginatedTrades.length === 0 && filtered.length === 0 && trades.length > 0 ? (
                 <tr>
-                  <td colSpan={showVenueOrderId ? 10 : 9} className="px-4 py-8 text-center">
+                  <td colSpan={(showVenueOrderId ? 10 : 9) + 1} className="px-4 py-8 text-center">
                     <EmptyState title="No trades match your filters." />
                   </td>
                 </tr>
               ) : (
-                paginatedTrades.map((trade) => (
+                paginatedTrades.flatMap((trade) => {
+                  const expandable = TERMINAL_STATUSES.has(tradeStatus(trade))
+                  const expanded = expandedTradeId === trade.tradeId
+                  const colSpan = (showVenueOrderId ? 10 : 9) + 1
+                  const mainRow = (
                   <tr
                     key={trade.tradeId}
                     data-testid={`trade-row-${trade.tradeId}`}
                     className="hover:bg-slate-50 dark:hover:bg-surface-700 transition-colors"
                   >
+                    <td className="px-2 py-2 text-sm">
+                      {expandable ? (
+                        <button
+                          data-testid={`expand-trade-row-${trade.tradeId}`}
+                          aria-label={expanded ? 'Collapse order detail' : 'Expand order detail'}
+                          aria-expanded={expanded}
+                          onClick={() =>
+                            setExpandedTradeId((current) =>
+                              current === trade.tradeId ? null : trade.tradeId,
+                            )
+                          }
+                          className="p-1 rounded hover:bg-slate-100 dark:hover:bg-surface-700"
+                        >
+                          {expanded ? (
+                            <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
+                          ) : (
+                            <ChevronRight className="h-3.5 w-3.5 text-slate-500" />
+                          )}
+                        </button>
+                      ) : null}
+                    </td>
                     <td className="px-4 py-2 text-sm text-slate-600 dark:text-slate-400">
                       {formatTimestamp(trade.tradedAt)}
                     </td>
@@ -331,7 +361,21 @@ export function TradeBlotter({ bookId }: TradeBlotterProps) {
                       </td>
                     )}
                   </tr>
-                ))
+                  )
+                  if (!expanded) return [mainRow]
+                  return [
+                    mainRow,
+                    <tr
+                      key={`${trade.tradeId}-detail`}
+                      data-testid={`trade-row-detail-${trade.tradeId}`}
+                      className="bg-slate-50 dark:bg-surface-800"
+                    >
+                      <td colSpan={colSpan} className="px-4 py-3">
+                        <OrderGhostFills orderId={trade.tradeId} />
+                      </td>
+                    </tr>,
+                  ]
+                })
               )}
             </tbody>
           </table>
