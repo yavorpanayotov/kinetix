@@ -3,7 +3,10 @@ package com.kinetix.fix.testing
 import com.kinetix.fix.session.InboundFixHandler
 import com.kinetix.fix.session.QuickfixjFixSessionRunner
 import com.kinetix.fix.session.SessionReconciliationCoordinator
+import com.zaxxer.hikari.HikariConfig
+import com.zaxxer.hikari.HikariDataSource
 import kotlinx.coroutines.runBlocking
+import org.flywaydb.core.Flyway
 import org.slf4j.LoggerFactory
 import quickfix.Application
 import quickfix.DefaultMessageFactory
@@ -62,6 +65,7 @@ class InMemoryFixCounterpartyFixture(
 
     private var acceptor: ThreadedSocketAcceptor? = null
     private var initiator: ThreadedSocketInitiator? = null
+    private var initiatorDataSource: HikariDataSource? = null
 
     /** Messages received by the acceptor FROM the initiator (e.g. 35=D, 35=F, 35=H). */
     val messagesReceivedByAcceptor: MutableList<Message> = CopyOnWriteArrayList()
@@ -74,9 +78,18 @@ class InMemoryFixCounterpartyFixture(
 
     /** Start the acceptor; call [startInitiator] separately if needed, or use [start]. */
     fun start(): InMemoryFixCounterpartyFixture {
+        runMigrations()
         startAcceptor()
         startInitiator()
         return this
+    }
+
+    private fun runMigrations() {
+        Flyway.configure()
+            .dataSource(jdbcUrl, jdbcUser, jdbcPassword)
+            .locations("classpath:db/migration")
+            .load()
+            .migrate()
     }
 
     /** Wait until the initiator establishes a session with the acceptor. */
@@ -118,11 +131,15 @@ class InMemoryFixCounterpartyFixture(
     fun restartInitiator() {
         initiator?.stop(true)
         initiator = null
+        initiatorDataSource?.close()
+        initiatorDataSource = null
         startInitiator()
     }
 
     override fun close() {
         initiator?.stop(true)
+        initiatorDataSource?.close()
+        initiatorDataSource = null
         acceptor?.stop(true)
         logger.info("InMemoryFixCounterpartyFixture closed")
     }
@@ -154,7 +171,16 @@ class InMemoryFixCounterpartyFixture(
             port = port,
             resetOnLogon = resetOnLogon,
         )
-        val storeFactory = JdbcStoreFactory(settings)
+        val dataSource = HikariDataSource(
+            HikariConfig().also { cfg ->
+                cfg.jdbcUrl = jdbcUrl
+                cfg.username = jdbcUser
+                cfg.password = jdbcPassword
+                cfg.maximumPoolSize = 4
+            },
+        )
+        initiatorDataSource = dataSource
+        val storeFactory = JdbcStoreFactory(settings).apply { setDataSource(dataSource) }
         val logFactory = SLF4JLogFactory(settings)
         val messageFactory = DefaultMessageFactory()
         initiator = ThreadedSocketInitiator(InitiatorApplication(), storeFactory, settings, logFactory, messageFactory)

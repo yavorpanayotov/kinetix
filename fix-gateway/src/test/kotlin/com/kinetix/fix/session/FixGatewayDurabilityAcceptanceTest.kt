@@ -106,7 +106,7 @@ class FixGatewayDurabilityAcceptanceTest : FunSpec({
         report.set(ClOrdID(clOrdId))
         report.set(OrderID(venueOrderId))
         report.set(ExecID("exec-durability-1"))
-        report.set(ExecType(ExecType.FILL))
+        report.set(ExecType(ExecType.TRADE))
         report.set(OrdStatus(OrdStatus.FILLED))
         report.set(Side(Side.BUY))
         report.set(Symbol("AAPL"))

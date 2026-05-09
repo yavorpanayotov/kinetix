@@ -176,6 +176,7 @@ class QuickfixjFixSessionRunner(
                 appendLine("TargetCompID=$targetCompId")
                 appendLine("SocketConnectHost=$host")
                 appendLine("SocketConnectPort=$port")
+                appendLine("HeartBtInt=30")
                 if (resetOnLogon) appendLine("ResetOnLogon=Y")
             }
             return SessionSettings(ByteArrayInputStream(cfg.toByteArray()))
