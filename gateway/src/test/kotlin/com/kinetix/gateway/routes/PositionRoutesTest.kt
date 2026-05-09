@@ -315,6 +315,49 @@ class PositionRoutesTest : FunSpec({
         }
     }
 
+    test("GET /trades/page returns 200 with paged history shape") {
+        val trade = Trade(
+            tradeId = TradeId("page-1"),
+            bookId = BookId("port-1"),
+            instrumentId = InstrumentId("AAPL"),
+            assetClass = AssetClass.EQUITY,
+            side = Side.BUY,
+            quantity = BigDecimal("10"),
+            price = usd("150.00"),
+            tradedAt = Instant.parse("2026-01-02T10:00:00Z"),
+            instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
+        )
+        coEvery { positionClient.getTradeHistoryPage(BookId("port-1"), 0L, 50, null) } returns
+            com.kinetix.gateway.client.TradeHistoryPage(
+                items = listOf(trade), total = 250L, offset = 0L, limit = 50, hasMore = true,
+            )
+
+        testApplication {
+            application { module(positionClient) }
+            val response = client.get("/api/v1/books/port-1/trades/page?offset=0&limit=50")
+            response.status shouldBe HttpStatusCode.OK
+            val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+            body["total"]?.jsonPrimitive?.content shouldBe "250"
+            body["hasMore"]?.jsonPrimitive?.content shouldBe "true"
+            body["items"]!!.jsonArray.size shouldBe 1
+            body["items"]!!.jsonArray[0].jsonObject["tradeId"]?.jsonPrimitive?.content shouldBe "page-1"
+        }
+    }
+
+    test("GET /trades/page forwards counterpartyId filter to the position-service client") {
+        coEvery { positionClient.getTradeHistoryPage(BookId("port-1"), 0L, 100, "CP-GS") } returns
+            com.kinetix.gateway.client.TradeHistoryPage(
+                items = emptyList(), total = 0L, offset = 0L, limit = 100, hasMore = false,
+            )
+
+        testApplication {
+            application { module(positionClient) }
+            val response = client.get("/api/v1/books/port-1/trades/page?counterpartyId=CP-GS")
+            response.status shouldBe HttpStatusCode.OK
+            coVerify { positionClient.getTradeHistoryPage(BookId("port-1"), 0L, 100, "CP-GS") }
+        }
+    }
+
     test("GET /trades response includes status field reflecting trade lifecycle state") {
         val liveTrade = Trade(
             tradeId = TradeId("t-live"),

@@ -28,6 +28,47 @@ fun Route.positionRoutes(client: PositionServiceClient, instrumentClient: Instru
 
         route("/{bookId}") {
 
+            route("/trades/page") {
+                get({
+                    summary = "Server-paginated trade history for the blotter"
+                    tags = listOf("Trades")
+                    request {
+                        pathParameter<String>("bookId") { description = "Book identifier" }
+                        queryParameter<Long>("offset") {
+                            description = "Page offset (default 0)"
+                            required = false
+                        }
+                        queryParameter<Int>("limit") {
+                            description = "Page size (default 100, max 1000)"
+                            required = false
+                        }
+                        queryParameter<String>("counterpartyId") {
+                            description = "Filter trades by counterparty"
+                            required = false
+                        }
+                    }
+                    response {
+                        code(HttpStatusCode.OK) { body<TradeHistoryPageResponse>() }
+                    }
+                }) {
+                    val bookId = BookId(call.requirePathParam("bookId"))
+                    val offset = call.request.queryParameters["offset"]?.toLongOrNull()?.coerceAtLeast(0) ?: 0L
+                    val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 100).coerceIn(1, 1000)
+                    val counterpartyId = call.request.queryParameters["counterpartyId"]?.takeIf { it.isNotBlank() }
+                    val page = client.getTradeHistoryPage(bookId, offset, limit, counterpartyId)
+                    val instrumentMap = fetchInstrumentMap(instrumentClient)
+                    call.respond(
+                        TradeHistoryPageResponse(
+                            items = page.items.map { it.toResponse(instrumentMap) },
+                            total = page.total,
+                            offset = page.offset,
+                            limit = page.limit,
+                            hasMore = page.hasMore,
+                        ),
+                    )
+                }
+            }
+
             route("/trades") {
                 get({
                     summary = "Get trade history for a book"

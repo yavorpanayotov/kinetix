@@ -68,6 +68,15 @@ data class BookTradeResponseDto(
 )
 
 @Serializable
+data class TradeHistoryPageDto(
+    val items: List<TradeDto>,
+    val total: Long,
+    val offset: Long,
+    val limit: Int,
+    val hasMore: Boolean,
+)
+
+@Serializable
 data class BookTradeRequestDto(
     val tradeId: String,
     val instrumentId: String,

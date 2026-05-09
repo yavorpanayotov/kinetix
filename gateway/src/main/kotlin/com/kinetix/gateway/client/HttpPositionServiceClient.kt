@@ -89,6 +89,28 @@ class HttpPositionServiceClient(
         return dtos.map { it.toDomain() }
     }
 
+    override suspend fun getTradeHistoryPage(
+        bookId: BookId,
+        offset: Long,
+        limit: Int,
+        counterpartyId: String?,
+    ): TradeHistoryPage {
+        val response = httpClient.get("$baseUrl/api/v1/books/${bookId.value}/trades/page") {
+            parameter("offset", offset)
+            parameter("limit", limit)
+            if (counterpartyId != null) parameter("counterpartyId", counterpartyId)
+        }
+        if (!response.status.isSuccess()) handleErrorResponse(response)
+        val dto: TradeHistoryPageDto = response.body()
+        return TradeHistoryPage(
+            items = dto.items.map { it.toDomain() },
+            total = dto.total,
+            offset = dto.offset,
+            limit = dto.limit,
+            hasMore = dto.hasMore,
+        )
+    }
+
     override suspend fun getBookSummary(bookId: BookId, baseCurrency: String): PortfolioAggregationSummary {
         val response = httpClient.get("$baseUrl/api/v1/books/${bookId.value}/summary") {
             parameter("baseCurrency", baseCurrency)

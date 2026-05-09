@@ -42,10 +42,24 @@ data class PortfolioAggregationSummary(
     val currencyBreakdown: List<CurrencyExposureSummary>,
 )
 
+data class TradeHistoryPage(
+    val items: List<Trade>,
+    val total: Long,
+    val offset: Long,
+    val limit: Int,
+    val hasMore: Boolean,
+)
+
 interface PositionServiceClient {
     suspend fun listPortfolios(): List<PortfolioSummary>
     suspend fun bookTrade(command: BookTradeCommand): BookTradeResult
     suspend fun getPositions(bookId: BookId): List<Position>
     suspend fun getTradeHistory(bookId: BookId): List<Trade>
+    suspend fun getTradeHistoryPage(
+        bookId: BookId,
+        offset: Long,
+        limit: Int,
+        counterpartyId: String? = null,
+    ): TradeHistoryPage
     suspend fun getBookSummary(bookId: BookId, baseCurrency: String): PortfolioAggregationSummary
 }
