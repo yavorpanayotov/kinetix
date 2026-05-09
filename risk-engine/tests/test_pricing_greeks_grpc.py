@@ -204,3 +204,46 @@ def test_per_instrument_failure_does_not_fail_the_batch(stub):
     ids = {r.instrument_id for r in response.results}
     assert "UST-5Y" in ids
     assert "BROKEN-OPT" not in ids
+
+
+def test_planted_nonconvergent_option_is_skipped_with_warn(stub, caplog):
+    # Gap 8 anomaly: AAPL-P-180-20260620 is in NONCONVERGENT_OPTION_INSTRUMENT_IDS,
+    # so its row is dropped from the response and the handler emits a WARN log
+    # tagged data_quality_intent=intentional_anomaly_demo. A peer ATM option in
+    # the same batch is unaffected.
+    import logging
+    request = risk_calculation_pb2.PricingGreeksRequest(
+        instruments=[
+            risk_calculation_pb2.PricingGreekInstrumentInput(
+                instrument_id="AAPL-P-180-20260620",
+                asset_class="OPTION",
+                spot_price=180.0,
+                strike=180.0,
+                expiry_days=30,
+                implied_vol=0.25,
+                risk_free_rate=0.05,
+                option_type="PUT",
+            ),
+            risk_calculation_pb2.PricingGreekInstrumentInput(
+                instrument_id="AAPL-CALL-180-30D",
+                asset_class="OPTION",
+                spot_price=180.0,
+                strike=180.0,
+                expiry_days=30,
+                implied_vol=0.25,
+                risk_free_rate=0.05,
+                option_type="CALL",
+            ),
+        ]
+    )
+
+    with caplog.at_level(logging.WARNING, logger="kinetix_risk.server"):
+        response = stub.CalculatePricingGreeks(request)
+
+    ids = {r.instrument_id for r in response.results}
+    assert "AAPL-P-180-20260620" not in ids
+    assert "AAPL-CALL-180-30D" in ids
+    assert any(
+        "convergence failure" in m and "data_quality_intent=intentional_anomaly_demo" in m
+        for m in caplog.messages
+    ), f"expected convergence-failure WARN, got: {caplog.messages}"

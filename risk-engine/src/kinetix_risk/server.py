@@ -33,6 +33,29 @@ from kinetix_risk.greeks import calculate_greeks
 from kinetix_risk.models import AssetClass, BondPosition, OptionPosition, OptionType
 
 
+class OptionPricingConvergenceError(RuntimeError):
+    """Raised when an option's pricing model fails to converge.
+
+    Per the Gap 8 demo anomaly contract (docs/plans/demo-review.md), the
+    option model deliberately reports non-convergence for instruments listed
+    in NONCONVERGENT_OPTION_INSTRUMENT_IDS. The CalculatePricingGreeks
+    handler catches this, logs WARN with data_quality_intent=
+    intentional_anomaly_demo, and skips the result so consumers see the
+    instrument as Greeks-unavailable (UI renders N/A) rather than 0.
+    """
+
+
+# Comma-separated list of option instrument IDs whose pricing model is
+# deliberately non-convergent for the demo. Defaults to one position
+# (AAPL-P-180-20260620) so the demo grid shows exactly one N/A row.
+NONCONVERGENT_OPTION_INSTRUMENT_IDS: frozenset[str] = frozenset(
+    s.strip() for s in os.environ.get(
+        "DEMO_NONCONVERGENT_OPTIONS",
+        "AAPL-P-180-20260620",
+    ).split(",") if s.strip()
+)
+
+
 def _maturity_iso_date(maturity_years: float) -> str:
     """BondPosition.maturity_date is ISO-formatted (`bond_pricing._years_to_maturity`
     parses via `date.fromisoformat`); convert the wire-format `maturity_years` to an
@@ -290,6 +313,10 @@ class RiskCalculationServicer(risk_calculation_pb2_grpc.RiskCalculationServiceSe
             try:
                 ac = (inp.asset_class or "").upper()
                 if ac == "OPTION":
+                    if inp.instrument_id in NONCONVERGENT_OPTION_INSTRUMENT_IDS:
+                        raise OptionPricingConvergenceError(
+                            f"convergence failure for {inp.instrument_id}"
+                        )
                     option = OptionPosition(
                         instrument_id=inp.instrument_id,
                         underlying_id=inp.instrument_id,
@@ -355,6 +382,13 @@ class RiskCalculationServicer(risk_calculation_pb2_grpc.RiskCalculationServiceSe
                     ))
                 else:
                     logger.debug("CalculatePricingGreeks: skipping unknown asset_class %r for %s", ac, inp.instrument_id)
+            except OptionPricingConvergenceError as e:
+                logger.warning(
+                    "CalculatePricingGreeks: convergence failure for %s (data_quality_intent=intentional_anomaly_demo); skipping — Greeks render as N/A: %s",
+                    inp.instrument_id,
+                    e,
+                )
+                continue
             except Exception:
                 logger.exception("CalculatePricingGreeks: failed for instrument %s; skipping", inp.instrument_id)
                 continue
