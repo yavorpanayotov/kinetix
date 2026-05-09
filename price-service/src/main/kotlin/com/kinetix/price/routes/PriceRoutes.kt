@@ -6,6 +6,7 @@ import com.kinetix.common.model.PricePoint
 import com.kinetix.common.model.PriceSource
 import com.kinetix.price.persistence.PriceRepository
 import com.kinetix.price.routes.dtos.IngestPriceRequest
+import com.kinetix.price.routes.dtos.StaleInstrumentResponse
 import com.kinetix.price.service.PriceIngestionService
 import io.github.smiley4.ktoropenapi.get
 import io.github.smiley4.ktoropenapi.post
@@ -101,6 +102,33 @@ fun Route.priceRoutes(repository: PriceRepository, ingestionService: PriceIngest
     }
 
     route("/api/v1/prices") {
+        route("/stale") {
+            get({
+                summary = "List instruments whose freshest price is older than the threshold relative to the platform-wide latest"
+                tags = listOf("Prices", "Data Quality")
+                request {
+                    queryParameter<Long>("thresholdHours") {
+                        description = "Staleness threshold in hours (default 24)"
+                        required = false
+                    }
+                }
+                response {
+                    code(HttpStatusCode.OK) { body<List<StaleInstrumentResponse>>() }
+                }
+            }) {
+                val threshold = call.queryParameters["thresholdHours"]?.toLongOrNull() ?: 24L
+                val stale = repository.findStaleInstruments(threshold)
+                call.respond(stale.map {
+                    StaleInstrumentResponse(
+                        instrumentId = it.instrumentId,
+                        lastUpdated = it.lastUpdated.toString(),
+                        ageHours = it.ageHours,
+                        status = it.status,
+                    )
+                })
+            }
+        }
+
         route("/ingest") {
             post({
                 summary = "Ingest a new price"

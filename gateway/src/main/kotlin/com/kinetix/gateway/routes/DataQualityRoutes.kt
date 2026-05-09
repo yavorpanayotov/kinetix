@@ -24,6 +24,14 @@ private data class FIXSessionDto(
 )
 
 @Serializable
+private data class StaleInstrumentDto(
+    val instrumentId: String,
+    val lastUpdated: String,
+    val ageHours: Long,
+    val status: String,
+)
+
+@Serializable
 private data class ReadinessResponseDto(
     val status: String,
     val checks: Map<String, CheckResultDto> = emptyMap(),
@@ -102,8 +110,26 @@ private suspend fun buildPriceFreshnessCheck(
     }
 
     return try {
-        val response = httpClient.get("$priceUrl/health/ready")
-        if (response.status.isSuccess()) {
+        val readyResponse = httpClient.get("$priceUrl/health/ready")
+        if (!readyResponse.status.isSuccess()) {
+            return DataQualityCheckResponse(
+                name = "Price Freshness",
+                status = "CRITICAL",
+                message = "Price service reported status ${readyResponse.status.value}",
+                lastChecked = now,
+            )
+        }
+        val stale = try {
+            val staleResponse = httpClient.get("$priceUrl/api/v1/prices/stale")
+            if (staleResponse.status.isSuccess()) {
+                lenientJson.decodeFromString<List<StaleInstrumentDto>>(staleResponse.body())
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+        if (stale.isEmpty()) {
             DataQualityCheckResponse(
                 name = "Price Freshness",
                 status = "OK",
@@ -111,10 +137,11 @@ private suspend fun buildPriceFreshnessCheck(
                 lastChecked = now,
             )
         } else {
+            val sample = stale.first()
             DataQualityCheckResponse(
                 name = "Price Freshness",
-                status = "CRITICAL",
-                message = "Price service reported status ${response.status.value}",
+                status = "WARNING",
+                message = "${stale.size} stale instrument(s); ${sample.instrumentId} last updated ${sample.ageHours}h ago",
                 lastChecked = now,
             )
         }

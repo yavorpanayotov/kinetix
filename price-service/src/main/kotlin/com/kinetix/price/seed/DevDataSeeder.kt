@@ -41,7 +41,8 @@ class DevDataSeeder(
 
     private suspend fun seedInstrument(instrumentId: InstrumentId, config: InstrumentConfig) {
         val currency = Currency.getInstance(config.currency)
-        val latestTime = LATEST_TIME
+        val staleOffset = STALE_OFFSET_HOURS[instrumentId.value] ?: 0L
+        val latestTime = LATEST_TIME.minus(staleOffset, ChronoUnit.HOURS)
         val startPrice = config.startPrice
         val latestPrice = config.latestPrice
         val hours = 168 // 7 days of hourly data
@@ -74,6 +75,8 @@ class DevDataSeeder(
      */
     private suspend fun seedDailyCloses(instrumentId: InstrumentId, config: InstrumentConfig) {
         val currency = Currency.getInstance(config.currency)
+        val staleOffset = STALE_OFFSET_HOURS[instrumentId.value] ?: 0L
+        val anchor = LATEST_TIME.minus(staleOffset, ChronoUnit.HOURS)
         val days = 252
         var price = config.startPrice
         val seed = instrumentId.value.hashCode().toLong()
@@ -87,7 +90,7 @@ class DevDataSeeder(
             price *= (1.0 + dailyReturn)
             price = price.coerceAtLeast(0.01)
 
-            val timestamp = LATEST_TIME.minus(day.toLong(), ChronoUnit.DAYS)
+            val timestamp = anchor.minus(day.toLong(), ChronoUnit.DAYS)
             val point = PricePoint(
                 instrumentId = instrumentId,
                 price = Money(
@@ -151,6 +154,16 @@ class DevDataSeeder(
 
     companion object {
         val LATEST_TIME: Instant = Instant.parse("2026-02-22T10:00:00Z")
+
+        // data_quality_intent: intentional_anomaly_demo
+        // Gap 8 anomaly: JNJ's freshest price is held 30 hours behind the
+        // platform-wide latest. The /api/v1/prices/stale endpoint surfaces
+        // it; the gateway data-quality status flags it as a WARNING; the
+        // risk engine substitutes the last-known price and tags the VaR
+        // result with dataQualityFlag=STALE_INPUT (follow-up commit).
+        val STALE_OFFSET_HOURS: Map<String, Long> = mapOf(
+            "JNJ" to 30L,
+        )
 
         val INSTRUMENT_IDS: Set<String> = setOf(
             "AAPL", "GOOGL", "MSFT", "AMZN", "TSLA",

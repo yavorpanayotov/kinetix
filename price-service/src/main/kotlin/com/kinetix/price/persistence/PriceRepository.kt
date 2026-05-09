@@ -9,4 +9,10 @@ interface PriceRepository {
     suspend fun findLatest(instrumentId: InstrumentId): PricePoint?
     suspend fun findByInstrumentId(instrumentId: InstrumentId, from: Instant, to: Instant): List<PricePoint>
     suspend fun findDailyCloseByInstrumentId(instrumentId: InstrumentId, from: Instant, to: Instant): List<PricePoint>
+
+    /**
+     * Returns instruments whose freshest price is older than [thresholdHours]
+     * relative to the platform-wide freshest price across all instruments.
+     */
+    suspend fun findStaleInstruments(thresholdHours: Long): List<StaleInstrument>
 }

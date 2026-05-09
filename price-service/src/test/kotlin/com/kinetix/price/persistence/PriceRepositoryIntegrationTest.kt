@@ -254,4 +254,28 @@ class PriceRepositoryIntegrationTest : FunSpec({
             found.source shouldBe src
         }
     }
+
+    test("findStaleInstruments returns instruments older than the threshold relative to platform max") {
+        val anchor = Instant.parse("2026-02-22T10:00:00Z")
+        // FRESH-1 and FRESH-2 are both at the platform max.
+        repository.save(point(instrumentId = "FRESH-1", timestamp = anchor))
+        repository.save(point(instrumentId = "FRESH-2", timestamp = anchor))
+        // STALE-30 is 30h behind — over the 24h threshold.
+        repository.save(point(instrumentId = "STALE-30", timestamp = anchor.minusSeconds(30 * 3600)))
+        // BORDERLINE is 12h behind — under the 24h threshold.
+        repository.save(point(instrumentId = "BORDERLINE", timestamp = anchor.minusSeconds(12 * 3600)))
+
+        val stale = repository.findStaleInstruments(thresholdHours = 24)
+        stale.map { it.instrumentId } shouldBe listOf("STALE-30")
+        stale.first().ageHours shouldBe 30L
+        stale.first().status shouldBe "STALE"
+    }
+
+    test("findStaleInstruments returns empty list when nothing exceeds the threshold") {
+        val anchor = Instant.parse("2026-02-22T10:00:00Z")
+        repository.save(point(instrumentId = "INST-A", timestamp = anchor))
+        repository.save(point(instrumentId = "INST-B", timestamp = anchor.minusSeconds(2 * 3600)))
+
+        repository.findStaleInstruments(thresholdHours = 24) shouldHaveSize 0
+    }
 })

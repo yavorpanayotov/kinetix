@@ -308,6 +308,47 @@ class PriceApiAcceptanceTest : FunSpec({
             body.size shouldBe 3
         }
     }
+
+    // -------------------------------------------------------------------------
+    // Stale-price data quality endpoint
+    // -------------------------------------------------------------------------
+
+    test("GET /api/v1/prices/stale returns instruments older than the threshold") {
+        val anchor = Instant.parse("2026-02-22T10:00:00Z")
+        repository.save(pricePoint("FRESH-A", "100.00", anchor.toString()))
+        repository.save(pricePoint("FRESH-B", "200.00", anchor.toString()))
+        repository.save(pricePoint("STALE-30", "300.00", anchor.minusSeconds(30 * 3600).toString()))
+        repository.save(pricePoint("STALE-12", "150.00", anchor.minusSeconds(12 * 3600).toString()))
+
+        testApplication {
+            application { module(repository, ingestionService) }
+
+            val response = client.get("/api/v1/prices/stale")
+            response.status shouldBe HttpStatusCode.OK
+            val body = Json.parseToJsonElement(response.bodyAsText()).jsonArray
+            body.size shouldBe 1
+            val item = body[0].jsonObject
+            item["instrumentId"]!!.jsonPrimitive.content shouldBe "STALE-30"
+            item["status"]!!.jsonPrimitive.content shouldBe "STALE"
+            item["ageHours"]!!.jsonPrimitive.content.toLong() shouldBe 30L
+        }
+    }
+
+    test("GET /api/v1/prices/stale honours custom thresholdHours") {
+        val anchor = Instant.parse("2026-02-22T10:00:00Z")
+        repository.save(pricePoint("FRESH", "100.00", anchor.toString()))
+        repository.save(pricePoint("LAGGED", "100.00", anchor.minusSeconds(8 * 3600).toString()))
+
+        testApplication {
+            application { module(repository, ingestionService) }
+
+            val tight = client.get("/api/v1/prices/stale?thresholdHours=4")
+            val loose = client.get("/api/v1/prices/stale?thresholdHours=12")
+
+            Json.parseToJsonElement(tight.bodyAsText()).jsonArray.size shouldBe 1
+            Json.parseToJsonElement(loose.bodyAsText()).jsonArray.size shouldBe 0
+        }
+    }
 })
 
 private fun pricePoint(

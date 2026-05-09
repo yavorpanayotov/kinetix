@@ -255,6 +255,29 @@ class DataQualityRoutesTest : FunSpec({
         }
     }
 
+    test("Price Freshness check returns WARNING when price-service reports stale instruments") {
+        val mockClient = buildMultiUrlMockClient(
+            mapOf(
+                "/api/v1/prices/stale" to ("""[{"instrumentId":"JNJ","lastUpdated":"2026-02-21T04:00:00Z","ageHours":30,"status":"STALE"}]""" to HttpStatusCode.OK),
+                "health/ready" to ("""{"status":"READY","checks":{}}""" to HttpStatusCode.OK),
+                "fix/sessions" to ("""[]""" to HttpStatusCode.OK),
+            )
+        )
+
+        testApplication {
+            application { configureWithWiredChecks(mockClient) }
+            val response = client.get("/api/v1/data-quality/status")
+            val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+            val check = body["checks"]!!.jsonArray
+                .map { it.jsonObject }
+                .first { it["name"]!!.jsonPrimitive.content == "Price Freshness" }
+
+            check["status"]!!.jsonPrimitive.content shouldBe "WARNING"
+            check["message"]!!.jsonPrimitive.content shouldContain "JNJ"
+            check["message"]!!.jsonPrimitive.content shouldContain "30h"
+        }
+    }
+
     test("Price Freshness check returns CRITICAL when price-service is unreachable") {
         val mockEngine = MockEngine { request ->
             if (request.url.encodedPath.contains("health/ready") &&

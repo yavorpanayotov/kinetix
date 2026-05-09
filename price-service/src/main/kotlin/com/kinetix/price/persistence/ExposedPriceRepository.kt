@@ -99,6 +99,44 @@ class ExposedPriceRepository(private val db: Database? = null) : PriceRepository
         }
     }
 
+    override suspend fun findStaleInstruments(thresholdHours: Long): List<StaleInstrument> =
+        newSuspendedTransaction(db = db) {
+            val sql = """
+                WITH latest_per_instrument AS (
+                    SELECT instrument_id, MAX(timestamp) AS last_updated
+                    FROM prices
+                    GROUP BY instrument_id
+                ),
+                platform_latest AS (
+                    SELECT MAX(last_updated) AS global_max FROM latest_per_instrument
+                )
+                SELECT lpi.instrument_id,
+                       lpi.last_updated,
+                       EXTRACT(EPOCH FROM (pl.global_max - lpi.last_updated)) / 3600.0 AS age_hours
+                FROM latest_per_instrument lpi
+                CROSS JOIN platform_latest pl
+                WHERE EXTRACT(EPOCH FROM (pl.global_max - lpi.last_updated)) / 3600.0 > ?
+                ORDER BY lpi.last_updated ASC
+            """.trimIndent()
+            val conn = this.connection.connection as java.sql.Connection
+            conn.prepareStatement(sql).use { stmt ->
+                stmt.setLong(1, thresholdHours)
+                val rs = stmt.executeQuery()
+                val results = mutableListOf<StaleInstrument>()
+                while (rs.next()) {
+                    val ageHoursDouble = rs.getDouble("age_hours")
+                    results.add(
+                        StaleInstrument(
+                            instrumentId = rs.getString("instrument_id"),
+                            lastUpdated = rs.getObject("last_updated", java.time.OffsetDateTime::class.java).toInstant(),
+                            ageHours = ageHoursDouble.toLong(),
+                        )
+                    )
+                }
+                results
+            }
+        }
+
     private fun ResultRow.toPricePoint(): PricePoint = PricePoint(
         instrumentId = InstrumentId(this[PriceTable.instrumentId]),
         price = Money(
