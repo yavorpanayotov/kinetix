@@ -108,4 +108,48 @@ class TradeEventRepositoryIntegrationTest : FunSpec({
             found.assetClass shouldBe ac
         }
     }
+
+    test("findByBookIdPaged returns the requested slice ordered by tradedAt DESC") {
+        // Seed 5 trades all in port-1 with distinct tradedAt timestamps.
+        repeat(5) { i ->
+            repository.save(
+                trade(
+                    tradeId = "page-t-$i",
+                    bookId = "port-1",
+                    tradedAt = Instant.parse("2026-01-${(i + 1).toString().padStart(2, '0')}T10:00:00Z"),
+                ),
+            )
+        }
+
+        val firstPage = repository.findByBookIdPaged(BookId("port-1"), offset = 0, limit = 2)
+        firstPage shouldHaveSize 2
+        firstPage.map { it.tradeId.value } shouldBe listOf("page-t-4", "page-t-3")
+
+        val secondPage = repository.findByBookIdPaged(BookId("port-1"), offset = 2, limit = 2)
+        secondPage.map { it.tradeId.value } shouldBe listOf("page-t-2", "page-t-1")
+
+        val tail = repository.findByBookIdPaged(BookId("port-1"), offset = 4, limit = 10)
+        tail.map { it.tradeId.value } shouldBe listOf("page-t-0")
+    }
+
+    test("findByBookIdPaged honours counterpartyId filter") {
+        repository.save(trade(tradeId = "cp-1", bookId = "port-1").copy(counterpartyId = "CP-GS"))
+        repository.save(trade(tradeId = "cp-2", bookId = "port-1").copy(counterpartyId = "CP-JPM"))
+        repository.save(trade(tradeId = "cp-3", bookId = "port-1").copy(counterpartyId = "CP-GS"))
+
+        val gsTrades = repository.findByBookIdPaged(BookId("port-1"), 0, 100, counterpartyId = "CP-GS")
+        gsTrades shouldHaveSize 2
+        gsTrades.map { it.tradeId.value } shouldContainExactlyInAnyOrder listOf("cp-1", "cp-3")
+    }
+
+    test("countByBookId returns matching row count for the optional counterparty filter") {
+        repository.save(trade(tradeId = "ct-1", bookId = "port-1").copy(counterpartyId = "CP-GS"))
+        repository.save(trade(tradeId = "ct-2", bookId = "port-1").copy(counterpartyId = "CP-GS"))
+        repository.save(trade(tradeId = "ct-3", bookId = "port-1").copy(counterpartyId = "CP-JPM"))
+        repository.save(trade(tradeId = "ct-4", bookId = "port-2").copy(counterpartyId = "CP-GS"))
+
+        repository.countByBookId(BookId("port-1")) shouldBe 3L
+        repository.countByBookId(BookId("port-1"), counterpartyId = "CP-GS") shouldBe 2L
+        repository.countByBookId(BookId("port-1"), counterpartyId = "CP-UNKNOWN") shouldBe 0L
+    }
 })

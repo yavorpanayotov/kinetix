@@ -15,6 +15,24 @@ interface TradeEventRepository {
     suspend fun countSince(since: Instant): Long
 
     /**
+     * Server-side pagination for the trade blotter. Returns a slice of trades for the
+     * book, ordered by tradedAt DESC then tradeId for stable pagination. Supports
+     * filtering by counterpartyId. The total count of matching rows is returned
+     * separately so the UI can render "page N of M" without a second round-trip.
+     */
+    suspend fun findByBookIdPaged(
+        bookId: BookId,
+        offset: Long,
+        limit: Int,
+        counterpartyId: String? = null,
+    ): List<Trade>
+
+    suspend fun countByBookId(
+        bookId: BookId,
+        counterpartyId: String? = null,
+    ): Long
+
+    /**
      * Returns all trades (across all books) booked against the given counterparty.
      * Used to derive per-counterparty netting-set membership.
      */

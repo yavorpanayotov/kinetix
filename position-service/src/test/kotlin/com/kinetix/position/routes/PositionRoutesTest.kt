@@ -253,6 +253,77 @@ class PositionRoutesTest : FunSpec({
         }
     }
 
+    test("GET /api/v1/books/{id}/trades/page returns paged history with total/hasMore metadata") {
+        testApplication {
+            setupApp()
+            val trades = listOf(
+                Trade(
+                    tradeId = TradeId("page-1"),
+                    bookId = PORTFOLIO,
+                    instrumentId = AAPL,
+                    assetClass = AssetClass.EQUITY,
+                    side = Side.BUY,
+                    quantity = BigDecimal("100"),
+                    price = usd("150.00"),
+                    tradedAt = Instant.parse("2026-01-02T10:00:00Z"),
+                    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
+                ),
+                Trade(
+                    tradeId = TradeId("page-2"),
+                    bookId = PORTFOLIO,
+                    instrumentId = AAPL,
+                    assetClass = AssetClass.EQUITY,
+                    side = Side.SELL,
+                    quantity = BigDecimal("50"),
+                    price = usd("151.00"),
+                    tradedAt = Instant.parse("2026-01-01T10:00:00Z"),
+                    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
+                ),
+            )
+            coEvery { tradeEventRepository.findByBookIdPaged(PORTFOLIO, 0, 2, null) } returns trades
+            coEvery { tradeEventRepository.countByBookId(PORTFOLIO, null) } returns 5L
+
+            val response = client.get("/api/v1/books/port-1/trades/page?offset=0&limit=2")
+
+            response.status shouldBe HttpStatusCode.OK
+            val body = response.bodyAsText()
+            body shouldContain "\"total\":5"
+            body shouldContain "\"hasMore\":true"
+            body shouldContain "\"limit\":2"
+            body shouldContain "\"offset\":0"
+            body shouldContain "page-1"
+            body shouldContain "page-2"
+        }
+    }
+
+    test("GET /api/v1/books/{id}/trades/page forwards counterpartyId filter to the repository") {
+        testApplication {
+            setupApp()
+            coEvery { tradeEventRepository.findByBookIdPaged(PORTFOLIO, 0, 100, "CP-GS") } returns emptyList()
+            coEvery { tradeEventRepository.countByBookId(PORTFOLIO, "CP-GS") } returns 0L
+
+            val response = client.get("/api/v1/books/port-1/trades/page?counterpartyId=CP-GS")
+
+            response.status shouldBe HttpStatusCode.OK
+            val body = response.bodyAsText()
+            body shouldContain "\"total\":0"
+            body shouldContain "\"hasMore\":false"
+        }
+    }
+
+    test("GET /api/v1/books/{id}/trades/page clamps limit to the 1..1000 range") {
+        testApplication {
+            setupApp()
+            // Excessive limit should be clamped to 1000.
+            coEvery { tradeEventRepository.findByBookIdPaged(PORTFOLIO, 0, 1000, null) } returns emptyList()
+            coEvery { tradeEventRepository.countByBookId(PORTFOLIO, null) } returns 0L
+
+            val response = client.get("/api/v1/books/port-1/trades/page?limit=999999")
+            response.status shouldBe HttpStatusCode.OK
+            response.bodyAsText() shouldContain "\"limit\":1000"
+        }
+    }
+
     test("POST /api/v1/books/{id}/trades returns 400 for negative quantity") {
         testApplication {
             setupApp()

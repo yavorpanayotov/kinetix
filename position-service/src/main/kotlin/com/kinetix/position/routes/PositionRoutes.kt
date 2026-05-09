@@ -91,6 +91,15 @@ data class BookTradeResponse(
 )
 
 @Serializable
+data class TradeHistoryPageResponse(
+    val items: List<TradeResponse>,
+    val total: Long,
+    val offset: Long,
+    val limit: Int,
+    val hasMore: Boolean,
+)
+
+@Serializable
 data class BookTradeRequest(
     val tradeId: String? = null,
     val instrumentId: String,
@@ -230,6 +239,47 @@ fun Route.positionRoutes(
         }
 
         route("/{bookId}") {
+
+            route("/trades/page") {
+                get({
+                    summary = "Server-paginated trade history for the blotter"
+                    tags = listOf("Trades")
+                    request {
+                        pathParameter<String>("bookId") { description = "Book identifier" }
+                        queryParameter<Long>("offset") {
+                            description = "Page offset (default 0)"
+                            required = false
+                        }
+                        queryParameter<Int>("limit") {
+                            description = "Page size (default 100, max 1000)"
+                            required = false
+                        }
+                        queryParameter<String>("counterpartyId") {
+                            description = "Filter trades by counterparty"
+                            required = false
+                        }
+                    }
+                    response {
+                        code(HttpStatusCode.OK) { body<TradeHistoryPageResponse>() }
+                    }
+                }) {
+                    val bookId = BookId(call.requirePathParam("bookId"))
+                    val offset = call.request.queryParameters["offset"]?.toLongOrNull()?.coerceAtLeast(0) ?: 0L
+                    val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 100).coerceIn(1, 1000)
+                    val counterpartyId = call.request.queryParameters["counterpartyId"]?.takeIf { it.isNotBlank() }
+                    val items = tradeEventRepository.findByBookIdPaged(bookId, offset, limit, counterpartyId)
+                    val total = tradeEventRepository.countByBookId(bookId, counterpartyId)
+                    call.respond(
+                        TradeHistoryPageResponse(
+                            items = items.map { it.toResponse() },
+                            total = total,
+                            offset = offset,
+                            limit = limit,
+                            hasMore = offset + items.size < total,
+                        )
+                    )
+                }
+            }
 
             route("/trades") {
                 get({

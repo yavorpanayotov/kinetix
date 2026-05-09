@@ -3,12 +3,15 @@ package com.kinetix.position.persistence
 import com.kinetix.common.model.*
 import com.kinetix.common.model.instrument.InstrumentTypeCode
 import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.batchInsert
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.update
 import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.Op
+import org.jetbrains.exposed.sql.SqlExpressionBuilder
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import java.time.Instant
 import java.time.OffsetDateTime
@@ -84,6 +87,37 @@ class ExposedTradeEventRepository(private val db: Database? = null) : TradeEvent
             .selectAll()
             .where { TradeEventsTable.createdAt greaterEq since.atOffset(ZoneOffset.UTC) }
             .count()
+    }
+
+    override suspend fun findByBookIdPaged(
+        bookId: BookId,
+        offset: Long,
+        limit: Int,
+        counterpartyId: String?,
+    ): List<Trade> = newSuspendedTransaction(db = db) {
+        TradeEventsTable
+            .selectAll()
+            .where { pagedFilter(bookId, counterpartyId) }
+            .orderBy(TradeEventsTable.tradedAt to SortOrder.DESC, TradeEventsTable.tradeId to SortOrder.ASC)
+            .offset(offset)
+            .limit(limit)
+            .map { it.toTrade() }
+    }
+
+    override suspend fun countByBookId(bookId: BookId, counterpartyId: String?): Long =
+        newSuspendedTransaction(db = db) {
+            TradeEventsTable
+                .selectAll()
+                .where { pagedFilter(bookId, counterpartyId) }
+                .count()
+        }
+
+    private fun SqlExpressionBuilder.pagedFilter(bookId: BookId, counterpartyId: String?): Op<Boolean> {
+        var predicate: Op<Boolean> = TradeEventsTable.bookId eq bookId.value
+        if (counterpartyId != null) {
+            predicate = predicate and (TradeEventsTable.counterpartyId eq counterpartyId)
+        }
+        return predicate
     }
 
     override suspend fun bulkInsertForSeed(trades: List<Trade>) {
