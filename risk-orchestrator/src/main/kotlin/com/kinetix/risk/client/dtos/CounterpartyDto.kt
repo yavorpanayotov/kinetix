@@ -27,4 +27,6 @@ data class NettingAgreementDto(
     val closeOutNetting: Boolean,
     val csaThreshold: Double? = null,
     val currency: String,
+    val expiryDate: String? = null,
+    val agreementStatus: String = "ACTIVE",
 )

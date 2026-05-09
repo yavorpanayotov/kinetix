@@ -687,10 +687,14 @@ class CounterpartyRiskOrchestrationServiceTest : FunSpec({
                 cvaEstimated = false,
             )
             coEvery { repository.findLatestByCounterpartyId("CP-GS") } returns snapshot
+            coEvery { referenceDataClient.getNettingAgreements("CP-GS") } returns
+                ClientResponse.Success(listOf(NETTING_AGREEMENT))
 
             val result = service.getLatestExposure("CP-GS")
 
-            result shouldBe snapshot
+            result?.counterpartyId shouldBe "CP-GS"
+            result?.currentNetExposure shouldBe 2_000_000.0
+            result?.agreementStatus shouldBe "ACTIVE"
         }
 
         test("returns null when no exposure calculated yet") {
@@ -699,6 +703,52 @@ class CounterpartyRiskOrchestrationServiceTest : FunSpec({
             val result = service.getLatestExposure("CP-NEW")
 
             result shouldBe null
+        }
+
+        test("overlays agreementStatus=EXPIRED when reference-data reports an expired netting agreement") {
+            val snapshot = CounterpartyExposureSnapshot(
+                id = 7L,
+                counterpartyId = "CP-DB",
+                calculatedAt = java.time.Instant.now(),
+                pfeProfile = TENORS,
+                currentNetExposure = 1_500_000.0,
+                peakPfe = 2_100_000.0,
+                cva = 9_800.0,
+                cvaEstimated = false,
+            )
+            val expired = NETTING_AGREEMENT.copy(
+                nettingSetId = "NS-DB-001",
+                counterpartyId = "CP-DB",
+                expiryDate = "2026-01-23T10:00:00Z",
+                agreementStatus = "EXPIRED",
+            )
+            coEvery { repository.findLatestByCounterpartyId("CP-DB") } returns snapshot
+            coEvery { referenceDataClient.getNettingAgreements("CP-DB") } returns
+                ClientResponse.Success(listOf(expired))
+
+            val result = service.getLatestExposure("CP-DB")
+
+            result?.agreementStatus shouldBe "EXPIRED"
+        }
+
+        test("returns agreementStatus=null when reference-data is unreachable") {
+            val snapshot = CounterpartyExposureSnapshot(
+                id = 8L,
+                counterpartyId = "CP-OFFLINE",
+                calculatedAt = java.time.Instant.now(),
+                pfeProfile = TENORS,
+                currentNetExposure = 500_000.0,
+                peakPfe = 700_000.0,
+                cva = null,
+                cvaEstimated = false,
+            )
+            coEvery { repository.findLatestByCounterpartyId("CP-OFFLINE") } returns snapshot
+            coEvery { referenceDataClient.getNettingAgreements("CP-OFFLINE") } returns
+                ClientResponse.NotFound(503)
+
+            val result = service.getLatestExposure("CP-OFFLINE")
+
+            result?.agreementStatus shouldBe null
         }
     }
 })

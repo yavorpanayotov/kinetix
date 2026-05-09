@@ -40,4 +40,8 @@ data class CounterpartyExposureSnapshot(
 
     // Wrong-way risk flags; null when not computed, empty when clean
     val wrongWayRiskFlags: List<String>? = null,
+
+    // Live overlay from reference-data (not persisted on the snapshot row).
+    // ACTIVE / EXPIRED / SUSPENDED, or null when no agreement is associated.
+    val agreementStatus: String? = null,
 )

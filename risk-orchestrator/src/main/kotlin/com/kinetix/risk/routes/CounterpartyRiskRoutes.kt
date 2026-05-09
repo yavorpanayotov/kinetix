@@ -176,6 +176,7 @@ private fun CounterpartyExposureSnapshot.toResponse() = CounterpartyExposureResp
     collateralPosted = collateralPosted,
     netNetExposure = netNetExposure,
     wrongWayRiskFlags = wrongWayRiskFlags ?: emptyList(),
+    agreementStatus = agreementStatus,
 )
 
 private fun ExposureAtTenor.toResponse() = ExposureAtTenorResponse(

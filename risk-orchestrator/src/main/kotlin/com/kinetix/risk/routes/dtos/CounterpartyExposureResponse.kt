@@ -17,4 +17,5 @@ data class CounterpartyExposureResponse(
     val collateralPosted: Double = 0.0,
     val netNetExposure: Double? = null,
     val wrongWayRiskFlags: List<String> = emptyList(),
+    val agreementStatus: String? = null,
 )

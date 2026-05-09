@@ -296,12 +296,41 @@ class CounterpartyRiskOrchestrationService(
     private fun hasCreditData(counterparty: CounterpartyDto): Boolean =
         counterparty.pd1y != null || counterparty.cdsSpreadBps != null
 
-    suspend fun getLatestExposure(counterpartyId: String): CounterpartyExposureSnapshot? =
-        repository.findLatestByCounterpartyId(counterpartyId)
+    suspend fun getLatestExposure(counterpartyId: String): CounterpartyExposureSnapshot? {
+        val snapshot = repository.findLatestByCounterpartyId(counterpartyId) ?: return null
+        return snapshot.copy(agreementStatus = lookupAgreementStatus(counterpartyId))
+    }
 
-    suspend fun getExposureHistory(counterpartyId: String, limit: Int = 90): List<CounterpartyExposureSnapshot> =
-        repository.findByCounterpartyId(counterpartyId, limit)
+    suspend fun getExposureHistory(counterpartyId: String, limit: Int = 90): List<CounterpartyExposureSnapshot> {
+        val snapshots = repository.findByCounterpartyId(counterpartyId, limit)
+        if (snapshots.isEmpty()) return snapshots
+        val status = lookupAgreementStatus(counterpartyId)
+        return snapshots.map { it.copy(agreementStatus = status) }
+    }
 
-    suspend fun getAllLatestExposures(): List<CounterpartyExposureSnapshot> =
-        repository.findLatestForAllCounterparties()
+    suspend fun getAllLatestExposures(): List<CounterpartyExposureSnapshot> {
+        val snapshots = repository.findLatestForAllCounterparties()
+        return snapshots.map { snap ->
+            snap.copy(agreementStatus = lookupAgreementStatus(snap.counterpartyId))
+        }
+    }
+
+    /**
+     * Live overlay: agreementStatus is a property of the netting agreement, not of the
+     * exposure snapshot, so we look it up at read time rather than persisting a stale value.
+     * EXPIRED wins over ACTIVE when any agreement on the counterparty has lapsed.
+     * Returns null when the counterparty has no agreements or reference-data is unreachable —
+     * the UI treats that as "agreement state unknown" and suppresses the pill.
+     */
+    private suspend fun lookupAgreementStatus(counterpartyId: String): String? {
+        val resp = try {
+            referenceDataClient.getNettingAgreements(counterpartyId)
+        } catch (e: Exception) {
+            logger.warn("Agreement-status lookup failed for {}: {}", counterpartyId, e.message)
+            return null
+        }
+        val agreements = (resp as? ClientResponse.Success)?.value ?: return null
+        if (agreements.isEmpty()) return null
+        return if (agreements.any { it.agreementStatus == "EXPIRED" }) "EXPIRED" else "ACTIVE"
+    }
 }

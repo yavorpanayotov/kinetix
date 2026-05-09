@@ -272,6 +272,19 @@ class CounterpartyRiskRoutesAcceptanceTest : FunSpec({
         }
     }
 
+    test("GET /api/v1/counterparty-risk/{id} surfaces agreementStatus from reference-data") {
+        // The default reference-data stub returns an ACTIVE agreement for CP-GS.
+        repository.save(snapshot("CP-GS"))
+
+        testApplication {
+            application { configureTestApp() }
+            val response = client.get("/api/v1/counterparty-risk/CP-GS")
+            response.status shouldBe HttpStatusCode.OK
+            val body = Json.decodeFromString<CounterpartyExposureResponse>(response.bodyAsText())
+            body.agreementStatus shouldBe "ACTIVE"
+        }
+    }
+
     test("POST /api/v1/counterparty-risk/{id}/cva computes CVA from latest PFE profile") {
         repository.save(snapshot("CP-GS"))
 
