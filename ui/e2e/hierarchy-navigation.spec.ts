@@ -70,6 +70,13 @@ async function mockHierarchyRoutes(page: Page): Promise<void> {
     })
   })
 
+  await page.route('**/api/v1/books/*/trades/page**', (route) => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ items: [], total: 0, offset: 0, limit: 100, hasMore: false }),
+    })
+  })
   await page.route('**/api/v1/books/*/trades', (route) => {
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) })
   })

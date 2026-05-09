@@ -64,6 +64,7 @@ export interface TradeFixture {
   price: { amount: string; currency: string }
   tradedAt: string
   status?: string
+  counterpartyId?: string
 }
 
 export const TEST_TRADES: TradeFixture[] = [
@@ -348,6 +349,28 @@ export async function mockBackendApiRoutes(page: Page): Promise<void> {
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify(TEST_POSITIONS),
+    })
+  })
+
+  await page.route('**/api/v1/books/*/trades/page**', (route: Route) => {
+    const url = new URL(route.request().url())
+    const offset = Number(url.searchParams.get('offset') ?? 0)
+    const limit = Number(url.searchParams.get('limit') ?? 100)
+    const counterpartyId = url.searchParams.get('counterpartyId')
+    const filtered = counterpartyId
+      ? TEST_TRADES.filter((t) => t.counterpartyId === counterpartyId)
+      : TEST_TRADES
+    const items = filtered.slice(offset, offset + limit)
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items,
+        total: filtered.length,
+        offset,
+        limit,
+        hasMore: offset + items.length < filtered.length,
+      }),
     })
   })
 
@@ -665,9 +688,69 @@ export function generateTrades(count: number): TradeFixture[] {
  * Overrides the trades endpoint to return `count` generated trades.
  * Call this AFTER mockAllApiRoutes (Playwright uses the first matching route handler).
  */
+/**
+ * Overrides both the legacy /trades and the paginated /trades/page endpoints
+ * with the same data, so blotter tests can serve custom fixtures via the
+ * paginated path that the blotter now consumes.
+ */
+export async function mockTradesOverride(page: Page, trades: TradeFixture[]): Promise<void> {
+  await page.unroute('**/api/v1/books/*/trades/page**')
+  await page.unroute('**/api/v1/books/*/trades')
+  await page.route('**/api/v1/books/*/trades/page**', (route: Route) => {
+    const url = new URL(route.request().url())
+    const offset = Number(url.searchParams.get('offset') ?? 0)
+    const limit = Number(url.searchParams.get('limit') ?? 100)
+    const counterpartyId = url.searchParams.get('counterpartyId')
+    const filtered = counterpartyId
+      ? trades.filter((t) => t.counterpartyId === counterpartyId)
+      : trades
+    const items = filtered.slice(offset, offset + limit)
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items,
+        total: filtered.length,
+        offset,
+        limit,
+        hasMore: offset + items.length < filtered.length,
+      }),
+    })
+  })
+  await page.route('**/api/v1/books/*/trades', (route: Route) => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(trades),
+    })
+  })
+}
+
 export async function mockManyTrades(page: Page, count: number): Promise<TradeFixture[]> {
   const trades = generateTrades(count)
+  await page.unroute('**/api/v1/books/*/trades/page**')
   await page.unroute('**/api/v1/books/*/trades')
+  await page.route('**/api/v1/books/*/trades/page**', (route: Route) => {
+    const url = new URL(route.request().url())
+    const offset = Number(url.searchParams.get('offset') ?? 0)
+    const limit = Number(url.searchParams.get('limit') ?? 100)
+    const counterpartyId = url.searchParams.get('counterpartyId')
+    const filtered = counterpartyId
+      ? trades.filter((t) => t.counterpartyId === counterpartyId)
+      : trades
+    const items = filtered.slice(offset, offset + limit)
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items,
+        total: filtered.length,
+        offset,
+        limit,
+        hasMore: offset + items.length < filtered.length,
+      }),
+    })
+  })
   await page.route('**/api/v1/books/*/trades', (route: Route) => {
     route.fulfill({
       status: 200,

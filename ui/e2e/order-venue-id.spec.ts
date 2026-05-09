@@ -39,7 +39,25 @@ const TRADE_WITHOUT_VENUE_ID: PhaseTradeFixture = {
 }
 
 async function mockTrades(page: Page, trades: PhaseTradeFixture[]): Promise<void> {
+  await page.unroute('**/api/v1/books/*/trades/page**').catch(() => {})
   await page.unroute('**/api/v1/books/*/trades').catch(() => {})
+  await page.route('**/api/v1/books/*/trades/page**', (route: Route) => {
+    const url = new URL(route.request().url())
+    const offset = Number(url.searchParams.get('offset') ?? 0)
+    const limit = Number(url.searchParams.get('limit') ?? 100)
+    const items = trades.slice(offset, offset + limit)
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items,
+        total: trades.length,
+        offset,
+        limit,
+        hasMore: offset + items.length < trades.length,
+      }),
+    })
+  })
   await page.route('**/api/v1/books/*/trades', (route: Route) => {
     route.fulfill({
       status: 200,

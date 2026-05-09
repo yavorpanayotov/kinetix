@@ -40,7 +40,29 @@ const FILLED_TRADE: TradeFixture = {
 }
 
 async function mockTradesEndpoint(page: Page, trades: TradeFixture[]): Promise<void> {
+  await page.unroute('**/api/v1/books/*/trades/page**').catch(() => {})
   await page.unroute('**/api/v1/books/*/trades').catch(() => {})
+  await page.route('**/api/v1/books/*/trades/page**', (route: Route) => {
+    const url = new URL(route.request().url())
+    const offset = Number(url.searchParams.get('offset') ?? 0)
+    const limit = Number(url.searchParams.get('limit') ?? 100)
+    const counterpartyId = url.searchParams.get('counterpartyId')
+    const filtered = counterpartyId
+      ? trades.filter((t) => t.counterpartyId === counterpartyId)
+      : trades
+    const items = filtered.slice(offset, offset + limit)
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items,
+        total: filtered.length,
+        offset,
+        limit,
+        hasMore: offset + items.length < filtered.length,
+      }),
+    })
+  })
   await page.route('**/api/v1/books/*/trades', (route: Route) => {
     route.fulfill({
       status: 200,

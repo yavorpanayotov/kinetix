@@ -4,10 +4,10 @@ import type { TradeHistoryDto } from '../types'
 
 vi.mock('../api/tradeHistory')
 
-import { fetchTradeHistory } from '../api/tradeHistory'
+import { fetchTradeHistoryPage } from '../api/tradeHistory'
 import { useTradeHistory } from './useTradeHistory'
 
-const mockFetchTradeHistory = vi.mocked(fetchTradeHistory)
+const mockFetchTradeHistoryPage = vi.mocked(fetchTradeHistoryPage)
 
 const trade: TradeHistoryDto = {
   tradeId: 't-1',
@@ -20,6 +20,10 @@ const trade: TradeHistoryDto = {
   tradedAt: '2025-01-15T10:00:00Z',
 }
 
+function pageOf(items: TradeHistoryDto[], total = items.length, offset = 0, limit = 100) {
+  return { items, total, offset, limit, hasMore: offset + items.length < total }
+}
+
 describe('useTradeHistory', () => {
   beforeEach(() => {
     vi.resetAllMocks()
@@ -28,11 +32,11 @@ describe('useTradeHistory', () => {
   it('does not fetch when bookId is null', () => {
     renderHook(() => useTradeHistory(null))
 
-    expect(mockFetchTradeHistory).not.toHaveBeenCalled()
+    expect(mockFetchTradeHistoryPage).not.toHaveBeenCalled()
   })
 
-  it('fetches trade history on mount', async () => {
-    mockFetchTradeHistory.mockResolvedValue([trade])
+  it('fetches the first page on mount', async () => {
+    mockFetchTradeHistoryPage.mockResolvedValue(pageOf([trade], 1))
 
     const { result } = renderHook(() => useTradeHistory('book-1'))
 
@@ -41,12 +45,17 @@ describe('useTradeHistory', () => {
     })
 
     expect(result.current.trades).toEqual([trade])
+    expect(result.current.total).toBe(1)
     expect(result.current.error).toBeNull()
-    expect(mockFetchTradeHistory).toHaveBeenCalledWith('book-1')
+    expect(mockFetchTradeHistoryPage).toHaveBeenCalledWith('book-1', {
+      offset: 0,
+      limit: 100,
+      counterpartyId: null,
+    })
   })
 
   it('sets error on fetch failure', async () => {
-    mockFetchTradeHistory.mockRejectedValue(new Error('Network error'))
+    mockFetchTradeHistoryPage.mockRejectedValue(new Error('Network error'))
 
     const { result } = renderHook(() => useTradeHistory('book-1'))
 
@@ -59,7 +68,7 @@ describe('useTradeHistory', () => {
   })
 
   it('refetches when refetch is called', async () => {
-    mockFetchTradeHistory.mockResolvedValue([trade])
+    mockFetchTradeHistoryPage.mockResolvedValue(pageOf([trade], 1))
 
     const { result } = renderHook(() => useTradeHistory('book-1'))
 
@@ -68,7 +77,7 @@ describe('useTradeHistory', () => {
     })
 
     const trade2: TradeHistoryDto = { ...trade, tradeId: 't-2' }
-    mockFetchTradeHistory.mockResolvedValue([trade, trade2])
+    mockFetchTradeHistoryPage.mockResolvedValue(pageOf([trade, trade2], 2))
 
     await act(async () => {
       result.current.refetch()
@@ -80,7 +89,7 @@ describe('useTradeHistory', () => {
   })
 
   it('refetches when bookId changes', async () => {
-    mockFetchTradeHistory.mockResolvedValue([trade])
+    mockFetchTradeHistoryPage.mockResolvedValue(pageOf([trade], 1))
 
     const { result, rerender } = renderHook(
       ({ id }: { id: string | null }) => useTradeHistory(id),
@@ -92,7 +101,7 @@ describe('useTradeHistory', () => {
     })
 
     const trade2: TradeHistoryDto = { ...trade, bookId: 'book-2', tradeId: 't-2' }
-    mockFetchTradeHistory.mockResolvedValue([trade2])
+    mockFetchTradeHistoryPage.mockResolvedValue(pageOf([trade2], 1))
 
     rerender({ id: 'book-2' })
 
@@ -100,6 +109,66 @@ describe('useTradeHistory', () => {
       expect(result.current.trades).toEqual([trade2])
     })
 
-    expect(mockFetchTradeHistory).toHaveBeenCalledWith('book-2')
+    expect(mockFetchTradeHistoryPage).toHaveBeenCalledWith('book-2', {
+      offset: 0,
+      limit: 100,
+      counterpartyId: null,
+    })
+  })
+
+  it('forwards counterpartyId filter to the API', async () => {
+    mockFetchTradeHistoryPage.mockResolvedValue(pageOf([], 0))
+
+    renderHook(() => useTradeHistory('book-1', { counterpartyId: 'CP-GS' }))
+
+    await waitFor(() => {
+      expect(mockFetchTradeHistoryPage).toHaveBeenCalledWith('book-1', {
+        offset: 0,
+        limit: 100,
+        counterpartyId: 'CP-GS',
+      })
+    })
+  })
+
+  it('paginates via goToPage and exposes page metadata', async () => {
+    mockFetchTradeHistoryPage.mockResolvedValue(pageOf([trade], 250))
+
+    const { result } = renderHook(() => useTradeHistory('book-1', { pageSize: 50 }))
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+
+    expect(result.current.totalPages).toBe(5)
+    expect(result.current.page).toBe(0)
+
+    await act(async () => {
+      result.current.goToPage(2)
+    })
+
+    await waitFor(() => {
+      expect(mockFetchTradeHistoryPage).toHaveBeenLastCalledWith('book-1', {
+        offset: 100,
+        limit: 50,
+        counterpartyId: null,
+      })
+    })
+    expect(result.current.page).toBe(2)
+  })
+
+  it('clamps goToPage within [0, totalPages-1]', async () => {
+    mockFetchTradeHistoryPage.mockResolvedValue(pageOf([trade], 50))
+
+    const { result } = renderHook(() => useTradeHistory('book-1', { pageSize: 50 }))
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+
+    await act(async () => {
+      result.current.goToPage(99)
+    })
+
+    expect(result.current.page).toBe(0)
   })
 })

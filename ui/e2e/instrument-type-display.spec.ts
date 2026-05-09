@@ -80,7 +80,25 @@ async function setupWithInstrumentTypes(page: Page) {
   })
 
   // Override trades with instrument type data
+  await page.unroute('**/api/v1/books/*/trades/page**')
   await page.unroute('**/api/v1/books/*/trades')
+  await page.route('**/api/v1/books/*/trades/page**', (route: Route) => {
+    const url = new URL(route.request().url())
+    const offset = Number(url.searchParams.get('offset') ?? 0)
+    const limit = Number(url.searchParams.get('limit') ?? 100)
+    const items = TRADES_WITH_TYPES.slice(offset, offset + limit)
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items,
+        total: TRADES_WITH_TYPES.length,
+        offset,
+        limit,
+        hasMore: offset + items.length < TRADES_WITH_TYPES.length,
+      }),
+    })
+  })
   await page.route('**/api/v1/books/*/trades', (route: Route) => {
     route.fulfill({
       status: 200,

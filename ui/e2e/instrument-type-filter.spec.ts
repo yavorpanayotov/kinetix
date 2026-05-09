@@ -93,7 +93,25 @@ async function setupMultiTypeData(page: Page) {
     })
   })
 
+  await page.unroute('**/api/v1/books/*/trades/page**')
   await page.unroute('**/api/v1/books/*/trades')
+  await page.route('**/api/v1/books/*/trades/page**', (route: Route) => {
+    const url = new URL(route.request().url())
+    const offset = Number(url.searchParams.get('offset') ?? 0)
+    const limit = Number(url.searchParams.get('limit') ?? 100)
+    const items = TRADES_MULTI_TYPE.slice(offset, offset + limit)
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items,
+        total: TRADES_MULTI_TYPE.length,
+        offset,
+        limit,
+        hasMore: offset + items.length < TRADES_MULTI_TYPE.length,
+      }),
+    })
+  })
   await page.route('**/api/v1/books/*/trades', (route: Route) => {
     route.fulfill({
       status: 200,

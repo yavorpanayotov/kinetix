@@ -48,14 +48,29 @@ const trades: TradeHistoryDto[] = [
   },
 ]
 
-function setupDefaults(overrides?: Partial<ReturnType<typeof useTradeHistory>>) {
-  mockUseTradeHistory.mockReturnValue({
-    trades,
+function defaultMockReturn(
+  overrides?: Partial<ReturnType<typeof useTradeHistory>>,
+): ReturnType<typeof useTradeHistory> {
+  const tradeList = overrides?.trades ?? trades
+  return {
+    trades: tradeList,
     loading: false,
     error: null,
     refetch: vi.fn(),
+    total: tradeList.length,
+    offset: 0,
+    pageSize: 50,
+    hasMore: false,
+    page: 0,
+    totalPages: Math.max(1, Math.ceil(tradeList.length / 50)),
+    setOffset: vi.fn(),
+    goToPage: vi.fn(),
     ...overrides,
-  })
+  }
+}
+
+function setupDefaults(overrides?: Partial<ReturnType<typeof useTradeHistory>>) {
+  mockUseTradeHistory.mockReturnValue(defaultMockReturn(overrides))
 }
 
 describe('TradeBlotter', () => {
@@ -182,12 +197,7 @@ describe('TradeBlotter', () => {
         tradedAt: '2025-01-15T10:00:00Z',
       },
     ]
-    mockUseTradeHistory.mockReturnValue({
-      trades: tradesWithoutStatus,
-      loading: false,
-      error: null,
-      refetch: vi.fn(),
-    })
+    mockUseTradeHistory.mockReturnValue(defaultMockReturn({ trades: tradesWithoutStatus }))
     render(<TradeBlotter bookId="book-1" />)
 
     expect(screen.getByTestId('trade-status-no-status')).toHaveTextContent('LIVE')
@@ -241,12 +251,7 @@ describe('TradeBlotter', () => {
     ]
 
     function setupWithTypes() {
-      mockUseTradeHistory.mockReturnValue({
-        trades: tradesWithTypes,
-        loading: false,
-        error: null,
-        refetch: vi.fn(),
-      })
+      mockUseTradeHistory.mockReturnValue(defaultMockReturn({ trades: tradesWithTypes }))
     }
 
     it('renders an instrument type filter dropdown', () => {
@@ -332,12 +337,7 @@ describe('TradeBlotter', () => {
         { ...tradesWithTypes[0], tradeId: 'st-1' },
         { ...tradesWithTypes[0], tradeId: 'st-2', instrumentId: 'GOOGL' },
       ]
-      mockUseTradeHistory.mockReturnValue({
-        trades: singleTypeTrades,
-        loading: false,
-        error: null,
-        refetch: vi.fn(),
-      })
+      mockUseTradeHistory.mockReturnValue(defaultMockReturn({ trades: singleTypeTrades }))
       render(<TradeBlotter bookId="book-1" />)
 
       expect(screen.queryByTestId('filter-instrument-type')).not.toBeInTheDocument()
@@ -356,12 +356,7 @@ describe('TradeBlotter', () => {
         { ...tradesWithTypes[0], tradeId: 'nt-1' },
         { ...tradesWithTypes[2], tradeId: 'nt-2' },
       ]
-      mockUseTradeHistory.mockReturnValue({
-        trades: newTrades,
-        loading: false,
-        error: null,
-        refetch: vi.fn(),
-      })
+      mockUseTradeHistory.mockReturnValue(defaultMockReturn({ trades: newTrades }))
       rerender(<TradeBlotter bookId="book-2" />)
 
       const rows = screen.getAllByTestId(/^trade-row-/)
@@ -409,13 +404,7 @@ describe('TradeBlotter', () => {
     ]
 
     function setupPhase4(overrides?: Partial<ReturnType<typeof useTradeHistory>>) {
-      mockUseTradeHistory.mockReturnValue({
-        trades: phase4Trades,
-        loading: false,
-        error: null,
-        refetch: vi.fn(),
-        ...overrides,
-      })
+      mockUseTradeHistory.mockReturnValue(defaultMockReturn({ trades: phase4Trades, ...overrides }))
     }
 
     it('renders an amber badge for PENDING_FAILED orders', () => {

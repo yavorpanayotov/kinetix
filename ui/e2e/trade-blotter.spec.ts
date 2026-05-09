@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test'
 import {
   mockAllApiRoutes,
   mockManyTrades,
+  mockTradesOverride,
   TEST_TRADES,
   type TradeFixture,
 } from './fixtures'
@@ -69,7 +70,7 @@ test.describe('Trade Blotter - Core Display', () => {
   })
 
   test('falls back to LIVE when API response has no status field', async ({ page }) => {
-    const tradeWithoutStatus = {
+    const tradeWithoutStatus: TradeFixture = {
       tradeId: 'trade-no-status',
       bookId: 'port-1',
       instrumentId: 'MSFT',
@@ -80,14 +81,7 @@ test.describe('Trade Blotter - Core Display', () => {
       tradedAt: '2025-01-15T12:00:00Z',
     }
 
-    await page.unroute('**/api/v1/books/*/trades')
-    await page.route('**/api/v1/books/*/trades', (route) => {
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify([tradeWithoutStatus]),
-      })
-    })
+    await mockTradesOverride(page, [tradeWithoutStatus])
 
     await page.goto('/')
     await page.getByTestId('tab-trades').click()
@@ -158,14 +152,7 @@ test.describe('Trade Blotter - Empty and Error States', () => {
   })
 
   test('shows empty state when book has no trades', async ({ page }) => {
-    await page.unroute('**/api/v1/books/*/trades')
-    await page.route('**/api/v1/books/*/trades', (route) => {
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify([]),
-      })
-    })
+    await mockTradesOverride(page, [])
 
     await page.goto('/')
     await page.getByTestId('tab-trades').click()
@@ -174,7 +161,11 @@ test.describe('Trade Blotter - Empty and Error States', () => {
   })
 
   test('shows error message when API returns 500', async ({ page }) => {
+    await page.unroute('**/api/v1/books/*/trades/page**')
     await page.unroute('**/api/v1/books/*/trades')
+    await page.route('**/api/v1/books/*/trades/page**', (route) => {
+      route.fulfill({ status: 500 })
+    })
     await page.route('**/api/v1/books/*/trades', (route) => {
       route.fulfill({ status: 500 })
     })
@@ -216,13 +207,20 @@ test.describe('Trade Blotter - Additional Filtering and State', () => {
   })
 
   test('loading state shown before trades resolve', async ({ page }) => {
+    await page.unroute('**/api/v1/books/*/trades/page**')
     await page.unroute('**/api/v1/books/*/trades')
-    await page.route('**/api/v1/books/*/trades', async (route) => {
+    await page.route('**/api/v1/books/*/trades/page**', async (route) => {
       await new Promise((resolve) => setTimeout(resolve, 2000))
       route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(TEST_TRADES),
+        body: JSON.stringify({
+          items: TEST_TRADES,
+          total: TEST_TRADES.length,
+          offset: 0,
+          limit: 100,
+          hasMore: false,
+        }),
       })
     })
 
@@ -235,7 +233,11 @@ test.describe('Trade Blotter - Additional Filtering and State', () => {
   })
 
   test('error on network failure (aborted request)', async ({ page }) => {
+    await page.unroute('**/api/v1/books/*/trades/page**')
     await page.unroute('**/api/v1/books/*/trades')
+    await page.route('**/api/v1/books/*/trades/page**', (route) => {
+      route.abort()
+    })
     await page.route('**/api/v1/books/*/trades', (route) => {
       route.abort()
     })
@@ -261,23 +263,37 @@ test.describe('Trade Blotter - Additional Filtering and State', () => {
     ]
 
     // Override trades route to return different data per book
+    await page.unroute('**/api/v1/books/*/trades/page**')
     await page.unroute('**/api/v1/books/*/trades')
-    await page.route('**/api/v1/books/*/trades', (route) => {
+    const respondWithBook = (route: import('@playwright/test').Route, paged: boolean) => {
       const url = route.request().url()
-      if (url.includes('book-2')) {
+      const trades = url.includes('book-2') ? book2Trades : TEST_TRADES
+      if (paged) {
+        const u = new URL(url)
+        const offset = Number(u.searchParams.get('offset') ?? 0)
+        const limit = Number(u.searchParams.get('limit') ?? 100)
+        const items = trades.slice(offset, offset + limit)
         route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify(book2Trades),
+          body: JSON.stringify({
+            items,
+            total: trades.length,
+            offset,
+            limit,
+            hasMore: offset + items.length < trades.length,
+          }),
         })
       } else {
         route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify(TEST_TRADES),
+          body: JSON.stringify(trades),
         })
       }
-    })
+    }
+    await page.route('**/api/v1/books/*/trades/page**', (route) => respondWithBook(route, true))
+    await page.route('**/api/v1/books/*/trades', (route) => respondWithBook(route, false))
 
     // Override books to expose book-1 and book-2
     await page.unroute('**/api/v1/books')
@@ -479,14 +495,7 @@ test.describe('Trade Blotter - Edge Cases', () => {
       tradedAt: '2025-01-15T15:00:00Z',
     }
 
-    await page.unroute('**/api/v1/books/*/trades')
-    await page.route('**/api/v1/books/*/trades', (route) => {
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify([zeroTrade]),
-      })
-    })
+    await mockTradesOverride(page, [zeroTrade])
 
     await page.goto('/')
     await page.getByTestId('tab-trades').click()
@@ -507,14 +516,7 @@ test.describe('Trade Blotter - Edge Cases', () => {
       tradedAt: '2025-01-15T15:00:00Z',
     }
 
-    await page.unroute('**/api/v1/books/*/trades')
-    await page.route('**/api/v1/books/*/trades', (route) => {
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify([bigTrade]),
-      })
-    })
+    await mockTradesOverride(page, [bigTrade])
 
     await page.goto('/')
     await page.getByTestId('tab-trades').click()

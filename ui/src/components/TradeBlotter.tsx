@@ -62,16 +62,28 @@ async function copyVenueOrderId(value: string | undefined): Promise<void> {
   await navigator.clipboard.writeText(value)
 }
 
+const PAGE_SIZE = 50
+
 export function TradeBlotter({ bookId }: TradeBlotterProps) {
-  const { trades, loading, error } = useTradeHistory(bookId)
+  const [counterpartyFilter, setCounterpartyFilter] = useState<string>('')
+  const {
+    trades,
+    loading,
+    error,
+    total,
+    page: serverPage,
+    totalPages: serverTotalPages,
+    goToPage,
+  } = useTradeHistory(bookId, {
+    pageSize: PAGE_SIZE,
+    counterpartyId: counterpartyFilter || null,
+  })
   const [instrumentFilter, setInstrumentFilter] = useState('')
   const [sideFilter, setSideFilter] = useState<'' | 'BUY' | 'SELL'>('')
   const [instrumentTypeFilter, setInstrumentTypeFilter] = useState('')
   const [filterResetNotice, setFilterResetNotice] = useState<string | null>(null)
-  const [page, setPage] = useState(0)
   const [showVenueOrderId, setShowVenueOrderId] = useState(false)
   const [expandedTradeId, setExpandedTradeId] = useState<string | null>(null)
-  const PAGE_SIZE = 50
 
   const instrumentTypeOptions = useMemo(() => {
     const counts = new Map<string, number>()
@@ -96,7 +108,6 @@ export function TradeBlotter({ bookId }: TradeBlotterProps) {
       if (!stillValid) {
         const label = formatInstrumentTypeLabel(instrumentTypeFilter)
         setInstrumentTypeFilter('')
-        setPage(0)
         setFilterResetNotice(`${label} filter removed (no matching trades)`)
       }
     }
@@ -109,6 +120,9 @@ export function TradeBlotter({ bookId }: TradeBlotterProps) {
     }
   }, [filterResetNotice])
 
+  // Server returns the active page; instrument / side / instrument-type
+  // filters are still applied client-side and operate on the visible page.
+  // Counterparty filter is forwarded to the server as a query param.
   const filtered = useMemo(() => {
     let result = [...trades]
 
@@ -130,23 +144,18 @@ export function TradeBlotter({ bookId }: TradeBlotterProps) {
     return result
   }, [trades, instrumentFilter, sideFilter, instrumentTypeFilter])
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  const safePage = Math.min(page, totalPages - 1)
-  const paginatedTrades = filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE)
+  const paginatedTrades = filtered
 
   const handleInstrumentFilter = (value: string) => {
     setInstrumentFilter(value)
-    setPage(0)
   }
 
   const handleSideFilter = (value: '' | 'BUY' | 'SELL') => {
     setSideFilter(value)
-    setPage(0)
   }
 
   const handleInstrumentTypeFilter = (value: string) => {
     setInstrumentTypeFilter(value)
-    setPage(0)
   }
 
   if (loading) {
@@ -196,6 +205,15 @@ export function TradeBlotter({ bookId }: TradeBlotterProps) {
           <option value="BUY">BUY</option>
           <option value="SELL">SELL</option>
         </select>
+        <input
+          data-testid="filter-counterparty"
+          type="text"
+          placeholder="Counterparty (server-side)..."
+          aria-label="Filter by counterparty"
+          value={counterpartyFilter}
+          onChange={(e) => setCounterpartyFilter(e.target.value)}
+          className="border border-slate-300 dark:border-surface-600 rounded-md px-3 py-1.5 text-sm bg-white dark:bg-surface-700 dark:text-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+        />
         {instrumentTypeOptions.length > 1 && (
           <select
             data-testid="filter-instrument-type"
@@ -382,23 +400,29 @@ export function TradeBlotter({ bookId }: TradeBlotterProps) {
         </div>
       </Card>
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-3 text-sm text-slate-600 dark:text-slate-400">
+      {serverTotalPages > 1 && (
+        <div
+          data-testid="blotter-pagination-footer"
+          className="flex items-center justify-between mt-3 text-sm text-slate-600 dark:text-slate-400"
+        >
           <span>
-            Showing {safePage * PAGE_SIZE + 1}–{Math.min((safePage + 1) * PAGE_SIZE, filtered.length)} of {filtered.length}
+            Showing {serverPage * PAGE_SIZE + 1}
+            –{Math.min((serverPage + 1) * PAGE_SIZE, total)} of {total}
           </span>
           <div className="flex items-center gap-2">
             <button
-              disabled={safePage === 0}
-              onClick={() => setPage((p) => p - 1)}
+              data-testid="blotter-prev-page"
+              disabled={serverPage === 0}
+              onClick={() => goToPage(serverPage - 1)}
               className="px-3 py-1 rounded border border-slate-300 dark:border-surface-600 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-surface-700 transition-colors"
             >
               Previous
             </button>
-            <span>Page {safePage + 1} of {totalPages}</span>
+            <span>Page {serverPage + 1} of {serverTotalPages}</span>
             <button
-              disabled={safePage >= totalPages - 1}
-              onClick={() => setPage((p) => p + 1)}
+              data-testid="blotter-next-page"
+              disabled={serverPage >= serverTotalPages - 1}
+              onClick={() => goToPage(serverPage + 1)}
               className="px-3 py-1 rounded border border-slate-300 dark:border-surface-600 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-surface-700 transition-colors"
             >
               Next
