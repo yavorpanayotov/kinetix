@@ -1,5 +1,7 @@
 package com.kinetix.price.routes
 
+import com.kinetix.common.demo.SeedProfile
+import com.kinetix.common.demo.UnknownScenarioException
 import com.kinetix.price.persistence.PriceRepository
 import com.kinetix.price.seed.DevDataSeeder
 import io.ktor.http.*
@@ -25,13 +27,24 @@ fun Route.demoResetRoutes(
                 return@post
             }
 
+            val profile = try {
+                SeedProfile.parseOrDefault(call.request.queryParameters["scenario"])
+            } catch (e: UnknownScenarioException) {
+                call.respond(HttpStatusCode.BadRequest, DemoResetResponse("UNKNOWN_SCENARIO", "Unknown scenario '${e.scenario}'"))
+                return@post
+            }
+            if (!profile.implemented) {
+                call.respond(HttpStatusCode.BadRequest, DemoResetResponse("SCENARIO_NOT_AVAILABLE", "Scenario '${profile.id}' is not yet implemented"))
+                return@post
+            }
+
             newSuspendedTransaction(db = db) {
                 exec("TRUNCATE TABLE market_data RESTART IDENTITY CASCADE")
             }
 
             DevDataSeeder(repository).seed()
 
-            call.respond(DemoResetResponse("ok", "Price data reset and reseeded"))
+            call.respond(DemoResetResponse("ok", "Price data reset and reseeded for ${profile.id}"))
         }
     }
 }

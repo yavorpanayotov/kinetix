@@ -1,5 +1,7 @@
 package com.kinetix.rates.routes
 
+import com.kinetix.common.demo.SeedProfile
+import com.kinetix.common.demo.UnknownScenarioException
 import com.kinetix.rates.persistence.ForwardCurveRepository
 import com.kinetix.rates.persistence.RiskFreeRateRepository
 import com.kinetix.rates.persistence.YieldCurveRepository
@@ -29,6 +31,17 @@ fun Route.demoResetRoutes(
                 return@post
             }
 
+            val profile = try {
+                SeedProfile.parseOrDefault(call.request.queryParameters["scenario"])
+            } catch (e: UnknownScenarioException) {
+                call.respond(HttpStatusCode.BadRequest, DemoResetResponse("UNKNOWN_SCENARIO", "Unknown scenario '${e.scenario}'"))
+                return@post
+            }
+            if (!profile.implemented) {
+                call.respond(HttpStatusCode.BadRequest, DemoResetResponse("SCENARIO_NOT_AVAILABLE", "Scenario '${profile.id}' is not yet implemented"))
+                return@post
+            }
+
             newSuspendedTransaction(db = db) {
                 exec("TRUNCATE TABLE forward_curve_points RESTART IDENTITY CASCADE")
                 exec("TRUNCATE TABLE forward_curves RESTART IDENTITY CASCADE")
@@ -39,7 +52,7 @@ fun Route.demoResetRoutes(
 
             DevDataSeeder(yieldCurveRepository, riskFreeRateRepository, forwardCurveRepository).seed()
 
-            call.respond(DemoResetResponse("ok", "Rates data reset and reseeded"))
+            call.respond(DemoResetResponse("ok", "Rates data reset and reseeded for ${profile.id}"))
         }
     }
 }

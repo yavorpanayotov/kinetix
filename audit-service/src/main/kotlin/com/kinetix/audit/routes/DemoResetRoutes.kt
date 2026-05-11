@@ -1,6 +1,8 @@
 package com.kinetix.audit.routes
 
 import com.kinetix.audit.persistence.AuditEventRepository
+import com.kinetix.common.demo.SeedProfile
+import com.kinetix.common.demo.UnknownScenarioException
 import com.kinetix.audit.seed.DevDataSeeder
 import io.ktor.http.*
 import io.ktor.server.response.*
@@ -25,6 +27,17 @@ fun Route.demoResetRoutes(
                 return@post
             }
 
+            val profile = try {
+                SeedProfile.parseOrDefault(call.request.queryParameters["scenario"])
+            } catch (e: UnknownScenarioException) {
+                call.respond(HttpStatusCode.BadRequest, DemoResetResponse("UNKNOWN_SCENARIO", "Unknown scenario '${e.scenario}'"))
+                return@post
+            }
+            if (!profile.implemented) {
+                call.respond(HttpStatusCode.BadRequest, DemoResetResponse("SCENARIO_NOT_AVAILABLE", "Scenario '${profile.id}' is not yet implemented"))
+                return@post
+            }
+
             newSuspendedTransaction(db = db) {
                 exec("ALTER TABLE audit_events DISABLE TRIGGER prevent_audit_update")
                 exec("ALTER TABLE audit_events DISABLE TRIGGER prevent_audit_delete")
@@ -35,7 +48,7 @@ fun Route.demoResetRoutes(
 
             DevDataSeeder(repository).seed()
 
-            call.respond(DemoResetResponse("ok", "Audit data reset and reseeded"))
+            call.respond(DemoResetResponse("ok", "Audit data reset and reseeded for ${profile.id}"))
         }
     }
 }

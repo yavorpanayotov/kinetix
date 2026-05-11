@@ -1,5 +1,7 @@
 package com.kinetix.risk.routes
 
+import com.kinetix.common.demo.SeedProfile
+import com.kinetix.common.demo.UnknownScenarioException
 import com.kinetix.risk.persistence.CounterpartyExposureRepository
 import com.kinetix.risk.seed.DevDataSeeder
 import com.kinetix.risk.service.ValuationJobRecorder
@@ -27,6 +29,17 @@ fun Route.demoResetRoutes(
                 return@post
             }
 
+            val profile = try {
+                SeedProfile.parseOrDefault(call.request.queryParameters["scenario"])
+            } catch (e: UnknownScenarioException) {
+                call.respond(HttpStatusCode.BadRequest, DemoResetResponse("UNKNOWN_SCENARIO", "Unknown scenario '${e.scenario}'"))
+                return@post
+            }
+            if (!profile.implemented) {
+                call.respond(HttpStatusCode.BadRequest, DemoResetResponse("SCENARIO_NOT_AVAILABLE", "Scenario '${profile.id}' is not yet implemented"))
+                return@post
+            }
+
             jobRecorder.deleteByTriggeredBy("SEED")
 
             newSuspendedTransaction(db = riskDb) {
@@ -37,7 +50,7 @@ fun Route.demoResetRoutes(
 
             DevDataSeeder(jobRecorder, exposureRepository).seed()
 
-            call.respond(DemoResetResponse("ok", "Risk data reset and reseeded"))
+            call.respond(DemoResetResponse("ok", "Risk data reset and reseeded for ${profile.id}"))
         }
     }
 }

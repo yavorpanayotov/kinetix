@@ -1,5 +1,7 @@
 package com.kinetix.position.routes
 
+import com.kinetix.common.demo.SeedProfile
+import com.kinetix.common.demo.UnknownScenarioException
 import com.kinetix.position.fix.ExecutionCostRepository
 import com.kinetix.position.persistence.LimitDefinitionRepository
 import com.kinetix.position.persistence.PositionRepository
@@ -33,6 +35,17 @@ fun Route.demoResetRoutes(
                 return@post
             }
 
+            val profile = try {
+                SeedProfile.parseOrDefault(call.request.queryParameters["scenario"])
+            } catch (e: UnknownScenarioException) {
+                call.respond(HttpStatusCode.BadRequest, DemoResetResponse("UNKNOWN_SCENARIO", "Unknown scenario '${e.scenario}'"))
+                return@post
+            }
+            if (!profile.implemented) {
+                call.respond(HttpStatusCode.BadRequest, DemoResetResponse("SCENARIO_NOT_AVAILABLE", "Scenario '${profile.id}' is not yet implemented"))
+                return@post
+            }
+
             newSuspendedTransaction(db = db) {
                 exec("TRUNCATE TABLE positions RESTART IDENTITY CASCADE")
                 // TRUNCATE bypasses the prevent_trade_event_deletion row-level trigger
@@ -50,9 +63,9 @@ fun Route.demoResetRoutes(
                 limitDefinitionRepo = limitDefinitionRepo,
                 executionCostRepo = executionCostRepo,
                 tradeEventRepository = tradeEventRepository,
-            ).seed()
+            ).seed(profile)
 
-            call.respond(DemoResetResponse("ok", "Position data reset and reseeded"))
+            call.respond(DemoResetResponse("ok", "Position data reset and reseeded for ${profile.id}"))
         }
     }
 }

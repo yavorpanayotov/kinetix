@@ -1,5 +1,6 @@
 package com.kinetix.referencedata.seed
 
+import com.kinetix.common.demo.SeedProfile
 import com.kinetix.common.model.CreditSpread
 import com.kinetix.common.model.Desk
 import com.kinetix.common.model.DeskId
@@ -37,6 +38,15 @@ class DevDataSeeder(
     private val nettingAgreementRepository: NettingAgreementRepository? = null,
 ) {
     private val log = LoggerFactory.getLogger(DevDataSeeder::class.java)
+
+    suspend fun seed(profile: SeedProfile) {
+        require(profile.implemented) { "Scenario '${profile.id}' is not implemented" }
+        log.info("Seeding reference-data with profile={}", profile.id)
+        // Phase 2 Gaps 2.4–2.6 will branch on profile (e.g. expanded option chain
+        // for options-book, additional desks/limits for stress). All implemented
+        // profiles share the existing reference universe today.
+        seed()
+    }
 
     suspend fun seed() {
         val existing = dividendYieldRepository.findLatest(InstrumentId("AAPL"))

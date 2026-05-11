@@ -1,5 +1,7 @@
 package com.kinetix.volatility.routes
 
+import com.kinetix.common.demo.SeedProfile
+import com.kinetix.common.demo.UnknownScenarioException
 import com.kinetix.volatility.persistence.VolSurfaceRepository
 import com.kinetix.volatility.seed.DevDataSeeder
 import io.ktor.http.*
@@ -25,6 +27,17 @@ fun Route.demoResetRoutes(
                 return@post
             }
 
+            val profile = try {
+                SeedProfile.parseOrDefault(call.request.queryParameters["scenario"])
+            } catch (e: UnknownScenarioException) {
+                call.respond(HttpStatusCode.BadRequest, DemoResetResponse("UNKNOWN_SCENARIO", "Unknown scenario '${e.scenario}'"))
+                return@post
+            }
+            if (!profile.implemented) {
+                call.respond(HttpStatusCode.BadRequest, DemoResetResponse("SCENARIO_NOT_AVAILABLE", "Scenario '${profile.id}' is not yet implemented"))
+                return@post
+            }
+
             newSuspendedTransaction(db = db) {
                 exec("TRUNCATE TABLE volatility_surface_points RESTART IDENTITY CASCADE")
                 exec("TRUNCATE TABLE volatility_surfaces RESTART IDENTITY CASCADE")
@@ -32,7 +45,7 @@ fun Route.demoResetRoutes(
 
             DevDataSeeder(volSurfaceRepository).seed()
 
-            call.respond(DemoResetResponse("ok", "Volatility data reset and reseeded"))
+            call.respond(DemoResetResponse("ok", "Volatility data reset and reseeded for ${profile.id}"))
         }
     }
 }

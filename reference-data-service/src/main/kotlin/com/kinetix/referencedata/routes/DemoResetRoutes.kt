@@ -1,5 +1,7 @@
 package com.kinetix.referencedata.routes
 
+import com.kinetix.common.demo.SeedProfile
+import com.kinetix.common.demo.UnknownScenarioException
 import com.kinetix.referencedata.persistence.CounterpartyRepository
 import com.kinetix.referencedata.persistence.CreditSpreadRepository
 import com.kinetix.referencedata.persistence.DeskRepository
@@ -39,6 +41,17 @@ fun Route.demoResetRoutes(
                 return@post
             }
 
+            val profile = try {
+                SeedProfile.parseOrDefault(call.request.queryParameters["scenario"])
+            } catch (e: UnknownScenarioException) {
+                call.respond(HttpStatusCode.BadRequest, DemoResetResponse("UNKNOWN_SCENARIO", "Unknown scenario '${e.scenario}'"))
+                return@post
+            }
+            if (!profile.implemented) {
+                call.respond(HttpStatusCode.BadRequest, DemoResetResponse("SCENARIO_NOT_AVAILABLE", "Scenario '${profile.id}' is not yet implemented"))
+                return@post
+            }
+
             newSuspendedTransaction(db = db) {
                 exec("TRUNCATE TABLE netting_agreements RESTART IDENTITY CASCADE")
                 exec("TRUNCATE TABLE counterparty_master RESTART IDENTITY CASCADE")
@@ -59,9 +72,9 @@ fun Route.demoResetRoutes(
                 liquidityRepository = liquidityRepository,
                 counterpartyRepository = counterpartyRepository,
                 nettingAgreementRepository = nettingAgreementRepository,
-            ).seed()
+            ).seed(profile)
 
-            call.respond(DemoResetResponse("ok", "Reference data reset and reseeded"))
+            call.respond(DemoResetResponse("ok", "Reference data reset and reseeded for ${profile.id}"))
         }
     }
 }

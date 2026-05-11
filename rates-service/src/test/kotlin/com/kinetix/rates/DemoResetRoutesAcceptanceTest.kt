@@ -76,4 +76,30 @@ class DemoResetRoutesAcceptanceTest : FunSpec({
             (rowCount("risk_free_rates") > 0L) shouldBe true
         }
     }
+
+    test("rejects unknown scenario with 400 + UNKNOWN_SCENARIO") {
+        testApplication {
+            application { configureDemoResetApp() }
+
+            val response = client.post("/api/v1/internal/rates/demo-reset?scenario=does-not-exist") {
+                header("X-Demo-Reset-Token", resetToken)
+            }
+
+            response.status shouldBe HttpStatusCode.BadRequest
+            response.bodyAsText() shouldContain "UNKNOWN_SCENARIO"
+        }
+    }
+
+    test("rejects regulatory scenario with 400 + SCENARIO_NOT_AVAILABLE pre-Gap-4") {
+        testApplication {
+            application { configureDemoResetApp() }
+
+            val response = client.post("/api/v1/internal/rates/demo-reset?scenario=regulatory") {
+                header("X-Demo-Reset-Token", resetToken)
+            }
+
+            response.status shouldBe HttpStatusCode.BadRequest
+            response.bodyAsText() shouldContain "SCENARIO_NOT_AVAILABLE"
+        }
+    }
 })

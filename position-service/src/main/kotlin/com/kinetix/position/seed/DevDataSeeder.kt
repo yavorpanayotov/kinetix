@@ -1,5 +1,6 @@
 package com.kinetix.position.seed
 
+import com.kinetix.common.demo.SeedProfile
 import com.kinetix.common.model.*
 import com.kinetix.position.fix.ExecutionCostAnalysis
 import com.kinetix.position.fix.ExecutionCostMetrics
@@ -28,6 +29,15 @@ class DevDataSeeder(
     private val tapeTradesEnabled: Boolean = true,
 ) {
     private val log = LoggerFactory.getLogger(DevDataSeeder::class.java)
+
+    suspend fun seed(profile: SeedProfile) {
+        require(profile.implemented) { "Scenario '${profile.id}' is not implemented" }
+        log.info("Seeding position-service with profile={}", profile.id)
+        // Phase 2 Gaps 2.4–2.6 will branch on profile here. For now all
+        // implemented profiles seed the existing multi-asset dataset; the
+        // tape and 252-day backfill (Phase 1) carry the regime/stress story.
+        seed()
+    }
 
     suspend fun seed() {
         val existing = positionRepository.findDistinctBookIds()

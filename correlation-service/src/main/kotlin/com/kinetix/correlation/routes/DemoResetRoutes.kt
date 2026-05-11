@@ -1,5 +1,7 @@
 package com.kinetix.correlation.routes
 
+import com.kinetix.common.demo.SeedProfile
+import com.kinetix.common.demo.UnknownScenarioException
 import com.kinetix.correlation.persistence.CorrelationMatrixRepository
 import com.kinetix.correlation.seed.DevDataSeeder
 import io.ktor.http.*
@@ -25,13 +27,24 @@ fun Route.demoResetRoutes(
                 return@post
             }
 
+            val profile = try {
+                SeedProfile.parseOrDefault(call.request.queryParameters["scenario"])
+            } catch (e: UnknownScenarioException) {
+                call.respond(HttpStatusCode.BadRequest, DemoResetResponse("UNKNOWN_SCENARIO", "Unknown scenario '${e.scenario}'"))
+                return@post
+            }
+            if (!profile.implemented) {
+                call.respond(HttpStatusCode.BadRequest, DemoResetResponse("SCENARIO_NOT_AVAILABLE", "Scenario '${profile.id}' is not yet implemented"))
+                return@post
+            }
+
             newSuspendedTransaction(db = db) {
                 exec("TRUNCATE TABLE correlation_matrices RESTART IDENTITY CASCADE")
             }
 
             DevDataSeeder(correlationMatrixRepository).seed()
 
-            call.respond(DemoResetResponse("ok", "Correlation data reset and reseeded"))
+            call.respond(DemoResetResponse("ok", "Correlation data reset and reseeded for ${profile.id}"))
         }
     }
 }

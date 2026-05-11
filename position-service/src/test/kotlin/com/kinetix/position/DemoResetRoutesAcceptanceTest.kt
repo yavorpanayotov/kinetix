@@ -96,6 +96,46 @@ class DemoResetRoutesAcceptanceTest : FunSpec({
         }
     }
 
+    test("rejects unknown scenario with 400 + UNKNOWN_SCENARIO and does not reseed") {
+        testApplication {
+            application { configureDemoResetApp() }
+
+            val response = client.post("/api/v1/internal/position/demo-reset?scenario=does-not-exist") {
+                header("X-Demo-Reset-Token", resetToken)
+            }
+
+            response.status shouldBe HttpStatusCode.BadRequest
+            response.bodyAsText() shouldContain "UNKNOWN_SCENARIO"
+            response.bodyAsText() shouldContain "does-not-exist"
+        }
+    }
+
+    test("rejects regulatory scenario with 400 + SCENARIO_NOT_AVAILABLE pre-Gap-4") {
+        testApplication {
+            application { configureDemoResetApp() }
+
+            val response = client.post("/api/v1/internal/position/demo-reset?scenario=regulatory") {
+                header("X-Demo-Reset-Token", resetToken)
+            }
+
+            response.status shouldBe HttpStatusCode.BadRequest
+            response.bodyAsText() shouldContain "SCENARIO_NOT_AVAILABLE"
+        }
+    }
+
+    test("accepts a known scenario and surfaces it in the response") {
+        testApplication {
+            application { configureDemoResetApp() }
+
+            val response = client.post("/api/v1/internal/position/demo-reset?scenario=stress") {
+                header("X-Demo-Reset-Token", resetToken)
+            }
+
+            response.status shouldBe HttpStatusCode.OK
+            response.bodyAsText() shouldContain "stress"
+        }
+    }
+
     afterSpec {
         producer.close()
     }
