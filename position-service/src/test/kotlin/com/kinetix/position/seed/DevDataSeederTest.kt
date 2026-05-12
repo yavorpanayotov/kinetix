@@ -1,5 +1,6 @@
 package com.kinetix.position.seed
 
+import com.kinetix.common.demo.SeedProfile
 import com.kinetix.common.model.BookId
 import com.kinetix.common.model.InstrumentId
 import com.kinetix.common.model.Position
@@ -13,6 +14,7 @@ import com.kinetix.position.service.TradeBookingService
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.comparables.shouldBeGreaterThan
+import io.kotest.matchers.comparables.shouldBeGreaterThanOrEqualTo
 import io.kotest.matchers.comparables.shouldBeLessThan
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
@@ -257,5 +259,91 @@ class DevDataSeederTest : FunSpec({
         negative shouldBeGreaterThan 0
         // Majority should be positive (realistic: most orders have some cost)
         positive shouldBeGreaterThan negative
+    }
+
+    // ── Phase 2 Gap 2 — equity-ls scenario ────────────────────────────────
+
+    test("equity-ls scenario seeds 800+ distinct positions in a single book") {
+        coEvery { positionRepository.findDistinctBookIds() } returns emptyList()
+        val captured = mutableListOf<BookTradeCommand>()
+        coEvery { tradeBookingService.handle(capture(captured)) } answers {
+            val cmd = firstArg<BookTradeCommand>()
+            BookTradeResult(
+                trade = com.kinetix.common.model.Trade(
+                    tradeId = cmd.tradeId,
+                    bookId = cmd.bookId,
+                    instrumentId = cmd.instrumentId,
+                    assetClass = cmd.assetClass,
+                    side = cmd.side,
+                    quantity = cmd.quantity,
+                    price = cmd.price,
+                    tradedAt = cmd.tradedAt,
+                    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
+                ),
+                position = Position(
+                    bookId = cmd.bookId,
+                    instrumentId = cmd.instrumentId,
+                    assetClass = cmd.assetClass,
+                    quantity = BigDecimal.ZERO,
+                    averageCost = com.kinetix.common.model.Money.zero(cmd.price.currency),
+                    marketPrice = com.kinetix.common.model.Money.zero(cmd.price.currency),
+                    instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.fromString(cmd.instrumentType),
+                ),
+            )
+        }
+        coEvery { positionRepository.findByKey(any(), any()) } returns null
+        coEvery { positionRepository.save(any()) } just runs
+        stubExecutionCostEmpty()
+
+        seeder.seed(SeedProfile.EquityLS)
+
+        val books = captured.map { it.bookId.value }.toSet()
+        books shouldBe setOf("equity-ls")
+        val distinctInstruments = captured.map { it.instrumentId.value }.toSet()
+        distinctInstruments.size shouldBeGreaterThanOrEqualTo 800
+    }
+
+    test("equity-ls scenario has both long and short legs") {
+        val trades = EquityLongShortScenario.TRADES
+        val buys = trades.count { it.side == Side.BUY }
+        val sells = trades.count { it.side == Side.SELL }
+        buys shouldBeGreaterThan 100
+        sells shouldBeGreaterThan 100
+    }
+
+    test("equity-ls scenario is sector-tilted with >=3 sectors net long and >=3 net short") {
+        val tradesBySector = EquityLongShortScenario.INSTRUMENTS.groupBy { it.sector }
+        val netLongSectors = tradesBySector.count { (_, instruments) ->
+            instruments.count { it.side == Side.BUY } > instruments.count { it.side == Side.SELL }
+        }
+        val netShortSectors = tradesBySector.count { (_, instruments) ->
+            instruments.count { it.side == Side.SELL } > instruments.count { it.side == Side.BUY }
+        }
+        netLongSectors shouldBeGreaterThanOrEqualTo 3
+        netShortSectors shouldBeGreaterThanOrEqualTo 3
+    }
+
+    test("equity-ls scenario gross long and short notionals are roughly balanced (factor-neutral)") {
+        val instruments = EquityLongShortScenario.INSTRUMENTS
+        fun notional(spec: EquityLongShortScenario.InstrumentSpec) =
+            spec.typicalPrice.multiply(spec.typicalQty)
+        val grossLong = instruments
+            .filter { it.side == Side.BUY }
+            .sumOf { notional(it) }
+        val grossShort = instruments
+            .filter { it.side == Side.SELL }
+            .sumOf { notional(it) }
+        val gross = grossLong.add(grossShort)
+        val netImbalance = grossLong.subtract(grossShort).abs()
+        // Factor-neutrality: |gross long − gross short| should be <20% of total gross
+        val tolerance = gross.multiply(BigDecimal("0.20"))
+        (netImbalance < tolerance) shouldBe true
+    }
+
+    test("equity-ls scenario trade IDs are unique and deterministic") {
+        val firstRun = EquityLongShortScenario.TRADES.map { it.tradeId.value }
+        val secondRun = EquityLongShortScenario.TRADES.map { it.tradeId.value }
+        firstRun shouldBe secondRun
+        firstRun.distinct().size shouldBe firstRun.size
     }
 })

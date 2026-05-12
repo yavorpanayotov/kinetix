@@ -33,10 +33,43 @@ class DevDataSeeder(
     suspend fun seed(profile: SeedProfile) {
         require(profile.implemented) { "Scenario '${profile.id}' is not implemented" }
         log.info("Seeding position-service with profile={}", profile.id)
-        // Phase 2 Gaps 2.4–2.6 will branch on profile here. For now all
-        // implemented profiles seed the existing multi-asset dataset; the
-        // tape and 252-day backfill (Phase 1) carry the regime/stress story.
-        seed()
+        when (profile) {
+            is SeedProfile.EquityLS -> seedEquityLongShort()
+            else -> seed()
+        }
+    }
+
+    /**
+     * Phase 2 Gap 2 — equity long/short scenario.
+     *
+     * Establishes 800 distinct positions in a single book ("equity-ls"),
+     * factor-neutral by gross notional and tilted across 8 sectors
+     * (4 net long, 4 net short). See [EquityLongShortScenario].
+     */
+    private suspend fun seedEquityLongShort() {
+        val existing = positionRepository.findDistinctBookIds()
+        if (existing.isEmpty()) {
+            val trades = EquityLongShortScenario.TRADES
+            log.info("Seeding equity-ls scenario: {} trades, {} distinct instruments",
+                trades.size, trades.map { it.instrumentId.value }.distinct().size)
+            for (trade in trades) {
+                tradeBookingService.handle(trade)
+            }
+        } else {
+            log.info("Seed data already present ({} books), skipping equity-ls trades", existing.size)
+        }
+
+        if (executionCostRepo != null) {
+            val existingCosts = executionCostRepo.findByBookId("equity-growth")
+            if (existingCosts.none { it.orderId.startsWith("seed-exec-") }) {
+                log.info("Seeding {} execution cost analyses", EXECUTION_COSTS.size)
+                for (cost in EXECUTION_COSTS) {
+                    executionCostRepo.save(cost)
+                }
+            }
+        }
+
+        log.info("equity-ls scenario seeding complete")
     }
 
     suspend fun seed() {
