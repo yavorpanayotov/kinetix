@@ -37,6 +37,7 @@ import com.kinetix.gateway.routes.jobHistoryRoutes
 import com.kinetix.gateway.routes.priceRoutes
 import com.kinetix.gateway.routes.auditProxyRoutes
 import com.kinetix.gateway.routes.instrumentRoutes
+import com.kinetix.gateway.routes.traderRoutes
 import com.kinetix.gateway.routes.notificationRoutes
 import com.kinetix.gateway.routes.positionRoutes
 import com.kinetix.gateway.routes.strategyProxyRoutes
@@ -508,6 +509,7 @@ fun Application.devModule() {
                     executionProxyRoutes(httpClient, positionUrl)
                 }
                 instrumentRoutes(httpClient, referenceDataUrl)
+                traderRoutes(httpClient, referenceDataUrl)
                 dataQualityRoutes(httpClient, positionUrl, priceUrl, riskUrl)
             }
             requirePermission(Permission.READ_AUDIT, authEnabled = authEnabled) {

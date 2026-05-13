@@ -39,6 +39,8 @@ import { useActiveScenario } from './hooks/useActiveScenario'
 import { ScenarioIndicator } from './components/ScenarioIndicator'
 import { useTapeReplayStatus } from './hooks/useTapeReplayStatus'
 import { TapeReplayIndicator } from './components/TapeReplayIndicator'
+import { useTraders } from './hooks/useTraders'
+import { TraderSelector } from './components/TraderSelector'
 import { useWorkspace } from './hooks/useWorkspace'
 import { useAuth } from './auth/useAuth'
 import { DEMO_MODE } from './auth/demoPersonas'
@@ -139,6 +141,8 @@ function App() {
   const marketRegime = useMarketRegime()
   const activeScenario = useActiveScenario()
   const tapeReplay = useTapeReplayStatus()
+  const tradersState = useTraders()
+  const [selectedTraderId, setSelectedTraderId] = useState<string | null>(null)
 
   const [disconnectElapsed, setDisconnectElapsed] = useState(0)
   useEffect(() => {
@@ -355,6 +359,19 @@ function App() {
       )}
 
       <main className="flex-1 p-4 md:p-6 dark:bg-surface-900" role="tabpanel" aria-labelledby={`tab-${activeTab}`}>
+        {(activeTab === 'positions' || activeTab === 'pnl' || activeTab === 'risk') && (
+          <div
+            data-testid="trader-filter-row"
+            className="mb-3 flex items-center justify-end gap-3"
+          >
+            <TraderSelector
+              traders={tradersState.traders}
+              selectedTraderId={selectedTraderId}
+              onChange={setSelectedTraderId}
+              loading={tradersState.loading}
+            />
+          </div>
+        )}
         {activeTab === 'system' ? (
           <SystemDashboard
             health={systemHealth.health}
