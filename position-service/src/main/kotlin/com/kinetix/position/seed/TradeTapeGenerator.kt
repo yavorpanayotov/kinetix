@@ -2,6 +2,7 @@ package com.kinetix.position.seed
 
 import com.kinetix.common.demo.CounterpartyTiers
 import com.kinetix.common.demo.DemoTape
+import com.kinetix.common.demo.DemoTraderRoster
 import com.kinetix.common.demo.Regime
 import com.kinetix.common.demo.RegimeCalendar
 import com.kinetix.common.demo.TapeRng
@@ -15,6 +16,7 @@ import com.kinetix.common.model.Trade
 import com.kinetix.common.model.TradeEventType
 import com.kinetix.common.model.TradeId
 import com.kinetix.common.model.TradeStatus
+import com.kinetix.common.model.TraderId
 import com.kinetix.common.model.instrument.InstrumentTypeCode
 import org.slf4j.LoggerFactory
 import java.math.BigDecimal
@@ -87,6 +89,8 @@ class TradeTapeGenerator(
                     seq++
                     val tradeId = "seed-tape-${bookId.replace("-", "").take(2)}-${seq.toString().padStart(6, '0')}"
 
+                    val traderId = DemoTraderRoster.traderForTicket(bookId, tradeId)?.let { TraderId(it) }
+
                     out += Trade(
                         tradeId = TradeId(tradeId),
                         bookId = BookId(bookId),
@@ -102,6 +106,7 @@ class TradeTapeGenerator(
                         counterpartyId = counterpartyId,
                         instrumentType = InstrumentTypeCode.fromString(instrument.instrumentType),
                         strategyId = null,
+                        traderId = traderId,
                     )
                 }
             }
