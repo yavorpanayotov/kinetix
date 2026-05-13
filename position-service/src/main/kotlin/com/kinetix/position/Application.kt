@@ -454,6 +454,7 @@ fun Application.moduleWithRoutes() {
                 limitDefinitionRepo = limitDefinitionRepo,
                 executionCostRepo = executionCostRepository,
                 tradeEventRepository = tradeEventRepository,
+                tradeLifecycleService = tradeLifecycleService,
                 resetToken = demoResetToken,
             )
         }

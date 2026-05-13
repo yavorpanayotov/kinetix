@@ -8,9 +8,12 @@ import com.kinetix.common.model.Side
 import com.kinetix.position.fix.ExecutionCostAnalysis
 import com.kinetix.position.fix.ExecutionCostRepository
 import com.kinetix.position.persistence.PositionRepository
+import com.kinetix.position.service.AmendTradeCommand
 import com.kinetix.position.service.BookTradeCommand
 import com.kinetix.position.service.BookTradeResult
+import com.kinetix.position.service.CancelTradeCommand
 import com.kinetix.position.service.TradeBookingService
+import com.kinetix.position.service.TradeLifecycleService
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.comparables.shouldBeGreaterThan
@@ -450,6 +453,95 @@ class DevDataSeederTest : FunSpec({
         val secondRun = OptionsBookScenario.TRADES.map { it.tradeId.value }
         firstRun shouldBe secondRun
         firstRun.distinct().size shouldBe firstRun.size
+    }
+
+    // ── Phase 3 Gap 4 — proper amend/cancel lifecycle commands ─────────────
+
+    test("amend triplet originals are part of TRADES and booked normally") {
+        val tradeIds = DevDataSeeder.TRADES.map { it.tradeId.value }.toSet()
+        DevDataSeeder.AMEND_TRIPLETS.forEach { triplet ->
+            tradeIds shouldContain triplet.original.tradeId.value
+        }
+    }
+
+    test("cancel triplet originals are part of TRADES and booked normally") {
+        val tradeIds = DevDataSeeder.TRADES.map { it.tradeId.value }.toSet()
+        DevDataSeeder.CANCEL_TRIPLETS.forEach { triplet ->
+            tradeIds shouldContain triplet.original.tradeId.value
+        }
+    }
+
+    test("TRADES no longer contains opposite-side cancel-simulation IDs") {
+        val tradeIds = DevDataSeeder.TRADES.map { it.tradeId.value }
+        tradeIds.none { it.endsWith("-cancel") } shouldBe true
+        tradeIds.none { it.endsWith("-amend") } shouldBe true
+    }
+
+    test("amend command references the original trade ID and assigns a new ID") {
+        DevDataSeeder.AMEND_TRIPLETS.forEach { triplet ->
+            triplet.amend.originalTradeId shouldBe triplet.original.tradeId
+            triplet.amend.newTradeId.value shouldNotBe triplet.original.tradeId.value
+            triplet.amend.newTradeId.value shouldBe "${triplet.original.tradeId.value}-amend"
+        }
+    }
+
+    test("cancel command targets the original trade ID") {
+        DevDataSeeder.CANCEL_TRIPLETS.forEach { triplet ->
+            triplet.cancel.tradeId shouldBe triplet.original.tradeId
+        }
+    }
+
+    test("amend changes quantity by ~5% from the original") {
+        DevDataSeeder.AMEND_TRIPLETS.forEach { triplet ->
+            val originalQty = triplet.original.quantity
+            val amendQty = triplet.amend.quantity
+            (amendQty > originalQty) shouldBe true
+            val ratio = amendQty.divide(originalQty, 4, java.math.RoundingMode.HALF_UP)
+            (ratio >= BigDecimal("1.04") && ratio <= BigDecimal("1.06")) shouldBe true
+        }
+    }
+
+    test("seed invokes TradeLifecycleService for every amend and cancel triplet") {
+        val lifecycle = mockk<TradeLifecycleService>()
+        val seederWithLifecycle = DevDataSeeder(
+            tradeBookingService = tradeBookingService,
+            positionRepository = positionRepository,
+            executionCostRepo = executionCostRepo,
+            tradeLifecycleService = lifecycle,
+        )
+        coEvery { positionRepository.findDistinctBookIds() } returns emptyList()
+        stubTradeBooking()
+        stubExecutionCostEmpty()
+        val amendResult = mockk<com.kinetix.position.service.BookTradeResult>(relaxed = true)
+        val cancelResult = mockk<com.kinetix.position.service.BookTradeResult>(relaxed = true)
+        coEvery { lifecycle.handleAmend(any()) } returns amendResult
+        coEvery { lifecycle.handleCancel(any()) } returns cancelResult
+
+        seederWithLifecycle.seed()
+
+        coVerify(exactly = DevDataSeeder.AMEND_TRIPLETS.size) { lifecycle.handleAmend(any()) }
+        coVerify(exactly = DevDataSeeder.CANCEL_TRIPLETS.size) { lifecycle.handleCancel(any()) }
+    }
+
+    test("seed skips lifecycle commands when TradeLifecycleService is not wired") {
+        // Backward-compat path: seeder must remain callable without lifecycle.
+        coEvery { positionRepository.findDistinctBookIds() } returns emptyList()
+        stubTradeBooking()
+        stubExecutionCostEmpty()
+
+        seeder.seed()
+        // No lifecycle service injected → no failure; trades booked as before.
+        coVerify(exactly = DevDataSeeder.TRADES.size) { tradeBookingService.handle(any()) }
+    }
+
+    test("amend triplets cover at least 5 distinct books") {
+        val books = DevDataSeeder.AMEND_TRIPLETS.map { it.original.bookId.value }.toSet()
+        books.size shouldBeGreaterThanOrEqualTo 5
+    }
+
+    test("cancel triplets cover at least 5 distinct books") {
+        val books = DevDataSeeder.CANCEL_TRIPLETS.map { it.original.bookId.value }.toSet()
+        books.size shouldBeGreaterThanOrEqualTo 5
     }
 })
 

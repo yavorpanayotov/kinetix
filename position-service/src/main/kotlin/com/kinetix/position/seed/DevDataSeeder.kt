@@ -11,8 +11,11 @@ import com.kinetix.position.model.LimitType
 import com.kinetix.position.persistence.LimitDefinitionRepository
 import com.kinetix.position.persistence.PositionRepository
 import com.kinetix.position.persistence.TradeEventRepository
+import com.kinetix.position.service.AmendTradeCommand
 import com.kinetix.position.service.BookTradeCommand
+import com.kinetix.position.service.CancelTradeCommand
 import com.kinetix.position.service.TradeBookingService
+import com.kinetix.position.service.TradeLifecycleService
 import org.slf4j.LoggerFactory
 import java.math.BigDecimal
 import java.math.RoundingMode
@@ -27,6 +30,7 @@ class DevDataSeeder(
     private val executionCostRepo: ExecutionCostRepository? = null,
     private val tradeEventRepository: TradeEventRepository? = null,
     private val tapeTradesEnabled: Boolean = true,
+    private val tradeLifecycleService: TradeLifecycleService? = null,
 ) {
     private val log = LoggerFactory.getLogger(DevDataSeeder::class.java)
 
@@ -142,6 +146,21 @@ class DevDataSeeder(
 
             for (trade in TRADES) {
                 tradeBookingService.handle(trade)
+            }
+
+            // Phase 3 Gap 4 — apply proper amend/cancel lifecycle commands.
+            // Originals were booked above; here we transition them via the real
+            // domain commands so trade_events shows LIVE → AMENDED/CANCELLED
+            // chains instead of opposite-side trade hacks.
+            tradeLifecycleService?.let { lifecycle ->
+                log.info("Applying {} amends and {} cancels via TradeLifecycleService",
+                    AMEND_TRIPLETS.size, CANCEL_TRIPLETS.size)
+                for (triplet in AMEND_TRIPLETS) {
+                    lifecycle.handleAmend(triplet.amend)
+                }
+                for (triplet in CANCEL_TRIPLETS) {
+                    lifecycle.handleCancel(triplet.cancel)
+                }
             }
 
             // Update positions with realistic market prices (trades only set averageCost)
@@ -572,81 +591,11 @@ class DevDataSeeder(
                 }
             }
 
-            // ── Amend/cancel triplets (~15, ~5% of ~300 generated) ────────────
-            // Each triplet: original + cancel (opposite side, 2 min later) + amend (same side, 3 min later, ±5% qty)
-            data class TripletSpec(
-                val bookId: String,
-                val instrId: String,
-                val assetClass: AssetClass,
-                val instrType: String,
-                val currency: String,
-                val priceStr: String,
-                val qty: Int,
-                val side: Side,
-                val baseTime: Instant,
-            )
-
-            val tripletSpecs = listOf(
-                TripletSpec("equity-growth",    "AAPL",  AssetClass.EQUITY, "CASH_EQUITY", "USD", "185.50",  1000, Side.BUY,  BASE_TIME.plus(-18, ChronoUnit.DAYS).plusSeconds(53000)),
-                TripletSpec("tech-momentum",    "NVDA",  AssetClass.EQUITY, "CASH_EQUITY", "USD", "885.00",   200, Side.BUY,  BASE_TIME.plus(-15, ChronoUnit.DAYS).plusSeconds(55000)),
-                TripletSpec("emerging-markets", "BABA",  AssetClass.EQUITY, "CASH_EQUITY", "USD",  "83.20",  2000, Side.BUY,  BASE_TIME.plus(-12, ChronoUnit.DAYS).plusSeconds(60000)),
-                TripletSpec("fixed-income",     "US10Y", AssetClass.FIXED_INCOME, "GOVERNMENT_BOND", "USD", "96.50", 5000, Side.BUY, BASE_TIME.plus(-10, ChronoUnit.DAYS).plusSeconds(57600)),
-                TripletSpec("multi-asset",      "GC",    AssetClass.COMMODITY, "COMMODITY_FUTURE", "USD", "2045.60", 20, Side.BUY, BASE_TIME.plus(-8, ChronoUnit.DAYS).plusSeconds(63000)),
-                TripletSpec("macro-hedge",      "CL",    AssetClass.COMMODITY, "COMMODITY_FUTURE", "USD",  "76.80",  50, Side.SELL, BASE_TIME.plus(-6, ChronoUnit.DAYS).plusSeconds(64800)),
-                TripletSpec("balanced-income",  "JPM",   AssetClass.EQUITY, "CASH_EQUITY", "USD", "208.40",  300, Side.BUY,  BASE_TIME.plus(-14, ChronoUnit.DAYS).plusSeconds(54000)),
-                TripletSpec("derivatives-book", "TSLA",  AssetClass.EQUITY, "CASH_EQUITY", "USD", "249.50",  400, Side.BUY,  BASE_TIME.plus(-11, ChronoUnit.DAYS).plusSeconds(59400)),
-                TripletSpec("equity-growth",    "MSFT",  AssetClass.EQUITY, "CASH_EQUITY", "USD", "420.00",  500, Side.SELL, BASE_TIME.plus(-5, ChronoUnit.DAYS).plusSeconds(70000)),
-                TripletSpec("tech-momentum",    "META",  AssetClass.EQUITY, "CASH_EQUITY", "USD", "502.30",  300, Side.BUY,  BASE_TIME.plus(-3, ChronoUnit.DAYS).plusSeconds(52500)),
-                TripletSpec("macro-hedge",      "GC",    AssetClass.COMMODITY, "COMMODITY_FUTURE", "USD", "2040.00", 10, Side.BUY, BASE_TIME.plus(-16, ChronoUnit.DAYS).plusSeconds(58000)),
-                TripletSpec("multi-asset",      "AAPL",  AssetClass.EQUITY, "CASH_EQUITY", "USD", "186.00",  250, Side.BUY,  BASE_TIME.plus(-9, ChronoUnit.DAYS).plusSeconds(65000)),
-                TripletSpec("balanced-income",  "US30Y", AssetClass.FIXED_INCOME, "GOVERNMENT_BOND", "USD", "92.30", 3000, Side.BUY, BASE_TIME.plus(-7, ChronoUnit.DAYS).plusSeconds(56400)),
-                TripletSpec("derivatives-book", "SPX-CALL-5000", AssetClass.DERIVATIVE, "EQUITY_OPTION", "USD", "41.50", 100, Side.BUY, BASE_TIME.plus(-4, ChronoUnit.DAYS).plusSeconds(53800)),
-                TripletSpec("emerging-markets", "GBPUSD", AssetClass.FX, "FX_SPOT", "USD", "1.2580", 500000, Side.BUY, BASE_TIME.plus(-13, ChronoUnit.DAYS).plusSeconds(34200)),
-            )
-
-            tripletSpecs.forEachIndexed { idx, spec ->
-                val n = idx + 1
-                val bookAbbrev = spec.bookId.replace("-", "").take(2)
-                val instrAbbrev = spec.instrId.lowercase().replace("-", "").take(10)
-                val baseId = "seed-gen-ac-$bookAbbrev-$instrAbbrev-${n.toString().padStart(2, '0')}"
-                val price = if (spec.currency == "EUR") eur(spec.priceStr) else usd(spec.priceStr)
-                val amendQty = BigDecimal((spec.qty * 105 / 100))
-
-                result += BookTradeCommand(
-                    tradeId = TradeId(baseId),
-                    bookId = BookId(spec.bookId),
-                    instrumentId = InstrumentId(spec.instrId),
-                    assetClass = spec.assetClass,
-                    side = spec.side,
-                    quantity = BigDecimal(spec.qty),
-                    price = price,
-                    tradedAt = spec.baseTime,
-                    instrumentType = spec.instrType,
-                )
-                val cancelSide = if (spec.side == Side.BUY) Side.SELL else Side.BUY
-                result += BookTradeCommand(
-                    tradeId = TradeId("$baseId-cancel"),
-                    bookId = BookId(spec.bookId),
-                    instrumentId = InstrumentId(spec.instrId),
-                    assetClass = spec.assetClass,
-                    side = cancelSide,
-                    quantity = BigDecimal(spec.qty),
-                    price = price,
-                    tradedAt = spec.baseTime.plusSeconds(120),
-                    instrumentType = spec.instrType,
-                )
-                result += BookTradeCommand(
-                    tradeId = TradeId("$baseId-amend"),
-                    bookId = BookId(spec.bookId),
-                    instrumentId = InstrumentId(spec.instrId),
-                    assetClass = spec.assetClass,
-                    side = spec.side,
-                    quantity = amendQty,
-                    price = price,
-                    tradedAt = spec.baseTime.plusSeconds(180),
-                    instrumentType = spec.instrType,
-                )
-            }
+            // ── Amend/cancel originals — applied as proper lifecycle commands ──
+            // Originals get booked here so trade_events has the LIVE records the
+            // lifecycle service amends or cancels in seed() via TradeLifecycleService.
+            AMEND_TRIPLETS.forEach { result += it.original }
+            CANCEL_TRIPLETS.forEach { result += it.original }
 
             // ── Day-trade round trips (2) ──────────────────────────────────────
             // Trade 1: equity-growth AAPL — buy morning, sell afternoon
@@ -1410,6 +1359,129 @@ class DevDataSeeder(
                 tradedAt = day(3),
                 instrumentType = "FX_SPOT",
             ),
+        )
+
+        /**
+         * Phase 3 Gap 4 — proper amend lifecycle commands.
+         *
+         * Each triplet pairs a [BookTradeCommand] (booked first via
+         * [TradeBookingService]) with an [AmendTradeCommand] applied later via
+         * [TradeLifecycleService]. The amend creates a new trade record and
+         * transitions the original to `AMENDED`; previously this was simulated
+         * by booking opposite-side trades, which produced ambiguous audit
+         * trails. Trade IDs follow `seed-gen-ac-<bookAbbrev>-<instrAbbrev>-NN`
+         * for stability across both seeders (position + audit).
+         */
+        data class AmendTriplet(
+            val original: BookTradeCommand,
+            val amend: AmendTradeCommand,
+        )
+
+        /**
+         * Phase 3 Gap 4 — proper cancel lifecycle commands.
+         */
+        data class CancelTriplet(
+            val original: BookTradeCommand,
+            val cancel: CancelTradeCommand,
+        )
+
+        private fun amendTriplet(
+            idx: Int,
+            bookId: String,
+            instrId: String,
+            assetClass: AssetClass,
+            instrType: String,
+            currency: String,
+            priceStr: String,
+            qty: Int,
+            side: Side,
+            baseTime: Instant,
+            amendQty: Int = qty * 105 / 100,
+            amendDelaySeconds: Long = 180,
+        ): AmendTriplet {
+            val bookAbbrev = bookId.replace("-", "").take(2)
+            val instrAbbrev = instrId.lowercase().replace("-", "").take(10)
+            val baseId = "seed-gen-ac-$bookAbbrev-$instrAbbrev-${idx.toString().padStart(2, '0')}"
+            val price = if (currency == "EUR") eur(priceStr) else usd(priceStr)
+            val original = BookTradeCommand(
+                tradeId = TradeId(baseId),
+                bookId = BookId(bookId),
+                instrumentId = InstrumentId(instrId),
+                assetClass = assetClass,
+                side = side,
+                quantity = BigDecimal(qty),
+                price = price,
+                tradedAt = baseTime,
+                instrumentType = instrType,
+            )
+            val amend = AmendTradeCommand(
+                originalTradeId = TradeId(baseId),
+                newTradeId = TradeId("$baseId-amend"),
+                bookId = BookId(bookId),
+                instrumentId = InstrumentId(instrId),
+                assetClass = assetClass,
+                side = side,
+                quantity = BigDecimal(amendQty),
+                price = price,
+                tradedAt = baseTime.plusSeconds(amendDelaySeconds),
+                instrumentType = instrType,
+            )
+            return AmendTriplet(original, amend)
+        }
+
+        private fun cancelTriplet(
+            idx: Int,
+            bookId: String,
+            instrId: String,
+            assetClass: AssetClass,
+            instrType: String,
+            currency: String,
+            priceStr: String,
+            qty: Int,
+            side: Side,
+            baseTime: Instant,
+        ): CancelTriplet {
+            val bookAbbrev = bookId.replace("-", "").take(2)
+            val instrAbbrev = instrId.lowercase().replace("-", "").take(10)
+            val baseId = "seed-gen-ac-$bookAbbrev-$instrAbbrev-${idx.toString().padStart(2, '0')}"
+            val price = if (currency == "EUR") eur(priceStr) else usd(priceStr)
+            val original = BookTradeCommand(
+                tradeId = TradeId(baseId),
+                bookId = BookId(bookId),
+                instrumentId = InstrumentId(instrId),
+                assetClass = assetClass,
+                side = side,
+                quantity = BigDecimal(qty),
+                price = price,
+                tradedAt = baseTime,
+                instrumentType = instrType,
+            )
+            val cancel = CancelTradeCommand(
+                tradeId = TradeId(baseId),
+                bookId = BookId(bookId),
+            )
+            return CancelTriplet(original, cancel)
+        }
+
+        val AMEND_TRIPLETS: List<AmendTriplet> = listOf(
+            amendTriplet(1,  "equity-growth",    "AAPL",          AssetClass.EQUITY,       "CASH_EQUITY",      "USD", "185.50",  1000, Side.BUY,  BASE_TIME.plus(-18, ChronoUnit.DAYS).plusSeconds(53000)),
+            amendTriplet(2,  "tech-momentum",    "NVDA",          AssetClass.EQUITY,       "CASH_EQUITY",      "USD", "885.00",   200, Side.BUY,  BASE_TIME.plus(-15, ChronoUnit.DAYS).plusSeconds(55000)),
+            amendTriplet(4,  "fixed-income",     "US10Y",         AssetClass.FIXED_INCOME, "GOVERNMENT_BOND",  "USD",  "96.50", 5000, Side.BUY,  BASE_TIME.plus(-10, ChronoUnit.DAYS).plusSeconds(57600)),
+            amendTriplet(5,  "multi-asset",      "GC",            AssetClass.COMMODITY,    "COMMODITY_FUTURE", "USD","2045.60",   20, Side.BUY,  BASE_TIME.plus(-8,  ChronoUnit.DAYS).plusSeconds(63000)),
+            amendTriplet(7,  "balanced-income",  "JPM",           AssetClass.EQUITY,       "CASH_EQUITY",      "USD", "208.40",  300, Side.BUY,  BASE_TIME.plus(-14, ChronoUnit.DAYS).plusSeconds(54000)),
+            amendTriplet(9,  "equity-growth",    "MSFT",          AssetClass.EQUITY,       "CASH_EQUITY",      "USD", "420.00",  500, Side.SELL, BASE_TIME.plus(-5,  ChronoUnit.DAYS).plusSeconds(70000)),
+            amendTriplet(12, "multi-asset",      "AAPL",          AssetClass.EQUITY,       "CASH_EQUITY",      "USD", "186.00",  250, Side.BUY,  BASE_TIME.plus(-9,  ChronoUnit.DAYS).plusSeconds(65000)),
+            amendTriplet(14, "derivatives-book", "SPX-CALL-5000", AssetClass.DERIVATIVE,   "EQUITY_OPTION",    "USD",  "41.50",  100, Side.BUY,  BASE_TIME.plus(-4,  ChronoUnit.DAYS).plusSeconds(53800)),
+        )
+
+        val CANCEL_TRIPLETS: List<CancelTriplet> = listOf(
+            cancelTriplet(3,  "emerging-markets", "BABA",   AssetClass.EQUITY,       "CASH_EQUITY",      "USD",   "83.20",   2000, Side.BUY,  BASE_TIME.plus(-12, ChronoUnit.DAYS).plusSeconds(60000)),
+            cancelTriplet(6,  "macro-hedge",      "CL",     AssetClass.COMMODITY,    "COMMODITY_FUTURE", "USD",   "76.80",     50, Side.SELL, BASE_TIME.plus(-6,  ChronoUnit.DAYS).plusSeconds(64800)),
+            cancelTriplet(8,  "derivatives-book", "TSLA",   AssetClass.EQUITY,       "CASH_EQUITY",      "USD",  "249.50",    400, Side.BUY,  BASE_TIME.plus(-11, ChronoUnit.DAYS).plusSeconds(59400)),
+            cancelTriplet(10, "tech-momentum",    "META",   AssetClass.EQUITY,       "CASH_EQUITY",      "USD",  "502.30",    300, Side.BUY,  BASE_TIME.plus(-3,  ChronoUnit.DAYS).plusSeconds(52500)),
+            cancelTriplet(11, "macro-hedge",      "GC",     AssetClass.COMMODITY,    "COMMODITY_FUTURE", "USD", "2040.00",     10, Side.BUY,  BASE_TIME.plus(-16, ChronoUnit.DAYS).plusSeconds(58000)),
+            cancelTriplet(13, "balanced-income",  "US30Y",  AssetClass.FIXED_INCOME, "GOVERNMENT_BOND",  "USD",   "92.30",   3000, Side.BUY,  BASE_TIME.plus(-7,  ChronoUnit.DAYS).plusSeconds(56400)),
+            cancelTriplet(15, "emerging-markets", "GBPUSD", AssetClass.FX,           "FX_SPOT",          "USD",  "1.2580", 500000, Side.BUY,  BASE_TIME.plus(-13, ChronoUnit.DAYS).plusSeconds(34200)),
         )
 
         val TRADES: List<BookTradeCommand> = CORE_TRADES + buildGeneratedTrades()

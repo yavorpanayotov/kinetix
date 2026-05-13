@@ -8,6 +8,7 @@ import com.kinetix.position.persistence.PositionRepository
 import com.kinetix.position.persistence.TradeEventRepository
 import com.kinetix.position.seed.DevDataSeeder
 import com.kinetix.position.service.TradeBookingService
+import com.kinetix.position.service.TradeLifecycleService
 import io.ktor.http.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -25,6 +26,7 @@ fun Route.demoResetRoutes(
     limitDefinitionRepo: LimitDefinitionRepository,
     executionCostRepo: ExecutionCostRepository? = null,
     tradeEventRepository: TradeEventRepository? = null,
+    tradeLifecycleService: TradeLifecycleService? = null,
     resetToken: String,
 ) {
     route("/api/v1/internal/position") {
@@ -63,6 +65,7 @@ fun Route.demoResetRoutes(
                 limitDefinitionRepo = limitDefinitionRepo,
                 executionCostRepo = executionCostRepo,
                 tradeEventRepository = tradeEventRepository,
+                tradeLifecycleService = tradeLifecycleService,
             ).seed(profile)
 
             call.respond(DemoResetResponse("ok", "Position data reset and reseeded for ${profile.id}"))
