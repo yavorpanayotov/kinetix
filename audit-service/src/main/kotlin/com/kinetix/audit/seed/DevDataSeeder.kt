@@ -397,7 +397,7 @@ class DevDataSeeder(
                 val baseTime: Instant,
             )
 
-            val lifecycleSpecs = listOf(
+            val seedSpecs = listOf(
                 LifecycleSpec(1,  LifecycleKind.AMEND,  "equity-growth",    "AAPL",          "EQUITY",       "USD", "185.50",   1000, "BUY",  BASE_TIME.plus(-18, ChronoUnit.DAYS).plusSeconds(53000)),
                 LifecycleSpec(2,  LifecycleKind.AMEND,  "tech-momentum",    "NVDA",          "EQUITY",       "USD", "885.00",    200, "BUY",  BASE_TIME.plus(-15, ChronoUnit.DAYS).plusSeconds(55000)),
                 LifecycleSpec(3,  LifecycleKind.CANCEL, "emerging-markets", "BABA",          "EQUITY",       "USD",  "83.20",   2000, "BUY",  BASE_TIME.plus(-12, ChronoUnit.DAYS).plusSeconds(60000)),
@@ -414,6 +414,54 @@ class DevDataSeeder(
                 LifecycleSpec(14, LifecycleKind.AMEND,  "derivatives-book", "SPX-CALL-5000", "DERIVATIVE",   "USD",  "41.50",    100, "BUY",  BASE_TIME.plus(-4,  ChronoUnit.DAYS).plusSeconds(53800)),
                 LifecycleSpec(15, LifecycleKind.CANCEL, "emerging-markets", "GBPUSD",        "FX",           "USD",  "1.2580", 500000, "BUY",  BASE_TIME.plus(-13, ChronoUnit.DAYS).plusSeconds(34200)),
             )
+
+            // Phase 3 Gap 4 expansion — additional 40 amends + 24 cancels (5 + 3
+            // per book) generated deterministically from BOOK_INSTRUMENTS so that
+            // the audit trail mirrors position-service trade events 1:1.
+            val additionalSpecs = mutableListOf<LifecycleSpec>()
+            run {
+                var idx = 16
+                val orderedBooks = listOf(
+                    "equity-growth", "tech-momentum", "emerging-markets", "fixed-income",
+                    "multi-asset", "macro-hedge", "balanced-income", "derivatives-book",
+                )
+                val amendsPerBook = 5
+                val cancelsPerBook = 3
+                fun midpointQty(spec: InstrumentSpec, bias: Int): Int {
+                    val span = (spec.typicalQtyMax - spec.typicalQtyMin).coerceAtLeast(1)
+                    return spec.typicalQtyMin + ((bias.toLong() and 0xFFFFFFFFL).toInt() % span)
+                }
+                for ((bookIdx, bookId) in orderedBooks.withIndex()) {
+                    val specs = BOOK_INSTRUMENTS.getValue(bookId)
+                    for (i in 0 until amendsPerBook) {
+                        val instrSpec = specs[(i + bookIdx) % specs.size]
+                        val dayOffset = -(1L + ((idx * 7L) % 19L))
+                        val tradeTime = BASE_TIME.plus(dayOffset, ChronoUnit.DAYS)
+                            .plusSeconds(40000L + ((idx * 311L) % 25000L))
+                        val qty = midpointQty(instrSpec, bias = idx * 13)
+                        val side = if ((idx + bookIdx) % 4 == 0) "SELL" else "BUY"
+                        additionalSpecs += LifecycleSpec(
+                            idx, LifecycleKind.AMEND, bookId, instrSpec.id, instrSpec.assetClass,
+                            instrSpec.currency, instrSpec.typicalPrice, qty, side, tradeTime,
+                        )
+                        idx++
+                    }
+                    for (i in 0 until cancelsPerBook) {
+                        val instrSpec = specs[(i + bookIdx + amendsPerBook) % specs.size]
+                        val dayOffset = -(1L + ((idx * 11L) % 19L))
+                        val tradeTime = BASE_TIME.plus(dayOffset, ChronoUnit.DAYS)
+                            .plusSeconds(40000L + ((idx * 433L) % 25000L))
+                        val qty = midpointQty(instrSpec, bias = idx * 7)
+                        val side = if ((idx + bookIdx) % 3 == 0) "SELL" else "BUY"
+                        additionalSpecs += LifecycleSpec(
+                            idx, LifecycleKind.CANCEL, bookId, instrSpec.id, instrSpec.assetClass,
+                            instrSpec.currency, instrSpec.typicalPrice, qty, side, tradeTime,
+                        )
+                        idx++
+                    }
+                }
+            }
+            val lifecycleSpecs = seedSpecs + additionalSpecs
 
             lifecycleSpecs.forEach { spec ->
                 val bookAbbrev = spec.bookId.replace("-", "").take(2)

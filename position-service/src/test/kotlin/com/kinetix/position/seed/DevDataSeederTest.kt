@@ -543,6 +543,36 @@ class DevDataSeederTest : FunSpec({
         val books = DevDataSeeder.CANCEL_TRIPLETS.map { it.original.bookId.value }.toSet()
         books.size shouldBeGreaterThanOrEqualTo 5
     }
+
+    test("default seed meets Phase 3 Gap 4 lifecycle volume target (~50 amends, ~30 cancels)") {
+        DevDataSeeder.AMEND_TRIPLETS.size shouldBeGreaterThanOrEqualTo 45
+        DevDataSeeder.CANCEL_TRIPLETS.size shouldBeGreaterThanOrEqualTo 28
+    }
+
+    test("lifecycle triplets touch every book") {
+        val books = (DevDataSeeder.AMEND_TRIPLETS.map { it.original.bookId.value } +
+                     DevDataSeeder.CANCEL_TRIPLETS.map { it.original.bookId.value }).toSet()
+        books shouldBe setOf(
+            "balanced-income", "derivatives-book", "emerging-markets",
+            "equity-growth", "fixed-income", "macro-hedge",
+            "multi-asset", "tech-momentum",
+        )
+    }
+
+    test("all lifecycle trade IDs are unique") {
+        val originalIds = DevDataSeeder.AMEND_TRIPLETS.map { it.original.tradeId.value } +
+                          DevDataSeeder.CANCEL_TRIPLETS.map { it.original.tradeId.value }
+        originalIds.distinct().size shouldBe originalIds.size
+    }
+
+    test("lifecycle specs are deterministic across rebuilds") {
+        val firstA = DevDataSeeder.AMEND_TRIPLETS.map { it.original.tradeId.value to it.amend.newTradeId.value }
+        val secondA = DevDataSeeder.AMEND_TRIPLETS.map { it.original.tradeId.value to it.amend.newTradeId.value }
+        firstA shouldBe secondA
+        val firstC = DevDataSeeder.CANCEL_TRIPLETS.map { it.original.tradeId.value }
+        val secondC = DevDataSeeder.CANCEL_TRIPLETS.map { it.original.tradeId.value }
+        firstC shouldBe secondC
+    }
 })
 
 private fun extractExpiryCode(instrumentId: String): String {

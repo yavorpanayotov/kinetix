@@ -1463,7 +1463,7 @@ class DevDataSeeder(
             return CancelTriplet(original, cancel)
         }
 
-        val AMEND_TRIPLETS: List<AmendTriplet> = listOf(
+        private val SEED_AMEND_TRIPLETS: List<AmendTriplet> = listOf(
             amendTriplet(1,  "equity-growth",    "AAPL",          AssetClass.EQUITY,       "CASH_EQUITY",      "USD", "185.50",  1000, Side.BUY,  BASE_TIME.plus(-18, ChronoUnit.DAYS).plusSeconds(53000)),
             amendTriplet(2,  "tech-momentum",    "NVDA",          AssetClass.EQUITY,       "CASH_EQUITY",      "USD", "885.00",   200, Side.BUY,  BASE_TIME.plus(-15, ChronoUnit.DAYS).plusSeconds(55000)),
             amendTriplet(4,  "fixed-income",     "US10Y",         AssetClass.FIXED_INCOME, "GOVERNMENT_BOND",  "USD",  "96.50", 5000, Side.BUY,  BASE_TIME.plus(-10, ChronoUnit.DAYS).plusSeconds(57600)),
@@ -1474,7 +1474,7 @@ class DevDataSeeder(
             amendTriplet(14, "derivatives-book", "SPX-CALL-5000", AssetClass.DERIVATIVE,   "EQUITY_OPTION",    "USD",  "41.50",  100, Side.BUY,  BASE_TIME.plus(-4,  ChronoUnit.DAYS).plusSeconds(53800)),
         )
 
-        val CANCEL_TRIPLETS: List<CancelTriplet> = listOf(
+        private val SEED_CANCEL_TRIPLETS: List<CancelTriplet> = listOf(
             cancelTriplet(3,  "emerging-markets", "BABA",   AssetClass.EQUITY,       "CASH_EQUITY",      "USD",   "83.20",   2000, Side.BUY,  BASE_TIME.plus(-12, ChronoUnit.DAYS).plusSeconds(60000)),
             cancelTriplet(6,  "macro-hedge",      "CL",     AssetClass.COMMODITY,    "COMMODITY_FUTURE", "USD",   "76.80",     50, Side.SELL, BASE_TIME.plus(-6,  ChronoUnit.DAYS).plusSeconds(64800)),
             cancelTriplet(8,  "derivatives-book", "TSLA",   AssetClass.EQUITY,       "CASH_EQUITY",      "USD",  "249.50",    400, Side.BUY,  BASE_TIME.plus(-11, ChronoUnit.DAYS).plusSeconds(59400)),
@@ -1483,6 +1483,66 @@ class DevDataSeeder(
             cancelTriplet(13, "balanced-income",  "US30Y",  AssetClass.FIXED_INCOME, "GOVERNMENT_BOND",  "USD",   "92.30",   3000, Side.BUY,  BASE_TIME.plus(-7,  ChronoUnit.DAYS).plusSeconds(56400)),
             cancelTriplet(15, "emerging-markets", "GBPUSD", AssetClass.FX,           "FX_SPOT",          "USD",  "1.2580", 500000, Side.BUY,  BASE_TIME.plus(-13, ChronoUnit.DAYS).plusSeconds(34200)),
         )
+
+        /**
+         * Generates additional lifecycle specs to reach the demo target of
+         * ~50 amends and ~30 cancels (Phase 3 Gap 4). Specs are picked
+         * deterministically from `BOOK_INSTRUMENTS` so every reset produces
+         * the same trade IDs and amounts; the demo blotter has to be
+         * reproducible for any "this should look identical to yesterday"
+         * regression tests.
+         */
+        private fun buildAdditionalLifecycleSpecs(): Pair<List<AmendTriplet>, List<CancelTriplet>> {
+            val amends = mutableListOf<AmendTriplet>()
+            val cancels = mutableListOf<CancelTriplet>()
+            var idx = 16
+            val orderedBooks = listOf(
+                "equity-growth", "tech-momentum", "emerging-markets", "fixed-income",
+                "multi-asset", "macro-hedge", "balanced-income", "derivatives-book",
+            )
+            for ((bookIdx, bookId) in orderedBooks.withIndex()) {
+                val specs = BOOK_INSTRUMENTS.getValue(bookId)
+                val amendsPerBook = 5  // 8 × 5 = 40 → with seed 8 = 48 amends
+                val cancelsPerBook = 3 // 8 × 3 = 24 → with seed 7 = 31 cancels
+                for (i in 0 until amendsPerBook) {
+                    val instrSpec = specs[(i + bookIdx) % specs.size]
+                    val dayOffset = -(1L + ((idx * 7L) % 19L))
+                    val tradeTime = BASE_TIME.plus(dayOffset, ChronoUnit.DAYS)
+                        .plusSeconds(40000L + ((idx * 311L) % 25000L))
+                    val qty = midpointQty(instrSpec, bias = idx * 13)
+                    val side = if ((idx + bookIdx) % 4 == 0) Side.SELL else Side.BUY
+                    amends += amendTriplet(
+                        idx, bookId, instrSpec.id, instrSpec.assetClass, instrSpec.instrumentType,
+                        instrSpec.currency, instrSpec.typicalPrice, qty, side, tradeTime,
+                    )
+                    idx++
+                }
+                for (i in 0 until cancelsPerBook) {
+                    val instrSpec = specs[(i + bookIdx + amendsPerBook) % specs.size]
+                    val dayOffset = -(1L + ((idx * 11L) % 19L))
+                    val tradeTime = BASE_TIME.plus(dayOffset, ChronoUnit.DAYS)
+                        .plusSeconds(40000L + ((idx * 433L) % 25000L))
+                    val qty = midpointQty(instrSpec, bias = idx * 7)
+                    val side = if ((idx + bookIdx) % 3 == 0) Side.SELL else Side.BUY
+                    cancels += cancelTriplet(
+                        idx, bookId, instrSpec.id, instrSpec.assetClass, instrSpec.instrumentType,
+                        instrSpec.currency, instrSpec.typicalPrice, qty, side, tradeTime,
+                    )
+                    idx++
+                }
+            }
+            return amends to cancels
+        }
+
+        private fun midpointQty(spec: InstrumentSpec, bias: Int): Int {
+            val span = (spec.typicalQtyMax - spec.typicalQtyMin).coerceAtLeast(1)
+            return spec.typicalQtyMin + ((bias.toLong() and 0xFFFFFFFFL).toInt() % span)
+        }
+
+        private val ADDITIONAL_LIFECYCLE_SPECS: Pair<List<AmendTriplet>, List<CancelTriplet>> by lazy { buildAdditionalLifecycleSpecs() }
+
+        val AMEND_TRIPLETS: List<AmendTriplet> = SEED_AMEND_TRIPLETS + ADDITIONAL_LIFECYCLE_SPECS.first
+        val CANCEL_TRIPLETS: List<CancelTriplet> = SEED_CANCEL_TRIPLETS + ADDITIONAL_LIFECYCLE_SPECS.second
 
         val TRADES: List<BookTradeCommand> = CORE_TRADES + buildGeneratedTrades()
 
