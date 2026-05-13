@@ -20,6 +20,7 @@ object AuditEventsTable : Table("audit_events") {
     val recordHash = varchar("record_hash", 64).default("")
     val userId = varchar("user_id", 255).nullable()
     val userRole = varchar("user_role", 100).nullable()
+    val traderId = varchar("trader_id", 64).nullable()
     val eventType = varchar("event_type", 100).default("TRADE_BOOKED")
     // Governance fields — null for trade events
     val modelName = varchar("model_name", 255).nullable()

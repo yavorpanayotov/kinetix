@@ -19,6 +19,7 @@ object AuditHasher {
             append(event.tradedAt ?: "")
             append(event.userId ?: "NULL")
             append(event.userRole ?: "NULL")
+            append(event.traderId ?: "NULL")
             append(event.eventType)
             append(event.modelName ?: "")
             append(event.scenarioId ?: "")

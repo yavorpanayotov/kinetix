@@ -20,6 +20,7 @@ data class AuditEvent(
     val recordHash: String = "",
     val userId: String? = null,
     val userRole: String? = null,
+    val traderId: String? = null,
     val eventType: String = "TRADE_BOOKED",
     // Governance fields — null for trade events
     val modelName: String? = null,

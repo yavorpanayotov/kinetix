@@ -24,6 +24,7 @@ private fun auditEvent(
     receivedAt: Instant = NOW,
     userId: String? = null,
     userRole: String? = null,
+    traderId: String? = null,
     eventType: String = "TRADE_BOOKED",
 ) = AuditEvent(
     id = id,
@@ -39,6 +40,7 @@ private fun auditEvent(
     receivedAt = receivedAt,
     userId = userId,
     userRole = userRole,
+    traderId = traderId,
     eventType = eventType,
 )
 
@@ -108,4 +110,26 @@ class HashChainTest : FunSpec({
         result.valid shouldBe true
         result.eventCount shouldBe 0
     }
+
+    test("traderId is included in the hash input") {
+        val withTrader = auditEvent(id = 1, traderId = "tr-eg-001")
+        val withoutTrader = auditEvent(id = 1, traderId = null)
+        AuditHasher.computeHash(withTrader, previousHash = null) shouldNotBe
+            AuditHasher.computeHash(withoutTrader, previousHash = null)
+    }
+
+    test("changing traderId breaks chain verification") {
+        val event1 = auditEvent(id = 1, tradeId = "t-1", traderId = "tr-eg-001")
+        val hash1 = AuditHasher.computeHash(event1, previousHash = null)
+        val chained1 = event1.copy(previousHash = null, recordHash = hash1)
+        val tampered = chained1.copy(traderId = "tr-eg-999")
+
+        AuditHasher.verifyChain(listOf(tampered)).valid shouldBe false
+    }
 })
+
+private infix fun String.shouldNotBe(other: String) {
+    if (this == other) {
+        throw AssertionError("Expected hashes to differ but both were $this")
+    }
+}

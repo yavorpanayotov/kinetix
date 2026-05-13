@@ -82,6 +82,7 @@ class AuditEventConsumer(
         receivedAt = receivedAt,
         userId = userId,
         userRole = userRole,
+        traderId = traderId,
         eventType = auditEventType,
     )
 }
