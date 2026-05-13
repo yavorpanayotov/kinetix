@@ -68,8 +68,8 @@ export function TapeReplayIndicator({ status, loading }: TapeReplayIndicatorProp
       title={variant.description}
     >
       <Icon className="h-3 w-3" />
-      <span className="hidden xl:inline">{variant.longLabel}</span>
-      <span className="xl:hidden">{variant.label}</span>
+      <span className="hidden 2xl:inline">{variant.longLabel}</span>
+      <span className="2xl:hidden">{variant.label}</span>
     </div>
   )
 }

@@ -102,7 +102,7 @@ export function RegimeIndicator({ regime, loading }: RegimeIndicatorProps) {
           <span className={`relative inline-flex rounded-full h-2 w-2 ${regime.regime === 'CRISIS' ? 'bg-red-500' : regime.regime === 'ELEVATED_VOL' ? 'bg-amber-500' : regime.regime === 'RECOVERY' ? 'bg-blue-400' : 'bg-green-500'}`} />
         </span>
         <RegimeIcon regime={regime.regime} />
-        <span className="hidden md:inline">{regime.regime}</span>
+        <span className="hidden lg:inline">{regime.regime}</span>
       </button>
 
       {open && (

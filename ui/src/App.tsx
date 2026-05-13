@@ -172,7 +172,7 @@ function App() {
             </span>
           )}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 lg:gap-3" data-testid="header-right-cluster">
           <HierarchySelector hierarchy={hierarchy} />
           <ScenarioIndicator scenario={activeScenario.scenario} loading={activeScenario.loading} />
           <TapeReplayIndicator status={tapeReplay.status} loading={tapeReplay.loading} />
