@@ -292,6 +292,8 @@ class DevDataSeeder(
             }
         }
 
+        private enum class LifecycleKind { AMEND, CANCEL }
+
         private fun buildGeneratedAuditEvents(): List<AuditEvent> {
             // LCG identical to position-service DevDataSeeder
             var lcgState = 0x5DEECE66DL
@@ -378,8 +380,13 @@ class DevDataSeeder(
                 }
             }
 
-            // ── Amend/cancel triplets — identical specs to position-service ──
-            data class TripletSpec(
+            // ── Amend/cancel lifecycle events — mirrors position-service split ──
+            // Phase 3 Gap 4: 8 amends + 7 cancels with proper eventType set so
+            // the audit trail shows BOOKED → AMENDED / BOOKED → CANCELLED chains
+            // instead of two independent BOOKED tickets that net to the result.
+            data class LifecycleSpec(
+                val idx: Int,
+                val kind: LifecycleKind,
                 val bookId: String,
                 val instrId: String,
                 val assetClass: String,
@@ -390,34 +397,31 @@ class DevDataSeeder(
                 val baseTime: Instant,
             )
 
-            val tripletSpecs = listOf(
-                TripletSpec("equity-growth",    "AAPL",         "EQUITY",       "USD", "185.50",  1000, "BUY",  BASE_TIME.plus(-18, ChronoUnit.DAYS).plusSeconds(53000)),
-                TripletSpec("tech-momentum",    "NVDA",         "EQUITY",       "USD", "885.00",   200, "BUY",  BASE_TIME.plus(-15, ChronoUnit.DAYS).plusSeconds(55000)),
-                TripletSpec("emerging-markets", "BABA",         "EQUITY",       "USD",  "83.20",  2000, "BUY",  BASE_TIME.plus(-12, ChronoUnit.DAYS).plusSeconds(60000)),
-                TripletSpec("fixed-income",     "US10Y",        "FIXED_INCOME", "USD",  "96.50",  5000, "BUY",  BASE_TIME.plus(-10, ChronoUnit.DAYS).plusSeconds(57600)),
-                TripletSpec("multi-asset",      "GC",           "COMMODITY",    "USD","2045.60",    20, "BUY",  BASE_TIME.plus(-8,  ChronoUnit.DAYS).plusSeconds(63000)),
-                TripletSpec("macro-hedge",      "CL",           "COMMODITY",    "USD",  "76.80",   50, "SELL", BASE_TIME.plus(-6,  ChronoUnit.DAYS).plusSeconds(64800)),
-                TripletSpec("balanced-income",  "JPM",          "EQUITY",       "USD", "208.40",  300, "BUY",  BASE_TIME.plus(-14, ChronoUnit.DAYS).plusSeconds(54000)),
-                TripletSpec("derivatives-book", "TSLA",         "EQUITY",       "USD", "249.50",  400, "BUY",  BASE_TIME.plus(-11, ChronoUnit.DAYS).plusSeconds(59400)),
-                TripletSpec("equity-growth",    "MSFT",         "EQUITY",       "USD", "420.00",  500, "SELL", BASE_TIME.plus(-5,  ChronoUnit.DAYS).plusSeconds(70000)),
-                TripletSpec("tech-momentum",    "META",         "EQUITY",       "USD", "502.30",  300, "BUY",  BASE_TIME.plus(-3,  ChronoUnit.DAYS).plusSeconds(52500)),
-                TripletSpec("macro-hedge",      "GC",           "COMMODITY",    "USD","2040.00",   10, "BUY",  BASE_TIME.plus(-16, ChronoUnit.DAYS).plusSeconds(58000)),
-                TripletSpec("multi-asset",      "AAPL",         "EQUITY",       "USD", "186.00",  250, "BUY",  BASE_TIME.plus(-9,  ChronoUnit.DAYS).plusSeconds(65000)),
-                TripletSpec("balanced-income",  "US30Y",        "FIXED_INCOME", "USD",  "92.30", 3000, "BUY",  BASE_TIME.plus(-7,  ChronoUnit.DAYS).plusSeconds(56400)),
-                TripletSpec("derivatives-book", "SPX-CALL-5000","DERIVATIVE",   "USD",  "41.50",  100, "BUY",  BASE_TIME.plus(-4,  ChronoUnit.DAYS).plusSeconds(53800)),
-                TripletSpec("emerging-markets", "GBPUSD",       "FX",           "USD",  "1.2580",500000,"BUY", BASE_TIME.plus(-13, ChronoUnit.DAYS).plusSeconds(34200)),
+            val lifecycleSpecs = listOf(
+                LifecycleSpec(1,  LifecycleKind.AMEND,  "equity-growth",    "AAPL",          "EQUITY",       "USD", "185.50",   1000, "BUY",  BASE_TIME.plus(-18, ChronoUnit.DAYS).plusSeconds(53000)),
+                LifecycleSpec(2,  LifecycleKind.AMEND,  "tech-momentum",    "NVDA",          "EQUITY",       "USD", "885.00",    200, "BUY",  BASE_TIME.plus(-15, ChronoUnit.DAYS).plusSeconds(55000)),
+                LifecycleSpec(3,  LifecycleKind.CANCEL, "emerging-markets", "BABA",          "EQUITY",       "USD",  "83.20",   2000, "BUY",  BASE_TIME.plus(-12, ChronoUnit.DAYS).plusSeconds(60000)),
+                LifecycleSpec(4,  LifecycleKind.AMEND,  "fixed-income",     "US10Y",         "FIXED_INCOME", "USD",  "96.50",   5000, "BUY",  BASE_TIME.plus(-10, ChronoUnit.DAYS).plusSeconds(57600)),
+                LifecycleSpec(5,  LifecycleKind.AMEND,  "multi-asset",      "GC",            "COMMODITY",    "USD","2045.60",     20, "BUY",  BASE_TIME.plus(-8,  ChronoUnit.DAYS).plusSeconds(63000)),
+                LifecycleSpec(6,  LifecycleKind.CANCEL, "macro-hedge",      "CL",            "COMMODITY",    "USD",  "76.80",     50, "SELL", BASE_TIME.plus(-6,  ChronoUnit.DAYS).plusSeconds(64800)),
+                LifecycleSpec(7,  LifecycleKind.AMEND,  "balanced-income",  "JPM",           "EQUITY",       "USD", "208.40",    300, "BUY",  BASE_TIME.plus(-14, ChronoUnit.DAYS).plusSeconds(54000)),
+                LifecycleSpec(8,  LifecycleKind.CANCEL, "derivatives-book", "TSLA",          "EQUITY",       "USD", "249.50",    400, "BUY",  BASE_TIME.plus(-11, ChronoUnit.DAYS).plusSeconds(59400)),
+                LifecycleSpec(9,  LifecycleKind.AMEND,  "equity-growth",    "MSFT",          "EQUITY",       "USD", "420.00",    500, "SELL", BASE_TIME.plus(-5,  ChronoUnit.DAYS).plusSeconds(70000)),
+                LifecycleSpec(10, LifecycleKind.CANCEL, "tech-momentum",    "META",          "EQUITY",       "USD", "502.30",    300, "BUY",  BASE_TIME.plus(-3,  ChronoUnit.DAYS).plusSeconds(52500)),
+                LifecycleSpec(11, LifecycleKind.CANCEL, "macro-hedge",      "GC",            "COMMODITY",    "USD","2040.00",     10, "BUY",  BASE_TIME.plus(-16, ChronoUnit.DAYS).plusSeconds(58000)),
+                LifecycleSpec(12, LifecycleKind.AMEND,  "multi-asset",      "AAPL",          "EQUITY",       "USD", "186.00",    250, "BUY",  BASE_TIME.plus(-9,  ChronoUnit.DAYS).plusSeconds(65000)),
+                LifecycleSpec(13, LifecycleKind.CANCEL, "balanced-income",  "US30Y",         "FIXED_INCOME", "USD",  "92.30",   3000, "BUY",  BASE_TIME.plus(-7,  ChronoUnit.DAYS).plusSeconds(56400)),
+                LifecycleSpec(14, LifecycleKind.AMEND,  "derivatives-book", "SPX-CALL-5000", "DERIVATIVE",   "USD",  "41.50",    100, "BUY",  BASE_TIME.plus(-4,  ChronoUnit.DAYS).plusSeconds(53800)),
+                LifecycleSpec(15, LifecycleKind.CANCEL, "emerging-markets", "GBPUSD",        "FX",           "USD",  "1.2580", 500000, "BUY",  BASE_TIME.plus(-13, ChronoUnit.DAYS).plusSeconds(34200)),
             )
 
-            tripletSpecs.forEachIndexed { idx, spec ->
-                val n = idx + 1
+            lifecycleSpecs.forEach { spec ->
                 val bookAbbrev = spec.bookId.replace("-", "").take(2)
                 val instrAbbrev = spec.instrId.lowercase().replace("-", "").take(10)
-                val baseId = "seed-gen-ac-$bookAbbrev-$instrAbbrev-${n.toString().padStart(2, '0')}"
-                val amendQty = (spec.qty * 105 / 100)
-                val cancelSide = if (spec.side == "BUY") "SELL" else "BUY"
+                val baseId = "seed-gen-ac-$bookAbbrev-$instrAbbrev-${spec.idx.toString().padStart(2, '0')}"
+                val (userId, userRole) = personaFor(spec.bookId, spec.assetClass, (spec.idx - 1) % 2 == 0)
 
-                val (userId, userRole) = personaFor(spec.bookId, spec.assetClass, idx % 2 == 0)
-
+                // Original BOOKED event — common to both amend and cancel chains.
                 result += AuditEvent(
                     tradeId = baseId,
                     bookId = spec.bookId,
@@ -431,35 +435,48 @@ class DevDataSeeder(
                     receivedAt = spec.baseTime.plusSeconds(1),
                     userId = userId,
                     userRole = userRole,
+                    eventType = "TRADE_BOOKED",
                 )
-                result += AuditEvent(
-                    tradeId = "$baseId-cancel",
-                    bookId = spec.bookId,
-                    instrumentId = spec.instrId,
-                    assetClass = spec.assetClass,
-                    side = cancelSide,
-                    quantity = spec.qty.toString(),
-                    priceAmount = spec.priceStr,
-                    priceCurrency = spec.currency,
-                    tradedAt = spec.baseTime.plusSeconds(120).toString(),
-                    receivedAt = spec.baseTime.plusSeconds(121),
-                    userId = userId,
-                    userRole = userRole,
-                )
-                result += AuditEvent(
-                    tradeId = "$baseId-amend",
-                    bookId = spec.bookId,
-                    instrumentId = spec.instrId,
-                    assetClass = spec.assetClass,
-                    side = spec.side,
-                    quantity = amendQty.toString(),
-                    priceAmount = spec.priceStr,
-                    priceCurrency = spec.currency,
-                    tradedAt = spec.baseTime.plusSeconds(180).toString(),
-                    receivedAt = spec.baseTime.plusSeconds(181),
-                    userId = userId,
-                    userRole = userRole,
-                )
+
+                when (spec.kind) {
+                    LifecycleKind.AMEND -> {
+                        val amendQty = (spec.qty * 105 / 100)
+                        result += AuditEvent(
+                            tradeId = "$baseId-amend",
+                            bookId = spec.bookId,
+                            instrumentId = spec.instrId,
+                            assetClass = spec.assetClass,
+                            side = spec.side,
+                            quantity = amendQty.toString(),
+                            priceAmount = spec.priceStr,
+                            priceCurrency = spec.currency,
+                            tradedAt = spec.baseTime.plusSeconds(180).toString(),
+                            receivedAt = spec.baseTime.plusSeconds(181),
+                            userId = userId,
+                            userRole = userRole,
+                            eventType = "TRADE_AMENDED",
+                            details = "originalTradeId=$baseId",
+                        )
+                    }
+                    LifecycleKind.CANCEL -> {
+                        // Cancel transitions the SAME tradeId from LIVE → CANCELLED.
+                        result += AuditEvent(
+                            tradeId = baseId,
+                            bookId = spec.bookId,
+                            instrumentId = spec.instrId,
+                            assetClass = spec.assetClass,
+                            side = spec.side,
+                            quantity = spec.qty.toString(),
+                            priceAmount = spec.priceStr,
+                            priceCurrency = spec.currency,
+                            tradedAt = spec.baseTime.plusSeconds(120).toString(),
+                            receivedAt = spec.baseTime.plusSeconds(121),
+                            userId = userId,
+                            userRole = userRole,
+                            eventType = "TRADE_CANCELLED",
+                        )
+                    }
+                }
             }
 
             // ── Day-trade round trips ──
