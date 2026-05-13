@@ -202,4 +202,55 @@ class TradeBookingServiceTest : FunSpec({
 
         coVerify(exactly = 0) { publisher.publish(any()) }
     }
+
+    test("validates traderId via TraderValidator when present") {
+        val validator = mockk<com.kinetix.position.trader.TraderValidator>()
+        every { validator.validate(TraderId("tr-eg-001")) } just runs
+
+        val validatingService = TradeBookingService(
+            tradeRepo, positionRepo, noOpTransaction, publisher, traderValidator = validator,
+        )
+
+        coEvery { tradeRepo.findByTradeId(any()) } returns null
+        coEvery { tradeRepo.save(any()) } just runs
+        coEvery { positionRepo.findByKey(any(), any()) } returns null
+        coEvery { positionRepo.save(any()) } just runs
+
+        validatingService.handle(command().copy(traderId = TraderId("tr-eg-001")))
+
+        verify(exactly = 1) { validator.validate(TraderId("tr-eg-001")) }
+    }
+
+    test("UnknownTraderException from validator stops the booking flow") {
+        val validator = mockk<com.kinetix.position.trader.TraderValidator>()
+        every { validator.validate(TraderId("ghost")) } throws
+            com.kinetix.position.trader.UnknownTraderException(TraderId("ghost"))
+
+        val validatingService = TradeBookingService(
+            tradeRepo, positionRepo, noOpTransaction, publisher, traderValidator = validator,
+        )
+
+        io.kotest.assertions.throwables.shouldThrow<com.kinetix.position.trader.UnknownTraderException> {
+            validatingService.handle(command().copy(traderId = TraderId("ghost")))
+        }
+
+        coVerify(exactly = 0) { tradeRepo.save(any()) }
+        coVerify(exactly = 0) { publisher.publish(any()) }
+    }
+
+    test("validator is not invoked when traderId is null") {
+        val validator = mockk<com.kinetix.position.trader.TraderValidator>()
+        val validatingService = TradeBookingService(
+            tradeRepo, positionRepo, noOpTransaction, publisher, traderValidator = validator,
+        )
+
+        coEvery { tradeRepo.findByTradeId(any()) } returns null
+        coEvery { tradeRepo.save(any()) } just runs
+        coEvery { positionRepo.findByKey(any(), any()) } returns null
+        coEvery { positionRepo.save(any()) } just runs
+
+        validatingService.handle(command())
+
+        verify(exactly = 0) { validator.validate(any()) }
+    }
 })

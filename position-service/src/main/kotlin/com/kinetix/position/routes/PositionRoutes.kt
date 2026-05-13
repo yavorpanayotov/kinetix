@@ -5,6 +5,7 @@ import com.kinetix.common.model.instrument.InstrumentTypeCode
 import com.kinetix.position.model.LimitBreach
 import com.kinetix.position.persistence.PositionRepository
 import com.kinetix.position.service.*
+import com.kinetix.position.trader.UnknownTraderException
 import io.github.smiley4.ktoropenapi.delete
 import io.github.smiley4.ktoropenapi.get
 import io.github.smiley4.ktoropenapi.post
@@ -114,6 +115,7 @@ data class BookTradeRequest(
     val userRole: String? = null,
     val strategyId: String? = null,
     val counterpartyId: String? = null,
+    val traderId: String? = null,
 )
 
 @Serializable
@@ -344,6 +346,7 @@ fun Route.positionRoutes(
                         userRole = request.userRole,
                         strategyId = request.strategyId,
                         counterpartyId = request.counterpartyId,
+                        traderId = request.traderId?.let { TraderId(it) },
                     )
                     try {
                         val result = tradeBookingService.handle(command)
@@ -362,6 +365,14 @@ fun Route.positionRoutes(
                                 error = "limit_breach",
                                 message = e.message ?: "Trade blocked by limit breach",
                                 breaches = e.result.breaches.map { it.toDto() },
+                            ),
+                        )
+                    } catch (e: UnknownTraderException) {
+                        call.respond(
+                            HttpStatusCode.UnprocessableEntity,
+                            ErrorResponse(
+                                error = "unknown_trader",
+                                message = "Trader '${e.traderId.value}' is not registered",
                             ),
                         )
                     }

@@ -167,6 +167,22 @@ fun Application.moduleWithRoutes() {
     val nettingSetTradeRepository = ExposedNettingSetTradeRepository(db)
     val nettingSetAssigner = NettingSetAssigner(referenceDataClient, nettingSetTradeRepository)
 
+    // Trader lookup (demo Phase 2 Gap 6). When enabled, booking validates
+    // the traderId on every BookTradeCommand against reference-data-service
+    // and rejects unknown ids with HTTP 422. Disable for tests / local-dev
+    // without reference-data via REFERENCE_DATA_GRPC_ENABLED=false.
+    val referenceDataGrpcEnabled =
+        System.getenv("REFERENCE_DATA_GRPC_ENABLED")?.toBooleanStrictOrNull() ?: true
+    val referenceDataGrpcChannel: io.grpc.ManagedChannel? = if (referenceDataGrpcEnabled) {
+        val target = System.getenv("REFERENCE_DATA_GRPC_TARGET") ?: "reference-data-service:9107"
+        io.grpc.ManagedChannelBuilder.forTarget(target).usePlaintext().build()
+    } else null
+    val traderValidator: com.kinetix.position.trader.TraderValidator? = referenceDataGrpcChannel?.let {
+        com.kinetix.position.trader.TraderValidator(
+            com.kinetix.position.trader.GrpcTraderLookupClient(channel = it),
+        )
+    }
+
     val tradeBookingService = TradeBookingService(
         tradeEventRepository = tradeEventRepository,
         positionRepository = positionRepository,
@@ -174,6 +190,7 @@ fun Application.moduleWithRoutes() {
         tradeEventPublisher = tradeEventPublisher,
         limitCheckService = preTradeCheckService,
         nettingSetAssigner = nettingSetAssigner,
+        traderValidator = traderValidator,
     )
     val tradeStrategyRepository = ExposedTradeStrategyRepository(db)
     val tradeStrategyService = TradeStrategyService(tradeStrategyRepository)

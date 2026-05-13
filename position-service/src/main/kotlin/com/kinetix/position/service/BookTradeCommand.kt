@@ -9,6 +9,7 @@ import com.kinetix.position.kafka.TradeEventPublisher
 import com.kinetix.position.model.LimitBreach
 import com.kinetix.position.persistence.PositionRepository
 import com.kinetix.position.persistence.TradeEventRepository
+import com.kinetix.position.trader.TraderValidator
 import org.slf4j.LoggerFactory
 import java.math.BigDecimal
 import java.time.Instant
@@ -34,6 +35,13 @@ data class BookTradeCommand(
      * Spec: execution.allium TradeBookedFromFill (correlation_id: order.order_id).
      */
     val correlationId: String? = null,
+    /**
+     * Trader ownership of the ticket. Nullable during the demo Phase 2 Gap 6
+     * migration window; the field becomes required once every caller supplies
+     * a real id. When present, the booking path validates it via
+     * [TraderValidator] before doing limit checks.
+     */
+    val traderId: TraderId? = null,
 )
 
 data class BookTradeResult(
@@ -50,13 +58,17 @@ class TradeBookingService(
     private val limitCheckService: PreTradeCheckService? = null,
     private val nettingSetAssigner: NettingSetAssigner? = null,
     private val limitBreachEventPublisher: LimitBreachEventPublisher = NoOpLimitBreachEventPublisher(),
+    private val traderValidator: TraderValidator? = null,
 ) {
     private val logger = LoggerFactory.getLogger(TradeBookingService::class.java)
 
     suspend fun handle(command: BookTradeCommand): BookTradeResult {
-        logger.info("Booking trade: tradeId={}, book={}, instrument={}, side={}, qty={}, price={}",
+        logger.info("Booking trade: tradeId={}, book={}, instrument={}, side={}, qty={}, price={}, trader={}",
             command.tradeId.value, command.bookId.value, command.instrumentId.value,
-            command.side, command.quantity, command.price.amount)
+            command.side, command.quantity, command.price.amount, command.traderId?.value)
+        if (command.traderId != null) {
+            traderValidator?.validate(command.traderId)
+        }
         val limitResult = limitCheckService?.check(command)
         if (limitResult != null && limitResult.blocked) {
             // Publish each breach as its own event before throwing so the synchronous
@@ -95,6 +107,7 @@ class TradeBookingService(
             instrumentType = InstrumentTypeCode.fromString(command.instrumentType),
             strategyId = command.strategyId,
             counterpartyId = command.counterpartyId,
+            traderId = command.traderId,
         )
 
         val (result, isNewTrade) = transactional.run {
