@@ -741,12 +741,12 @@ fun Application.moduleWithRoutes() {
 
         val demoResetToken = System.getenv("DEMO_RESET_TOKEN")
         if (demoResetToken != null) {
-            demoResetRoutes(riskDb, jobRecorder, counterpartyExposureRepository, demoResetToken)
+            demoResetRoutes(riskDb, jobRecorder, counterpartyExposureRepository, pnlAttributionRepository, demoResetToken)
         }
     }
 
     launch {
-        com.kinetix.risk.seed.DevDataSeeder(jobRecorder, counterpartyExposureRepository).seed()
+        com.kinetix.risk.seed.DevDataSeeder(jobRecorder, counterpartyExposureRepository, pnlAttributionRepository).seed()
         seedCacheFromDb(varCache, jobRecorder)
     }
 

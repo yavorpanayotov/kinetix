@@ -3,6 +3,7 @@ package com.kinetix.risk.routes
 import com.kinetix.common.demo.SeedProfile
 import com.kinetix.common.demo.UnknownScenarioException
 import com.kinetix.risk.persistence.CounterpartyExposureRepository
+import com.kinetix.risk.persistence.PnlAttributionRepository
 import com.kinetix.risk.seed.DevDataSeeder
 import com.kinetix.risk.service.ValuationJobRecorder
 import io.ktor.http.*
@@ -19,6 +20,7 @@ fun Route.demoResetRoutes(
     riskDb: Database,
     jobRecorder: ValuationJobRecorder,
     exposureRepository: CounterpartyExposureRepository,
+    pnlAttributionRepository: PnlAttributionRepository? = null,
     resetToken: String,
 ) {
     route("/api/v1/internal/risk") {
@@ -46,9 +48,10 @@ fun Route.demoResetRoutes(
                 exec("DELETE FROM daily_risk_snapshots WHERE snapshot_date > '2026-02-27'")
                 exec("DELETE FROM intraday_pnl_snapshots WHERE snapshot_time > '2026-02-27'")
                 exec("DELETE FROM counterparty_exposure_history")
+                exec("DELETE FROM pnl_attributions")
             }
 
-            DevDataSeeder(jobRecorder, exposureRepository).seed()
+            DevDataSeeder(jobRecorder, exposureRepository, pnlAttributionRepository).seed()
 
             call.respond(DemoResetResponse("ok", "Risk data reset and reseeded for ${profile.id}"))
         }

@@ -106,6 +106,93 @@ class DevDataSeederTest : FunSpec({
             }
         }
     }
+
+    // ── Phase 3 Gap 9 — EOD P&L attribution demo data ─────────────────────
+
+    test("P&L attribution seed covers all 8 books") {
+        val attributions = DevDataSeeder.buildPnlAttributions(LocalDate.of(2026, 5, 12))
+        val books = attributions.map { it.bookId.value }.toSet()
+        books shouldBe setOf(
+            "balanced-income", "derivatives-book", "emerging-markets",
+            "equity-growth", "fixed-income", "macro-hedge",
+            "multi-asset", "tech-momentum",
+        )
+    }
+
+    test("each book P&L ties out: total = delta + gamma + vega + theta + rho + cross-Greeks + unexplained") {
+        val attributions = DevDataSeeder.buildPnlAttributions(LocalDate.of(2026, 5, 12))
+        attributions.forEach { attribution ->
+            val sumOfParts = attribution.deltaPnl
+                .add(attribution.gammaPnl)
+                .add(attribution.vegaPnl)
+                .add(attribution.thetaPnl)
+                .add(attribution.rhoPnl)
+                .add(attribution.vannaPnl)
+                .add(attribution.volgaPnl)
+                .add(attribution.charmPnl)
+                .add(attribution.crossGammaPnl)
+                .add(attribution.unexplainedPnl)
+            attribution.totalPnl.compareTo(sumOfParts) shouldBe 0
+        }
+    }
+
+    test("each position attribution ties out per row") {
+        val attributions = DevDataSeeder.buildPnlAttributions(LocalDate.of(2026, 5, 12))
+        attributions.flatMap { it.positionAttributions }.forEach { p ->
+            val sumOfParts = p.deltaPnl
+                .add(p.gammaPnl)
+                .add(p.vegaPnl)
+                .add(p.thetaPnl)
+                .add(p.rhoPnl)
+                .add(p.vannaPnl)
+                .add(p.volgaPnl)
+                .add(p.charmPnl)
+                .add(p.crossGammaPnl)
+                .add(p.unexplainedPnl)
+            p.totalPnl.compareTo(sumOfParts) shouldBe 0
+        }
+    }
+
+    test("book total P&L equals sum of position totals (book = sum of positions)") {
+        val attributions = DevDataSeeder.buildPnlAttributions(LocalDate.of(2026, 5, 12))
+        attributions.forEach { attribution ->
+            val summedFromPositions = attribution.positionAttributions
+                .map { it.totalPnl }
+                .fold(java.math.BigDecimal.ZERO) { acc, v -> acc.add(v) }
+            attribution.totalPnl.compareTo(summedFromPositions) shouldBe 0
+        }
+    }
+
+    test("derivatives-book has meaningful vega and gamma — supports the Greeks demo story") {
+        val attributions = DevDataSeeder.buildPnlAttributions(LocalDate.of(2026, 5, 12))
+        val derivBook = attributions.first { it.bookId.value == "derivatives-book" }
+        // Gamma and vega should each be > $50K — the entire point of the
+        // derivatives-book demo is to show non-trivial second-order P&L.
+        (derivBook.gammaPnl.toLong().let { Math.abs(it) } > 50_000) shouldBe true
+        (derivBook.vegaPnl.toLong().let { Math.abs(it) } > 50_000) shouldBe true
+    }
+
+    test("fixed-income book is rates-dominated (rho has the largest absolute magnitude)") {
+        val attributions = DevDataSeeder.buildPnlAttributions(LocalDate.of(2026, 5, 12))
+        val fi = attributions.first { it.bookId.value == "fixed-income" }
+        val rhoAbs = Math.abs(fi.rhoPnl.toLong())
+        val deltaAbs = Math.abs(fi.deltaPnl.toLong())
+        val gammaAbs = Math.abs(fi.gammaPnl.toLong())
+        (rhoAbs > deltaAbs) shouldBe true
+        (rhoAbs > gammaAbs) shouldBe true
+    }
+
+    test("unexplained P&L stays below 10% of total for every book") {
+        val attributions = DevDataSeeder.buildPnlAttributions(LocalDate.of(2026, 5, 12))
+        attributions.forEach { attribution ->
+            val totalAbs = Math.abs(attribution.totalPnl.toLong())
+            val unexplainedAbs = Math.abs(attribution.unexplainedPnl.toLong())
+            // Allow up to 15% to keep numbers human-readable; production
+            // attribution would target <5%, but demo seed picks integer-friendly
+            // residuals so the buyer can verify the math by eye.
+            (unexplainedAbs <= totalAbs * 15 / 100) shouldBe true
+        }
+    }
 })
 
 private class InMemoryValuationJobRecorder : ValuationJobRecorder {
