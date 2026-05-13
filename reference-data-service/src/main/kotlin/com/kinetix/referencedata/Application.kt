@@ -20,6 +20,7 @@ import com.kinetix.referencedata.persistence.ExposedDividendYieldRepository
 import com.kinetix.referencedata.persistence.ExposedInstrumentRepository
 import com.kinetix.referencedata.persistence.ExposedInstrumentLiquidityRepository
 import com.kinetix.referencedata.persistence.ExposedNettingAgreementRepository
+import com.kinetix.referencedata.persistence.ExposedTraderRepository
 import com.kinetix.referencedata.routes.benchmarkRoutes
 import com.kinetix.referencedata.routes.counterpartyRoutes
 import com.kinetix.referencedata.routes.deskRoutes
@@ -27,6 +28,7 @@ import com.kinetix.referencedata.routes.divisionRoutes
 import com.kinetix.referencedata.routes.instrumentRoutes
 import com.kinetix.referencedata.routes.liquidityRoutes
 import com.kinetix.referencedata.routes.referenceDataRoutes
+import com.kinetix.referencedata.routes.traderRoutes
 import com.kinetix.referencedata.service.BenchmarkService
 import com.kinetix.referencedata.service.CounterpartyService
 import com.kinetix.referencedata.service.DeskService
@@ -34,6 +36,7 @@ import com.kinetix.referencedata.service.DivisionService
 import com.kinetix.referencedata.service.InstrumentLiquidityService
 import com.kinetix.referencedata.service.InstrumentService
 import com.kinetix.referencedata.service.ReferenceDataIngestionService
+import com.kinetix.referencedata.service.TraderService
 import io.github.smiley4.ktoropenapi.OpenApi
 import io.github.smiley4.ktoropenapi.openApi
 import io.github.smiley4.ktorswaggerui.swaggerUI
@@ -112,6 +115,7 @@ fun Application.module(
     liquidityService: InstrumentLiquidityService? = null,
     counterpartyService: CounterpartyService? = null,
     benchmarkService: BenchmarkService? = null,
+    traderService: TraderService? = null,
 ) {
     module()
     install(StatusPages) {
@@ -146,6 +150,9 @@ fun Application.module(
         }
         if (benchmarkService != null) {
             benchmarkRoutes(benchmarkService)
+        }
+        if (traderService != null) {
+            traderRoutes(traderService)
         }
     }
 }
@@ -209,7 +216,10 @@ fun Application.moduleWithRoutes() {
     val benchmarkRepository = ExposedBenchmarkRepository(db)
     val benchmarkService = BenchmarkService(benchmarkRepository)
 
-    module(dividendYieldRepository, creditSpreadRepository, ingestionService, instrumentService, divisionService, deskService, liquidityService, counterpartyService, benchmarkService)
+    val traderRepository = ExposedTraderRepository(db)
+    val traderService = TraderService(traderRepository, deskRepository)
+
+    module(dividendYieldRepository, creditSpreadRepository, ingestionService, instrumentService, divisionService, deskService, liquidityService, counterpartyService, benchmarkService, traderService)
 
     routing {
         val demoResetToken = System.getenv("DEMO_RESET_TOKEN")
