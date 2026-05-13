@@ -29,6 +29,7 @@ data class TradeEventMessage(
     val instrumentType: String? = null,
     val counterpartyId: String? = null,
     val strategyId: String? = null,
+    val traderId: String? = null,
 ) {
     companion object {
         fun from(event: TradeEvent): TradeEventMessage = TradeEventMessage(
@@ -51,6 +52,7 @@ data class TradeEventMessage(
             instrumentType = event.trade.instrumentType?.name,
             counterpartyId = event.trade.counterpartyId,
             strategyId = event.trade.strategyId,
+            traderId = event.trade.traderId?.value,
         )
     }
 }

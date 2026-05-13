@@ -38,6 +38,7 @@ class ExposedTradeEventRepository(private val db: Database? = null) : TradeEvent
             it[counterpartyId] = trade.counterpartyId
             it[instrumentType] = trade.instrumentType.name
             it[strategyId] = trade.strategyId
+            it[traderId] = trade.traderId?.value
         }
     }
 
@@ -144,6 +145,7 @@ class ExposedTradeEventRepository(private val db: Database? = null) : TradeEvent
                     this[TradeEventsTable.counterpartyId] = trade.counterpartyId
                     this[TradeEventsTable.instrumentType] = trade.instrumentType.name
                     this[TradeEventsTable.strategyId] = trade.strategyId
+                    this[TradeEventsTable.traderId] = trade.traderId?.value
                 }
             }
         }
@@ -167,5 +169,6 @@ class ExposedTradeEventRepository(private val db: Database? = null) : TradeEvent
         counterpartyId = this[TradeEventsTable.counterpartyId],
         instrumentType = InstrumentTypeCode.fromString(this[TradeEventsTable.instrumentType]),
         strategyId = this[TradeEventsTable.strategyId],
+        traderId = this[TradeEventsTable.traderId]?.let { TraderId(it) },
     )
 }
