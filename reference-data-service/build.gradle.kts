@@ -9,6 +9,9 @@ application {
 
 dependencies {
     implementation(project(":common"))
+    implementation(project(":proto"))
+    implementation(libs.bundles.grpc)
+    implementation(libs.grpc.netty)
     implementation(libs.bundles.exposed)
     implementation(libs.bundles.database)
     implementation(libs.kafka.clients)

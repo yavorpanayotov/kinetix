@@ -2,6 +2,8 @@ package com.kinetix.referencedata
 
 import com.kinetix.common.health.ReadinessChecker
 import com.kinetix.referencedata.cache.RedisReferenceDataCache
+import com.kinetix.referencedata.grpc.ReferenceDataGrpcServer
+import com.kinetix.referencedata.grpc.TraderLookupServiceImpl
 import com.kinetix.referencedata.kafka.KafkaReferenceDataPublisher
 import com.kinetix.referencedata.persistence.CreditSpreadRepository
 import com.kinetix.referencedata.persistence.DatabaseConfig
@@ -218,6 +220,16 @@ fun Application.moduleWithRoutes() {
 
     val traderRepository = ExposedTraderRepository(db)
     val traderService = TraderService(traderRepository, deskRepository)
+
+    val grpcPort = environment.config.propertyOrNull("grpc.port")?.getString()?.toInt() ?: 9107
+    val grpcServer = ReferenceDataGrpcServer(
+        port = grpcPort,
+        services = listOf(TraderLookupServiceImpl(traderService)),
+    ).start()
+
+    monitor.subscribe(io.ktor.server.application.ApplicationStopping) {
+        grpcServer.stop()
+    }
 
     module(dividendYieldRepository, creditSpreadRepository, ingestionService, instrumentService, divisionService, deskService, liquidityService, counterpartyService, benchmarkService, traderService)
 
