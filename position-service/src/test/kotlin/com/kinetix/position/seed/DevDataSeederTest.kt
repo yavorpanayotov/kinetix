@@ -400,4 +400,61 @@ class DevDataSeederTest : FunSpec({
         firstRun shouldBe secondRun
         firstRun.distinct().size shouldBe firstRun.size
     }
+
+    // ── Phase 2 Gap 2 — options-book scenario ─────────────────────────────
+
+    test("options-book scenario seeds exactly 2 books") {
+        val books = OptionsBookScenario.TRADES.map { it.bookId.value }.toSet()
+        books.size shouldBe 2
+        books shouldContain OptionsBookScenario.EQUITY_VOL_BOOK
+        books shouldContain OptionsBookScenario.CROSS_ASSET_VOL_BOOK
+    }
+
+    test("options-book scenario produces 1000+ distinct positions") {
+        val keys = OptionsBookScenario.TRADES
+            .map { it.bookId.value to it.instrumentId.value }
+            .toSet()
+        keys.size shouldBeGreaterThanOrEqualTo 1000
+    }
+
+    test("options-book scenario has both calls and puts in each book") {
+        OptionsBookScenario.TRADES
+            .groupBy { it.bookId.value }
+            .forEach { (_, trades) ->
+                val callCount = trades.count { it.instrumentId.value.contains("-C-") }
+                val putCount = trades.count { it.instrumentId.value.contains("-P-") }
+                callCount shouldBeGreaterThan 0
+                putCount shouldBeGreaterThan 0
+            }
+    }
+
+    test("options-book scenario has both long and short legs") {
+        val buys = OptionsBookScenario.TRADES.count { it.side == Side.BUY }
+        val sells = OptionsBookScenario.TRADES.count { it.side == Side.SELL }
+        buys shouldBeGreaterThan 100
+        sells shouldBeGreaterThan 100
+    }
+
+    test("options-book scenario spans at least 4 distinct expiries per book") {
+        OptionsBookScenario.TRADES
+            .groupBy { it.bookId.value }
+            .forEach { (_, trades) ->
+                // Expiry codes are W1/W2/W4/M1/M2/M3 — extract from instrument ID.
+                val expiries = trades.map { extractExpiryCode(it.instrumentId.value) }.toSet()
+                expiries.size shouldBeGreaterThanOrEqualTo 4
+            }
+    }
+
+    test("options-book scenario trade IDs are unique and deterministic") {
+        val firstRun = OptionsBookScenario.TRADES.map { it.tradeId.value }
+        val secondRun = OptionsBookScenario.TRADES.map { it.tradeId.value }
+        firstRun shouldBe secondRun
+        firstRun.distinct().size shouldBe firstRun.size
+    }
 })
+
+private fun extractExpiryCode(instrumentId: String): String {
+    // Instrument IDs look like `<UNDERLYING>-<EXPIRY>-<C|P>-<STRIKE>`.
+    val parts = instrumentId.split("-")
+    return parts.getOrNull(1) ?: ""
+}

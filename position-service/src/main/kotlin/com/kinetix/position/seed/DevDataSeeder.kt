@@ -36,6 +36,7 @@ class DevDataSeeder(
         when (profile) {
             is SeedProfile.EquityLS -> seedEquityLongShort()
             is SeedProfile.Stress -> seedStress()
+            is SeedProfile.OptionsBook -> seedOptionsBook()
             else -> seed()
         }
     }
@@ -106,6 +107,32 @@ class DevDataSeeder(
         }
 
         log.info("stress scenario seeding complete")
+    }
+
+    /**
+     * Phase 2 Gap 2 — options-book scenario.
+     *
+     * Two vol books with ~1,000 option positions across weekly and monthly
+     * expiries and a 4-point strike ladder per tenor (ITM / ATM / OTM-1 /
+     * OTM-2). Drives the full Greeks / vol smile / gamma story on the
+     * options-heavy demo path.
+     */
+    private suspend fun seedOptionsBook() {
+        val existing = positionRepository.findDistinctBookIds()
+        if (existing.isEmpty()) {
+            val trades = OptionsBookScenario.TRADES
+            log.info("Seeding options-book scenario: {} trades across {} books, {} distinct instruments",
+                trades.size,
+                trades.map { it.bookId.value }.distinct().size,
+                trades.map { it.instrumentId.value }.distinct().size)
+            for (trade in trades) {
+                tradeBookingService.handle(trade)
+            }
+        } else {
+            log.info("Seed data already present ({} books), skipping options-book trades", existing.size)
+        }
+
+        log.info("options-book scenario seeding complete")
     }
 
     suspend fun seed() {
