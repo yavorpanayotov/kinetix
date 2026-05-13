@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package kinetix.referencedata;
+
+option java_package = "com.kinetix.proto.referencedata";
+option java_multiple_files = true;
+
+// ---------------------------------------------------------------------------
+// Trader lookup — used by position-service at trade-booking time to
+// validate that the trader_id on a BookTradeCommand corresponds to a known
+// trader, and to surface basic trader metadata for UI drill-down.
+//
+// reference-data-service is the source of truth for the trader registry.
+// ---------------------------------------------------------------------------
+
+message GetTraderRequest {
+  string trader_id = 1;
+}
+
+message GetTraderResponse {
+  string id = 1;
+  string name = 2;
+  string desk_id = 3;
+  string email = 4;            // empty string if unset
+  string notional_limit_usd = 5; // decimal string; empty if unset
+}
+
+message ListTradersForDeskRequest {
+  string desk_id = 1;
+}
+
+message ListTradersForDeskResponse {
+  repeated GetTraderResponse traders = 1;
+}
+
+service TraderLookupService {
+  // Returns the trader with the given id. NOT_FOUND when the trader is
+  // not registered. position-service treats NOT_FOUND as a hard reject.
+  rpc GetTrader(GetTraderRequest) returns (GetTraderResponse);
+
+  // All traders for a desk. Used by UI dropdowns and tape generators
+  // that need to tag tickets by desk.
+  rpc ListTradersForDesk(ListTradersForDeskRequest) returns (ListTradersForDeskResponse);
+}
