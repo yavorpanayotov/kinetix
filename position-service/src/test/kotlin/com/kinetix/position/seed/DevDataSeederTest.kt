@@ -346,4 +346,58 @@ class DevDataSeederTest : FunSpec({
         firstRun shouldBe secondRun
         firstRun.distinct().size shouldBe firstRun.size
     }
+
+    // ── Phase 2 Gap 2 — stress scenario ───────────────────────────────────
+
+    test("stress scenario seeds exactly 3 books") {
+        val books = StressScenario.TRADES.map { it.bookId.value }.toSet()
+        books.size shouldBe 3
+        books shouldContain StressScenario.MOMENTUM_BOOK
+        books shouldContain StressScenario.CREDIT_BOOK
+        books shouldContain StressScenario.VOL_BOOK
+    }
+
+    test("stress scenario produces ~100 distinct positions total") {
+        val keys = StressScenario.TRADES.map { it.bookId.value to it.instrumentId.value }.toSet()
+        keys.size shouldBeGreaterThanOrEqualTo 90
+        (keys.size <= 110) shouldBe true
+    }
+
+    test("stress scenario has exactly one book in active notional breach") {
+        val notionalByBook = StressScenario.INSTRUMENTS
+            .groupBy { it.book }
+            .mapValues { (_, list) ->
+                list.sumOf { it.typicalPrice.multiply(it.typicalQty) }
+            }
+        val limitsByBook = StressScenario.LIMIT_DEFINITIONS
+            .filter { it.limitType.name == "NOTIONAL" && it.level.name == "BOOK" }
+            .associate { it.entityId to it.limitValue }
+        val breachedBooks = notionalByBook.filter { (book, gross) ->
+            val limit = limitsByBook[book]
+            limit != null && gross > limit
+        }.keys
+        breachedBooks shouldBe setOf(StressScenario.VOL_BOOK)
+    }
+
+    test("stress scenario has the vol book in single-name concentration breach") {
+        val volPositions = StressScenario.INSTRUMENTS.filter { it.book == StressScenario.VOL_BOOK }
+        val bookGross = volPositions.sumOf { it.typicalPrice.multiply(it.typicalQty) }
+        val byInstrument = volPositions
+            .groupBy { it.id.value }
+            .mapValues { (_, list) -> list.sumOf { it.typicalPrice.multiply(it.typicalQty) } }
+        val heaviest = byInstrument.values.maxOrNull()!!
+        val heaviestShare = heaviest.divide(bookGross, 4, java.math.RoundingMode.HALF_UP)
+        val concLimit = StressScenario.LIMIT_DEFINITIONS
+            .firstOrNull { it.entityId == StressScenario.VOL_BOOK && it.limitType.name == "CONCENTRATION" }
+            ?.limitValue
+        concLimit shouldNotBe null
+        (heaviestShare > concLimit!!) shouldBe true
+    }
+
+    test("stress scenario trade IDs are unique and deterministic") {
+        val firstRun = StressScenario.TRADES.map { it.tradeId.value }
+        val secondRun = StressScenario.TRADES.map { it.tradeId.value }
+        firstRun shouldBe secondRun
+        firstRun.distinct().size shouldBe firstRun.size
+    }
 })

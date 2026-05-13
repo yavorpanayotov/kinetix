@@ -35,6 +35,7 @@ class DevDataSeeder(
         log.info("Seeding position-service with profile={}", profile.id)
         when (profile) {
             is SeedProfile.EquityLS -> seedEquityLongShort()
+            is SeedProfile.Stress -> seedStress()
             else -> seed()
         }
     }
@@ -70,6 +71,41 @@ class DevDataSeeder(
         }
 
         log.info("equity-ls scenario seeding complete")
+    }
+
+    /**
+     * Phase 2 Gap 2 — stress scenario.
+     *
+     * Three books (~100 positions): two healthy and one in an active limit
+     * breach (book notional + single-name concentration). Seeds the
+     * scenario-specific limit definitions alongside the trades so the
+     * breach is visible on the first risk recalc.
+     */
+    private suspend fun seedStress() {
+        val existing = positionRepository.findDistinctBookIds()
+        if (existing.isEmpty()) {
+            val trades = StressScenario.TRADES
+            log.info("Seeding stress scenario: {} trades across {} books",
+                trades.size, trades.map { it.bookId.value }.distinct().size)
+            for (trade in trades) {
+                tradeBookingService.handle(trade)
+            }
+
+            if (limitDefinitionRepo != null) {
+                val existingLimits = limitDefinitionRepo.findAll()
+                if (existingLimits.none { it.id.startsWith("seed-lim-stress-") }) {
+                    log.info("Seeding {} stress-scenario limit definitions",
+                        StressScenario.LIMIT_DEFINITIONS.size)
+                    for (limit in StressScenario.LIMIT_DEFINITIONS) {
+                        limitDefinitionRepo.save(limit)
+                    }
+                }
+            }
+        } else {
+            log.info("Seed data already present ({} books), skipping stress trades", existing.size)
+        }
+
+        log.info("stress scenario seeding complete")
     }
 
     suspend fun seed() {
