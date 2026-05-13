@@ -10,6 +10,7 @@ import com.kinetix.referencedata.persistence.DividendYieldRepository
 import com.kinetix.referencedata.persistence.InstrumentLiquidityRepository
 import com.kinetix.referencedata.persistence.InstrumentRepository
 import com.kinetix.referencedata.persistence.NettingAgreementRepository
+import com.kinetix.referencedata.persistence.TraderRepository
 import com.kinetix.referencedata.seed.DevDataSeeder
 import io.ktor.http.*
 import io.ktor.server.response.*
@@ -31,6 +32,7 @@ fun Route.demoResetRoutes(
     liquidityRepository: InstrumentLiquidityRepository? = null,
     counterpartyRepository: CounterpartyRepository? = null,
     nettingAgreementRepository: NettingAgreementRepository? = null,
+    traderRepository: TraderRepository? = null,
     resetToken: String,
 ) {
     route("/api/v1/internal/reference-data") {
@@ -57,6 +59,7 @@ fun Route.demoResetRoutes(
                 exec("TRUNCATE TABLE counterparty_master RESTART IDENTITY CASCADE")
                 exec("TRUNCATE TABLE instrument_liquidity RESTART IDENTITY CASCADE")
                 exec("TRUNCATE TABLE instruments RESTART IDENTITY CASCADE")
+                exec("TRUNCATE TABLE traders RESTART IDENTITY CASCADE")
                 exec("TRUNCATE TABLE desks RESTART IDENTITY CASCADE")
                 exec("TRUNCATE TABLE divisions RESTART IDENTITY CASCADE")
                 exec("TRUNCATE TABLE dividend_yields RESTART IDENTITY CASCADE")
@@ -72,6 +75,7 @@ fun Route.demoResetRoutes(
                 liquidityRepository = liquidityRepository,
                 counterpartyRepository = counterpartyRepository,
                 nettingAgreementRepository = nettingAgreementRepository,
+                traderRepository = traderRepository,
             ).seed(profile)
 
             call.respond(DemoResetResponse("ok", "Reference data reset and reseeded for ${profile.id}"))

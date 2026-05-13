@@ -9,6 +9,8 @@ import com.kinetix.common.model.DivisionId
 import com.kinetix.common.model.DividendYield
 import com.kinetix.common.model.InstrumentId
 import com.kinetix.common.model.ReferenceDataSource
+import com.kinetix.common.model.Trader
+import com.kinetix.common.model.TraderId
 import com.kinetix.common.model.instrument.*
 import com.kinetix.referencedata.model.Counterparty
 import com.kinetix.referencedata.model.Instrument
@@ -23,6 +25,7 @@ import com.kinetix.referencedata.persistence.DividendYieldRepository
 import com.kinetix.referencedata.persistence.InstrumentLiquidityRepository
 import com.kinetix.referencedata.persistence.InstrumentRepository
 import com.kinetix.referencedata.persistence.NettingAgreementRepository
+import com.kinetix.referencedata.persistence.TraderRepository
 import org.slf4j.LoggerFactory
 import java.math.BigDecimal
 import java.time.Instant
@@ -36,6 +39,7 @@ class DevDataSeeder(
     private val liquidityRepository: InstrumentLiquidityRepository? = null,
     private val counterpartyRepository: CounterpartyRepository? = null,
     private val nettingAgreementRepository: NettingAgreementRepository? = null,
+    private val traderRepository: TraderRepository? = null,
 ) {
     private val log = LoggerFactory.getLogger(DevDataSeeder::class.java)
 
@@ -62,6 +66,7 @@ class DevDataSeeder(
         seedInstruments()
         seedDivisions()
         seedDesks()
+        seedTraders()
         seedLiquidityData()
         seedCounterparties()
         seedNettingAgreements()
@@ -129,6 +134,26 @@ class DevDataSeeder(
         log.info("Seeded {} desks", DESKS.size)
     }
 
+    private suspend fun seedTraders() {
+        val repo = traderRepository ?: return
+        var count = 0
+        for ((deskId, traders) in TRADERS) {
+            for (config in traders) {
+                repo.save(
+                    Trader(
+                        id = TraderId(config.id),
+                        name = config.name,
+                        deskId = DeskId(deskId),
+                        email = config.email,
+                        notionalLimitUsd = config.notionalLimitUsd,
+                    )
+                )
+                count++
+            }
+        }
+        log.info("Seeded {} traders across {} desks", count, TRADERS.size)
+    }
+
     private suspend fun seedLiquidityData() {
         val repo = liquidityRepository ?: return
         for ((instrumentId, config) in LIQUIDITY_DATA) {
@@ -188,6 +213,13 @@ class DevDataSeeder(
         val name: String,
         val divisionId: String,
         val deskHead: String? = null,
+    )
+
+    private data class TraderConfig(
+        val id: String,
+        val name: String,
+        val email: String,
+        val notionalLimitUsd: BigDecimal,
     )
 
     private data class LiquidityConfig(
@@ -685,6 +717,63 @@ class DevDataSeeder(
             "balanced-income" to DeskConfig(name = "Balanced Income", divisionId = "multi-asset"),
             "derivatives-trading" to DeskConfig(name = "Derivatives Trading", divisionId = "multi-asset"),
         )
+
+        // Phase 2 Gap 6 — 3–8 traders per desk, named ref-data entities.
+        // Senior traders carry larger per-trader notional limits; junior
+        // traders get smaller books. Limits sit below the desk-level limit
+        // so a single trader cannot exhaust the desk budget on their own.
+        private val TRADERS: Map<String, List<TraderConfig>> = mapOf(
+            "equity-growth" to listOf(
+                TraderConfig("tr-eg-001", "Sarah Chen", "sarah.chen@kinetix.test", BigDecimal("150000000")),
+                TraderConfig("tr-eg-002", "Marcus Webb", "marcus.webb@kinetix.test", BigDecimal("120000000")),
+                TraderConfig("tr-eg-003", "Priya Krishnan", "priya.krishnan@kinetix.test", BigDecimal("80000000")),
+                TraderConfig("tr-eg-004", "Daniel Okafor", "daniel.okafor@kinetix.test", BigDecimal("40000000")),
+            ),
+            "tech-momentum" to listOf(
+                TraderConfig("tr-tm-001", "Alice Cohen", "alice.cohen@kinetix.test", BigDecimal("200000000")),
+                TraderConfig("tr-tm-002", "Ryan Tanaka", "ryan.tanaka@kinetix.test", BigDecimal("150000000")),
+                TraderConfig("tr-tm-003", "Maya Patel", "maya.patel@kinetix.test", BigDecimal("100000000")),
+                TraderConfig("tr-tm-004", "Jordan Reyes", "jordan.reyes@kinetix.test", BigDecimal("50000000")),
+            ),
+            "emerging-markets" to listOf(
+                TraderConfig("tr-em-001", "Carlos Mendes", "carlos.mendes@kinetix.test", BigDecimal("100000000")),
+                TraderConfig("tr-em-002", "Nadia Hassan", "nadia.hassan@kinetix.test", BigDecimal("80000000")),
+                TraderConfig("tr-em-003", "Wei Zhang", "wei.zhang@kinetix.test", BigDecimal("50000000")),
+            ),
+            "rates-trading" to listOf(
+                TraderConfig("tr-rt-001", "James Whitfield", "james.whitfield@kinetix.test", BigDecimal("500000000")),
+                TraderConfig("tr-rt-002", "Elena Rossi", "elena.rossi@kinetix.test", BigDecimal("400000000")),
+                TraderConfig("tr-rt-003", "Hideo Yamamoto", "hideo.yamamoto@kinetix.test", BigDecimal("300000000")),
+                TraderConfig("tr-rt-004", "Ana Soares", "ana.soares@kinetix.test", BigDecimal("150000000")),
+                TraderConfig("tr-rt-005", "Tom O'Brien", "tom.obrien@kinetix.test", BigDecimal("100000000")),
+            ),
+            "multi-asset-strategies" to listOf(
+                TraderConfig("tr-ma-001", "Lukas Bauer", "lukas.bauer@kinetix.test", BigDecimal("250000000")),
+                TraderConfig("tr-ma-002", "Rachel Goldberg", "rachel.goldberg@kinetix.test", BigDecimal("180000000")),
+                TraderConfig("tr-ma-003", "Yusuf El-Sayed", "yusuf.elsayed@kinetix.test", BigDecimal("120000000")),
+                TraderConfig("tr-ma-004", "Isabel Fernandez", "isabel.fernandez@kinetix.test", BigDecimal("80000000")),
+            ),
+            "macro-hedge" to listOf(
+                TraderConfig("tr-mh-001", "Henrik Lindqvist", "henrik.lindqvist@kinetix.test", BigDecimal("400000000")),
+                TraderConfig("tr-mh-002", "Olivia Kerr", "olivia.kerr@kinetix.test", BigDecimal("300000000")),
+                TraderConfig("tr-mh-003", "Akira Sato", "akira.sato@kinetix.test", BigDecimal("200000000")),
+            ),
+            "balanced-income" to listOf(
+                TraderConfig("tr-bi-001", "Margaret Holloway", "margaret.holloway@kinetix.test", BigDecimal("180000000")),
+                TraderConfig("tr-bi-002", "Vikram Iyer", "vikram.iyer@kinetix.test", BigDecimal("120000000")),
+                TraderConfig("tr-bi-003", "Sophie Laurent", "sophie.laurent@kinetix.test", BigDecimal("80000000")),
+            ),
+            "derivatives-trading" to listOf(
+                TraderConfig("tr-dt-001", "Vincent Park", "vincent.park@kinetix.test", BigDecimal("350000000")),
+                TraderConfig("tr-dt-002", "Eva Novak", "eva.novak@kinetix.test", BigDecimal("280000000")),
+                TraderConfig("tr-dt-003", "Connor Ainsworth", "connor.ainsworth@kinetix.test", BigDecimal("200000000")),
+                TraderConfig("tr-dt-004", "Lina Aoki", "lina.aoki@kinetix.test", BigDecimal("130000000")),
+                TraderConfig("tr-dt-005", "Felix Brandt", "felix.brandt@kinetix.test", BigDecimal("90000000")),
+            ),
+        )
+
+        /** Trader IDs by desk — read by position-service tape generator to tag every ticket. */
+        val TRADER_IDS_BY_DESK: Map<String, List<String>> get() = TRADERS.mapValues { (_, list) -> list.map { it.id } }
 
         // ── Phase 1 Gap 5 — 30-counterparty universe ─────────────────────────────
         //

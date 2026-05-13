@@ -234,6 +234,7 @@ fun Application.moduleWithRoutes() {
                 liquidityRepository = liquidityRepository,
                 counterpartyRepository = counterpartyRepository,
                 nettingAgreementRepository = nettingAgreementRepository,
+                traderRepository = traderRepository,
                 resetToken = demoResetToken,
             )
         }
@@ -252,7 +253,7 @@ fun Application.moduleWithRoutes() {
     val seedEnabled = environment.config.propertyOrNull("seed.enabled")?.getString()?.toBoolean() ?: true
     if (seedEnabled) {
         launch {
-            DevDataSeeder(dividendYieldRepository, creditSpreadRepository, instrumentRepository, divisionRepository, deskRepository, liquidityRepository, counterpartyRepository, nettingAgreementRepository).seed()
+            DevDataSeeder(dividendYieldRepository, creditSpreadRepository, instrumentRepository, divisionRepository, deskRepository, liquidityRepository, counterpartyRepository, nettingAgreementRepository, traderRepository).seed()
             seedDone.set(true)
         }
     } else {
