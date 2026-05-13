@@ -59,6 +59,7 @@ import com.kinetix.gateway.routes.limitsRoutes
 import com.kinetix.gateway.routes.marginRoutes
 import com.kinetix.gateway.routes.demoScenarioRoutes
 import com.kinetix.gateway.routes.demoStressWindowsRoutes
+import com.kinetix.gateway.routes.tapeReplayStatusRoutes
 import com.kinetix.gateway.routes.marketRegimeRoutes
 import com.kinetix.gateway.routes.varRoutes
 import com.kinetix.gateway.routes.hedgeRecommendationRoutes
@@ -487,6 +488,7 @@ fun Application.devModule() {
                 volSurfaceRoutes(volatilityClient)
                 demoStressWindowsRoutes()
                 demoScenarioRoutes()
+                tapeReplayStatusRoutes()
             }
             requirePermission(Permission.READ_REGULATORY, authEnabled = authEnabled) {
                 requireBookAccess(bookAccessService) {

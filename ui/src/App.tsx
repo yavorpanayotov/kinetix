@@ -37,6 +37,8 @@ import { useMarketRegime } from './hooks/useMarketRegime'
 import { RegimeIndicator } from './components/RegimeIndicator'
 import { useActiveScenario } from './hooks/useActiveScenario'
 import { ScenarioIndicator } from './components/ScenarioIndicator'
+import { useTapeReplayStatus } from './hooks/useTapeReplayStatus'
+import { TapeReplayIndicator } from './components/TapeReplayIndicator'
 import { useWorkspace } from './hooks/useWorkspace'
 import { useAuth } from './auth/useAuth'
 import { DEMO_MODE } from './auth/demoPersonas'
@@ -136,6 +138,7 @@ function App() {
   const dataQuality = useDataQuality()
   const marketRegime = useMarketRegime()
   const activeScenario = useActiveScenario()
+  const tapeReplay = useTapeReplayStatus()
 
   const [disconnectElapsed, setDisconnectElapsed] = useState(0)
   useEffect(() => {
@@ -168,6 +171,7 @@ function App() {
         <div className="flex items-center gap-3">
           <HierarchySelector hierarchy={hierarchy} />
           <ScenarioIndicator scenario={activeScenario.scenario} loading={activeScenario.loading} />
+          <TapeReplayIndicator status={tapeReplay.status} loading={tapeReplay.loading} />
           <RegimeIndicator regime={marketRegime.regime} loading={marketRegime.loading} />
           <DataQualityIndicator
             status={(() => {
