@@ -148,7 +148,7 @@ The demo-review acceptance section flips fully green when:
 
 **Demo experience**
 - [x] Yield-curve chart renders missing-5Y anomaly with interpolated marker
-- [ ] (Cosmetic) options non-convergence shows `N/A`
+- [x] (Cosmetic) options non-convergence shows `N/A`
 
 **Engineering**
 - [ ] Audit hash chain settle <90s pinned by integration test
