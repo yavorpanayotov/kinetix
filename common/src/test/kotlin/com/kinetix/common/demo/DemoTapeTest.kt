@@ -3,7 +3,6 @@ package com.kinetix.common.demo
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.doubles.shouldBeBetween
 import io.kotest.matchers.shouldBe
-import kotlin.math.sqrt
 
 class DemoTapeTest : FunSpec({
     val tape = DemoTape()
@@ -67,26 +66,21 @@ class DemoTapeTest : FunSpec({
         var99.shouldBeBetween(0.020, 0.080, 0.0)
     }
 
-    test("Kupiec exception count at 99% is in the testable range over 252 days") {
-        // Compute one-day 99% historical VaR using a 60-day rolling window, then count
-        // exceptions over the remaining days. Expectation: 252 * 0.01 ≈ 2.5 exceptions.
-        // Pass if exceptions are in 0..7 — a wide band that catches gross mis-calibration.
-        val symbol = "AAPL"
-        var exceptions = 0
-        var total = 0
-        for (endDay in 0 until RegimeCalendar.DAYS - 70) {
-            val v = tape.historicalVaR(symbol, confidence = 0.99, window = 60)
-            // We test the most recent return against the trailing distribution.
-            val realised = tape.dailyReturn(symbol, endDay)
-            if (realised < -v) exceptions++
-            total++
-            // Note: this is a smoke test, not a formal Kupiec — historicalVaR currently
-            // ignores endDay for window sourcing, so this is a single-window check.
-            break
+    test("historicalVaR honours endDay by sourcing the trailing window from that point") {
+        // A window in the stress regime should produce a strictly larger VaR than one in
+        // the calm/recovery regime — proving that endDay actually slides the sample.
+        val stressVaR = tape.historicalVaR("IDX-SPX", confidence = 0.99, window = 40, endDay = 170)
+        val calmVaR = tape.historicalVaR("IDX-SPX", confidence = 0.99, window = 40, endDay = 230)
+        assert(stressVaR > calmVaR) {
+            "expected stress-window VaR $stressVaR > calm-window VaR $calmVaR — endDay was likely ignored"
         }
-        // Trivial smoke: at least the integer comparison is well-formed.
-        exceptions shouldBe exceptions
-        total shouldBe 1
+    }
+
+    test("historicalVaR with endDay near the series end clips the window without crashing") {
+        // Asking for a 60-day window ending at day 240 only has 12 days of data (240..251);
+        // the function should return a non-negative number, not throw.
+        val v = tape.historicalVaR("AAPL", confidence = 0.99, window = 60, endDay = 240)
+        assert(v.isFinite()) { "expected a finite VaR, got $v" }
     }
 
     test("same seed produces byte-identical output") {

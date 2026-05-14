@@ -117,11 +117,34 @@ class DemoTape(
         return if (denom < 1e-12) 0.0 else cov / denom
     }
 
-    /** Empirical historical VaR at 1-day horizon, confidence in (0,1) e.g. 0.99. */
-    fun historicalVaR(symbol: String, confidence: Double = 0.99, window: Int = 252): Double {
+    /**
+     * Empirical historical VaR at 1-day horizon over a `window`-day trailing sample of
+     * returns ending on `endDay` (in reverse-chronological indexing: 0 = most recent).
+     *
+     * confidence in (0,1) e.g. 0.99 — the returned value is the magnitude of the
+     * one-day loss not exceeded with probability `confidence`.
+     *
+     * `endDay` lets callers slide the window backwards for Kupiec backtesting:
+     * estimate VaR from a trailing window, compare it to the *next* day's realised
+     * return, then advance.
+     */
+    fun historicalVaR(
+        symbol: String,
+        confidence: Double = 0.99,
+        window: Int = 252,
+        endDay: Int = 0,
+    ): Double {
         require(confidence in 0.5..0.999)
+        require(window >= 5) { "window must be >= 5" }
+        require(endDay >= 0) { "endDay must be >= 0" }
         val returns = returnsBySymbol[symbol] ?: error("Symbol $symbol not in tape universe")
-        val sample = returns.copyOfRange(0, minOf(window, returns.size)).sortedArray()
+        // returns is reverse-chronological: index 0 = most recent. A window ending at
+        // endDay covers indices endDay..endDay+window-1.
+        val startIdx = endDay
+        val endIdx = (endDay + window).coerceAtMost(returns.size)
+        if (startIdx >= returns.size) return 0.0
+        val sample = returns.copyOfRange(startIdx, endIdx).sortedArray()
+        if (sample.isEmpty()) return 0.0
         val pctIdx = ((1.0 - confidence) * sample.size).toInt().coerceAtLeast(0)
         return -sample[pctIdx]
     }
