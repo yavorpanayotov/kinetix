@@ -39,7 +39,7 @@ test.describe('Risk Metrics', () => {
     await expect(page.getByTestId('header-group-risk')).not.toBeVisible()
   })
 
-  test('renders delta values correctly, em-dash for null', async ({ page }) => {
+  test('renders delta values correctly, N/A for null', async ({ page }) => {
     await mockPositionRisk(page, TEST_POSITION_RISK)
 
     await page.goto('/')
@@ -47,7 +47,8 @@ test.describe('Risk Metrics', () => {
 
     await expect(page.getByTestId('delta-AAPL')).toHaveText('1,550.25')
     await expect(page.getByTestId('delta-GOOGL')).toHaveText('7,125.00')
-    await expect(page.getByTestId('delta-EUR_USD')).toHaveText('\u2014')
+    // Anomaly contract: non-convergence renders literal "N/A".
+    await expect(page.getByTestId('delta-EUR_USD')).toHaveText('N/A')
   })
 
   test('renders gamma values correctly', async ({ page }) => {
@@ -58,7 +59,7 @@ test.describe('Risk Metrics', () => {
 
     await expect(page.getByTestId('gamma-AAPL')).toHaveText('12.50')
     await expect(page.getByTestId('gamma-GOOGL')).toHaveText('45.00')
-    await expect(page.getByTestId('gamma-EUR_USD')).toHaveText('\u2014')
+    await expect(page.getByTestId('gamma-EUR_USD')).toHaveText('N/A')
   })
 
   test('renders vega values correctly', async ({ page }) => {
@@ -69,7 +70,7 @@ test.describe('Risk Metrics', () => {
 
     await expect(page.getByTestId('vega-AAPL')).toHaveText('320.00')
     await expect(page.getByTestId('vega-GOOGL')).toHaveText('890.00')
-    await expect(page.getByTestId('vega-EUR_USD')).toHaveText('\u2014')
+    await expect(page.getByTestId('vega-EUR_USD')).toHaveText('N/A')
   })
 
   test('renders VaR contribution with percent sign', async ({ page }) => {

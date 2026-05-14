@@ -540,25 +540,25 @@ export function PositionGrid({ positions, connected, reconnecting, lastConnected
                           data-testid={`delta-${pos.instrumentId}`}
                           className="px-4 py-2 text-sm text-right bg-indigo-50/30 dark:bg-indigo-950/10"
                         >
-                          {risk?.delta != null ? formatNum(risk.delta) : '\u2014'}
+                          {risk?.delta != null ? formatNum(risk.delta) : 'N/A'}
                         </td>
                         <td
                           data-testid={`gamma-${pos.instrumentId}`}
                           className="px-4 py-2 text-sm text-right bg-indigo-50/30 dark:bg-indigo-950/10"
                         >
-                          {risk?.gamma != null ? formatNum(risk.gamma) : '\u2014'}
+                          {risk?.gamma != null ? formatNum(risk.gamma) : 'N/A'}
                         </td>
                         <td
                           data-testid={`vega-${pos.instrumentId}`}
                           className="px-4 py-2 text-sm text-right bg-indigo-50/30 dark:bg-indigo-950/10"
                         >
-                          {risk?.vega != null ? formatNum(risk.vega) : '\u2014'}
+                          {risk?.vega != null ? formatNum(risk.vega) : 'N/A'}
                         </td>
                         <td
                           data-testid={`var-pct-${pos.instrumentId}`}
                           className="px-4 py-2 text-sm text-right font-medium bg-indigo-50/30 dark:bg-indigo-950/10"
                         >
-                          {risk ? `${formatNum(risk.percentageOfTotal)}%` : '\u2014'}
+                          {risk ? `${formatNum(risk.percentageOfTotal)}%` : 'N/A'}
                         </td>
                       </>
                     )}

@@ -204,7 +204,7 @@ describe('PositionGrid', () => {
       expect(within(row).getByTestId('var-pct-AAPL')).toHaveTextContent('64.85%')
     })
 
-    it('shows dash when risk data is missing for a position', () => {
+    it('shows N/A when risk data is missing for a position', () => {
       render(
         <PositionGrid
           positions={[
@@ -216,13 +216,15 @@ describe('PositionGrid', () => {
       )
 
       const googlRow = screen.getByTestId('position-row-GOOGL')
-      expect(within(googlRow).getByTestId('delta-GOOGL')).toHaveTextContent('\u2014')
-      expect(within(googlRow).getByTestId('gamma-GOOGL')).toHaveTextContent('\u2014')
-      expect(within(googlRow).getByTestId('vega-GOOGL')).toHaveTextContent('\u2014')
-      expect(within(googlRow).getByTestId('var-pct-GOOGL')).toHaveTextContent('\u2014')
+      expect(within(googlRow).getByTestId('delta-GOOGL')).toHaveTextContent('N/A')
+      expect(within(googlRow).getByTestId('gamma-GOOGL')).toHaveTextContent('N/A')
+      expect(within(googlRow).getByTestId('vega-GOOGL')).toHaveTextContent('N/A')
+      expect(within(googlRow).getByTestId('var-pct-GOOGL')).toHaveTextContent('N/A')
     })
 
-    it('shows dash when greek value is null', () => {
+    it('shows N/A when an option fails to converge and greek values are null', () => {
+      // Anomaly contract (docs/plans/demo-follow-up.md Gap 8):
+      // non-convergence renders literal "N/A", not an em-dash.
       render(
         <PositionGrid
           positions={[makePosition()]}
@@ -231,10 +233,17 @@ describe('PositionGrid', () => {
       )
 
       const row = screen.getByTestId('position-row-AAPL')
-      expect(within(row).getByTestId('delta-AAPL')).toHaveTextContent('\u2014')
-      expect(within(row).getByTestId('gamma-AAPL')).toHaveTextContent('\u2014')
-      expect(within(row).getByTestId('vega-AAPL')).toHaveTextContent('\u2014')
-      // VaR contribution should still show
+      const deltaCell = within(row).getByTestId('delta-AAPL')
+      const gammaCell = within(row).getByTestId('gamma-AAPL')
+      const vegaCell = within(row).getByTestId('vega-AAPL')
+
+      expect(deltaCell).toHaveTextContent('N/A')
+      expect(gammaCell).toHaveTextContent('N/A')
+      expect(vegaCell).toHaveTextContent('N/A')
+      expect(deltaCell.textContent).not.toContain('\u2014')
+      expect(gammaCell.textContent).not.toContain('\u2014')
+      expect(vegaCell.textContent).not.toContain('\u2014')
+      // VaR contribution should still show as a percentage
       expect(within(row).getByTestId('var-pct-AAPL')).toHaveTextContent('64.85%')
     })
 
