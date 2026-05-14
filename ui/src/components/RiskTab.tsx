@@ -35,6 +35,7 @@ import { useHedgeRecommendation } from '../hooks/useHedgeRecommendation'
 import { useIntradayVaRTimeline } from '../hooks/useIntradayVaRTimeline'
 import { useKrd } from '../hooks/useKrd'
 import { VolSurfacePanel } from './VolSurfacePanel'
+import { YieldCurvePanel } from './YieldCurvePanel'
 import { IntradayVaRChart } from './IntradayVaRChart'
 import { KrdPanel } from './KrdPanel'
 import { Spinner } from './ui/Spinner'
@@ -372,7 +373,10 @@ export function RiskTab({
       )}
 
       {subTab === 'market-data' && (
-        <VolSurfacePanel instruments={instrumentIds} />
+        <div className="space-y-6">
+          <VolSurfacePanel instruments={instrumentIds} />
+          <YieldCurvePanel />
+        </div>
       )}
 
       {subTab === 'intraday' && (
