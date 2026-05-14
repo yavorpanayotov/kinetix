@@ -147,7 +147,7 @@ The demo-review acceptance section flips fully green when:
 - [x] P&L attributions are derived from positions × tape moves; stress drawdown visible
 
 **Demo experience**
-- [ ] Yield-curve chart renders missing-5Y anomaly with interpolated marker
+- [x] Yield-curve chart renders missing-5Y anomaly with interpolated marker
 - [ ] (Cosmetic) options non-convergence shows `N/A`
 
 **Engineering**
