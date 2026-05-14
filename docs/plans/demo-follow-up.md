@@ -143,7 +143,7 @@ The demo-review acceptance section flips fully green when:
 - [x] Kupiec test asserts 1–5 exceptions over 252 days; not a tautology
 - [x] Correlation matrix is derived from tape, not constants; reconciliation test passes
 - [x] `price-service` prices match tape to 1e-6
-- [ ] Realised vs implied vol reconciliation test passes within risk premium
+- [x] Realised vs implied vol reconciliation test passes within risk premium
 - [ ] P&L attributions are derived from positions × tape moves; stress drawdown visible
 
 **Demo experience**
