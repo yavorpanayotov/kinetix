@@ -144,7 +144,7 @@ The demo-review acceptance section flips fully green when:
 - [x] Correlation matrix is derived from tape, not constants; reconciliation test passes
 - [x] `price-service` prices match tape to 1e-6
 - [x] Realised vs implied vol reconciliation test passes within risk premium
-- [ ] P&L attributions are derived from positions × tape moves; stress drawdown visible
+- [x] P&L attributions are derived from positions × tape moves; stress drawdown visible
 
 **Demo experience**
 - [ ] Yield-curve chart renders missing-5Y anomaly with interpolated marker
