@@ -23,10 +23,11 @@ class DevDataSeederTest : FunSpec({
 
         seeder.seed()
 
-        // 83 instruments × 169 hourly points
-        // + 83 instruments × 253 daily closes (day 252 downTo 0, inclusive)
-        // + 301 daily prices for IDX-SPX benchmark (day 300 downTo 0, inclusive)
-        val expectedSaves = 83 * 169 + 83 * 253 + 301
+        // 83 instruments × 169 hourly points (i in 0..168)
+        // + 83 instruments × 244 daily closes (day in 8 until 252) sourced from DemoTape;
+        //   days 0..7 are covered by the intraday writer to avoid PK collisions
+        // + 252 daily prices for IDX-SPX benchmark (full 252-day tape window; no intraday)
+        val expectedSaves = 83 * 169 + 83 * 244 + 252
         coVerify(exactly = expectedSaves) { repository.save(any()) }
     }
 
@@ -79,7 +80,7 @@ class DevDataSeederTest : FunSpec({
         )
     }
 
-    test("AAPL has 169 hourly and 253 daily saved points") {
+    test("AAPL has 169 hourly and 244 daily saved points") {
         coEvery { repository.findLatest(InstrumentId("AAPL")) } returns null
         val savedPoints = mutableListOf<PricePoint>()
         coEvery { repository.save(capture(savedPoints)) } just runs
@@ -87,8 +88,8 @@ class DevDataSeederTest : FunSpec({
         seeder.seed()
 
         val aaplPoints = savedPoints.filter { it.instrumentId.value == "AAPL" }
-        // 169 hourly + 253 daily (day 252 downTo 0, inclusive)
-        aaplPoints.size shouldBe 169 + 253
+        // 169 hourly (covering days 0..7) + 244 daily (days 8..251)
+        aaplPoints.size shouldBe 169 + 244
     }
 
     test("all daily close prices are strictly positive") {

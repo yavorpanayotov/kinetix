@@ -1,5 +1,8 @@
 package com.kinetix.price.seed
 
+import com.kinetix.common.demo.DemoTape
+import com.kinetix.common.demo.DemoTapeUniverse
+import com.kinetix.common.demo.RegimeCalendar
 import com.kinetix.common.model.AssetClass
 import com.kinetix.common.model.InstrumentId
 import com.kinetix.common.model.PricePoint
@@ -13,8 +16,19 @@ import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.Currency
 
+/**
+ * Seeds the price database from the shared [DemoTape] so daily closes — and the
+ * intraday curve interpolated between them — reconcile to the platform-wide
+ * source of truth to within float precision. Anchored on `LATEST_TIME`; the
+ * tape's most recent close (day 0) lands at the same instant the rest of the
+ * services use as their "as of now".
+ *
+ * See `docs/plans/demo-follow-up.md` PR 1 item 2 — the upstream change that
+ * makes vol reconciliation in the volatility-service seeder free.
+ */
 class DevDataSeeder(
     private val repository: PriceRepository,
+    private val tape: DemoTape = DemoTape(),
 ) {
     private val log = LoggerFactory.getLogger(DevDataSeeder::class.java)
 
@@ -25,76 +39,50 @@ class DevDataSeeder(
             return
         }
 
-        log.info("Seeding price data for {} instruments", INSTRUMENTS.size)
+        log.info("Seeding price data for {} instruments from DemoTape", INSTRUMENTS.size)
 
         for ((instrumentId, config) in INSTRUMENTS) {
-            seedInstrument(instrumentId, config)
             seedDailyCloses(instrumentId, config)
+            seedIntradayInterpolated(instrumentId, config)
         }
 
-        // Seed IDX-SPX with 300 daily prices for factor loading estimation
-        // (OLS regression requires >= 252 trading days).
-        seedBenchmarkIndex(InstrumentId("IDX-SPX"), basePrice = 5_000.0, dailyVol = 0.012)
+        // IDX-SPX is part of the tape universe; seed its daily closes too so
+        // OLS factor-loading regressions read a tape-consistent series.
+        seedDailyClosesFromTape(InstrumentId("IDX-SPX"))
 
         log.info("Price data seeding complete")
     }
 
-    private suspend fun seedInstrument(instrumentId: InstrumentId, config: InstrumentConfig) {
-        val currency = Currency.getInstance(config.currency)
-        val staleOffset = STALE_OFFSET_HOURS[instrumentId.value] ?: 0L
-        val latestTime = LATEST_TIME.minus(staleOffset, ChronoUnit.HOURS)
-        val startPrice = config.startPrice
-        val latestPrice = config.latestPrice
-        val hours = 168 // 7 days of hourly data
-
-        // Generate hourly data points interpolating from startPrice to latestPrice
-        for (i in 0..hours) {
-            val fraction = i.toDouble() / hours
-            // Linear interpolation with small variation
-            val interpolated = startPrice + (latestPrice - startPrice) * fraction
-            // Add deterministic variation based on instrument + hour
-            val variation = 1.0 + (instrumentId.value.hashCode() + i).rem(100) * 0.0001
-            val price = BigDecimal(interpolated * variation)
-                .setScale(config.scale, RoundingMode.HALF_UP)
-
-            val timestamp = latestTime.minus((hours - i).toLong(), ChronoUnit.HOURS)
-            val point = PricePoint(
-                instrumentId = instrumentId,
-                price = Money(price, currency),
-                timestamp = timestamp,
-                source = PriceSource.EXCHANGE,
-            )
-            repository.save(point)
-        }
-    }
-
     /**
-     * Seeds 252 daily closing prices for an instrument using geometric Brownian motion
-     * with a deterministic pseudo-random number generator so the series is reproducible.
-     * All prices are clamped to a minimum of 0.01 to guarantee positivity.
+     * Daily closing prices sourced directly from the tape. Covers tape days
+     * `DAILY_CLOSE_START_DAY` through `RegimeCalendar.DAYS - 1` — the older end
+     * of the 252-day window. The most recent 7 days are populated by
+     * [seedIntradayInterpolated] instead, which writes hourly points whose
+     * timestamps would otherwise collide with the daily-close timestamps and
+     * violate the `(instrument_id, timestamp)` primary key on `prices`.
+     *
+     * The seeded close on each day matches `tape.priceOn(symbol, day)` to
+     * within 1e-6 — verified by `PriceTapeConsistencyAcceptanceTest`.
      */
     private suspend fun seedDailyCloses(instrumentId: InstrumentId, config: InstrumentConfig) {
+        val symbol = instrumentId.value
+        if (DemoTapeUniverse.specOrNull(symbol) == null) {
+            // Should never happen — the price-service universe is a subset of the
+            // tape universe. Fail loud rather than silently fall back.
+            error("Instrument $symbol is in price-service INSTRUMENTS but not in DemoTapeUniverse")
+        }
+
         val currency = Currency.getInstance(config.currency)
-        val staleOffset = STALE_OFFSET_HOURS[instrumentId.value] ?: 0L
+        val staleOffset = STALE_OFFSET_HOURS[symbol] ?: 0L
         val anchor = LATEST_TIME.minus(staleOffset, ChronoUnit.HOURS)
-        val days = 252
-        var price = config.startPrice
-        val seed = instrumentId.value.hashCode().toLong()
-        var state = seed xor 0x1A2B3C4D5E6F7A8BL // distinct LCG state from benchmark
 
-        for (day in days downTo 0) {
-            state = state * 6364136223846793005L + 1442695040888963407L
-            val u = ((state ushr 17) and 0xFFFFL).toDouble() / 65535.0
-            val z = (u - 0.5) * 3.46
-            val dailyReturn = z * config.dailyVol + 0.0002
-            price *= (1.0 + dailyReturn)
-            price = price.coerceAtLeast(0.01)
-
+        for (day in DAILY_CLOSE_START_DAY until RegimeCalendar.DAYS) {
+            val price = tape.priceOn(symbol, day)
             val timestamp = anchor.minus(day.toLong(), ChronoUnit.DAYS)
             val point = PricePoint(
                 instrumentId = instrumentId,
                 price = Money(
-                    BigDecimal(price).setScale(config.scale, RoundingMode.HALF_UP),
+                    BigDecimal(price).setScale(STORAGE_SCALE, RoundingMode.HALF_UP),
                     currency,
                 ),
                 timestamp = timestamp,
@@ -105,42 +93,75 @@ class DevDataSeeder(
     }
 
     /**
-     * Seeds 300 synthetic daily closing prices for a benchmark index.
-     * Prices follow a geometric Brownian motion with deterministic pseudo-random
-     * returns so the series is reproducible and contains sufficient history for
-     * OLS factor loading estimation (requires >= 252 days).
+     * Intraday price points for the past 7 days, linearly interpolated between
+     * consecutive tape daily closes. The most recent point (i = HOURS) lands at
+     * [LATEST_TIME] minus any staleness offset, with the price equal to the
+     * tape close on day 0; the oldest point lands 168 hours earlier and equals
+     * the tape close on day 7. Intermediate prices are linear in time between
+     * the bracketing daily closes — a reasonable convention for filling in the
+     * intraday curve when only end-of-day marks exist.
      */
-    private suspend fun seedBenchmarkIndex(
-        instrumentId: InstrumentId,
-        basePrice: Double,
-        dailyVol: Double,
-    ) {
-        val currency = Currency.getInstance("USD")
-        val days = 300
-        var price = basePrice
-        val seed = instrumentId.value.hashCode().toLong()
-        var state = seed xor 0x6C62272E07BB0142L // simple LCG state
+    private suspend fun seedIntradayInterpolated(instrumentId: InstrumentId, config: InstrumentConfig) {
+        val symbol = instrumentId.value
+        val currency = Currency.getInstance(config.currency)
+        val staleOffset = STALE_OFFSET_HOURS[symbol] ?: 0L
+        val latestTime = LATEST_TIME.minus(staleOffset, ChronoUnit.HOURS)
+        val hours = INTRADAY_HOURS
 
-        for (day in days downTo 0) {
-            // Deterministic pseudo-random return via LCG
-            state = state * 6364136223846793005L + 1442695040888963407L
-            val u = ((state ushr 17) and 0xFFFFL).toDouble() / 65535.0  // [0,1)
-            // Box-Muller (use same state for both; acceptable for seeding)
-            val z = (u - 0.5) * 3.46  // rough normal approximation
-            val dailyReturn = z * dailyVol + 0.0003  // slight upward drift
-            price *= (1.0 + dailyReturn)
-            price = price.coerceAtLeast(1.0)
+        for (i in 0..hours) {
+            // i = 0 corresponds to (hours)h before latest, i.e. tape day=daysSpanned;
+            // i = hours corresponds to latest, i.e. tape day=0.
+            val hoursBeforeLatest = hours - i
+            val daysBeforeLatest = hoursBeforeLatest.toDouble() / 24.0
+            val olderDay = kotlin.math.ceil(daysBeforeLatest).toInt().coerceAtMost(RegimeCalendar.DAYS - 1)
+            val newerDay = kotlin.math.floor(daysBeforeLatest).toInt().coerceAtLeast(0)
+            val olderPrice = tape.priceOn(symbol, olderDay)
+            val newerPrice = tape.priceOn(symbol, newerDay)
+            // Fraction toward the newer (more recent) close.
+            val fraction = if (olderDay == newerDay) 0.0
+                else (olderDay - daysBeforeLatest) / (olderDay - newerDay).toDouble()
+            val price = olderPrice + (newerPrice - olderPrice) * fraction
 
-            val timestamp = LATEST_TIME.minus(day.toLong(), ChronoUnit.DAYS)
+            val timestamp = latestTime.minus(hoursBeforeLatest.toLong(), ChronoUnit.HOURS)
             val point = PricePoint(
                 instrumentId = instrumentId,
-                price = Money(BigDecimal(price).setScale(2, RoundingMode.HALF_UP), currency),
+                price = Money(
+                    BigDecimal(price).setScale(STORAGE_SCALE, RoundingMode.HALF_UP),
+                    currency,
+                ),
                 timestamp = timestamp,
                 source = PriceSource.EXCHANGE,
             )
             repository.save(point)
         }
-        log.info("Seeded {} daily prices for benchmark index {}", days + 1, instrumentId.value)
+    }
+
+    /**
+     * Variant of [seedDailyCloses] for instruments that are in the tape universe
+     * but not in the per-config [INSTRUMENTS] map (e.g. the IDX-SPX benchmark).
+     * Currency and price scale are taken from the tape spec. IDX-SPX has no
+     * intraday writer, so this seeder covers the full 252-day window from day 0.
+     */
+    private suspend fun seedDailyClosesFromTape(instrumentId: InstrumentId) {
+        val symbol = instrumentId.value
+        val spec = DemoTapeUniverse.spec(symbol)
+        val currency = Currency.getInstance(spec.currency)
+
+        for (day in 0 until RegimeCalendar.DAYS) {
+            val price = tape.priceOn(symbol, day)
+            val timestamp = LATEST_TIME.minus(day.toLong(), ChronoUnit.DAYS)
+            val point = PricePoint(
+                instrumentId = instrumentId,
+                price = Money(
+                    BigDecimal(price).setScale(STORAGE_SCALE, RoundingMode.HALF_UP),
+                    currency,
+                ),
+                timestamp = timestamp,
+                source = PriceSource.EXCHANGE,
+            )
+            repository.save(point)
+        }
+        log.info("Seeded {} daily prices for benchmark index {}", RegimeCalendar.DAYS, symbol)
     }
 
     internal data class InstrumentConfig(
@@ -154,6 +175,23 @@ class DevDataSeeder(
 
     companion object {
         val LATEST_TIME: Instant = Instant.parse("2026-02-22T10:00:00Z")
+        const val INTRADAY_HOURS: Int = 168 // 7 days of hourly data
+
+        /**
+         * First tape day populated by the daily-close writer. The most recent
+         * `DAILY_CLOSE_START_DAY` days are populated by the intraday writer
+         * instead, so the `(instrument_id, timestamp)` primary key on `prices`
+         * is never violated when both writers run.
+         */
+        const val DAILY_CLOSE_START_DAY: Int = INTRADAY_HOURS / 24 + 1 // 8
+
+        /**
+         * Decimal scale used when persisting tape-derived prices. Wide enough to
+         * keep `BigDecimal(price).setScale(STORAGE_SCALE)` within 1e-6 of the raw
+         * tape double, so `PriceTapeConsistencyAcceptanceTest` reconciles without
+         * having to model rounding noise.
+         */
+        const val STORAGE_SCALE: Int = 10
 
         // data_quality_intent: intentional_anomaly_demo
         // Gap 8 anomaly: JNJ's freshest price is held 30 hours behind the
