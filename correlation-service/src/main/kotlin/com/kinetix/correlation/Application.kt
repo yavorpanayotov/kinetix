@@ -166,10 +166,12 @@ fun Application.moduleWithRoutes() {
         }
     }
 
+    val devDataSeeder = DevDataSeeder(correlationMatrixRepository)
+
     val seedEnabled = environment.config.propertyOrNull("seed.enabled")?.getString()?.toBoolean() ?: true
     if (seedEnabled) {
         launch {
-            DevDataSeeder(correlationMatrixRepository).seed()
+            devDataSeeder.seed()
             seedDone.set(true)
         }
     } else {
@@ -180,7 +182,7 @@ fun Application.moduleWithRoutes() {
     if (feedEnabled) {
         val seedMatrix = CorrelationMatrix(
             labels = DevDataSeeder.LABELS,
-            values = DevDataSeeder.CORRELATION_VALUES,
+            values = devDataSeeder.correlationValues(),
             windowDays = DevDataSeeder.WINDOW_DAYS,
             asOfDate = DevDataSeeder.AS_OF,
             method = EstimationMethod.HISTORICAL,
