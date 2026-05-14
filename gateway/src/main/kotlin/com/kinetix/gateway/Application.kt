@@ -31,6 +31,7 @@ import com.kinetix.gateway.routes.demoAdminRoutes
 import com.kinetix.gateway.routes.intradayPnlProxyRoutes
 import com.kinetix.gateway.routes.intradayVaRTimelineProxyRoutes
 import com.kinetix.gateway.routes.volSurfaceRoutes
+import com.kinetix.gateway.routes.yieldCurveProxyRoutes
 import com.kinetix.gateway.routes.dependenciesRoutes
 import com.kinetix.gateway.routes.eodTimelineRoutes
 import com.kinetix.gateway.routes.jobHistoryRoutes
@@ -336,6 +337,13 @@ fun Application.moduleWithDataQuality(
     }
 }
 
+fun Application.moduleWithYieldCurveProxy(httpClient: HttpClient, ratesBaseUrl: String) {
+    module()
+    routing {
+        yieldCurveProxyRoutes(httpClient, ratesBaseUrl)
+    }
+}
+
 fun Application.devModule() {
     val authEnabled = System.getenv("GATEWAY_AUTH_ENABLED")?.toBoolean() ?: true
     val servicesConfig = environment.config.config("services")
@@ -487,6 +495,7 @@ fun Application.devModule() {
                 counterpartyRiskRoutes(riskClient)
                 saCcrRoutes(riskClient)
                 volSurfaceRoutes(volatilityClient)
+                yieldCurveProxyRoutes(httpClient, ratesUrl)
                 demoStressWindowsRoutes()
                 demoScenarioRoutes()
                 tapeReplayStatusRoutes()
