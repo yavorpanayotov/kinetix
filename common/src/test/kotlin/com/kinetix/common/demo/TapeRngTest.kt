@@ -3,7 +3,13 @@ package com.kinetix.common.demo
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.doubles.shouldBeBetween
 import io.kotest.matchers.shouldBe
+import java.security.MessageDigest
 import kotlin.math.sqrt
+
+private fun sha256Hex(s: String): String {
+    val bytes = MessageDigest.getInstance("SHA-256").digest(s.toByteArray(Charsets.UTF_8))
+    return bytes.joinToString("") { "%02x".format(it) }
+}
 
 class TapeRngTest : FunSpec({
     test("same seed produces byte-identical sequence") {
@@ -71,5 +77,17 @@ class TapeRngTest : FunSpec({
         val labels = listOf("AAPL", "GOOGL", "MSFT", "EURUSD", "US10Y", "GC")
         val seeds = labels.map { TapeRng.stableSeed(it) }
         seeds.toSet().size shouldBe labels.size
+    }
+
+    test("golden SHA-256 pins LCG output for seed=42") {
+        // Hashes a deterministic stringification of 1000 sequential nextLong() draws from
+        // TapeRng(42). Any unintentional change to the LCG constants, seed-mixing, or draw
+        // ordering will flip this hash. Regenerate ONLY when the algorithm change is
+        // intentional and an ADR or PR explicitly documents the new baseline.
+        val rng = TapeRng(42L)
+        val sequence = LongArray(1000) { rng.nextLong() }
+        val stringified = sequence.joinToString(",")
+        val golden = "ee4ce522e9d289e45a66457cec21d2276672ecfcc9904e6b8c5cafadbd0322a3"
+        sha256Hex(stringified) shouldBe golden
     }
 })

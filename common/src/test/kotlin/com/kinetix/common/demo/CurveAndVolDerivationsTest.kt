@@ -3,6 +3,12 @@ package com.kinetix.common.demo
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.doubles.shouldBeBetween
 import io.kotest.matchers.shouldBe
+import java.security.MessageDigest
+
+private fun sha256Hex(s: String): String {
+    val bytes = MessageDigest.getInstance("SHA-256").digest(s.toByteArray(Charsets.UTF_8))
+    return bytes.joinToString("") { "%02x".format(it) }
+}
 
 class CurveAndVolDerivationsTest : FunSpec({
     val tape = DemoTape()
@@ -74,5 +80,36 @@ class CurveAndVolDerivationsTest : FunSpec({
         val sa = a.yieldCurveSnapshots("USD").map { it.rates.toList() }
         val sb = b.yieldCurveSnapshots("USD").map { it.rates.toList() }
         sa shouldBe sb
+    }
+
+    test("golden SHA-256 pins curve + vol derivations for seed=42") {
+        // Hashes the per-currency USD yield curve (all 252 daily snapshots × 10 tenors) and
+        // the AAPL vol surface (all 252 daily snapshots × strikes × maturities) derived from
+        // DemoTape(seed=42). Captures both the rates-perturbation LCG path and the
+        // realisedVol-driven ATM IV calibration. Regenerate ONLY when an algorithm change
+        // is intentional.
+        val seededTape = DemoTape(seed = 42L)
+        val derivations = CurveAndVolDerivations(seededTape)
+        val sb = StringBuilder()
+        sb.append("USD-CURVE\n")
+        for (snap in derivations.yieldCurveSnapshots("USD")) {
+            sb.append(snap.date).append('|')
+            snap.rates.joinTo(sb, separator = ",") { "%.10f".format(java.util.Locale.ROOT, it) }
+            sb.append('\n')
+        }
+        sb.append("AAPL-SURFACE\n")
+        for (snap in derivations.volSurfaceSnapshots("AAPL")) {
+            sb.append(snap.date).append('|')
+                .append("%.10f".format(java.util.Locale.ROOT, snap.spot)).append('|')
+                .append("%.10f".format(java.util.Locale.ROOT, snap.atmIv)).append('|')
+            for (i in snap.strikePercents.indices) {
+                for (j in snap.maturityDays.indices) {
+                    sb.append("%.10f".format(java.util.Locale.ROOT, snap.impliedVol[i][j])).append(',')
+                }
+            }
+            sb.append('\n')
+        }
+        val golden = "9b7ee6c83f9321f653c94dc2c6292c5d1d2064395f18a6fa318ad91d3c181e12"
+        sha256Hex(sb.toString()) shouldBe golden
     }
 })

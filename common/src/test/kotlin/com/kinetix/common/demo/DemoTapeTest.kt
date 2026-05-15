@@ -3,6 +3,12 @@ package com.kinetix.common.demo
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.doubles.shouldBeBetween
 import io.kotest.matchers.shouldBe
+import java.security.MessageDigest
+
+private fun sha256Hex(s: String): String {
+    val bytes = MessageDigest.getInstance("SHA-256").digest(s.toByteArray(Charsets.UTF_8))
+    return bytes.joinToString("") { "%02x".format(it) }
+}
 
 class DemoTapeTest : FunSpec({
     val tape = DemoTape()
@@ -98,5 +104,22 @@ class DemoTapeTest : FunSpec({
         val b = DemoTape(seed = 2L)
         a.priceOn("AAPL", 100) shouldBe a.priceOn("AAPL", 100)
         assert(a.priceOn("AAPL", 100) != b.priceOn("AAPL", 100))
+    }
+
+    test("golden SHA-256 pins the full price tape for seed=42") {
+        // Hashes every (symbol, day, price) triple over the 252-day window. Symbol order
+        // is taken from DemoTapeUniverse.SPECS (declaration order is stable). Any drift in
+        // factor synthesis, GARCH state, idiosyncratic draws, or regime calendar will flip
+        // this hash. Regenerate ONLY when the algorithm change is intentional.
+        val tape = DemoTape(seed = 42L)
+        val sb = StringBuilder()
+        for (spec in DemoTapeUniverse.SPECS) {
+            for (day in 0 until RegimeCalendar.DAYS) {
+                sb.append(spec.symbol).append('|').append(day).append('|')
+                    .append("%.10f".format(java.util.Locale.ROOT, tape.priceOn(spec.symbol, day))).append('\n')
+            }
+        }
+        val golden = "45377f5b0bf92f2877ed4ccf08930653ed49a44b9065222f05b35a23215fbb1b"
+        sha256Hex(sb.toString()) shouldBe golden
     }
 })

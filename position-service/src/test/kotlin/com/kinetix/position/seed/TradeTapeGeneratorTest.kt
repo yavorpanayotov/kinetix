@@ -7,6 +7,12 @@ import com.kinetix.common.model.Side
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.doubles.shouldBeBetween
 import io.kotest.matchers.shouldBe
+import java.security.MessageDigest
+
+private fun sha256Hex(s: String): String {
+    val bytes = MessageDigest.getInstance("SHA-256").digest(s.toByteArray(Charsets.UTF_8))
+    return bytes.joinToString("") { "%02x".format(it) }
+}
 
 class TradeTapeGeneratorTest : FunSpec({
 
@@ -138,6 +144,36 @@ class TradeTapeGeneratorTest : FunSpec({
         if (!stressAvg.isNaN() && !calmAvg.isNaN()) {
             assert(stressAvg > calmAvg * 1.4) { "stress=$stressAvg should be ≥ 1.4× calm=$calmAvg" }
         }
+    }
+
+    test("golden SHA-256 pins generated trade tape for seed=42") {
+        // Hashes every field on every trade emitted from the seed=42 tape over the two
+        // fixture books defined above. Captures power-law instrument selection, momentum
+        // side bias, regime-amplified daily counts, intraday seconds bucketing, traderId
+        // resolution, and counterparty selection. Regenerate ONLY when an algorithm change
+        // is intentional.
+        val gen = TradeTapeGenerator(instrumentsByBook, baseRates, tapeSeed = 42L)
+        val trades = gen.generate()
+        val sb = StringBuilder()
+        sb.append("count=").append(trades.size).append('\n')
+        for (t in trades) {
+            sb.append(t.tradeId.value).append('|')
+                .append(t.bookId.value).append('|')
+                .append(t.instrumentId.value).append('|')
+                .append(t.assetClass.name).append('|')
+                .append(t.side.name).append('|')
+                .append(t.quantity.toPlainString()).append('|')
+                .append(t.price.amount.toPlainString()).append('|')
+                .append(t.price.currency.currencyCode).append('|')
+                .append(t.tradedAt.toString()).append('|')
+                .append(t.eventType.name).append('|')
+                .append(t.status.name).append('|')
+                .append(t.counterpartyId ?: "").append('|')
+                .append(t.instrumentType.name).append('|')
+                .append(t.traderId?.value ?: "").append('\n')
+        }
+        val golden = "8ce974cd06760e64d8462c04548edd5dc4d09a0b5752de290075d008e7c8101b"
+        sha256Hex(sb.toString()) shouldBe golden
     }
 })
 
