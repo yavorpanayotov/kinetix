@@ -1,5 +1,6 @@
 package com.kinetix.position.seed
 
+import com.kinetix.common.demo.DemoTraderRoster
 import com.kinetix.common.demo.TapeRng
 import com.kinetix.common.demo.TradeTapeSampler
 import com.kinetix.common.model.BookId
@@ -7,6 +8,7 @@ import com.kinetix.common.model.InstrumentId
 import com.kinetix.common.model.Money
 import com.kinetix.common.model.Side
 import com.kinetix.common.model.TradeId
+import com.kinetix.common.model.TraderId
 import com.kinetix.position.service.BookTradeCommand
 import com.kinetix.position.service.TradeBookingService
 import kotlinx.coroutines.delay
@@ -153,6 +155,7 @@ class DemoTapeReplaySweeper(
             tradedAt = now,
             instrumentType = instrument.instrumentType,
             counterpartyId = pickCounterparty(),
+            traderId = TraderId(DemoTraderRoster.requireTraderForTicket(book, tradeId)),
         )
     }
 

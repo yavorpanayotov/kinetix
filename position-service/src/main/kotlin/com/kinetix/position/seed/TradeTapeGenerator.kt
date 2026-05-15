@@ -89,7 +89,7 @@ class TradeTapeGenerator(
                     seq++
                     val tradeId = "seed-tape-${bookId.replace("-", "").take(2)}-${seq.toString().padStart(6, '0')}"
 
-                    val traderId = DemoTraderRoster.traderForTicket(bookId, tradeId)?.let { TraderId(it) }
+                    val traderId = TraderId(DemoTraderRoster.requireTraderForTicket(bookId, tradeId))
 
                     out += Trade(
                         tradeId = TradeId(tradeId),

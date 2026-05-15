@@ -41,7 +41,7 @@ class OrderSubmissionServiceTest : FunSpec({
 
     test("saves order and returns it with APPROVED status when no FIX session is provided") {
         val order = service.submit(
-            bookId = "book-1",
+            bookId = "equity-growth",
             instrumentId = "AAPL",
             side = Side.BUY,
             quantity = BigDecimal("100"),
@@ -53,7 +53,7 @@ class OrderSubmissionServiceTest : FunSpec({
         )
 
         order.shouldNotBeNull()
-        order.bookId shouldBe "book-1"
+        order.bookId shouldBe "equity-growth"
         order.instrumentId shouldBe "AAPL"
         order.side shouldBe Side.BUY
         order.quantity.compareTo(BigDecimal("100")) shouldBe 0
@@ -76,7 +76,7 @@ class OrderSubmissionServiceTest : FunSpec({
         coEvery { sessionRepository.findById("FIX-01") } returns session
 
         val order = service.submit(
-            bookId = "book-1",
+            bookId = "equity-growth",
             instrumentId = "AAPL",
             side = Side.BUY,
             quantity = BigDecimal("200"),
@@ -104,7 +104,7 @@ class OrderSubmissionServiceTest : FunSpec({
         coEvery { sessionRepository.findById("FIX-02") } returns session
 
         val order = service.submit(
-            bookId = "book-1",
+            bookId = "equity-growth",
             instrumentId = "AAPL",
             side = Side.SELL,
             quantity = BigDecimal("50"),
@@ -123,7 +123,7 @@ class OrderSubmissionServiceTest : FunSpec({
         coEvery { sessionRepository.findById("MISSING") } returns null
 
         val order = service.submit(
-            bookId = "book-1",
+            bookId = "equity-growth",
             instrumentId = "AAPL",
             side = Side.BUY,
             quantity = BigDecimal("10"),
@@ -141,7 +141,7 @@ class OrderSubmissionServiceTest : FunSpec({
     test("rejects zero quantity with IllegalArgumentException") {
         shouldThrow<IllegalArgumentException> {
             service.submit(
-                bookId = "book-1",
+                bookId = "equity-growth",
                 instrumentId = "AAPL",
                 side = Side.BUY,
                 quantity = BigDecimal.ZERO,
@@ -161,7 +161,7 @@ class OrderSubmissionServiceTest : FunSpec({
 
         shouldThrow<IllegalArgumentException> {
             service.submit(
-                bookId = "book-1",
+                bookId = "equity-growth",
                 instrumentId = "AAPL",
                 side = Side.BUY,
                 quantity = BigDecimal("100"),
@@ -181,7 +181,7 @@ class OrderSubmissionServiceTest : FunSpec({
         val freshTimestamp = Instant.now().minusSeconds(10)
 
         val order = service.submit(
-            bookId = "book-1",
+            bookId = "equity-growth",
             instrumentId = "AAPL",
             side = Side.BUY,
             quantity = BigDecimal("100"),
@@ -199,7 +199,7 @@ class OrderSubmissionServiceTest : FunSpec({
 
     test("skips arrival price staleness check when no timestamp is provided") {
         val order = service.submit(
-            bookId = "book-1",
+            bookId = "equity-growth",
             instrumentId = "AAPL",
             side = Side.BUY,
             quantity = BigDecimal("100"),
@@ -219,7 +219,7 @@ class OrderSubmissionServiceTest : FunSpec({
         coEvery { preTradeCheckService.check(any()) } returns LimitBreachResult(emptyList())
 
         val order = service.submit(
-            bookId = "book-1",
+            bookId = "equity-growth",
             instrumentId = "AAPL",
             side = Side.BUY,
             quantity = BigDecimal("100"),
@@ -247,7 +247,7 @@ class OrderSubmissionServiceTest : FunSpec({
         coEvery { preTradeCheckService.check(any()) } returns LimitBreachResult(listOf(softBreach))
 
         val order = service.submit(
-            bookId = "book-1",
+            bookId = "equity-growth",
             instrumentId = "AAPL",
             side = Side.BUY,
             quantity = BigDecimal("100"),
@@ -279,7 +279,7 @@ class OrderSubmissionServiceTest : FunSpec({
         coEvery { preTradeCheckService.check(any()) } returns LimitBreachResult(listOf(hardBreach))
 
         val order = service.submit(
-            bookId = "book-1",
+            bookId = "equity-growth",
             instrumentId = "AAPL",
             side = Side.BUY,
             quantity = BigDecimal("100"),
@@ -314,7 +314,7 @@ class OrderSubmissionServiceTest : FunSpec({
         }
 
         val order = service.submit(
-            bookId = "book-1",
+            bookId = "equity-growth",
             instrumentId = "AAPL",
             side = Side.BUY,
             quantity = BigDecimal("100"),
@@ -342,7 +342,7 @@ class OrderSubmissionServiceTest : FunSpec({
         coEvery { preTradeCheckService.check(any()) } returns LimitBreachResult(listOf(hardBreach))
 
         val order = service.submit(
-            bookId = "book-1",
+            bookId = "equity-growth",
             instrumentId = "AAPL",
             side = Side.BUY,
             quantity = BigDecimal("100"),
@@ -361,7 +361,7 @@ class OrderSubmissionServiceTest : FunSpec({
 
     test("stores asset class and currency from submission on the returned order") {
         val order = service.submit(
-            bookId = "book-1",
+            bookId = "equity-growth",
             instrumentId = "BOND-001",
             side = Side.BUY,
             quantity = BigDecimal("500000"),
@@ -384,7 +384,7 @@ class OrderSubmissionServiceTest : FunSpec({
 
     test("defaults to DAY when timeInForce is not provided") {
         val order = service.submit(
-            bookId = "book-1",
+            bookId = "equity-growth",
             instrumentId = "AAPL",
             side = Side.BUY,
             quantity = BigDecimal("100"),
@@ -401,7 +401,7 @@ class OrderSubmissionServiceTest : FunSpec({
 
     test("accepts an explicit GTC time-in-force") {
         val order = service.submit(
-            bookId = "book-1",
+            bookId = "equity-growth",
             instrumentId = "AAPL",
             side = Side.BUY,
             quantity = BigDecimal("100"),
@@ -420,7 +420,7 @@ class OrderSubmissionServiceTest : FunSpec({
     test("GTD requires expiresAt to be set") {
         shouldThrow<IllegalArgumentException> {
             service.submit(
-                bookId = "book-1",
+                bookId = "equity-growth",
                 instrumentId = "AAPL",
                 side = Side.BUY,
                 quantity = BigDecimal("100"),
@@ -438,7 +438,7 @@ class OrderSubmissionServiceTest : FunSpec({
     test("GTD rejects an expiresAt in the past") {
         shouldThrow<IllegalArgumentException> {
             service.submit(
-                bookId = "book-1",
+                bookId = "equity-growth",
                 instrumentId = "AAPL",
                 side = Side.BUY,
                 quantity = BigDecimal("100"),
@@ -456,7 +456,7 @@ class OrderSubmissionServiceTest : FunSpec({
     test("GTD rejects an expiresAt beyond the venue's max-GTD horizon") {
         shouldThrow<IllegalArgumentException> {
             service.submit(
-                bookId = "book-1",
+                bookId = "equity-growth",
                 instrumentId = "AAPL",
                 side = Side.BUY,
                 quantity = BigDecimal("100"),
@@ -474,7 +474,7 @@ class OrderSubmissionServiceTest : FunSpec({
     test("non-GTD orders reject any expiresAt") {
         shouldThrow<IllegalArgumentException> {
             service.submit(
-                bookId = "book-1",
+                bookId = "equity-growth",
                 instrumentId = "AAPL",
                 side = Side.BUY,
                 quantity = BigDecimal("100"),
@@ -492,7 +492,7 @@ class OrderSubmissionServiceTest : FunSpec({
     test("GTD with a future expiresAt within horizon is accepted and stored on the order") {
         val expires = Instant.now().plusSeconds(7L * 24 * 3600)
         val order = service.submit(
-            bookId = "book-1",
+            bookId = "equity-growth",
             instrumentId = "AAPL",
             side = Side.BUY,
             quantity = BigDecimal("100"),
@@ -536,7 +536,7 @@ class OrderSubmissionServiceTest : FunSpec({
         )
 
         val order = gatewayService(client).submit(
-            bookId = "book-1", instrumentId = "AAPL", side = Side.BUY,
+            bookId = "equity-growth", instrumentId = "AAPL", side = Side.BUY,
             quantity = BigDecimal("100"), orderType = "LIMIT",
             limitPrice = BigDecimal("150"), arrivalPrice = BigDecimal("149.90"),
             fixSessionId = null, instrumentType = "CASH_EQUITY",
@@ -561,7 +561,7 @@ class OrderSubmissionServiceTest : FunSpec({
         )
 
         val order = gatewayService(client).submit(
-            bookId = "book-1", instrumentId = "AAPL", side = Side.BUY,
+            bookId = "equity-growth", instrumentId = "AAPL", side = Side.BUY,
             quantity = BigDecimal("10"), orderType = "MARKET",
             limitPrice = null, arrivalPrice = BigDecimal("100"),
             fixSessionId = null, instrumentType = "CASH_EQUITY",
@@ -579,7 +579,7 @@ class OrderSubmissionServiceTest : FunSpec({
         } returns PlaceOrderResult(clOrdId = "x", status = PlaceOrderStatus.UNKNOWN_VENUE)
 
         val order = gatewayService(client).submit(
-            bookId = "book-1", instrumentId = "AAPL", side = Side.BUY,
+            bookId = "equity-growth", instrumentId = "AAPL", side = Side.BUY,
             quantity = BigDecimal("1"), orderType = "MARKET",
             limitPrice = null, arrivalPrice = BigDecimal("100"),
             fixSessionId = null, instrumentType = "CASH_EQUITY",
@@ -597,7 +597,7 @@ class OrderSubmissionServiceTest : FunSpec({
         } returns PlaceOrderResult(clOrdId = "x", status = PlaceOrderStatus.INVALID_REQUEST)
 
         val order = gatewayService(client).submit(
-            bookId = "book-1", instrumentId = "AAPL", side = Side.BUY,
+            bookId = "equity-growth", instrumentId = "AAPL", side = Side.BUY,
             quantity = BigDecimal("1"), orderType = "MARKET",
             limitPrice = null, arrivalPrice = BigDecimal("100"),
             fixSessionId = null, instrumentType = "CASH_EQUITY",
@@ -614,7 +614,7 @@ class OrderSubmissionServiceTest : FunSpec({
         } returns PlaceOrderResult(clOrdId = "x", status = PlaceOrderStatus.SESSION_DOWN)
 
         val order = gatewayService(client).submit(
-            bookId = "book-1", instrumentId = "AAPL", side = Side.BUY,
+            bookId = "equity-growth", instrumentId = "AAPL", side = Side.BUY,
             quantity = BigDecimal("1"), orderType = "MARKET",
             limitPrice = null, arrivalPrice = BigDecimal("100"),
             fixSessionId = null, instrumentType = "CASH_EQUITY",
@@ -635,7 +635,7 @@ class OrderSubmissionServiceTest : FunSpec({
         )
 
         val order = gatewayService(client).submit(
-            bookId = "book-1", instrumentId = "AAPL", side = Side.BUY,
+            bookId = "equity-growth", instrumentId = "AAPL", side = Side.BUY,
             quantity = BigDecimal("1"), orderType = "MARKET",
             limitPrice = null, arrivalPrice = BigDecimal("100"),
             fixSessionId = null, instrumentType = "CASH_EQUITY",
@@ -653,7 +653,7 @@ class OrderSubmissionServiceTest : FunSpec({
         } returns PlaceOrderResult(clOrdId = "x", status = PlaceOrderStatus.DUPLICATE_IN_FLIGHT)
 
         val order = gatewayService(client).submit(
-            bookId = "book-1", instrumentId = "AAPL", side = Side.BUY,
+            bookId = "equity-growth", instrumentId = "AAPL", side = Side.BUY,
             quantity = BigDecimal("1"), orderType = "MARKET",
             limitPrice = null, arrivalPrice = BigDecimal("100"),
             fixSessionId = null, instrumentType = "CASH_EQUITY",
@@ -676,7 +676,7 @@ class OrderSubmissionServiceTest : FunSpec({
 
         // Even when a fixSessionId is supplied (legacy hook), the gateway path takes precedence.
         gatewayService(client).submit(
-            bookId = "book-1", instrumentId = "AAPL", side = Side.BUY,
+            bookId = "equity-growth", instrumentId = "AAPL", side = Side.BUY,
             quantity = BigDecimal("1"), orderType = "MARKET",
             limitPrice = null, arrivalPrice = BigDecimal("100"),
             fixSessionId = "FIX-LEGACY-01", instrumentType = "CASH_EQUITY",
@@ -704,7 +704,7 @@ class OrderSubmissionServiceTest : FunSpec({
         coEvery { orderRepository.setVenueOrderId(any(), any()) } just runs
 
         gatewayService(client).submit(
-            bookId = "book-1", instrumentId = "AAPL", side = Side.BUY,
+            bookId = "equity-growth", instrumentId = "AAPL", side = Side.BUY,
             quantity = BigDecimal("1"), orderType = "MARKET",
             limitPrice = null, arrivalPrice = BigDecimal("100"),
             fixSessionId = null, instrumentType = "CASH_EQUITY",

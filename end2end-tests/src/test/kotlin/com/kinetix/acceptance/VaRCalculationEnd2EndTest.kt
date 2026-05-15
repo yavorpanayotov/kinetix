@@ -256,6 +256,7 @@ class VaRCalculationEnd2EndTest : BehaviorSpec({
                 price = Money(BigDecimal("150.00"), USD),
                 tradedAt = Instant.parse("2025-01-15T10:00:00Z"),
                 instrumentType = "CASH_EQUITY",
+                traderId = TraderId("tr-test-001"),
             )
         )
 
@@ -270,6 +271,7 @@ class VaRCalculationEnd2EndTest : BehaviorSpec({
                 price = Money(BigDecimal("98.50"), USD),
                 tradedAt = Instant.parse("2025-01-15T10:01:00Z"),
                 instrumentType = "CASH_EQUITY",
+                traderId = TraderId("tr-test-001"),
             )
         )
 
@@ -284,6 +286,7 @@ class VaRCalculationEnd2EndTest : BehaviorSpec({
                 price = Money(BigDecimal("1.0850"), USD),
                 tradedAt = Instant.parse("2025-01-15T10:02:00Z"),
                 instrumentType = "CASH_EQUITY",
+                traderId = TraderId("tr-test-001"),
             )
         )
 

@@ -36,12 +36,11 @@ data class BookTradeCommand(
      */
     val correlationId: String? = null,
     /**
-     * Trader ownership of the ticket. Nullable during the demo Phase 2 Gap 6
-     * migration window; the field becomes required once every caller supplies
-     * a real id. When present, the booking path validates it via
-     * [TraderValidator] before doing limit checks.
+     * Trader ownership of the ticket. Required for every booking — when a
+     * [TraderValidator] is wired in, the booking path validates this id
+     * against reference-data before running limit checks.
      */
-    val traderId: TraderId? = null,
+    val traderId: TraderId,
 )
 
 data class BookTradeResult(
@@ -65,10 +64,8 @@ class TradeBookingService(
     suspend fun handle(command: BookTradeCommand): BookTradeResult {
         logger.info("Booking trade: tradeId={}, book={}, instrument={}, side={}, qty={}, price={}, trader={}",
             command.tradeId.value, command.bookId.value, command.instrumentId.value,
-            command.side, command.quantity, command.price.amount, command.traderId?.value)
-        if (command.traderId != null) {
-            traderValidator?.validate(command.traderId)
-        }
+            command.side, command.quantity, command.price.amount, command.traderId.value)
+        traderValidator?.validate(command.traderId)
         val limitResult = limitCheckService?.check(command)
         if (limitResult != null && limitResult.blocked) {
             // Publish each breach as its own event before throwing so the synchronous

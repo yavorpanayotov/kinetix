@@ -150,6 +150,7 @@ class LimitBreachEscalationEnd2EndTest : BehaviorSpec({
                             price = Money(BigDecimal("100.00"), Currency.getInstance("USD")),
                             tradedAt = Instant.parse("2026-04-29T10:00:00Z"),
                             instrumentType = "CASH_EQUITY",
+                            traderId = TraderId("tr-test-001"),
                         ),
                     )
                 } catch (e: LimitBreachException) {

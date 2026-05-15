@@ -83,6 +83,7 @@ class TradeBookingAcceptanceTest : FunSpec({
                     price = Money(BigDecimal("150.00"), USD),
                     tradedAt = TRADED_AT,
                     instrumentType = "CASH_EQUITY",
+                    traderId = TraderId("tr-test-001"),
                 ),
             )
 
@@ -141,6 +142,7 @@ class TradeBookingAcceptanceTest : FunSpec({
                         price = Money(BigDecimal("100.00"), USD),
                         tradedAt = TRADED_AT,
                         instrumentType = "CASH_EQUITY",
+                        traderId = TraderId("tr-test-001"),
                     ),
                 )
             } catch (e: LimitBreachException) {
@@ -176,6 +178,7 @@ class TradeBookingAcceptanceTest : FunSpec({
                     price = Money(BigDecimal("100.00"), USD),
                     tradedAt = TRADED_AT,
                     instrumentType = "CASH_EQUITY",
+                    traderId = TraderId("tr-test-001"),
                 ),
             )
 
@@ -204,6 +207,7 @@ class TradeBookingAcceptanceTest : FunSpec({
                     price = Money(BigDecimal("100.00"), USD),
                     tradedAt = TRADED_AT,
                     instrumentType = "CASH_EQUITY",
+                    traderId = TraderId("tr-test-001"),
                 ),
             )
 
@@ -238,6 +242,7 @@ class TradeBookingAcceptanceTest : FunSpec({
                     tradedAt = TRADED_AT,
                     counterpartyId = "CPTY-ABC",
                     instrumentType = "CASH_EQUITY",
+                    traderId = TraderId("tr-test-001"),
                 ),
             )
 
@@ -267,6 +272,7 @@ class TradeBookingAcceptanceTest : FunSpec({
                     price = Money(BigDecimal("100.00"), USD),
                     tradedAt = TRADED_AT,
                     instrumentType = "CASH_EQUITY",
+                    traderId = TraderId("tr-test-001"),
                 ),
             )
 
@@ -295,6 +301,7 @@ class TradeBookingAcceptanceTest : FunSpec({
                 price = Money(BigDecimal("150.00"), USD),
                 tradedAt = TRADED_AT,
                 instrumentType = "CASH_EQUITY",
+                traderId = TraderId("tr-test-001"),
             )
             service.handle(command)
             service.handle(command)

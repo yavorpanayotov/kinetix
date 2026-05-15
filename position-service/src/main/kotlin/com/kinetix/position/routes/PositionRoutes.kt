@@ -332,6 +332,15 @@ fun Route.positionRoutes(
                     require(qty > BigDecimal.ZERO) { "Trade quantity must be positive, was $qty" }
                     val priceAmt = BigDecimal(request.priceAmount)
                     require(priceAmt >= BigDecimal.ZERO) { "Trade price must be non-negative, was $priceAmt" }
+                    // Trader ownership: prefer the caller-supplied id; otherwise pull
+                    // the demo roster's primary trader for the book. If the book is
+                    // unknown to the roster AND no traderId was supplied, the request
+                    // is rejected with HTTP 400 — booking must always carry an owner.
+                    val traderId = request.traderId
+                        ?: com.kinetix.common.demo.DemoTraderRoster.primaryTraderFor(bookId.value)
+                        ?: throw IllegalArgumentException(
+                            "traderId is required for book '${bookId.value}' (book is not in the demo roster — caller must supply traderId explicitly)",
+                        )
                     val command = BookTradeCommand(
                         tradeId = TradeId(request.tradeId ?: UUID.randomUUID().toString()),
                         bookId = bookId,
@@ -346,7 +355,7 @@ fun Route.positionRoutes(
                         userRole = request.userRole,
                         strategyId = request.strategyId,
                         counterpartyId = request.counterpartyId,
-                        traderId = request.traderId?.let { TraderId(it) },
+                        traderId = TraderId(traderId),
                     )
                     try {
                         val result = tradeBookingService.handle(command)

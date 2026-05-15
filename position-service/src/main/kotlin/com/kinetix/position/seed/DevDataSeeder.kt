@@ -1,5 +1,6 @@
 package com.kinetix.position.seed
 
+import com.kinetix.common.demo.DemoTraderRoster
 import com.kinetix.common.demo.SeedProfile
 import com.kinetix.common.model.*
 import com.kinetix.position.fix.ExecutionCostAnalysis
@@ -586,6 +587,7 @@ class DevDataSeeder(
                         price = price,
                         tradedAt = at,
                         instrumentType = instrSpec.instrumentType,
+                        traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor(bookId)),
                     )
                     i++
                 }
@@ -611,6 +613,7 @@ class DevDataSeeder(
                 price = usd("185.50"),
                 tradedAt = dayTradeDay.plusSeconds(53400),   // 14:50 UTC = 09:50 ET
                 instrumentType = "CASH_EQUITY",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("equity-growth")),
             )
             result += BookTradeCommand(
                 tradeId = TradeId("seed-gen-dt-aapl-aftn"),
@@ -622,6 +625,7 @@ class DevDataSeeder(
                 price = usd("186.80"),
                 tradedAt = dayTradeDay.plusSeconds(72600),   // 20:10 UTC = 15:10 ET
                 instrumentType = "CASH_EQUITY",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("equity-growth")),
             )
             // Trade 2: tech-momentum NVDA — buy morning, sell afternoon
             result += BookTradeCommand(
@@ -634,6 +638,7 @@ class DevDataSeeder(
                 price = usd("885.00"),
                 tradedAt = dayTradeDay.plusSeconds(54600),   // 15:10 UTC = 10:10 ET
                 instrumentType = "CASH_EQUITY",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("tech-momentum")),
             )
             result += BookTradeCommand(
                 tradeId = TradeId("seed-gen-dt-nvda-aftn"),
@@ -645,6 +650,7 @@ class DevDataSeeder(
                 price = usd("888.50"),
                 tradedAt = dayTradeDay.plusSeconds(73200),   // 20:20 UTC = 15:20 ET
                 instrumentType = "CASH_EQUITY",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("tech-momentum")),
             )
 
             // ── 2s10s flattener (rates curve trade) ───────────────────────────
@@ -661,6 +667,7 @@ class DevDataSeeder(
                 price = usd("99.25"),
                 tradedAt = flatDay,
                 instrumentType = "GOVERNMENT_BOND",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("fixed-income")),
             )
             result += BookTradeCommand(
                 tradeId = TradeId("seed-gen-fi-us10y-flat"),
@@ -672,6 +679,7 @@ class DevDataSeeder(
                 price = usd("96.50"),
                 tradedAt = flatDay.plusSeconds(60),
                 instrumentType = "GOVERNMENT_BOND",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("fixed-income")),
             )
 
             return result
@@ -689,6 +697,7 @@ class DevDataSeeder(
                 price = usd("185.50"),
                 tradedAt = BASE_TIME,
                 instrumentType = "CASH_EQUITY",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("equity-growth")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-eq-googl-001"),
@@ -700,6 +709,7 @@ class DevDataSeeder(
                 price = usd("175.20"),
                 tradedAt = BASE_TIME,
                 instrumentType = "CASH_EQUITY",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("equity-growth")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-eq-msft-001"),
@@ -711,6 +721,7 @@ class DevDataSeeder(
                 price = usd("420.00"),
                 tradedAt = BASE_TIME,
                 instrumentType = "CASH_EQUITY",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("equity-growth")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-eq-amzn-001"),
@@ -722,6 +733,7 @@ class DevDataSeeder(
                 price = usd("205.75"),
                 tradedAt = BASE_TIME,
                 instrumentType = "CASH_EQUITY",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("equity-growth")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-eq-tsla-001"),
@@ -733,6 +745,7 @@ class DevDataSeeder(
                 price = usd("248.30"),
                 tradedAt = BASE_TIME,
                 instrumentType = "CASH_EQUITY",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("equity-growth")),
             ),
 
             // ── multi-asset book: 6 trades across asset classes ──
@@ -746,6 +759,7 @@ class DevDataSeeder(
                 price = usd("186.00"),
                 tradedAt = BASE_TIME,
                 instrumentType = "CASH_EQUITY",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("multi-asset")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-ma-eurusd-001"),
@@ -757,6 +771,7 @@ class DevDataSeeder(
                 price = usd("1.0842"),
                 tradedAt = BASE_TIME,
                 instrumentType = "FX_SPOT",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("multi-asset")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-ma-us10y-001"),
@@ -768,6 +783,7 @@ class DevDataSeeder(
                 price = usd("96.75"),
                 tradedAt = BASE_TIME,
                 instrumentType = "GOVERNMENT_BOND",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("multi-asset")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-ma-gc-001"),
@@ -779,6 +795,7 @@ class DevDataSeeder(
                 price = usd("2045.60"),
                 tradedAt = BASE_TIME,
                 instrumentType = "COMMODITY_FUTURE",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("multi-asset")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-ma-spx-put-001"),
@@ -790,6 +807,7 @@ class DevDataSeeder(
                 price = usd("32.50"),
                 tradedAt = BASE_TIME,
                 instrumentType = "EQUITY_OPTION",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("multi-asset")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-ma-msft-001"),
@@ -801,6 +819,7 @@ class DevDataSeeder(
                 price = usd("418.50"),
                 tradedAt = BASE_TIME,
                 instrumentType = "CASH_EQUITY",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("multi-asset")),
             ),
 
             // ── fixed-income book: 3 fixed income trades ──
@@ -814,6 +833,7 @@ class DevDataSeeder(
                 price = usd("99.25"),
                 tradedAt = BASE_TIME,
                 instrumentType = "GOVERNMENT_BOND",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("fixed-income")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-fi-us10y-001"),
@@ -825,6 +845,7 @@ class DevDataSeeder(
                 price = usd("96.50"),
                 tradedAt = BASE_TIME,
                 instrumentType = "GOVERNMENT_BOND",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("fixed-income")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-fi-us30y-001"),
@@ -836,6 +857,7 @@ class DevDataSeeder(
                 price = usd("92.10"),
                 tradedAt = BASE_TIME,
                 instrumentType = "GOVERNMENT_BOND",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("fixed-income")),
             ),
 
             // ── emerging-markets book: 5 positions (EM equities + FX) ──
@@ -849,6 +871,7 @@ class DevDataSeeder(
                 price = usd("83.20"),
                 tradedAt = day(1),
                 instrumentType = "CASH_EQUITY",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("emerging-markets")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-em-tsla-001"),
@@ -860,6 +883,7 @@ class DevDataSeeder(
                 price = usd("250.10"),
                 tradedAt = day(1),
                 instrumentType = "CASH_EQUITY",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("emerging-markets")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-em-eurusd-001"),
@@ -871,6 +895,7 @@ class DevDataSeeder(
                 price = usd("1.0850"),
                 tradedAt = day(1),
                 instrumentType = "FX_SPOT",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("emerging-markets")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-em-gbpusd-001"),
@@ -882,6 +907,7 @@ class DevDataSeeder(
                 price = usd("1.2580"),
                 tradedAt = day(2),
                 instrumentType = "FX_SPOT",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("emerging-markets")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-em-usdjpy-001"),
@@ -893,6 +919,7 @@ class DevDataSeeder(
                 price = usd("150.20"),
                 tradedAt = day(2),
                 instrumentType = "FX_SPOT",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("emerging-markets")),
             ),
             // Partial sell after price rise
             BookTradeCommand(
@@ -905,6 +932,7 @@ class DevDataSeeder(
                 price = usd("86.50"),
                 tradedAt = day(4),
                 instrumentType = "CASH_EQUITY",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("emerging-markets")),
             ),
 
             // ── macro-hedge book: 6 positions (rates, commodities, FX) ──
@@ -918,6 +946,7 @@ class DevDataSeeder(
                 price = usd("149.80"),
                 tradedAt = BASE_TIME,
                 instrumentType = "FX_SPOT",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("macro-hedge")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-mh-gc-001"),
@@ -929,6 +958,7 @@ class DevDataSeeder(
                 price = usd("2040.00"),
                 tradedAt = BASE_TIME,
                 instrumentType = "COMMODITY_FUTURE",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("macro-hedge")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-mh-cl-001"),
@@ -940,6 +970,7 @@ class DevDataSeeder(
                 price = usd("76.80"),
                 tradedAt = day(1),
                 instrumentType = "COMMODITY_FUTURE",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("macro-hedge")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-mh-si-001"),
@@ -951,6 +982,7 @@ class DevDataSeeder(
                 price = usd("23.10"),
                 tradedAt = day(1),
                 instrumentType = "COMMODITY_FUTURE",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("macro-hedge")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-mh-de10y-001"),
@@ -962,6 +994,7 @@ class DevDataSeeder(
                 price = eur("97.80"),
                 tradedAt = day(2),
                 instrumentType = "GOVERNMENT_BOND",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("macro-hedge")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-mh-spx-put-001"),
@@ -973,6 +1006,7 @@ class DevDataSeeder(
                 price = usd("31.20"),
                 tradedAt = day(2),
                 instrumentType = "EQUITY_OPTION",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("macro-hedge")),
             ),
             // Partial sell on gold after rally
             BookTradeCommand(
@@ -985,6 +1019,7 @@ class DevDataSeeder(
                 price = usd("2060.50"),
                 tradedAt = day(4),
                 instrumentType = "COMMODITY_FUTURE",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("macro-hedge")),
             ),
 
             // ── tech-momentum book: 4 concentrated tech positions ──
@@ -998,6 +1033,7 @@ class DevDataSeeder(
                 price = usd("885.00"),
                 tradedAt = day(2),
                 instrumentType = "CASH_EQUITY",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("tech-momentum")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-tm-meta-001"),
@@ -1009,6 +1045,7 @@ class DevDataSeeder(
                 price = usd("502.30"),
                 tradedAt = day(2),
                 instrumentType = "CASH_EQUITY",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("tech-momentum")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-tm-msft-001"),
@@ -1020,6 +1057,7 @@ class DevDataSeeder(
                 price = usd("421.50"),
                 tradedAt = day(2),
                 instrumentType = "CASH_EQUITY",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("tech-momentum")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-tm-googl-001"),
@@ -1031,6 +1069,7 @@ class DevDataSeeder(
                 price = usd("176.80"),
                 tradedAt = day(2),
                 instrumentType = "CASH_EQUITY",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("tech-momentum")),
             ),
             // Partial sell on META after earnings
             BookTradeCommand(
@@ -1043,6 +1082,7 @@ class DevDataSeeder(
                 price = usd("510.00"),
                 tradedAt = day(6),
                 instrumentType = "CASH_EQUITY",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("tech-momentum")),
             ),
 
             // ── balanced-income book: 5 positions (bonds + dividend equities) ──
@@ -1056,6 +1096,7 @@ class DevDataSeeder(
                 price = usd("96.60"),
                 tradedAt = day(1),
                 instrumentType = "GOVERNMENT_BOND",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("balanced-income")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-bi-us30y-001"),
@@ -1067,6 +1108,7 @@ class DevDataSeeder(
                 price = usd("92.30"),
                 tradedAt = day(1),
                 instrumentType = "GOVERNMENT_BOND",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("balanced-income")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-bi-de10y-001"),
@@ -1078,6 +1120,7 @@ class DevDataSeeder(
                 price = eur("97.90"),
                 tradedAt = day(2),
                 instrumentType = "GOVERNMENT_BOND",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("balanced-income")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-bi-jpm-001"),
@@ -1089,6 +1132,7 @@ class DevDataSeeder(
                 price = usd("208.40"),
                 tradedAt = day(2),
                 instrumentType = "CASH_EQUITY",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("balanced-income")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-bi-aapl-001"),
@@ -1100,6 +1144,7 @@ class DevDataSeeder(
                 price = usd("187.20"),
                 tradedAt = day(4),
                 instrumentType = "CASH_EQUITY",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("balanced-income")),
             ),
             // Sell some bonds to rebalance
             BookTradeCommand(
@@ -1112,6 +1157,7 @@ class DevDataSeeder(
                 price = usd("93.10"),
                 tradedAt = day(6),
                 instrumentType = "GOVERNMENT_BOND",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("balanced-income")),
             ),
 
             // ── derivatives-book: 5 positions (options-heavy) ──
@@ -1125,6 +1171,7 @@ class DevDataSeeder(
                 price = usd("41.50"),
                 tradedAt = day(1),
                 instrumentType = "EQUITY_OPTION",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("derivatives-book")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-db-vix-put-001"),
@@ -1136,6 +1183,7 @@ class DevDataSeeder(
                 price = usd("3.75"),
                 tradedAt = day(1),
                 instrumentType = "EQUITY_OPTION",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("derivatives-book")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-db-spx-put-001"),
@@ -1147,6 +1195,7 @@ class DevDataSeeder(
                 price = usd("33.00"),
                 tradedAt = day(2),
                 instrumentType = "EQUITY_OPTION",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("derivatives-book")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-db-nvda-001"),
@@ -1158,6 +1207,7 @@ class DevDataSeeder(
                 price = usd("888.00"),
                 tradedAt = day(2),
                 instrumentType = "CASH_EQUITY",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("derivatives-book")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-db-tsla-001"),
@@ -1169,6 +1219,7 @@ class DevDataSeeder(
                 price = usd("249.50"),
                 tradedAt = day(4),
                 instrumentType = "CASH_EQUITY",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("derivatives-book")),
             ),
             // Sell some calls to take profit
             BookTradeCommand(
@@ -1181,6 +1232,7 @@ class DevDataSeeder(
                 price = usd("44.20"),
                 tradedAt = day(6),
                 instrumentType = "EQUITY_OPTION",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("derivatives-book")),
             ),
 
             // ── fixed-income book: corporate bond + interest rate swap ──
@@ -1194,6 +1246,7 @@ class DevDataSeeder(
                 price = usd("101.50"),
                 tradedAt = day(3),
                 instrumentType = "CORPORATE_BOND",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("fixed-income")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-fi-sofr5y-001"),
@@ -1205,6 +1258,7 @@ class DevDataSeeder(
                 price = usd("99.80"),
                 tradedAt = day(3),
                 instrumentType = "INTEREST_RATE_SWAP",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("fixed-income")),
             ),
 
             // ── macro-hedge book: FX forward, WTI future, gold call option ──
@@ -1218,6 +1272,7 @@ class DevDataSeeder(
                 price = usd("1.2800"),
                 tradedAt = day(3),
                 instrumentType = "FX_FORWARD",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("macro-hedge")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-mh-wti-aug26-001"),
@@ -1229,6 +1284,7 @@ class DevDataSeeder(
                 price = usd("75.50"),
                 tradedAt = day(3),
                 instrumentType = "COMMODITY_FUTURE",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("macro-hedge")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-mh-gc-call-001"),
@@ -1240,6 +1296,7 @@ class DevDataSeeder(
                 price = usd("45.80"),
                 tradedAt = day(5),
                 instrumentType = "COMMODITY_OPTION",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("macro-hedge")),
             ),
 
             // ── emerging-markets book: FX option hedge ──
@@ -1253,6 +1310,7 @@ class DevDataSeeder(
                 price = usd("2.15"),
                 tradedAt = day(3),
                 instrumentType = "FX_OPTION",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("emerging-markets")),
             ),
 
             // ── equity-growth book: collar structure on AAPL ──
@@ -1266,6 +1324,7 @@ class DevDataSeeder(
                 price = usd("8.50"),
                 tradedAt = day(5),
                 instrumentType = "EQUITY_OPTION",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("equity-growth")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-eg-aapl-col-p-001"),
@@ -1277,6 +1336,7 @@ class DevDataSeeder(
                 price = usd("6.20"),
                 tradedAt = day(5),
                 instrumentType = "EQUITY_OPTION",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("equity-growth")),
             ),
 
             // ── derivatives-book: bull call spread + put spread + NVDA collar + SPX delta hedge ──
@@ -1290,6 +1350,7 @@ class DevDataSeeder(
                 price = usd("22.30"),
                 tradedAt = day(3),
                 instrumentType = "EQUITY_OPTION",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("derivatives-book")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-db-spx-ps-001"),
@@ -1301,6 +1362,7 @@ class DevDataSeeder(
                 price = usd("55.40"),
                 tradedAt = day(3),
                 instrumentType = "EQUITY_OPTION",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("derivatives-book")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-db-spx-ps-002"),
@@ -1312,6 +1374,7 @@ class DevDataSeeder(
                 price = usd("28.75"),
                 tradedAt = day(3),
                 instrumentType = "EQUITY_OPTION",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("derivatives-book")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-db-nvda-col-p-001"),
@@ -1323,6 +1386,7 @@ class DevDataSeeder(
                 price = usd("35.20"),
                 tradedAt = day(4),
                 instrumentType = "EQUITY_OPTION",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("derivatives-book")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-db-nvda-col-c-001"),
@@ -1334,6 +1398,7 @@ class DevDataSeeder(
                 price = usd("28.50"),
                 tradedAt = day(4),
                 instrumentType = "EQUITY_OPTION",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("derivatives-book")),
             ),
             BookTradeCommand(
                 tradeId = TradeId("seed-db-spx-fut-001"),
@@ -1345,6 +1410,7 @@ class DevDataSeeder(
                 price = usd("5020.00"),
                 tradedAt = day(5),
                 instrumentType = "EQUITY_FUTURE",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("derivatives-book")),
             ),
 
             // ── balanced-income book: EURUSD spot hedge for DE10Y EUR exposure ──
@@ -1358,6 +1424,7 @@ class DevDataSeeder(
                 price = usd("1.0860"),
                 tradedAt = day(3),
                 instrumentType = "FX_SPOT",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor("balanced-income")),
             ),
         )
 
@@ -1413,6 +1480,7 @@ class DevDataSeeder(
                 price = price,
                 tradedAt = baseTime,
                 instrumentType = instrType,
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor(bookId)),
             )
             val amend = AmendTradeCommand(
                 originalTradeId = TradeId(baseId),
@@ -1455,6 +1523,7 @@ class DevDataSeeder(
                 price = price,
                 tradedAt = baseTime,
                 instrumentType = instrType,
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor(bookId)),
             )
             val cancel = CancelTradeCommand(
                 tradeId = TradeId(baseId),

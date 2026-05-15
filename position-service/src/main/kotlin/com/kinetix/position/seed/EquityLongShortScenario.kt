@@ -1,11 +1,13 @@
 package com.kinetix.position.seed
 
+import com.kinetix.common.demo.DemoTraderRoster
 import com.kinetix.common.model.AssetClass
 import com.kinetix.common.model.BookId
 import com.kinetix.common.model.InstrumentId
 import com.kinetix.common.model.Money
 import com.kinetix.common.model.Side
 import com.kinetix.common.model.TradeId
+import com.kinetix.common.model.TraderId
 import com.kinetix.position.service.BookTradeCommand
 import java.math.BigDecimal
 import java.time.Instant
@@ -108,6 +110,7 @@ object EquityLongShortScenario {
     }
 
     private fun buildTrades(): List<BookTradeCommand> {
+        val traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor(BOOK_ID))
         return INSTRUMENTS.mapIndexed { idx, spec ->
             val tradedAt = BASE_TIME.minus((idx % 19).toLong(), ChronoUnit.DAYS)
             BookTradeCommand(
@@ -120,6 +123,7 @@ object EquityLongShortScenario {
                 price = Money(spec.typicalPrice, USD),
                 tradedAt = tradedAt,
                 instrumentType = "CASH_EQUITY",
+                traderId = traderId,
             )
         }
     }

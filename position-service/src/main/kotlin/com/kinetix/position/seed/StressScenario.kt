@@ -1,11 +1,13 @@
 package com.kinetix.position.seed
 
+import com.kinetix.common.demo.DemoTraderRoster
 import com.kinetix.common.model.AssetClass
 import com.kinetix.common.model.BookId
 import com.kinetix.common.model.InstrumentId
 import com.kinetix.common.model.Money
 import com.kinetix.common.model.Side
 import com.kinetix.common.model.TradeId
+import com.kinetix.common.model.TraderId
 import com.kinetix.position.model.LimitDefinition
 import com.kinetix.position.model.LimitLevel
 import com.kinetix.position.model.LimitType
@@ -229,6 +231,7 @@ object StressScenario {
                 price = Money(spec.typicalPrice, USD),
                 tradedAt = tradedAt,
                 instrumentType = spec.instrumentType,
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor(spec.book)),
             )
         }
     }

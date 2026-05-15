@@ -26,6 +26,7 @@ private fun command(
     quantity: String = "100",
     price: String = "150.00",
     tradedAt: Instant = Instant.parse("2025-01-15T10:00:00Z"),
+    traderId: TraderId = TraderId("tr-eg-001"),
 ) = BookTradeCommand(
     tradeId = TradeId(tradeId),
     bookId = bookId,
@@ -36,6 +37,7 @@ private fun command(
     price = usd(price),
     tradedAt = tradedAt,
     instrumentType = "CASH_EQUITY",
+    traderId = traderId,
 )
 
 private fun position(
@@ -238,19 +240,4 @@ class TradeBookingServiceTest : FunSpec({
         coVerify(exactly = 0) { publisher.publish(any()) }
     }
 
-    test("validator is not invoked when traderId is null") {
-        val validator = mockk<com.kinetix.position.trader.TraderValidator>()
-        val validatingService = TradeBookingService(
-            tradeRepo, positionRepo, noOpTransaction, publisher, traderValidator = validator,
-        )
-
-        coEvery { tradeRepo.findByTradeId(any()) } returns null
-        coEvery { tradeRepo.save(any()) } just runs
-        coEvery { positionRepo.findByKey(any(), any()) } returns null
-        coEvery { positionRepo.save(any()) } just runs
-
-        validatingService.handle(command())
-
-        verify(exactly = 0) { validator.validate(any()) }
-    }
 })

@@ -7,6 +7,7 @@ import com.kinetix.common.model.Money
 import com.kinetix.common.model.Position
 import com.kinetix.common.model.Side
 import com.kinetix.common.model.TradeId
+import com.kinetix.common.model.TraderId
 import com.kinetix.position.client.InstrumentLiquidityClient
 import com.kinetix.position.model.LimitBreachSeverity
 import com.kinetix.position.model.LimitCheckStatus
@@ -52,6 +53,7 @@ private fun command(
     price = usd(price),
     tradedAt = Instant.parse("2025-01-15T10:00:00Z"),
     instrumentType = "CASH_EQUITY",
+    traderId = TraderId("tr-eg-001"),
 )
 
 private fun position(

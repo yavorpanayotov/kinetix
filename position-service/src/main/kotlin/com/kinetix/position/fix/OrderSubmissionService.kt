@@ -1,5 +1,6 @@
 package com.kinetix.position.fix
 
+import com.kinetix.common.demo.DemoTraderRoster
 import com.kinetix.common.execution.FixGatewayClient
 import com.kinetix.common.execution.PlaceOrderResult
 import com.kinetix.common.execution.PlaceOrderStatus
@@ -9,6 +10,7 @@ import com.kinetix.common.model.InstrumentId
 import com.kinetix.common.model.Money
 import com.kinetix.common.model.Side
 import com.kinetix.common.model.TradeId
+import com.kinetix.common.model.TraderId
 import com.kinetix.position.model.LimitBreach
 import com.kinetix.position.service.BookTradeCommand
 import com.kinetix.position.service.PreTradeCheckService
@@ -151,6 +153,7 @@ class OrderSubmissionService(
             price = Money(arrivalPrice, resolvedCurrency),
             tradedAt = order.submittedAt,
             instrumentType = instrumentType,
+            traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor(bookId)),
         )
 
         val checkResult = try {

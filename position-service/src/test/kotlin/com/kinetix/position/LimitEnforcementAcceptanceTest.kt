@@ -84,6 +84,7 @@ class LimitEnforcementAcceptanceTest : FunSpec({
                     price = Money(BigDecimal("100.00"), USD),
                     tradedAt = TRADED_AT,
                     instrumentType = "CASH_EQUITY",
+                    traderId = TraderId("tr-test-001"),
                 ),
             )
         } catch (e: LimitBreachException) {
@@ -153,6 +154,7 @@ class LimitEnforcementAcceptanceTest : FunSpec({
                     price = Money(BigDecimal("100.00"), USD),
                     tradedAt = TRADED_AT,
                     instrumentType = "CASH_EQUITY",
+                    traderId = TraderId("tr-test-001"),
                 ),
             )
         } catch (e: LimitBreachException) {
@@ -207,6 +209,7 @@ class LimitEnforcementAcceptanceTest : FunSpec({
                     price = Money(BigDecimal("100.00"), USD),
                     tradedAt = TRADED_AT,
                     instrumentType = "CASH_EQUITY",
+                    traderId = TraderId("tr-test-001"),
                 ),
             )
         } catch (e: LimitBreachException) {

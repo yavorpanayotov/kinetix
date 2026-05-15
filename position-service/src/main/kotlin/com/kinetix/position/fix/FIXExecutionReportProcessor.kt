@@ -1,10 +1,12 @@
 package com.kinetix.position.fix
 
+import com.kinetix.common.demo.DemoTraderRoster
 import com.kinetix.common.kafka.events.RiskBreakEvent
 import com.kinetix.common.model.BookId
 import com.kinetix.common.model.InstrumentId
 import com.kinetix.common.model.Money
 import com.kinetix.common.model.TradeId
+import com.kinetix.common.model.TraderId
 import com.kinetix.position.kafka.NoOpRiskBreakPublisher
 import com.kinetix.position.kafka.RiskBreakPublisher
 import com.kinetix.position.service.BookTradeCommand
@@ -157,7 +159,10 @@ class FIXExecutionReportProcessor(
             order.orderId, event.lastQty, event.lastPrice, newStatus,
         )
 
-        // Trigger trade booking so the position and P&L are updated
+        // Trigger trade booking so the position and P&L are updated.
+        // Trader ownership follows the demo roster: each book has a senior trader
+        // who owns FIX-originated fills until the platform wires per-user FIX
+        // sessions (see ADR-0035 phase 5).
         val tradeCommand = BookTradeCommand(
             tradeId = TradeId(fillId),
             bookId = BookId(order.bookId),
@@ -169,6 +174,7 @@ class FIXExecutionReportProcessor(
             tradedAt = fill.fillTime,
             instrumentType = order.instrumentType,
             correlationId = order.orderId,
+            traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor(order.bookId)),
         )
         tradeBookingService.handle(tradeCommand)
 

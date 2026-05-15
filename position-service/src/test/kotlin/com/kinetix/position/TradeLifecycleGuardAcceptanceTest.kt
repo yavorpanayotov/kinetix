@@ -52,6 +52,7 @@ class TradeLifecycleGuardAcceptanceTest : FunSpec({
                 price = Money(BigDecimal("150.00"), usd),
                 tradedAt = tradedAt,
                 instrumentType = "CASH_EQUITY",
+                traderId = TraderId("tr-test-001"),
             ),
         )
         val firstResult = lifecycle.handleCancel(
@@ -82,6 +83,7 @@ class TradeLifecycleGuardAcceptanceTest : FunSpec({
                 price = Money(BigDecimal("150.00"), usd),
                 tradedAt = tradedAt,
                 instrumentType = "CASH_EQUITY",
+                traderId = TraderId("tr-test-001"),
             ),
         )
         lifecycle.handleCancel(

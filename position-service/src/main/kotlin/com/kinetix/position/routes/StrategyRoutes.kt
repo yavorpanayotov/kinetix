@@ -6,6 +6,7 @@ import com.kinetix.common.model.InstrumentId
 import com.kinetix.common.model.Money
 import com.kinetix.common.model.Side
 import com.kinetix.common.model.TradeId
+import com.kinetix.common.model.TraderId
 import com.kinetix.position.model.LimitBreach
 import com.kinetix.position.model.StrategyType
 import com.kinetix.position.model.TradeStrategy
@@ -101,6 +102,9 @@ fun Route.strategyRoutes(
                         userId = request.userId,
                         userRole = request.userRole,
                         strategyId = strategy.strategyId,
+                        traderId = TraderId(
+                            com.kinetix.common.demo.DemoTraderRoster.requirePrimaryTraderFor(bookId.value),
+                        ),
                     )
 
                     val result = bookingService.handle(command)

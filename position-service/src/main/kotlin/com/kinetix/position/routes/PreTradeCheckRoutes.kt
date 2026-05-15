@@ -1,11 +1,13 @@
 package com.kinetix.position.routes
 
+import com.kinetix.common.demo.DemoTraderRoster
 import com.kinetix.common.model.AssetClass
 import com.kinetix.common.model.BookId
 import com.kinetix.common.model.InstrumentId
 import com.kinetix.common.model.Money
 import com.kinetix.common.model.Side
 import com.kinetix.common.model.TradeId
+import com.kinetix.common.model.TraderId
 import com.kinetix.position.model.LimitBreach
 import com.kinetix.position.model.LimitBreachSeverity
 import com.kinetix.position.routes.dtos.LimitBreachDto
@@ -64,6 +66,7 @@ fun Route.preTradeCheckRoutes(preTradeCheckService: PreTradeCheckService) {
                 price = Money(priceAmt, Currency.getInstance(request.priceCurrency)),
                 tradedAt = Instant.now(),
                 instrumentType = request.instrumentType,
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor(request.bookId)),
             )
 
             // Fail-safe on timeout: reject the order rather than allowing it through

@@ -102,6 +102,7 @@ class PricePnlEnd2EndTest : BehaviorSpec({
             price = Money(BigDecimal("150.00"), Currency.getInstance("USD")),
             tradedAt = Instant.parse("2025-01-15T10:00:00Z"),
             instrumentType = "CASH_EQUITY",
+            traderId = TraderId("tr-test-001"),
         )
 
         bookingService.handle(command)

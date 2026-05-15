@@ -22,7 +22,7 @@ private fun makeOrder(
     instrumentType: String = "CASH_EQUITY",
 ) = Order(
     orderId = orderId,
-    bookId = "book-1",
+    bookId = "equity-growth",
     instrumentId = "AAPL",
     side = side,
     quantity = quantity,
@@ -169,7 +169,7 @@ class FIXExecutionReportProcessorTest : FunSpec({
         val existingFill = ExecutionFill(
             fillId = "fill-existing",
             orderId = "ord-7",
-            bookId = "book-1",
+            bookId = "equity-growth",
             instrumentId = "AAPL",
             fillTime = Instant.now(),
             fillQty = BigDecimal("90"),
@@ -297,7 +297,7 @@ class FIXExecutionReportProcessorTest : FunSpec({
             ExecutionFill(
                 fillId = "fill-1",
                 orderId = "ord-replace-guard",
-                bookId = "book-1",
+                bookId = "equity-growth",
                 instrumentId = "AAPL",
                 fillTime = java.time.Instant.now(),
                 fillQty = BigDecimal("80"),

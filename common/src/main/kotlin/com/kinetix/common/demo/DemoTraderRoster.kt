@@ -26,11 +26,17 @@ object DemoTraderRoster {
         "derivatives-book" to "derivatives-trading",
         // Scenario books — fold into the closest desk so tape tagging still
         // resolves a trader. equity-ls / stress lean on the existing desks.
+        "equity-ls" to "equity-growth",
         "equity-ls-long" to "tech-momentum",
         "equity-ls-short" to "equity-growth",
+        "stress-momentum" to "tech-momentum",
+        "stress-credit" to "rates-trading",
+        "stress-vol" to "derivatives-trading",
         "stress-healthy-1" to "equity-growth",
         "stress-healthy-2" to "tech-momentum",
         "stress-breach" to "macro-hedge",
+        "options-equity-vol" to "derivatives-trading",
+        "options-cross-asset-vol" to "derivatives-trading",
         "options-vol-1" to "derivatives-trading",
         "options-vol-2" to "derivatives-trading",
     )
@@ -55,6 +61,15 @@ object DemoTraderRoster {
         BOOK_TO_DESK[bookId]?.let { TRADERS_BY_DESK[it]?.firstOrNull() }
 
     /**
+     * Fail-fast variant of [primaryTraderFor]. Throws [IllegalStateException]
+     * naming the missing book — callers (seeders, scenarios) treat an unknown
+     * book as a roster configuration bug, not a soft-fail nullable.
+     */
+    fun requirePrimaryTraderFor(bookId: String): String =
+        primaryTraderFor(bookId)
+            ?: error("Book '$bookId' missing from DemoTraderRoster.BOOK_TO_DESK — add an entry before seeding it")
+
+    /**
      * Deterministic trader pick for a tape ticket. The (bookId, tradeId) key
      * collapses to a stable hash, so re-running the seeder produces the same
      * trader assignment — keeping the audit-hash CI guard happy.
@@ -66,4 +81,13 @@ object DemoTraderRoster {
         val hash = (bookId + "|" + tradeId).hashCode()
         return traders[Math.floorMod(hash, traders.size)]
     }
+
+    /**
+     * Fail-fast variant of [traderForTicket]. Throws [IllegalStateException]
+     * naming the missing book so seed-time errors surface clearly instead of
+     * producing untagged trades downstream.
+     */
+    fun requireTraderForTicket(bookId: String, tradeId: String): String =
+        traderForTicket(bookId, tradeId)
+            ?: error("Book '$bookId' missing from DemoTraderRoster.BOOK_TO_DESK — add an entry before seeding it")
 }

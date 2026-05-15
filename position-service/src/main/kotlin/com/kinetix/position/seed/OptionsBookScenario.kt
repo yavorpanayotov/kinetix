@@ -1,11 +1,13 @@
 package com.kinetix.position.seed
 
+import com.kinetix.common.demo.DemoTraderRoster
 import com.kinetix.common.model.AssetClass
 import com.kinetix.common.model.BookId
 import com.kinetix.common.model.InstrumentId
 import com.kinetix.common.model.Money
 import com.kinetix.common.model.Side
 import com.kinetix.common.model.TradeId
+import com.kinetix.common.model.TraderId
 import com.kinetix.position.service.BookTradeCommand
 import java.math.BigDecimal
 import java.math.RoundingMode
@@ -187,6 +189,7 @@ object OptionsBookScenario {
                 price = Money(opt.price, USD),
                 tradedAt = tradedAt,
                 instrumentType = "EQUITY_OPTION",
+                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor(opt.book)),
             )
         }
     }

@@ -74,7 +74,7 @@ class OrderSubmissionServiceAcceptanceTest : FunSpec({
     }
 
     suspend fun submit(service: OrderSubmissionService, venue: String? = "NYSE"): Order = service.submit(
-        bookId = "book-1",
+        bookId = "equity-growth",
         instrumentId = "AAPL",
         side = Side.BUY,
         quantity = BigDecimal("100"),
