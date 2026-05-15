@@ -39,11 +39,12 @@ fun Route.demoResetRoutes(
             }
 
             newSuspendedTransaction(db = db) {
-                exec("ALTER TABLE audit_events DISABLE TRIGGER prevent_audit_update")
-                exec("ALTER TABLE audit_events DISABLE TRIGGER prevent_audit_delete")
+                // TRUNCATE bypasses BEFORE-UPDATE / BEFORE-DELETE row-level triggers
+                // by design (PostgreSQL: "Triggers other than TRUNCATE triggers are
+                // not fired"). No DISABLE / ENABLE TRIGGER dance is required — and
+                // those statements are blocked by TimescaleDB once the hypertable has
+                // compression / columnstore enabled (V4 migration).
                 exec("TRUNCATE TABLE audit_events RESTART IDENTITY CASCADE")
-                exec("ALTER TABLE audit_events ENABLE TRIGGER prevent_audit_update")
-                exec("ALTER TABLE audit_events ENABLE TRIGGER prevent_audit_delete")
             }
 
             DevDataSeeder(repository).seed()
