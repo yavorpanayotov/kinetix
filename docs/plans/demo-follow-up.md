@@ -152,7 +152,7 @@ The demo-review acceptance section flips fully green when:
 
 **Engineering**
 - [x] Audit hash chain settle <90s pinned by integration test
-- [ ] `BookTradeCommand.traderId` non-null; no `?.let` in seeder
+- [x] `BookTradeCommand.traderId` non-null; no `?.let` in seeder
 - [ ] Golden SHA-256 committed for every tape generator
 
 **Workflow**
