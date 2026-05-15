@@ -151,7 +151,7 @@ The demo-review acceptance section flips fully green when:
 - [x] (Cosmetic) options non-convergence shows `N/A`
 
 **Engineering**
-- [ ] Audit hash chain settle <90s pinned by integration test
+- [x] Audit hash chain settle <90s pinned by integration test
 - [ ] `BookTradeCommand.traderId` non-null; no `?.let` in seeder
 - [ ] Golden SHA-256 committed for every tape generator
 
