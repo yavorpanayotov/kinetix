@@ -11,7 +11,7 @@ import io.kotest.matchers.shouldBe
 
 class DevDataSeederTest : FunSpec({
 
-    test("seeds 7 rules and 25 alert events when empty") {
+    test("seeds 7 rules and 29 alert events when empty") {
         val engine = RulesEngine(InMemoryAlertRuleRepository())
         val eventRepo = InMemoryAlertEventRepository()
         val seeder = DevDataSeeder(engine, eventRepo)
@@ -19,7 +19,10 @@ class DevDataSeederTest : FunSpec({
         seeder.seed()
 
         engine.listRules() shouldHaveSize 7
-        eventRepo.findRecent(50) shouldHaveSize 25
+        // 25 baseline events + 4 stress-scenario pre-fired alerts
+        // (stress-vol notional + concentration, stress-momentum, stress-credit)
+        // — see DevDataSeeder.kt for the demo-follow-up PR 3 §9 block.
+        eventRepo.findRecent(50) shouldHaveSize 29
     }
 
     test("seeds limit breach rule with CRITICAL severity") {

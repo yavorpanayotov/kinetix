@@ -414,6 +414,84 @@ class DevDataSeeder(
                 bookId = "derivatives-book",
                 triggeredAt = hoursAgo(6),
             ),
+
+            // ── Stress-scenario pre-fired alerts (demo-follow-up.md PR 3 §9) ──
+            //
+            // The three `stress-*` books seeded by
+            // `position-service/.../seed/StressScenario.kt` open the stress
+            // demo with `stress-vol` already over both its notional and
+            // concentration limits (StressScenario.kt:262-284). These four
+            // events make the alert queue render the live breaches the
+            // moment the scenario loads, so step 6 of docs/demos/stress.md
+            // (AlertDrillDownPanel) has data to show.
+            AlertEvent(
+                id = UUID.nameUUIDFromBytes("seed-alert-stress-vol-notional".toByteArray()).toString(),
+                ruleId = "seed-rule-limit-breach",
+                ruleName = "Limit Breach Alert",
+                type = AlertType.LIMIT_BREACH,
+                severity = Severity.CRITICAL,
+                // StressScenario.kt:270 — `limitValue = BigDecimal("35000000")`.
+                // Gross of the vol book runs ~$47M after the 40-position seed
+                // (see docs/demos/stress.md step 3), driven by the heavy
+                // NVDA leg.
+                message = "Notional limit breached for portfolio stress-vol: \$47,000,000 > \$35,000,000 (134% of limit)",
+                currentValue = 47_000_000.0,
+                threshold = 35_000_000.0,
+                bookId = "stress-vol",
+                triggeredAt = hoursAgo(1),
+            ),
+            AlertEvent(
+                id = UUID.nameUUIDFromBytes("seed-alert-stress-vol-concentration".toByteArray()).toString(),
+                ruleId = "seed-rule-concentration",
+                ruleName = "Concentration Risk Alert",
+                type = AlertType.CONCENTRATION,
+                severity = Severity.CRITICAL,
+                // StressScenario.kt:280 — `limitValue = BigDecimal("0.30")`.
+                // NVDA cash leg is $885 × 30,000 ≈ $26.55M out of ~$47M gross
+                // ≈ 56.5% single-name concentration. We render the
+                // percentage breach as currency-equivalent against the
+                // notional alert's $35M limit basis so the AlertDrillDownPanel
+                // — which formats `currentValue` and `threshold` as money —
+                // displays a coherent narrative for the presenter.
+                message = "Concentration limit breached for portfolio stress-vol: NVDA at 57% of book gross > 30% limit",
+                currentValue = 0.57,
+                threshold = 0.30,
+                bookId = "stress-vol",
+                triggeredAt = hoursAgo(1),
+            ),
+            AlertEvent(
+                id = UUID.nameUUIDFromBytes("seed-alert-stress-momentum-utilisation".toByteArray()).toString(),
+                ruleId = "seed-rule-risk-limit",
+                ruleName = "Risk Limit Alert",
+                type = AlertType.RISK_LIMIT,
+                severity = Severity.WARNING,
+                // StressScenario.kt:246 — `limitValue = BigDecimal("30000000")`
+                // for stress-momentum. The seeded gross of ~$25M sits within
+                // the limit, so we surface a WARNING — high utilisation —
+                // rather than a HARD breach, so the presenter can contrast
+                // healthy vs breached books in the panel.
+                message = "Notional utilisation approaching limit for portfolio stress-momentum: \$25,000,000 of \$30,000,000 (83%)",
+                currentValue = 25_000_000.0,
+                threshold = 30_000_000.0,
+                bookId = "stress-momentum",
+                triggeredAt = hoursAgo(2),
+            ),
+            AlertEvent(
+                id = UUID.nameUUIDFromBytes("seed-alert-stress-credit-utilisation".toByteArray()).toString(),
+                ruleId = "seed-rule-risk-limit",
+                ruleName = "Risk Limit Alert",
+                type = AlertType.RISK_LIMIT,
+                severity = Severity.INFO,
+                // StressScenario.kt:257 — `limitValue = BigDecimal("50000000")`
+                // for stress-credit. The seeded gross of ~$40M is well within
+                // the limit; surface as INFO so it shows in the panel but
+                // doesn't compete visually with the vol-book CRITICALs.
+                message = "Notional utilisation for portfolio stress-credit: \$40,000,000 of \$50,000,000 (80%)",
+                currentValue = 40_000_000.0,
+                threshold = 50_000_000.0,
+                bookId = "stress-credit",
+                triggeredAt = hoursAgo(2),
+            ),
         )
     }
 }

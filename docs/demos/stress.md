@@ -45,10 +45,17 @@ Should return two breaches: notional and concentration.
 5. **StressedGreeksView (optional).** Run the parallel +10 % equity
    shock. The book P&L move should be visibly asymmetric because of the
    concentrated long-vol leg.
-6. **AlertDrillDownPanel.** Show the alert that fired when the scenario
-   loaded. Resolution choices: **Approve override / Cut position /
-   Escalate**. Choosing escalate writes a new audit event — click
-   through to show it landed.
+6. **AlertDrillDownPanel.** Four alerts arrive pre-fired with the
+   scenario, seeded by `notification-service`:
+   - **CRITICAL** — `stress-vol` notional breach ($47M > $35M limit).
+   - **CRITICAL** — `stress-vol` concentration breach (NVDA 57% > 30%).
+   - **WARNING** — `stress-momentum` utilisation 83% (healthy but near
+     limit).
+   - **INFO** — `stress-credit` utilisation 80% (healthy).
+
+   Open the `stress-vol` notional alert. Resolution choices:
+   **Approve override / Cut position / Escalate**. Choosing escalate
+   writes a new audit event — click through to show it landed.
 
 ## Expected screen states
 
