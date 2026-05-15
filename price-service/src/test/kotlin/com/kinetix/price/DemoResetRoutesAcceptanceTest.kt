@@ -55,7 +55,7 @@ class DemoResetRoutesAcceptanceTest : FunSpec({
         }
     }
 
-    test("resets and reseeds market_data when token matches") {
+    test("resets and reseeds prices when token matches") {
         testApplication {
             application { configureDemoResetApp() }
 

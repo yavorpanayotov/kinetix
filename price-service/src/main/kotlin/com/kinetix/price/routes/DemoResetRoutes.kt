@@ -39,7 +39,7 @@ fun Route.demoResetRoutes(
             }
 
             newSuspendedTransaction(db = db) {
-                exec("TRUNCATE TABLE market_data RESTART IDENTITY CASCADE")
+                exec("TRUNCATE TABLE prices RESTART IDENTITY CASCADE")
             }
 
             DevDataSeeder(repository).seed()
