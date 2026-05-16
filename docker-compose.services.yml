@@ -113,6 +113,7 @@ services:
       REDIS_URL: redis://redis:6379
       SEED_DATA: "true"
       FEED_ENABLED: "true"
+      DEMO_RESET_TOKEN: "${DEMO_RESET_TOKEN:-kinetix-demo-reset-dev}"
       OTEL_JAVA_GLOBAL_AUTOCONFIGURE_ENABLED: "true"
       OTEL_SERVICE_NAME: price-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
@@ -150,6 +151,7 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       REDIS_URL: redis://redis:6379
       FEED_ENABLED: "true"
+      DEMO_RESET_TOKEN: "${DEMO_RESET_TOKEN:-kinetix-demo-reset-dev}"
       OTEL_JAVA_GLOBAL_AUTOCONFIGURE_ENABLED: "true"
       OTEL_SERVICE_NAME: rates-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
@@ -186,6 +188,7 @@ services:
       DATABASE_URL: jdbc:postgresql://postgres:5432/kinetix_reference_data
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       REDIS_URL: redis://redis:6379
+      DEMO_RESET_TOKEN: "${DEMO_RESET_TOKEN:-kinetix-demo-reset-dev}"
       OTEL_JAVA_GLOBAL_AUTOCONFIGURE_ENABLED: "true"
       OTEL_SERVICE_NAME: reference-data-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
@@ -223,6 +226,7 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       REDIS_URL: redis://redis:6379
       FEED_ENABLED: "true"
+      DEMO_RESET_TOKEN: "${DEMO_RESET_TOKEN:-kinetix-demo-reset-dev}"
       OTEL_JAVA_GLOBAL_AUTOCONFIGURE_ENABLED: "true"
       OTEL_SERVICE_NAME: volatility-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
@@ -260,6 +264,7 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       REDIS_URL: redis://redis:6379
       FEED_ENABLED: "true"
+      DEMO_RESET_TOKEN: "${DEMO_RESET_TOKEN:-kinetix-demo-reset-dev}"
       OTEL_JAVA_GLOBAL_AUTOCONFIGURE_ENABLED: "true"
       OTEL_SERVICE_NAME: correlation-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317

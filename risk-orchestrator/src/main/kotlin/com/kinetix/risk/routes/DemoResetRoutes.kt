@@ -46,7 +46,7 @@ fun Route.demoResetRoutes(
 
             newSuspendedTransaction(db = riskDb) {
                 exec("DELETE FROM daily_risk_snapshots WHERE snapshot_date > '2026-02-27'")
-                exec("DELETE FROM intraday_pnl_snapshots WHERE snapshot_time > '2026-02-27'")
+                exec("DELETE FROM intraday_pnl_snapshots WHERE snapshot_at > '2026-02-27'")
                 exec("DELETE FROM counterparty_exposure_history")
                 exec("DELETE FROM pnl_attributions")
             }

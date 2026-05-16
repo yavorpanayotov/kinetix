@@ -3,6 +3,7 @@ package com.kinetix.gateway.routes
 import com.kinetix.common.demo.SeedProfile
 import com.kinetix.common.demo.UnknownScenarioException
 import io.ktor.client.*
+import io.ktor.client.plugins.timeout
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
@@ -136,6 +137,8 @@ private suspend fun fanOutReset(httpClient: HttpClient, url: String, resetToken:
     return try {
         val resp = httpClient.post("$url?scenario=$scenario") {
             header("X-Demo-Reset-Token", resetToken)
+            // Reseeding can take well over the gateway's default 5s per-request timeout.
+            timeout { requestTimeoutMillis = 300_000 }
         }
         if (resp.status.isSuccess()) "ok" else "failed: ${resp.status}"
     } catch (e: Exception) {
