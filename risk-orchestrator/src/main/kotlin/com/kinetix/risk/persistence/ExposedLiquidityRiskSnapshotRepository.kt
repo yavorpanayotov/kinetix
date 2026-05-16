@@ -5,6 +5,8 @@ import com.kinetix.common.model.LiquidityTier
 import com.kinetix.common.model.PositionLiquidityRisk
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.buildJsonArray
@@ -40,6 +42,7 @@ class ExposedLiquidityRiskSnapshotRepository(
                     put("tier", pos.tier.name)
                     put("horizonDays", pos.horizonDays)
                     put("adv", pos.adv)
+                    put("advPct", pos.advPct)
                     put("advMissing", pos.advMissing)
                     put("advStale", pos.advStale)
                     put("lvarContribution", pos.lvarContribution)
@@ -115,6 +118,12 @@ class ExposedLiquidityRiskSnapshotRepository(
         calculatedAt = this[LiquidityRiskSnapshotsTable.calculatedAt].toInstant().toString(),
     )
 
+    // JsonElement.jsonPrimitive.double throws on JsonNull (its content is the
+    // string "null"). The save path serialises null Double fields as JsonNull,
+    // so reads must short-circuit before calling .double.
+    private fun JsonElement?.nullableDouble(): Double? =
+        if (this == null || this is JsonNull) null else this.jsonPrimitive.double
+
     private fun parsePositionRisks(json: kotlinx.serialization.json.JsonElement): List<PositionLiquidityRisk> {
         val arr = json as? JsonArray ?: return emptyList()
         return arr.mapNotNull { elem ->
@@ -125,8 +134,8 @@ class ExposedLiquidityRiskSnapshotRepository(
                 marketValue = obj["marketValue"]?.jsonPrimitive?.double ?: 0.0,
                 tier = LiquidityTier.valueOf(obj["tier"]?.jsonPrimitive?.content ?: "ILLIQUID"),
                 horizonDays = obj["horizonDays"]?.jsonPrimitive?.int ?: 10,
-                adv = obj["adv"]?.jsonPrimitive?.double,
-                advPct = obj["advPct"]?.jsonPrimitive?.double,
+                adv = obj["adv"].nullableDouble(),
+                advPct = obj["advPct"].nullableDouble(),
                 advMissing = obj["advMissing"]?.jsonPrimitive?.boolean ?: true,
                 advStale = obj["advStale"]?.jsonPrimitive?.boolean ?: false,
                 lvarContribution = obj["lvarContribution"]?.jsonPrimitive?.double ?: 0.0,

@@ -95,4 +95,56 @@ class ExposedLiquidityRiskSnapshotRepositoryIntegrationTest : FunSpec({
         pos.advMissing shouldBe false
         pos.concentrationStatus shouldBe "OK"
     }
+
+    test("round-trips a position with null adv/advPct without throwing on read") {
+        val result = sampleResult().copy(
+            positionRisks = listOf(
+                PositionLiquidityRisk(
+                    instrumentId = "ILLIQUID-1",
+                    assetClass = "EQUITY",
+                    marketValue = 100_000.0,
+                    tier = LiquidityTier.ILLIQUID,
+                    horizonDays = 30,
+                    adv = null,
+                    advPct = null,
+                    advMissing = true,
+                    advStale = false,
+                    lvarContribution = 0.0,
+                    stressedLiquidationValue = 90_000.0,
+                    concentrationStatus = "OK",
+                ),
+            ),
+        )
+        repository.save(result)
+
+        val found = repository.findLatestByBookId("BOOK-1")!!
+        val pos = found.positionRisks.single()
+        pos.adv shouldBe null
+        pos.advPct shouldBe null
+    }
+
+    test("persists advPct so a non-null value survives the round-trip") {
+        val result = sampleResult().copy(
+            positionRisks = listOf(
+                PositionLiquidityRisk(
+                    instrumentId = "AAPL",
+                    assetClass = "EQUITY",
+                    marketValue = 500_000.0,
+                    tier = LiquidityTier.HIGH_LIQUID,
+                    horizonDays = 1,
+                    adv = 10_000_000.0,
+                    advPct = 0.05,
+                    advMissing = false,
+                    advStale = false,
+                    lvarContribution = 316_227.76,
+                    stressedLiquidationValue = 490_000.0,
+                    concentrationStatus = "OK",
+                ),
+            ),
+        )
+        repository.save(result)
+
+        val found = repository.findLatestByBookId("BOOK-1")!!
+        found.positionRisks.single().advPct shouldBe 0.05
+    }
 })
