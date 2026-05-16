@@ -33,6 +33,10 @@ class OptionPosition:
     contract_multiplier: float = 1.0
     asset_class: AssetClass = AssetClass.EQUITY
     instrument_type: str = ""
+    # Position-service-reported market value (already qty- and multiplier-scaled).
+    # Required by the VaR pipeline, which addresses every position uniformly
+    # via .market_value; SA-CCR still recomputes from Black-Scholes for accuracy.
+    market_value: float = 0.0
 
 
 class CalculationType(Enum):

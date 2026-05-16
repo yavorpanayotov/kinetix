@@ -195,3 +195,34 @@ class TestPositionSubtypePassthrough:
         for pos in positions:
             assert isinstance(pos, PositionRisk)
             assert pos.market_value > 0
+
+    def test_option_position_exposes_market_value(self):
+        # OptionPosition is not a PositionRisk subclass but the VaR pipeline
+        # treats every position uniformly via `.market_value`. Trade-event
+        # consumers carry the position-service-reported market value through
+        # this field so books containing options can be aggregated and VaR'd
+        # without a TypeError on the consumer thread.
+        pos = OptionPosition(
+            instrument_id="AAPL-C-200",
+            underlying_id="AAPL",
+            option_type=OptionType.CALL,
+            strike=200.0,
+            expiry_days=30,
+            spot_price=195.0,
+            implied_vol=0.25,
+            quantity=10.0,
+            market_value=12_500.0,
+        )
+        assert pos.market_value == 12_500.0
+
+    def test_option_position_market_value_defaults_to_zero(self):
+        pos = OptionPosition(
+            instrument_id="X",
+            underlying_id="Y",
+            option_type=OptionType.PUT,
+            strike=100.0,
+            expiry_days=10,
+            spot_price=100.0,
+            implied_vol=0.2,
+        )
+        assert pos.market_value == 0.0

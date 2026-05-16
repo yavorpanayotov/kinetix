@@ -110,6 +110,7 @@ def proto_positions_to_domain(proto_positions) -> list[PositionRisk]:
                 contract_multiplier=attrs.contract_multiplier if attrs.contract_multiplier > 0 else 1.0,
                 asset_class=asset_class,
                 instrument_type=instrument_type_name,
+                market_value=market_value,
             ))
         elif inst_type in _BOND_INSTRUMENT_TYPES and p.HasField("bond_attrs"):
             attrs = p.bond_attrs
