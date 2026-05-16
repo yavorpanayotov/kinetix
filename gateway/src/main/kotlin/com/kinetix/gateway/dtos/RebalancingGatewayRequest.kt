@@ -22,6 +22,7 @@ fun RebalancingGatewayRequest.toRebalancingParams(bookId: String): RebalancingRe
                 quantity = it.quantity,
                 priceAmount = it.priceAmount,
                 priceCurrency = it.priceCurrency,
+                instrumentType = it.instrumentType,
                 bidAskSpreadBps = it.bidAskSpreadBps,
             )
         },

@@ -31,6 +31,7 @@ describe('whatIf API', () => {
     hypotheticalTrades: [
       {
         instrumentId: 'SPY',
+        instrumentType: 'CASH_EQUITY',
         assetClass: 'EQUITY',
         side: 'BUY',
         quantity: '100',

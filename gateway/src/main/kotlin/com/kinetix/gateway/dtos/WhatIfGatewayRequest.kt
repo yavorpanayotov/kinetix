@@ -22,6 +22,7 @@ fun WhatIfGatewayRequest.toParams(bookId: String): WhatIfRequestParams =
                 quantity = it.quantity,
                 priceAmount = it.priceAmount,
                 priceCurrency = it.priceCurrency,
+                instrumentType = it.instrumentType,
             )
         },
         calculationType = calculationType,

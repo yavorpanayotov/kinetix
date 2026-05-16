@@ -36,6 +36,7 @@ const mockRebalancingResponse = {
 const sampleTrades: TradeFormEntry[] = [
   {
     instrumentId: 'AAPL',
+    instrumentType: 'CASH_EQUITY',
     assetClass: 'EQUITY',
     side: 'SELL',
     quantity: '50',
@@ -90,7 +91,7 @@ describe('useRebalancing', () => {
     })
 
     const tradesWithoutSpread: TradeFormEntry[] = [
-      { instrumentId: 'AAPL', assetClass: 'EQUITY', side: 'SELL', quantity: '50', priceAmount: '170.00', priceCurrency: 'USD' },
+      { instrumentId: 'AAPL', instrumentType: 'CASH_EQUITY', assetClass: 'EQUITY', side: 'SELL', quantity: '50', priceAmount: '170.00', priceCurrency: 'USD' },
     ]
 
     const { result } = renderHook(() => useRebalancing())

@@ -313,6 +313,7 @@ data class HypotheticalTradeParam(
     val quantity: String,
     val priceAmount: String,
     val priceCurrency: String,
+    val instrumentType: String,
 )
 
 data class WhatIfRequestParams(
@@ -477,6 +478,7 @@ data class RebalancingTradeParam(
     val quantity: String,
     val priceAmount: String,
     val priceCurrency: String,
+    val instrumentType: String,
     val bidAskSpreadBps: Double = 5.0,
 )
 

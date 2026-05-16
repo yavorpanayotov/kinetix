@@ -6,6 +6,7 @@ import { WhatIfPanel } from './WhatIfPanel'
 
 const emptyTrade: TradeFormEntry = {
   instrumentId: '',
+  instrumentType: 'CASH_EQUITY',
   assetClass: 'EQUITY',
   side: 'BUY',
   quantity: '',

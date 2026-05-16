@@ -143,6 +143,7 @@ describe('useWhatIf', () => {
       hypotheticalTrades: [
         {
           instrumentId: 'SPY',
+          instrumentType: 'CASH_EQUITY',
           assetClass: 'EQUITY',
           side: 'BUY',
           quantity: '100',
@@ -151,6 +152,35 @@ describe('useWhatIf', () => {
         },
       ],
     })
+  })
+
+  it('sends instrumentType when the form dropdown changes it', async () => {
+    // Required so the orchestrator's HypotheticalTradeDto.instrumentType
+    // (non-null, parsed via InstrumentTypeCode.fromString) can deserialize.
+    mockRunWhatIfAnalysis.mockResolvedValue(whatIfResponse)
+
+    const { result } = renderHook(() => useWhatIf('book-1'))
+
+    act(() => {
+      result.current.updateTrade(0, 'instrumentId', 'AAPL-C-200')
+      result.current.updateTrade(0, 'instrumentType', 'EQUITY_OPTION')
+      result.current.updateTrade(0, 'assetClass', 'EQUITY')
+      result.current.updateTrade(0, 'quantity', '5')
+      result.current.updateTrade(0, 'priceAmount', '12.50')
+    })
+
+    await act(async () => {
+      await result.current.submit()
+    })
+
+    expect(mockRunWhatIfAnalysis).toHaveBeenCalledWith(
+      'book-1',
+      expect.objectContaining({
+        hypotheticalTrades: [
+          expect.objectContaining({ instrumentType: 'EQUITY_OPTION' }),
+        ],
+      }),
+    )
   })
 
   it('sets error when submission fails', async () => {

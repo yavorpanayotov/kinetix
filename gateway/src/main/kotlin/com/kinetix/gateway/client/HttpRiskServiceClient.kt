@@ -247,6 +247,7 @@ class HttpRiskServiceClient(
                             quantity = it.quantity,
                             priceAmount = it.priceAmount,
                             priceCurrency = it.priceCurrency,
+                            instrumentType = it.instrumentType,
                         )
                     },
                     calculationType = params.calculationType,
@@ -272,6 +273,7 @@ class HttpRiskServiceClient(
                             quantity = it.quantity,
                             priceAmount = it.priceAmount,
                             priceCurrency = it.priceCurrency,
+                            instrumentType = it.instrumentType,
                             bidAskSpreadBps = it.bidAskSpreadBps,
                         )
                     },

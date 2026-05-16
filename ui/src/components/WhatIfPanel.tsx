@@ -281,9 +281,10 @@ export function WhatIfPanel({
                 <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Instrument Type</label>
                 <select
                   data-testid={`whatif-instrument-type-${index}`}
-                  defaultValue="CASH_EQUITY"
+                  value={trade.instrumentType}
                   onChange={(e) => {
                     const mapped = INSTRUMENT_TYPE_TO_ASSET_CLASS[e.target.value] ?? 'EQUITY'
+                    onUpdateTrade(index, 'instrumentType', e.target.value)
                     onUpdateTrade(index, 'assetClass', mapped)
                   }}
                   className="w-full border border-slate-300 dark:border-surface-600 rounded-md px-3 py-1.5 text-sm bg-white dark:bg-surface-700 dark:text-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"

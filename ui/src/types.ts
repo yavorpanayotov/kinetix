@@ -412,6 +412,7 @@ export interface HypotheticalTradeDto {
   quantity: string
   priceAmount: string
   priceCurrency: string
+  instrumentType: string
 }
 
 export interface WhatIfRequestDto {
@@ -458,6 +459,7 @@ export interface RebalancingTradeDto {
   quantity: string
   priceAmount: string
   priceCurrency: string
+  instrumentType: string
   bidAskSpreadBps?: number
 }
 

@@ -525,6 +525,7 @@ data class HypotheticalTradeClientDto(
     val quantity: String,
     val priceAmount: String,
     val priceCurrency: String,
+    val instrumentType: String,
 )
 
 @Serializable
@@ -995,6 +996,7 @@ data class RebalancingTradeClientDto(
     val quantity: String,
     val priceAmount: String,
     val priceCurrency: String,
+    val instrumentType: String,
     val bidAskSpreadBps: Double = 5.0,
 )
 

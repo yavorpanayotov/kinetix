@@ -25,6 +25,7 @@ export function useRebalancing(): UseRebalancingResult {
       const data = await runRebalancingAnalysis(bookId, {
         trades: trades.map((t) => ({
           instrumentId: t.instrumentId,
+          instrumentType: t.instrumentType,
           assetClass: t.assetClass,
           side: t.side,
           quantity: t.quantity,

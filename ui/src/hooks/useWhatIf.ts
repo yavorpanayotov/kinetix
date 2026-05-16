@@ -5,6 +5,7 @@ import type { HypotheticalTradeDto, WhatIfImpactDto, WhatIfResponseDto } from '.
 
 export interface TradeFormEntry {
   instrumentId: string
+  instrumentType: string
   assetClass: string
   side: string
   quantity: string
@@ -18,6 +19,7 @@ export type ValidationErrors = Record<number, Record<string, string>>
 function emptyTrade(): TradeFormEntry {
   return {
     instrumentId: '',
+    instrumentType: 'CASH_EQUITY',
     assetClass: 'EQUITY',
     side: 'BUY',
     quantity: '',
@@ -142,6 +144,7 @@ export function useWhatIf(bookId: string | null): UseWhatIfResult {
     try {
       const hypotheticalTrades: HypotheticalTradeDto[] = trades.map((t) => ({
         instrumentId: t.instrumentId,
+        instrumentType: t.instrumentType,
         assetClass: t.assetClass,
         side: t.side,
         quantity: t.quantity,
