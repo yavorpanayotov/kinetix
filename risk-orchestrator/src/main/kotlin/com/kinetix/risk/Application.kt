@@ -125,6 +125,12 @@ import com.kinetix.risk.routes.saCcrRoutes
 import com.kinetix.risk.routes.keyRateDurationRoutes
 import com.kinetix.risk.client.GrpcRiskEngineKrdClient
 import com.kinetix.risk.service.KeyRateDurationService
+import com.kinetix.risk.routes.marketRegimeRoutes
+import com.kinetix.risk.persistence.ExposedMarketRegimeRepository
+import com.kinetix.risk.service.AdaptiveRegimeParameterProvider
+import com.kinetix.risk.model.MarketRegime
+import com.kinetix.risk.model.RegimeSignals
+import com.kinetix.risk.model.RegimeState
 import com.kinetix.risk.simulation.*
 import com.kinetix.risk.resilience.CircuitBreakerMetrics
 import io.lettuce.core.RedisClient
@@ -713,6 +719,27 @@ fun Application.moduleWithRoutes() {
             )
         )
         liquidityRiskRoutes(liquidityRiskService, liquidityRiskSnapshotRepository)
+        // The full ScheduledRegimeDetector is not wired in this build; the UI
+        // header polls /api/v1/risk/regime/current every minute, so we serve a
+        // valid NORMAL default and read history from whatever the repository
+        // has persisted (empty until detection is enabled end-to-end).
+        run {
+            val regimeParams = AdaptiveRegimeParameterProvider().parametersFor(MarketRegime.NORMAL)
+            val defaultRegimeState = RegimeState(
+                regime = MarketRegime.NORMAL,
+                detectedAt = java.time.Instant.now(),
+                confidence = 1.0,
+                signals = RegimeSignals(realisedVol20d = 0.0, crossAssetCorrelation = 0.0),
+                varParameters = regimeParams,
+                consecutiveObservations = 0,
+                isConfirmed = true,
+                degradedInputs = false,
+            )
+            marketRegimeRoutes(
+                currentStateProvider = { defaultRegimeState },
+                repository = ExposedMarketRegimeRepository(riskDb),
+            )
+        }
         marginRoutes(effectivePositionProvider, MarginCalculator())
         factorRiskRoutes(factorDecompositionRepository)
         jobHistoryRoutes(jobRecorder)
