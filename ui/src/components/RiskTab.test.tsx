@@ -12,6 +12,7 @@ vi.mock('../hooks/useSodBaseline')
 vi.mock('../hooks/usePnlAttribution')
 vi.mock('../hooks/useHierarchyNodeRisk')
 vi.mock('../hooks/useWorkspace')
+vi.mock('../hooks/useIntradayVaRTimeline')
 
 import { RiskTab } from './RiskTab'
 import { useVaR } from '../hooks/useVaR'
@@ -23,6 +24,7 @@ import { useSodBaseline } from '../hooks/useSodBaseline'
 import { usePnlAttribution } from '../hooks/usePnlAttribution'
 import { useHierarchyNodeRisk } from '../hooks/useHierarchyNodeRisk'
 import { useWorkspace, DEFAULT_PREFERENCES } from '../hooks/useWorkspace'
+import { useIntradayVaRTimeline } from '../hooks/useIntradayVaRTimeline'
 
 const mockUseVaR = vi.mocked(useVaR)
 const mockUseJobHistory = vi.mocked(useJobHistory)
@@ -33,6 +35,7 @@ const mockUseSodBaseline = vi.mocked(useSodBaseline)
 const mockUsePnlAttribution = vi.mocked(usePnlAttribution)
 const mockUseHierarchyNodeRisk = vi.mocked(useHierarchyNodeRisk)
 const mockUseWorkspace = vi.mocked(useWorkspace)
+const mockUseIntradayVaRTimeline = vi.mocked(useIntradayVaRTimeline)
 
 const stressResult: StressTestResultDto = {
   scenarioName: 'MARKET_CRASH',
@@ -150,6 +153,12 @@ describe('RiskTab', () => {
       updateActiveView: vi.fn(),
       deleteView: vi.fn(),
       renameView: vi.fn(),
+    })
+    mockUseIntradayVaRTimeline.mockReturnValue({
+      varPoints: [],
+      tradeAnnotations: [],
+      loading: false,
+      error: null,
     })
   })
 
@@ -728,6 +737,104 @@ describe('RiskTab', () => {
       expect(marketRiskToggle).toHaveAttribute('aria-expanded', 'false')
       // Market Risk panel content hidden when section collapsed
       expect(screen.queryByTestId('var-empty')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('Compare with snapshot (plan §8.6)', () => {
+    const VAR_RESULT = {
+      bookId: 'book-1',
+      calculationType: 'HISTORICAL',
+      confidenceLevel: 'CL_95',
+      varValue: '120000',
+      expectedShortfall: '180000',
+      componentBreakdown: [],
+      calculatedAt: '2026-03-25T15:00:00Z',
+    }
+
+    function mockVaRReturn() {
+      mockUseVaR.mockReturnValue({
+        varResult: VAR_RESULT,
+        greeksResult: null,
+        history: [],
+        filteredHistory: [],
+        loading: false,
+        historyLoading: false,
+        error: null,
+        errorTransient: false,
+        refresh: vi.fn(),
+        refreshing: false,
+        timeRange: { from: '2026-03-24T15:00:00Z', to: '2026-03-25T15:00:00Z', label: 'Last 24h' },
+        setTimeRange: vi.fn(),
+        zoomIn: vi.fn(),
+        resetZoom: vi.fn(),
+        zoomDepth: 0,
+        selectedConfidenceLevel: 'CL_95',
+        setSelectedConfidenceLevel: vi.fn(),
+        isLive: true,
+      })
+    }
+
+    it('renders the snapshot compare control on the Dashboard sub-tab', () => {
+      mockVaRReturn()
+      render(<RiskTab bookId="book-1" {...defaultStressProps} />)
+
+      expect(screen.getByTestId('snapshot-compare-control')).toBeInTheDocument()
+    })
+
+    it('renders the snapshot Δ badge when a preset is selected and intraday VaR data is available', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      vi.setSystemTime(new Date('2026-03-25T15:00:00Z'))
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+
+      mockVaRReturn()
+      // Series spans the trading day with a point ~1h before "now".
+      mockUseIntradayVaRTimeline.mockReturnValue({
+        varPoints: [
+          { timestamp: '2026-03-25T13:00:00Z', varValue: 95000, expectedShortfall: 140000, delta: null, gamma: null, vega: null },
+          { timestamp: '2026-03-25T14:00:00Z', varValue: 100000, expectedShortfall: 150000, delta: null, gamma: null, vega: null },
+          { timestamp: '2026-03-25T14:55:00Z', varValue: 118000, expectedShortfall: 170000, delta: null, gamma: null, vega: null },
+        ],
+        tradeAnnotations: [],
+        loading: false,
+        error: null,
+      })
+
+      render(<RiskTab bookId="book-1" {...defaultStressProps} />)
+
+      try {
+        await user.click(screen.getByTestId('snapshot-compare--1h'))
+
+        const badge = screen.getByTestId('snapshot-delta-var')
+        // current 120,000 − snapshot 100,000 (point at 14:00:00Z is the nearest
+        // at-or-before -1h target) = +20,000 → formatted compactly as +$20K.
+        expect(badge).toHaveTextContent('Δ vs -1h')
+        expect(badge).toHaveTextContent('+$20K')
+        expect(badge).toHaveTextContent('(+20.0%)')
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('does not render the snapshot Δ badge when no intraday VaR points are available', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      vi.setSystemTime(new Date('2026-03-25T15:00:00Z'))
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+
+      mockVaRReturn()
+      mockUseIntradayVaRTimeline.mockReturnValue({
+        varPoints: [],
+        tradeAnnotations: [],
+        loading: false,
+        error: null,
+      })
+
+      render(<RiskTab bookId="book-1" {...defaultStressProps} />)
+      try {
+        await user.click(screen.getByTestId('snapshot-compare--1h'))
+        expect(screen.queryByTestId('snapshot-delta-var')).not.toBeInTheDocument()
+      } finally {
+        vi.useRealTimers()
+      }
     })
   })
 })

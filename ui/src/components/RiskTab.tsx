@@ -44,6 +44,8 @@ import { Spinner } from './ui/Spinner'
 import { ErrorCard } from './ui/ErrorCard'
 import { SectionBlock } from './ui/SectionBlock'
 import { useWorkspace, type RiskDashboardSectionsState } from '../hooks/useWorkspace'
+import { SnapshotCompareControl } from './SnapshotCompareControl'
+import { findNearestPoint, resolveSnapshotTarget, SNAPSHOT_PRESETS, type SnapshotPreset } from '../utils/snapshotCompare'
 
 type RiskSubTab = 'dashboard' | 'run-compare' | 'market-data' | 'intraday'
 
@@ -111,6 +113,10 @@ export function RiskTab({
   }
   const [pendingJobCompare, setPendingJobCompare] = useState<{ baseJobId: string; targetJobId: string } | null>(null)
   const [hedgePanelOpen, setHedgePanelOpen] = useState(false)
+  // Plan §8.6 — ad-hoc time-shifted compare ("what just changed?"). Null
+  // disables the overlay; otherwise the dashboard renders a Δ badge vs the
+  // selected preset.
+  const [snapshotPreset, setSnapshotPreset] = useState<SnapshotPreset | null>(null)
   const limitsPanelRef = useRef<HTMLDivElement | null>(null)
 
   const { preferences, updatePreference } = useWorkspace()
@@ -145,6 +151,19 @@ export function RiskTab({
     todayFrom,
     todayTo,
   )
+
+  // Plan §8.6 — derive the snapshot value by walking the existing intraday
+  // VaR points and finding the nearest at-or-before the preset target. If
+  // the series doesn't reach back that far (or no preset is active), the
+  // dashboard simply omits the delta — we don't fake data.
+  const { snapshotVaR, snapshotLabel } = useMemo(() => {
+    if (!snapshotPreset) return { snapshotVaR: null, snapshotLabel: null }
+    const target = resolveSnapshotTarget(snapshotPreset)
+    if (!target) return { snapshotVaR: null, snapshotLabel: null }
+    const nearest = findNearestPoint(intradayVarPoints, target)
+    const label = SNAPSHOT_PRESETS.find((p) => p.id === snapshotPreset)?.label ?? snapshotPreset
+    return { snapshotVaR: nearest ? nearest.varValue : null, snapshotLabel: label }
+  }, [snapshotPreset, intradayVarPoints])
 
   const handleCompareJobs = useCallback((baseJobId: string, targetJobId: string) => {
     setPendingJobCompare({ baseJobId, targetJobId })
@@ -293,8 +312,11 @@ export function RiskTab({
               <RiskAlertBanner alerts={alerts} onDismiss={dismissAlert} />
             </div>
           )}
-          <div className="flex items-center justify-between mb-2">
-            <ValuationDatePicker value={valuationDate} onChange={setValuationDate} />
+          <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+            <div className="flex items-center gap-3 flex-wrap">
+              <ValuationDatePicker value={valuationDate} onChange={setValuationDate} />
+              <SnapshotCompareControl value={snapshotPreset} onChange={setSnapshotPreset} />
+            </div>
             <div className="flex items-center gap-2">
               <LastUpdatedIndicator timestamp={lastUpdated} />
               {!aggregatedView && (
@@ -349,6 +371,8 @@ export function RiskTab({
                   activeScenario={activeScenario}
                   marketRegime={marketRegime}
                   tradeAnnotations={intradayTradeAnnotations}
+                  snapshotVaR={snapshotVaR}
+                  snapshotLabel={snapshotLabel}
                 />
               </ErrorBoundary>
               {aggregatedView && crossBookResult && (

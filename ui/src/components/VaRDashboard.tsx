@@ -3,6 +3,7 @@ import { Calendar, FlaskRound, Info, RefreshCw, X } from 'lucide-react'
 import type { VaRResultDto, GreeksResultDto, MarketRegime, TimeRange, TradeAnnotationDto } from '../types'
 import type { VaRHistoryEntry } from '../hooks/useVaR'
 import { useClickOutside } from '../hooks/useClickOutside'
+import { formatCompactCurrency } from '../utils/formatCompactCurrency'
 import { VaRGauge } from './VaRGauge'
 import { RiskSensitivities } from './RiskSensitivities'
 import { ComponentBreakdown } from './ComponentBreakdown'
@@ -57,9 +58,20 @@ interface VaRDashboardProps {
    * "why did VaR move at 2:47pm?". Sourced from the intraday timeline hook.
    */
   tradeAnnotations?: TradeAnnotationDto[]
+  /**
+   * Plan §8.6 — "Compare with snapshot": numeric VaR taken from the
+   * intraday timeline at the user-selected snapshot moment. Null when the
+   * user hasn't opted in or the timeline doesn't reach back far enough.
+   */
+  snapshotVaR?: number | null
+  /**
+   * Human label of the active snapshot preset (e.g. "-1h"). Used to caption
+   * the delta badge.
+   */
+  snapshotLabel?: string | null
 }
 
-export function VaRDashboard({ varResult, filteredHistory, loading, historyLoading, refreshing = false, error, onRefresh, timeRange, setTimeRange, zoomIn, resetZoom, zoomDepth, greeksResult, varLimit, onWhatIf, selectedConfidenceLevel, onConfidenceLevelChange, isLive = true, valuationDate, totalStandaloneVar, diversificationBenefit, activeScenario = null, marketRegime = null, tradeAnnotations = [] }: VaRDashboardProps) {
+export function VaRDashboard({ varResult, filteredHistory, loading, historyLoading, refreshing = false, error, onRefresh, timeRange, setTimeRange, zoomIn, resetZoom, zoomDepth, greeksResult, varLimit, onWhatIf, selectedConfidenceLevel, onConfidenceLevelChange, isLive = true, valuationDate, totalStandaloneVar, diversificationBenefit, activeScenario = null, marketRegime = null, tradeAnnotations = [], snapshotVaR = null, snapshotLabel = null }: VaRDashboardProps) {
   const [tooltipOpen, setTooltipOpen] = useState(false)
   const [chartView, setChartView] = useState<'var' | 'greeks'>('var')
   const calcTypeRef = useRef<HTMLSpanElement>(null)
@@ -160,6 +172,32 @@ export function VaRDashboard({ varResult, filteredHistory, loading, historyLoadi
           <ComponentBreakdown breakdown={varResult.componentBreakdown} bookVaR={varResult.varValue} />
         </div>
       </div>
+
+      {snapshotVaR != null && snapshotLabel && (() => {
+        // Plan §8.6 — ad-hoc snapshot delta. Render the change vs the
+        // user-selected snapshot (-15m / -1h / EOD yesterday) so the user
+        // can answer "what just changed?" without leaving the dashboard.
+        const change = varValue - snapshotVaR
+        const absChange = Math.abs(change)
+        const hasPct = snapshotVaR !== 0
+        const pct = hasPct ? (change / snapshotVaR) * 100 : 0
+        const sign = change > 0 ? '+' : change < 0 ? '-' : ''
+        const colorClass = change > 0 ? 'text-red-600 dark:text-red-400' : change < 0 ? 'text-green-600 dark:text-green-400' : 'text-slate-500 dark:text-slate-400'
+        return (
+          <div
+            data-testid="snapshot-delta-var"
+            className={`mt-3 inline-flex items-center gap-2 rounded-md border border-slate-200 dark:border-surface-700 px-2.5 py-1 text-xs ${colorClass}`}
+            aria-live="polite"
+          >
+            <span className="font-medium text-slate-500 dark:text-slate-400">Δ vs {snapshotLabel}</span>
+            <span className="font-semibold">
+              {sign}
+              {formatCompactCurrency(absChange)}
+              {hasPct && ` (${sign}${Math.abs(pct).toFixed(1)}%)`}
+            </span>
+          </div>
+        )
+      })()}
 
       <div className="mt-4">
         <div className="flex items-center justify-between mb-2">
