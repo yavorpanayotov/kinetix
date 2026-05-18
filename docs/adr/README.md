@@ -1,73 +1,41 @@
-# Architecture Decision Records
+# Architectural Decision Records
 
-ADRs are guidelines **and** guardrails — they capture both *why* a decision was made and *what rules* code must follow because of it. Every ADR has two LLM-targeted sections in addition to the usual Context/Decision/Consequences/Alternatives:
+This index lists every Architectural Decision Record (ADR) in numeric order. ADRs capture *why* a decision was made and the *rules* code must follow because of it — read the relevant ADR before making changes that overlap with its scope. Each entry below links to the full record by filename.
 
-- **Applies when** — concrete triggers ("adding a Kafka topic", "writing a Flyway migration", "adding an instrument type"). If the task at hand matches a trigger, read the ADR before making changes.
-- **Rules** — imperative DO / DON'T statements. The contract the implementing code must satisfy.
+Generated programmatically from the H1 title and first prose section of each `XXXX-*.md` file.
 
-## By task — which ADRs to consult
-
-| If you are… | Read |
-|---|---|
-| Adding a new Kotlin service or HTTP routes | [0001](0001-use-monorepo-structure.md), [0002](0002-ktor-over-spring-boot.md), [0008](0008-grafana-stack-for-observability.md), [0011](0011-database-per-service-isolation.md), [0012](0012-api-gateway-aggregation-pattern.md), [0013](0013-keycloak-for-authentication-and-rbac.md) |
-| Adding or changing a Kotlin↔Python gRPC contract | [0003](0003-grpc-for-python-integration.md), [0024](0024-unified-valuation-rpc.md), [0029](0029-discovery-valuation-two-phase-contract.md) |
-| Producing or consuming a Kafka event | [0004](0004-kafka-for-async-messaging.md), [0014](0014-resilience-patterns-dlq-circuit-breaker.md), [0022](0022-correlation-id-propagation.md) |
-| Writing a Flyway migration | [0025](0025-flyway-backward-compatible-migrations.md), [0027](0027-database-migration-practices.md), [0011](0011-database-per-service-isolation.md), [0005](0005-timescaledb-for-time-series.md) |
-| Designing persistence for a new entity | [0009](0009-exposed-for-database-access.md), [0006](0006-selective-event-sourcing.md), [0011](0011-database-per-service-isolation.md), [0017](0017-hash-chained-audit-trail.md) |
-| Writing or modifying Kotlin tests | [0007](0007-kotest-for-testing.md) |
-| Adding a UI feature, panel, or dialog | [0010](0010-react-vite-for-frontend.md), [0012](0012-api-gateway-aggregation-pattern.md), [0016](0016-websocket-for-real-time-ui-updates.md), [0030](0030-contextual-filter-dropdowns.md) |
-| Adding caching | [0015](0015-redis-with-lettuce-for-shared-caching.md) |
-| Adding real-time UI updates | [0016](0016-websocket-for-real-time-ui-updates.md) |
-| Touching auth, roles, or permissions | [0013](0013-keycloak-for-authentication-and-rbac.md) |
-| Adding a new instrument type or asset class | [0020](0020-sealed-interface-instrument-type-hierarchy.md), [0029](0029-discovery-valuation-two-phase-contract.md), [0024](0024-unified-valuation-rpc.md) |
-| Changing the VaR / valuation workflow | [0021](0021-risk-orchestration-architecture.md), [0024](0024-unified-valuation-rpc.md), [0029](0029-discovery-valuation-two-phase-contract.md), [0018](0018-run-reproducibility-via-manifests.md) |
-| Touching the audit trail | [0017](0017-hash-chained-audit-trail.md), [0006](0006-selective-event-sourcing.md) |
-| Promoting / demoting EOD runs | [0019](0019-official-eod-labeling-with-promotion-governance.md), [0018](0018-run-reproducibility-via-manifests.md) |
-| Working on pre-trade limits | [0023](0023-hierarchical-limit-management.md) |
-| Touching KRD / DV01 / rates risk | [0028](0028-key-rate-duration-tenor-buckets.md) |
-| Touching counterparty / WWR / CVA | [0031](0031-wrong-way-risk-sector-taxonomy.md) |
-| Touching P&L attribution or Greeks | [0032](0032-intraday-pnl-greek-source.md), [0024](0024-unified-valuation-rpc.md) |
-| Touching vol surfaces | [0033](0033-vol-surface-diff-method.md) |
-| Touching the regime classifier | [0034](0034-regime-degraded-signal-policy.md) |
-| Touching FIX / order placement / venue connectivity | [0035](0035-fix-gateway-service-extraction.md) |
-| Tuning HPAs, memory limits, or Kafka consumer scaling | [0026](0026-hpa-scaling-metrics.md) |
-
-## Full list
-
-| # | Decision | Status |
-|---|---|---|
-| [0001](0001-use-monorepo-structure.md) | Use monorepo structure | Accepted |
-| [0002](0002-ktor-over-spring-boot.md) | Use Ktor over Spring Boot for Kotlin services | Accepted |
-| [0003](0003-grpc-for-python-integration.md) | Use gRPC for Kotlin-Python integration | Accepted |
-| [0004](0004-kafka-for-async-messaging.md) | Use Apache Kafka for asynchronous messaging | Accepted |
-| [0005](0005-timescaledb-for-time-series.md) | Use TimescaleDB for time-series data | Accepted |
-| [0006](0006-selective-event-sourcing.md) | Selective event sourcing for trade lifecycle | Accepted |
-| [0007](0007-kotest-for-testing.md) | Use Kotest over JUnit 5 for Kotlin testing | Accepted |
-| [0008](0008-grafana-stack-for-observability.md) | Use Grafana stack for observability | Accepted |
-| [0009](0009-exposed-for-database-access.md) | Use Exposed for database access | Accepted |
-| [0010](0010-react-vite-for-frontend.md) | Use React + Vite for frontend | Accepted |
-| [0011](0011-database-per-service-isolation.md) | Database-per-service isolation | Accepted |
-| [0012](0012-api-gateway-aggregation-pattern.md) | API gateway aggregation pattern | Accepted |
-| [0013](0013-keycloak-for-authentication-and-rbac.md) | Keycloak for authentication and RBAC | Accepted |
-| [0014](0014-resilience-patterns-dlq-circuit-breaker.md) | Resilience patterns — DLQ and circuit breaker | Accepted |
-| [0015](0015-redis-with-lettuce-for-shared-caching.md) | Redis with Lettuce for shared caching | Accepted |
-| [0016](0016-websocket-for-real-time-ui-updates.md) | WebSocket for real-time UI updates | Accepted |
-| [0017](0017-hash-chained-audit-trail.md) | Hash-chained audit trail | Accepted |
-| [0018](0018-run-reproducibility-via-manifests.md) | Run reproducibility via manifests | Accepted |
-| [0019](0019-official-eod-labeling-with-promotion-governance.md) | Official EOD/SOD labeling with promotion governance | Accepted |
-| [0020](0020-sealed-interface-instrument-type-hierarchy.md) | Sealed interface instrument type hierarchy | Accepted |
-| [0021](0021-risk-orchestration-architecture.md) | Risk orchestration architecture | Accepted |
-| [0022](0022-correlation-id-propagation.md) | Correlation ID propagation | Accepted |
-| [0023](0023-hierarchical-limit-management.md) | Hierarchical limit management | Accepted |
-| [0024](0024-unified-valuation-rpc.md) | Unified valuation RPC | Accepted |
-| [0025](0025-flyway-backward-compatible-migrations.md) | Flyway backward-compatible migration convention | Accepted |
-| [0026](0026-hpa-scaling-metrics.md) | HPA scaling metrics strategy | Proposed |
-| [0027](0027-database-migration-practices.md) | Database migration practices and constraints | Accepted |
-| [0028](0028-key-rate-duration-tenor-buckets.md) | Key rate duration — 4-tenor internal vs 12-tenor FRTB GIRR | Accepted |
-| [0029](0029-discovery-valuation-two-phase-contract.md) | Discovery-valuation two-phase contract | Accepted |
-| [0030](0030-contextual-filter-dropdowns.md) | Contextual filter dropdowns for data-driven types | Accepted |
-| [0031](0031-wrong-way-risk-sector-taxonomy.md) | Wrong-way risk sector taxonomy | Accepted |
-| [0032](0032-intraday-pnl-greek-source.md) | Greek source for intraday P&L attribution | Accepted |
-| [0033](0033-vol-surface-diff-method.md) | Vol-surface diff method — interpolation vs nearest-neighbour | Accepted |
-| [0034](0034-regime-degraded-signal-policy.md) | Regime classifier behaviour on degraded inputs | Accepted |
-| [0035](0035-fix-gateway-service-extraction.md) | Fix-gateway service extraction | Proposed |
+- ADR-0001: Use Monorepo Structure — Use a single monorepo for all components.
+- ADR-0002: Use Ktor Over Spring Boot for Kotlin Services — Use Ktor 3.1.3 for all Kotlin services.
+- ADR-0003: Use gRPC for Kotlin-Python Integration — Use gRPC with Protocol Buffers for synchronous communication between the Kotlin risk-orchestrator and the Python...
+- ADR-0004: Use Apache Kafka for Asynchronous Messaging — Use Apache Kafka 3.9.0 in KRaft mode (no ZooKeeper dependency).
+- ADR-0005: Use TimescaleDB for Time-Series Data — Use TimescaleDB (latest for PostgreSQL 17) as a PostgreSQL extension for time-series storage.
+- ADR-0006: Selective Event Sourcing for Trade Lifecycle — Apply event sourcing selectively
+- ADR-0007: Use Kotest Over JUnit 5 for Kotlin Testing — Use Kotest 5.9 as the primary testing framework for all Kotlin modules. Use MockK for mocking. Use Testcontainers...
+- ADR-0008: Use Grafana Stack (Prometheus + Loki + Tempo) for Observability — Use the Grafana observability stack
+- ADR-0009: Use Exposed for Database Access — Use Exposed 0.58.0 (JetBrains Kotlin SQL framework) with its DSL API.
+- ADR-0010: Use React + Vite for Frontend — Use React 19 with Vite 7.3.1, TypeScript, and Tailwind CSS 4.
+- ADR-0011: Database-per-Service Isolation — Every microservice owns its own database. No service reads or writes another service's database. Inter-service data...
+- ADR-0012: API Gateway Aggregation Pattern — Use a dedicated API gateway service (gateway/) that aggregates all backend services behind a single HTTP endpoint...
+- ADR-0013: Keycloak for Authentication and RBAC — Use Keycloak as the identity provider, issuing JWTs that the gateway validates. Roles and permissions are modelled...
+- ADR-0014: Resilience Patterns — DLQ and Circuit Breaker — Implement two resilience patterns in the shared common module
+- ADR-0015: Redis with Lettuce for Shared Caching — Use Redis (via Lettuce 6.5.3 client) as a shared cache for VaR results and quant diff snapshots. Cache access is...
+- ADR-0016: WebSocket for Real-Time UI Updates — Use Ktor's WebSocket support in the gateway to push real-time price updates to the UI. The PriceBroadcaster class...
+- ADR-0017: Hash-Chained Audit Trail — Implement a hash-chained audit trail in the audit-service. Each audit event record includes a recordhash (SHA-256 of...
+- ADR-0018: Run Reproducibility via Manifests — Capture a RunManifest for every risk calculation run. The manifest records all inputs and outputs needed to...
+- ADR-0019: Official EOD/SOD Labeling with Promotion Governance — Introduce RunLabel to classify each valuation run and EodPromotionService to govern the promotion of a completed run...
+- ADR-0020: Sealed Interface Instrument Type Hierarchy — Model instrument types as a Kotlin sealed interface hierarchy in the shared common module
+- ADR-0021: Risk Orchestration Architecture — The risk-orchestrator service owns the end-to-end VaR calculation workflow. VaRCalculationService orchestrates 5...
+- ADR-0022: Correlation ID Propagation — Propagate a correlationId (UUID string) across all Kafka events and HTTP requests
+- ADR-0023: Hierarchical Limit Management — Implement a hierarchical limit checking system in position-service with 6 levels
+- ADR-0024: Unified Valuation RPC — Introduce a unified Valuate RPC in riskcalculation.proto alongside the original CalculateVaR (deprecated but...
+- ADR-0025: Flyway Backward-Compatible Migration Convention — Apply the expand-contract pattern for all schema changes that remove, rename, or narrow existing structure.
+- ADR-0026: HPA Scaling Metrics Strategy — Extend all HPAs to use at least two metrics: CPU and memory. For services that consume Kafka topics, add a third...
+- ADR-0027: Database Migration Practices and Constraints — Every migration file must follow the naming pattern
+- ADR-0028: Key Rate Duration — 4-Tenor Internal vs 12-Tenor FRTB GIRR — Phase 1: Deploy with 4 analytical tenors (2Y, 5Y, 10Y, 30Y) for internal risk management.
+- ADR-0029: Discovery-Valuation Two-Phase Contract — The risk-engine is a pure calculator. It receives all inputs via its gRPC request and returns all outputs via its...
+- ADR-0030: Contextual Filter Dropdowns — Filter dropdowns for data-driven types (instrument types in PositionGrid and TradeBlotter) derive their options from...
+- ADR-0031: Wrong-Way Risk Sector Taxonomy — Spec invariant WrongWayRiskSectorMatch (counterparty-risk.allium:484-486) requires
+- ADR-0032: Greek Source for Intraday P&L Attribution — Spec intraday-pnl.allium:233-241 is unambiguous
+- ADR-0033: Vol-Surface Diff Method — Interpolation vs Nearest-Neighbour — Spec market-data.allium:91-92,244-249 defines the surface diff
+- ADR-0034: Regime Classifier Behaviour on Degraded Inputs — Spec regime.allium:373-387 (HandleDegradedSignals)
+- ADR-0035: Fix-Gateway Service Extraction — Introduce a new microservice, fix-gateway, that owns all FIX/venue-protocol concerns. position-service retains all...
