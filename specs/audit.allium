@@ -41,6 +41,7 @@ entity AuditEvent {
     received_at: Timestamp
     user_id: String?
     user_role: String?
+    trader_id: String?
     event_type: AuditEventType
     previous_hash: String?
     record_hash: String
@@ -98,6 +99,11 @@ entity VerificationCheckpoint {
 config {
     audit_retention: Duration = 2555.days
     verification_batch_size: Integer = 10000
+    -- Maximum allowed lag, measured from when /api/v1/admin/demo-reset
+    -- returns 200 to when the audit hash chain catches up with the
+    -- resulting trade events. Pinned by
+    -- AuditChainSettleAfterResetIntegrationTest.
+    audit_settle_after_reset_sla: Duration = 90.seconds
 }
 
 ------------------------------------------------------------
@@ -128,6 +134,7 @@ rule RecordAuditEventOnBook {
         price_currency: trade.price.currency,
         traded_at: normalized_traded_at,
         received_at: now,
+        trader_id: trade.trader_id,
         event_type: trade_booked,
         previous_hash: latest_hash,
         record_hash: compute_hash(all_fields, latest_hash)
@@ -138,9 +145,12 @@ rule RecordAuditEventOnBook {
         -- Hash computation (SHA-256) includes all fields in order:
         -- received_at, trade_id, book_id, instrument_id, asset_class, side,
         -- quantity, price_amount, price_currency, traded_at, user_id, user_role,
-        -- event_type, model_name, scenario_id, limit_id, submission_id, details,
-        -- previous_hash. Null fields are substituted with empty string (except
-        -- user_id, user_role, and previous_hash which use "NULL").
+        -- trader_id, event_type, model_name, scenario_id, limit_id,
+        -- submission_id, details, previous_hash. Null fields are substituted
+        -- with empty string (except user_id, user_role, trader_id, and
+        -- previous_hash which use "NULL"). The trader_id slot was added by
+        -- V12; replaying events written before V12 requires the same
+        -- "NULL"-substitution behaviour so the chain re-verifies.
         -- Numeric values and timestamps are normalized before hashing
         -- to match PostgreSQL storage precision (avoids hash drift).
 }
@@ -163,6 +173,7 @@ rule RecordAuditEventOnAmend {
         price_currency: trade.price.currency,
         traded_at: normalized_traded_at,
         received_at: now,
+        trader_id: trade.trader_id,
         event_type: trade_amended,
         previous_hash: latest_hash,
         record_hash: compute_hash(all_fields, latest_hash)
@@ -187,6 +198,7 @@ rule RecordAuditEventOnCancel {
         price_currency: trade.price.currency,
         traded_at: normalized_traded_at,
         received_at: now,
+        trader_id: trade.trader_id,
         event_type: trade_cancelled,
         previous_hash: latest_hash,
         record_hash: compute_hash(all_fields, latest_hash)
@@ -227,7 +239,10 @@ rule RecordGovernanceAuditEvent {
         -- Exactly one of model_name, scenario_id, limit_id, submission_id, alert_id
         -- will be non-null depending on event_type. alert_id is a top-level field
         -- on the wire event (GovernanceAuditEvent.alertId) — it is NOT embedded in
-        -- the free-text details payload.
+        -- the free-text details payload. NOTE: the audit-service consumer
+        -- currently drops alert_id on persistence (no column, no hash slot);
+        -- see docs/plans/spec-weeding-followup-2026-05-18.md for the code-side
+        -- fix that adds the column and hash position.
         -- book_id is populated for stress test runs and risk calculation events.
         -- details carries additional context (e.g. scenario name, severity change).
 }
