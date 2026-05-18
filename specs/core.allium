@@ -67,6 +67,9 @@ enum Permission {
 enum ScenarioCategory { regulatory_mandated | internal_approved | supervisory_requested }
 
 enum DataQualityFlag { full_attribution | price_only | stale_greeks }
+-- Implementation alias: the in-process Kotlin enum is named
+-- AttributionDataQuality (risk-orchestrator). DB columns are
+-- data_quality_flag VARCHAR(32) carrying these same members.
 
 enum AssetClass { equity | fixed_income | fx | commodity | derivative }
 

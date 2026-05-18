@@ -209,6 +209,15 @@ deferred extract_metric
     --       "FACTOR_MODEL", returns 1.0; else null. A rule with
     --       threshold=0.5, operator=greater_than fires whenever the
     --       factor model reports concentration risk.
+    --   risk_budget_exceeded -> sentinel detection: if the snapshot's
+    --       concentration list contains an entry with instrument_id =
+    --       "VAR_BUDGET", returns 1.0; else null. The producer is
+    --       hierarchy-risk/AlertOnBudgetBreach via
+    --       KafkaBudgetBreachAlertPublisher, which encodes the breach
+    --       into the same wire-level concentration list under that
+    --       sentinel instrument_id. A rule with threshold=0.5,
+    --       operator=greater_than fires whenever a hierarchy entity's
+    --       VaR exceeds its allocated VAR_BUDGET.
 
 -- Auto-resolution
 
@@ -249,6 +258,12 @@ rule AutoResolveAlerts {
         -- audit log. The audit event uses user_id=system / user_role=SYSTEM
         -- because resolution is automatic (no human actor) and carries the
         -- resolved_reason as details.
+        --
+        -- Implementation gap: RulesEngine.autoResolve currently flips the
+        -- status but does NOT emit GovernanceTransitionOccurred — the
+        -- audit publisher is not wired into RulesEngine, so the
+        -- hash-chained audit log is missing every auto-resolution event.
+        -- Tracked in docs/plans/spec-weeding-followup-2026-05-18.md.
 }
 
 -- Suggested action generation
@@ -324,7 +339,8 @@ rule AcknowledgeAlert {
         -- alert_acknowledged. The audit module's
         -- RecordGovernanceAuditEvent rule appends the corresponding
         -- AuditEvent to the hash chain. Implementation:
-        -- notification-service Application.kt POST /alerts/{id}/ack.
+        -- notification-service Application.kt POST /alerts/{alertId}/acknowledge.
+        -- The gateway HttpNotificationServiceClient mirrors the path.
 }
 
 rule AcknowledgeAlertRejectedAlreadyResolved {
