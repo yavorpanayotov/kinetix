@@ -77,4 +77,48 @@ describe('useWorkspace', () => {
     expect(result.current.preferences.defaultTab).toBe('risk')
     expect(result.current.preferences.defaultBook).toBe(DEFAULT_PREFERENCES.defaultBook)
   })
+
+  it('defaults the Risk-dashboard sections to all open', () => {
+    const { result } = renderHook(() => useWorkspace())
+
+    expect(result.current.preferences.riskDashboardSections).toEqual({
+      marketRisk: true,
+      positionFactor: true,
+      pnlStressLiquidity: true,
+      limitsJobs: true,
+    })
+  })
+
+  it('persists Risk-dashboard section collapse state to localStorage', () => {
+    const { result } = renderHook(() => useWorkspace())
+
+    act(() => {
+      result.current.updatePreference('riskDashboardSections', {
+        marketRisk: false,
+        positionFactor: true,
+        pnlStressLiquidity: true,
+        limitsJobs: false,
+      })
+    })
+
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY)!)
+    expect(saved.riskDashboardSections.marketRisk).toBe(false)
+    expect(saved.riskDashboardSections.limitsJobs).toBe(false)
+  })
+
+  it('merges saved Risk-dashboard sections with defaults when partial', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ riskDashboardSections: { marketRisk: false } }),
+    )
+
+    const { result } = renderHook(() => useWorkspace())
+
+    // Saved field overrides default
+    expect(result.current.preferences.riskDashboardSections.marketRisk).toBe(false)
+    // Missing nested keys fall back to defaults
+    expect(result.current.preferences.riskDashboardSections.positionFactor).toBe(true)
+    expect(result.current.preferences.riskDashboardSections.pnlStressLiquidity).toBe(true)
+    expect(result.current.preferences.riskDashboardSections.limitsJobs).toBe(true)
+  })
 })
