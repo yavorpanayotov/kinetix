@@ -8,6 +8,10 @@ from kinetix_risk.models import (
     SensitivityInput,
 )
 
+import pytest
+
+pytestmark = pytest.mark.unit
+
 
 class TestFrtbRiskClass:
     def test_seven_risk_classes_exist(self):

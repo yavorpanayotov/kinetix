@@ -6,6 +6,10 @@ from kinetix_risk.ml.anomaly_detector import (
     train_anomaly_detector,
 )
 
+import pytest
+
+pytestmark = pytest.mark.unit
+
 
 class TestAnomalyTrainingData:
     def test_generate_normal_data_shape(self):

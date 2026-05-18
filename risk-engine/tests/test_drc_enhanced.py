@@ -11,6 +11,9 @@ from kinetix_risk.frtb.drc_enhanced import calculate_enhanced_drc
 from kinetix_risk.models import AssetClass, CreditPositionRisk, EnhancedDrcResult, PositionRisk
 
 
+pytestmark = pytest.mark.unit
+
+
 class TestCreditQualityDefaultProbabilities:
     def test_credit_quality_step_returns_correct_default_prob(self):
         expected = {

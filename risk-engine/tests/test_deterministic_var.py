@@ -3,6 +3,10 @@ from kinetix_risk.models import (
 )
 from kinetix_risk.valuation import calculate_valuation
 
+import pytest
+
+pytestmark = pytest.mark.unit
+
 
 class TestDeterministicVaR:
     def test_identical_inputs_produce_identical_var(self):

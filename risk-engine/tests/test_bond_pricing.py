@@ -4,6 +4,9 @@ from kinetix_risk.bond_pricing import bond_dv01, bond_modified_duration, bond_pv
 from kinetix_risk.models import AssetClass, BondPosition
 
 
+pytestmark = pytest.mark.unit
+
+
 class TestBondPricing:
     def _par_bond(self):
         return BondPosition(

@@ -4,6 +4,9 @@ from kinetix_risk.frtb.rrao import calculate_rrao
 from kinetix_risk.models import AssetClass, PositionRisk
 
 
+pytestmark = pytest.mark.unit
+
+
 class TestRraoCalculation:
     def test_derivative_generates_rrao(self):
         positions = [

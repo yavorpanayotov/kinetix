@@ -7,6 +7,10 @@ from kinetix_risk.ml.data_generator import (
 )
 from kinetix_risk.ml.vol_predictor import VolatilityLSTM, train_vol_model
 
+import pytest
+
+pytestmark = pytest.mark.unit
+
 
 class TestSyntheticDataGeneration:
     def test_generate_returns_shape(self):

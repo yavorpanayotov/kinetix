@@ -5,6 +5,9 @@ from kinetix_risk.frtb.sbm import calculate_sbm
 from kinetix_risk.models import AssetClass, FrtbRiskClass, PositionRisk
 
 
+pytestmark = pytest.mark.unit
+
+
 def _equity_position(market_value: float = 1_000_000.0) -> PositionRisk:
     return PositionRisk(
         instrument_id="AAPL",

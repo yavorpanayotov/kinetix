@@ -2,6 +2,10 @@ from kinetix.risk import market_data_dependencies_pb2, risk_calculation_pb2
 from kinetix_risk.converters import dependencies_to_proto
 from kinetix_risk.dependencies import MarketDataDependency
 
+import pytest
+
+pytestmark = pytest.mark.unit
+
 
 class TestDependenciesToProto:
     def test_empty_list(self):

@@ -65,8 +65,11 @@ entity BacktestResultRecord {
     traffic_light_zone: core/TrafficLightZone
     calculated_at: Timestamp
     input_digest: String?
-    window_start: String?
-    window_end: String?
+    -- Day-precision dates of the first and last backtest observations.
+    -- Persisted as DATE columns; Allium has no first-class Date type so
+    -- they appear here as Timestamp? with day-precision truncation.
+    window_start: Timestamp?
+    window_end: Timestamp?
     model_version: String?
 }
 

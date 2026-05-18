@@ -18,8 +18,9 @@ config {
     auto_close_time: String = "17:30"
 
     -- Master toggle for all scheduled jobs (VaR, price-event, auto-close).
-    -- When false, the auto-close loop still runs but the tick is never reached
-    -- because the job is not launched.
+    -- When false, the auto-close coroutine is not launched at all
+    -- (Application.kt gates the launch on scheduler_enabled); the tick
+    -- rule below cannot fire.
     scheduler_enabled: Boolean = true
 
     -- Polling interval for the auto-close loop.
@@ -101,13 +102,23 @@ rule AutoCloseBookEvaluation {
         -- four output types (VaR, ES, Greeks, PV) to produce a complete
         -- risk snapshot suitable for regulatory reporting.
         --
-        -- Promotion is driven by AutoClosePromoteOnRiskResult, which fires
-        -- when the ensuing RiskResultPublished trigger arrives with
-        -- trigger_type = auto_close.
+        -- Implementation note: ScheduledAutoCloseJob.tick() calls
+        -- VarCalculationService.calculateVaR synchronously, takes the
+        -- returned jobId, and immediately calls
+        -- EodPromotionService.promoteToOfficialEodAutomatically(jobId)
+        -- in the same loop iteration. The three-rule decomposition
+        -- below (AutoClosePromoteOnRiskResult → AutoClosePromotion via
+        -- RiskResultPublished) is the spec-level view of the same
+        -- causal chain; today there is no Kafka hop and no asynchronous
+        -- listener. Threading the chain through Kafka so promotion
+        -- could be driven by an external publisher is a possible
+        -- future refactor — captured in
+        -- docs/plans/spec-weeding-followup-2026-05-18.md — but is
+        -- explicitly NOT how the system runs today.
         --
         -- If risk/CalculateVaR cannot produce a completed job (e.g. no
-        -- positions), no RiskResultPublished fires and promotion is skipped
-        -- for that book. On exception the scheduling loop logs and continues.
+        -- positions), no promotion happens and the scheduling loop
+        -- logs and continues to the next book.
 }
 
 -- Bridge: when the auto-close VaR calculation publishes a result, queue
@@ -126,9 +137,14 @@ rule AutoClosePromoteOnRiskResult {
     )
 
     @guidance
-        -- RiskResultPublished is emitted by risk/CalculateVaR after Phase 5
-        -- (PUBLISH_RESULT). Filtering on trigger_type = auto_close restricts
-        -- auto-promotion to jobs fired by the scheduler loop.
+        -- ASPIRATIONAL — included to document the event-driven chain the
+        -- spec models. In the current implementation
+        -- (ScheduledAutoCloseJob.tick()), AutoCloseBookEvaluation,
+        -- AutoClosePromoteOnRiskResult and AutoClosePromotion all collapse
+        -- into a synchronous sequence within one scheduler tick; no
+        -- RiskResultPublished listener fires this rule. See follow-up
+        -- plan for the Kafka-driven refactor that would make this path
+        -- live.
 }
 
 -- Automatic promotion: bypasses the four-eyes check because the trigger

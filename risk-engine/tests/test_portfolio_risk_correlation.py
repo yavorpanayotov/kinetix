@@ -7,6 +7,9 @@ from kinetix_risk.models import (
 from kinetix_risk.portfolio_risk import calculate_book_var
 
 
+pytestmark = pytest.mark.unit
+
+
 def _multi_asset_positions() -> list[PositionRisk]:
     return [
         PositionRisk("AAPL", AssetClass.EQUITY, 500_000.0, "USD"),

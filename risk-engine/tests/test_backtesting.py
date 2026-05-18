@@ -5,6 +5,9 @@ from kinetix_risk.backtesting import run_backtest
 from kinetix_risk.models import BacktestResult, TrafficLightZone
 
 
+pytestmark = pytest.mark.unit
+
+
 class TestBacktestViolationCounting:
     def test_backtest_counts_var_violations(self):
         # VaR predictions are 100 each day, actual losses exceed on 3 days

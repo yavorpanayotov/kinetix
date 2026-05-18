@@ -8,6 +8,9 @@ from kinetix.risk import risk_calculation_pb2, risk_calculation_pb2_grpc
 from kinetix_risk.server import RiskCalculationServicer
 
 
+pytestmark = pytest.mark.unit
+
+
 @pytest.fixture
 def grpc_channel():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=2))

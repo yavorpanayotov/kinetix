@@ -8,6 +8,9 @@ from kinetix_risk.ml.model_store import ModelStore
 from kinetix_risk.ml.vol_predictor import VolatilityLSTM
 
 
+pytestmark = pytest.mark.unit
+
+
 class TestModelStore:
     def test_save_and_load_model(self, tmp_path):
         store = ModelStore(tmp_path / "models")

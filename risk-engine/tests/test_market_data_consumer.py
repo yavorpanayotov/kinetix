@@ -7,6 +7,9 @@ from kinetix_risk.market_data_consumer import MarketDataBundle, consume_market_d
 from kinetix_risk.models import AssetClass
 
 
+pytestmark = pytest.mark.unit
+
+
 class TestConsumeMarketDataEmpty:
     def test_empty_market_data_returns_none_values(self):
         bundle = consume_market_data([])

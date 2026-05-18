@@ -4,6 +4,9 @@ from kinetix_risk.frtb.calculator import calculate_frtb
 from kinetix_risk.models import AssetClass, PositionRisk
 
 
+pytestmark = pytest.mark.unit
+
+
 def _mixed_positions() -> list[PositionRisk]:
     return [
         PositionRisk("AAPL", AssetClass.EQUITY, 1_000_000.0, "USD"),

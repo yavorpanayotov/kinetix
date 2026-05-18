@@ -4,6 +4,9 @@ from kinetix_risk.market_data_models import VolSurfacePoint, VolSurface, YieldCu
 from kinetix_risk.market_data_consumer import consume_market_data
 
 
+pytestmark = pytest.mark.unit
+
+
 class TestVolSurfaceInterpolation:
     def test_vol_at_exact_point_returns_that_vol(self):
         surface = VolSurface(points=[

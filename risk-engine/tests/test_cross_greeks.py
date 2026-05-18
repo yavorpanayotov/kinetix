@@ -6,6 +6,9 @@ from kinetix_risk.cross_greeks import calculate_vanna, calculate_volga, calculat
 from kinetix_risk.models import OptionType
 
 
+pytestmark = pytest.mark.unit
+
+
 class TestVanna:
     def test_vanna_is_positive_for_otm_call(self):
         """Vanna for an out-of-the-money call should be positive.

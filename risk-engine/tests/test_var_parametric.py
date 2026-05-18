@@ -6,6 +6,9 @@ from kinetix_risk.models import AssetClass, AssetClassExposure, ConfidenceLevel
 from kinetix_risk.var_parametric import calculate_parametric_var
 
 
+pytestmark = pytest.mark.unit
+
+
 class TestParametricVaRSingleAsset:
     """Single asset: VaR = z * sigma_daily * market_value * sqrt(T)
     where sigma_daily = sigma_annual / sqrt(252)

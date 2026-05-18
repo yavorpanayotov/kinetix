@@ -5,6 +5,9 @@ from kinetix_risk.models import AssetClass, AssetClassExposure, ConfidenceLevel
 from kinetix_risk.var_monte_carlo import calculate_monte_carlo_var
 
 
+pytestmark = pytest.mark.unit
+
+
 class TestMonteCarloVaRSingleAsset:
     def test_deterministic_with_seed(self):
         exposures = [AssetClassExposure(AssetClass.EQUITY, 100_000.0, 0.20)]

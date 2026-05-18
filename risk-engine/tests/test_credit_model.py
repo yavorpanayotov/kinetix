@@ -8,6 +8,10 @@ from kinetix_risk.ml.credit_model import (
     train_credit_model,
 )
 
+import pytest
+
+pytestmark = pytest.mark.unit
+
 
 class TestSyntheticCreditData:
     def test_generate_training_data_shapes(self):

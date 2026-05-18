@@ -7,6 +7,9 @@ from kinetix_risk.models import (
 from kinetix_risk.portfolio_risk import calculate_book_var
 
 
+pytestmark = pytest.mark.unit
+
+
 def make_equity_position(instrument_id: str, market_value: float) -> PositionRisk:
     return PositionRisk(instrument_id, AssetClass.EQUITY, market_value, "USD")
 

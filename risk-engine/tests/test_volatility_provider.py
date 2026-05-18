@@ -11,6 +11,9 @@ from kinetix_risk.portfolio_risk import calculate_book_var
 from kinetix_risk.volatility import DEFAULT_VOLATILITIES, VolatilityProvider
 
 
+pytestmark = pytest.mark.unit
+
+
 class TestVolatilityProvider:
     def test_static_provider_returns_default_vols(self):
         provider = VolatilityProvider.static()

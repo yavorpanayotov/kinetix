@@ -12,6 +12,10 @@ from kinetix_risk.models import (
     SbmResult,
 )
 
+import pytest
+
+pytestmark = pytest.mark.unit
+
 
 def _sample_frtb_result() -> FrtbResult:
     charges = [

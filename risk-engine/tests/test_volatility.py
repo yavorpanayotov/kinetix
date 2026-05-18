@@ -5,6 +5,9 @@ from kinetix_risk.models import AssetClass
 from kinetix_risk.volatility import get_volatility, get_correlation_matrix, get_sub_correlation_matrix
 
 
+pytestmark = pytest.mark.unit
+
+
 class TestDefaultVolatilities:
     def test_equity_volatility(self):
         assert get_volatility(AssetClass.EQUITY) == pytest.approx(0.20)

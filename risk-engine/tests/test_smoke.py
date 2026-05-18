@@ -1,5 +1,9 @@
 from kinetix_risk import __version__
 
+import pytest
+
+pytestmark = pytest.mark.unit
+
 
 def test_version():
     assert __version__ == "0.1.0"

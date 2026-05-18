@@ -20,17 +20,39 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest>=8.0",
+    "pytest-cov>=5.0",
     "grpcio-tools>=1.60",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--junitxml=reports/pytest.xml"
+addopts = """\
+    --strict-markers \
+    --junitxml=reports/pytest.xml \
+    --cov=src/kinetix_risk \
+    --cov-report=term-missing \
+    --cov-report=xml:reports/coverage.xml \
+    --cov-report=html:reports/htmlcov\
+"""
 markers = [
     "unit: Pure logic tests — no I/O, no gRPC servers",
     "integration: Tests that start an in-process gRPC server",
     "performance: Load and latency tests",
 ]
+
+[tool.coverage.run]
+branch = true
+source = ["src/kinetix_risk"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+show_missing = true
+skip_covered = false
 
 [build-system]
 requires = ["hatchling"]

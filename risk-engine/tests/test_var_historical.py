@@ -5,6 +5,9 @@ from kinetix_risk.models import AssetClass, AssetClassExposure, ConfidenceLevel
 from kinetix_risk.var_historical import calculate_historical_var
 
 
+pytestmark = pytest.mark.unit
+
+
 class TestHistoricalVaRFallbackWarning:
     def test_warns_when_historical_returns_is_none(self, caplog):
         """When historical_returns is not provided, a WARNING must be logged."""

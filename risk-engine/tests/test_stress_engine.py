@@ -9,6 +9,9 @@ from kinetix_risk.stress.scenarios import get_scenario
 from kinetix_risk.stress.builder import build_hypothetical_scenario
 
 
+pytestmark = pytest.mark.unit
+
+
 def _sample_positions() -> list[PositionRisk]:
     return [
         PositionRisk("AAPL", AssetClass.EQUITY, 1_000_000.0, "USD"),

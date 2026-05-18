@@ -4,6 +4,9 @@ import pytest
 from kinetix_risk.correlation import estimate_correlation
 
 
+pytestmark = pytest.mark.unit
+
+
 class TestLedoitWolfCorrelation:
     def test_ledoit_wolf_returns_symmetric_positive_definite_matrix(self):
         """The estimated correlation matrix must be symmetric and positive definite."""

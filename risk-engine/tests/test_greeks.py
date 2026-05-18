@@ -7,6 +7,9 @@ from kinetix_risk.models import (
 from kinetix_risk.volatility import DEFAULT_VOLATILITIES, VolatilityProvider
 
 
+pytestmark = pytest.mark.unit
+
+
 def _sample_positions() -> list[PositionRisk]:
     return [
         PositionRisk("AAPL", AssetClass.EQUITY, 1_000_000.0, "USD"),

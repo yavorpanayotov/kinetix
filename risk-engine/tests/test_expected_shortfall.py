@@ -5,6 +5,9 @@ from kinetix_risk.models import ConfidenceLevel
 from kinetix_risk.expected_shortfall import calculate_expected_shortfall
 
 
+pytestmark = pytest.mark.unit
+
+
 class TestExpectedShortfall:
     def test_sorted_losses_95(self):
         # 100 losses from 1 to 100

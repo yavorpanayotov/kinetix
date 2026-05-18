@@ -5,6 +5,9 @@ from kinetix_risk.models import AssetClass, SwapPosition
 from kinetix_risk.swap_pricing import swap_dv01, swap_pv
 
 
+pytestmark = pytest.mark.unit
+
+
 class TestSwapPricing:
     def _sample_swap(self):
         return SwapPosition(

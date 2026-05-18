@@ -5,6 +5,9 @@ from kinetix_risk.models import AssetClass, AssetClassExposure, ConfidenceLevel
 from kinetix_risk.var_historical import calculate_historical_var
 
 
+pytestmark = pytest.mark.unit
+
+
 class TestHistoricalVaRWithActualReturns:
     """True historical VaR uses real historical return series rather than
     randomly generated normal returns."""

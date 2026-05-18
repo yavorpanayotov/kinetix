@@ -14,6 +14,9 @@ from kinetix_risk.black_scholes import (
 )
 
 
+pytestmark = pytest.mark.unit
+
+
 def _itm_call() -> OptionPosition:
     """In-the-money call: spot > strike."""
     return OptionPosition(

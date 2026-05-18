@@ -3,6 +3,10 @@ from google.protobuf.timestamp_pb2 import Timestamp
 from kinetix.risk import risk_calculation_pb2
 from kinetix_risk.converters import proto_market_data_to_domain
 
+import pytest
+
+pytestmark = pytest.mark.unit
+
 
 class TestProtoMarketDataToDomain:
     def test_time_series_conversion(self):

@@ -4,6 +4,9 @@ from kinetix_risk.frtb.drc import calculate_drc
 from kinetix_risk.models import AssetClass, PositionRisk
 
 
+pytestmark = pytest.mark.unit
+
+
 class TestDrcCalculation:
     def test_fixed_income_position_has_drc(self):
         positions = [

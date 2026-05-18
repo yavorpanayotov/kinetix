@@ -6,6 +6,9 @@ from kinetix_risk.models import AssetClass
 from kinetix_risk.volatility import VolatilityProvider
 
 
+pytestmark = pytest.mark.unit
+
+
 class TestEwmaVolatility:
     def test_ewma_vol_with_constant_returns_converges_to_realized(self):
         """When returns are constant in magnitude the EWMA vol should

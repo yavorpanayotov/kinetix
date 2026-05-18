@@ -5,6 +5,9 @@ from kinetix_risk.models import AssetClass, AssetClassExposure, ConfidenceLevel
 from kinetix_risk.monte_carlo import calculate_monte_carlo_var_antithetic
 
 
+pytestmark = pytest.mark.unit
+
+
 def _sample_exposures() -> list[AssetClassExposure]:
     return [
         AssetClassExposure(AssetClass.EQUITY, 1_000_000.0, 0.20),

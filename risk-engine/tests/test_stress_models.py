@@ -4,6 +4,10 @@ from kinetix_risk.models import (
     AssetClass, AssetClassImpact, StressScenario, StressTestResult,
 )
 
+import pytest
+
+pytestmark = pytest.mark.unit
+
 
 class TestStressScenario:
     def test_scenario_has_required_fields(self):
