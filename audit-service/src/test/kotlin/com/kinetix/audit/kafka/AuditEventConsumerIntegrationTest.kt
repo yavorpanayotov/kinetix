@@ -1,8 +1,9 @@
 package com.kinetix.audit.kafka
 
 import com.kinetix.audit.persistence.DatabaseTestSetup
-import com.kinetix.common.kafka.events.TradeEventMessage
 import com.kinetix.audit.persistence.ExposedAuditEventRepository
+import com.kinetix.common.kafka.events.TradeEventMessage
+import com.kinetix.testsupport.kafka.KafkaTestSetup
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.delay

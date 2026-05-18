@@ -1,8 +1,8 @@
 package com.kinetix.audit
 
 import com.kinetix.audit.kafka.AuditEventConsumer
-import com.kinetix.audit.kafka.KafkaTestSetup
 import com.kinetix.audit.persistence.AuditEventRepository
+import com.kinetix.testsupport.kafka.KafkaTestSetup
 import com.kinetix.audit.persistence.DatabaseTestSetup
 import com.kinetix.audit.persistence.ExposedAuditEventRepository
 import com.kinetix.audit.routes.demoResetRoutes
