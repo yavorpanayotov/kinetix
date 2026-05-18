@@ -329,7 +329,7 @@ User-approved on 2026-05-18. The work-plan loop is authorised to add the backend
 
 ### Phase 7 — UI follow-ups noticed during the main loop
 
-- [ ] FU1 Extend `ErrorCard` API with optional `retryTestId` and `retryLabel`; convert `VaRDashboard`, `EodTimelineTab`, and `HedgeRecommendationPanel`'s ad-hoc error states to use it. Preserves their existing Playwright test IDs.
+- [x] FU1 Extend `ErrorCard` API with optional `retryTestId` and `retryLabel`; convert `VaRDashboard`, `EodTimelineTab`, and `HedgeRecommendationPanel`'s ad-hoc error states to use it. Preserves their existing Playwright test IDs.
 - [ ] FU2 Saved views: when the active view changes at runtime, push the view's hierarchy selection, time range, and column-visibility prefs down into the relevant hooks. Currently only `defaultTab` re-applies. Source files: `useWorkspace`, `App.tsx`, `useHierarchy` (or equivalent).
 - [ ] FU3 Apply `formatSignedMoney`'s `+`-prefix treatment to the `formatNum`-based P&L call sites that pair with `pnlColorClass`: `PnlTickerStrip`, `PnlSummaryCard`, `PnlWaterfallChart`, `PnlAttributionTable`, `IntradayPnlChart`, `StrategyGroupRow`. Add a `formatSignedNum` helper (or extend `formatNum` with a `signed` option) and wire it up.
 - [ ] FU4 Strip the partial `md:` / `lg:` / `hidden sm:` Tailwind accommodations across the codebase. The §9 small-viewport warning makes them dead code; remove them so future contributors aren't tempted to extend half-responsive patterns.
