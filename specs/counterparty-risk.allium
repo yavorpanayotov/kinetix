@@ -193,9 +193,10 @@ entity CounterpartyExposureSnapshot {
     net_net_exposure: Decimal?
     wrong_way_risk_flags: List<String>?
 
-    -- Derived
+    -- Derived (overlaid at read time, not persisted)
     has_pfe: peak_pfe != null
     has_wrong_way_risk: wrong_way_risk_flags != null and wrong_way_risk_flags.count > 0
+    agreement_status: ref/NettingAgreementStatus?
 
     @guidance
         -- net_net_exposure = current_net_exposure - collateral_held + collateral_posted.
@@ -205,6 +206,18 @@ entity CounterpartyExposureSnapshot {
         -- rather than the counterparty's own CDS spread or PD.
         -- wrong_way_risk_flags are plain strings; see CPTY-04 guidance for future
         -- structured type plans.
+        --
+        -- agreement_status is a read-time overlay populated from the
+        -- counterparty's NettingAgreement.expiry_date (see
+        -- reference-data.allium). When `expired`, downstream consumers
+        -- treat the agreement as if close-out netting were unavailable.
+        -- Surfaced on the CounterpartyRiskDashboard as the expired-ISDA
+        -- anomaly pill. Not persisted on the snapshot — it is recomputed
+        -- every read.
+        --
+        -- peak_pfe is currently emitted as 0 by the mark-to-market path;
+        -- merging the Monte Carlo PFE pipeline output into the snapshot
+        -- is tracked in docs/plans/spec-weeding-followup-2026-05-18.md.
         --
         -- Aspirational fields not yet in the code:
         --   book_id: String?          -- per-book breakdown of exposure
