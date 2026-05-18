@@ -68,8 +68,12 @@ value PositionPnlAttribution {
     rho_pnl: Decimal
     vanna_pnl: Decimal       -- vanna * dS * dvol
     volga_pnl: Decimal       -- 0.5 * volga * dvol^2
-    charm_pnl: Decimal       -- charm * dS * dT
-    cross_gamma_pnl: Decimal -- sum over i,j of cross_gamma(i,j) * dS_i * dS_j
+    charm_pnl: Decimal       -- charm * dS * dt; dt = 1/252 for the daily run
+    cross_gamma_pnl: Decimal -- correlation-weighted: sum over (i,j) of
+                             -- corr(i,j) * gamma_i*dS_i * gamma_j*dS_j
+                             -- (true analytical cross-gamma is not sourced;
+                             -- the correlation-weighted form is the wire
+                             -- contract)
     unexplained_pnl: Decimal
 }
 
@@ -128,10 +132,15 @@ entity ValuationJob {
     correlation_id: String?
     market_data_snapshot_id: String?
 
-    -- Regime audit: original request values before any regime override.
-    -- Null when no override was active (calculation_type already holds the requested value).
-    requested_calculation_type: String?
-    requested_confidence_level: String?
+    -- Regime audit: the original request values, recorded on every run
+    -- regardless of whether a regime override was applied. When no
+    -- override is active these mirror calculation_type / confidence_level /
+    -- time_horizon_days; under override they diverge. The unconditional
+    -- recording (vs. populating only on override) is intentional —
+    -- VaRCalculationService.kt:387-391 documents the choice as audit-friendly
+    -- and reproducibility-friendly.
+    requested_calculation_type: String
+    requested_confidence_level: String
     requested_time_horizon_days: Integer?
 
     -- Outputs (present only when job completes; ? because not every
@@ -167,6 +176,13 @@ entity ValuationJob {
         -- official_eod, and a subsequent EOD promotion supersedes the
         -- previous one. Demotion clears the label (handled by setting
         -- run_label to null, outside the transition graph).
+        --
+        -- Enforcement note: the recorder
+        -- (ExposedValuationJobRecorder.promoteToOfficialEod) currently
+        -- accepts a promotion call regardless of the source run_label —
+        -- it does not require pre_close. Tightening that precondition
+        -- to match this graph is tracked in
+        -- docs/plans/spec-weeding-followup-2026-05-18.md.
         pre_close -> official_eod
         official_eod -> superseded_eod
         terminal: adhoc, sod, intraday, overnight, superseded_eod
@@ -188,7 +204,7 @@ entity RunManifest {
     confidence_level: String
     time_horizon_days: Integer
     num_simulations: Integer
-    monte_carlo_seed: Integer?
+    monte_carlo_seed: Integer
     position_count: Integer
     position_digest: String
     market_data_digest: String
@@ -302,8 +318,9 @@ entity PnlAttribution {
     rho_pnl: Decimal
     vanna_pnl: Decimal       -- vanna * dS * dvol; summed across positions
     volga_pnl: Decimal       -- 0.5 * volga * dvol^2; summed across positions
-    charm_pnl: Decimal       -- charm * dS * dT; summed across positions
-    cross_gamma_pnl: Decimal -- sum over i,j of cross_gamma(i,j) * dS_i * dS_j
+    charm_pnl: Decimal       -- charm * dS * dt (dt = 1/252); summed across positions
+    cross_gamma_pnl: Decimal -- correlation-weighted approximation
+                             -- (see PositionPnlAttribution.cross_gamma_pnl)
     data_quality_flag: core/DataQualityFlag
     unexplained_pnl: Decimal
     position_attributions: List<PositionPnlAttribution>
@@ -556,26 +573,47 @@ rule ComputePnlAttribution {
         -- 3. Fetch current positions from position-service.
         -- 4. Fetch intraday market deltas from live services:
         --      dS = current_price - sod_price  (from price-service)
-        --      dvol = current_vol - sod_vol     (from volatility-service; NOT hardcoded 0)
-        --      drate = current_rate - sod_rate  (from rates-service; NOT hardcoded 0)
+        --      dvol = current_vol - sod_vol     (from volatility-service)
+        --      drate = current_rate - sod_rate  (from rates-service)
+        --      Missing intraday vol/rate falls through as zero today; tracked
+        --      in docs/plans/spec-weeding-followup-2026-05-18.md to be
+        --      surfaced as a data-quality warning instead.
         -- 5. For each instrument:
         --      total_pnl = dS * quantity
-        -- 6. Attribute per position using SodGreekSnapshot row:
+        -- 6. Time-decay terms are attributed with dt = 1 / 252 (one trading
+        --    day expressed as a year fraction). PnlAttributionService.kt uses
+        --    this constant when invoked for the standard daily run; intraday
+        --    calls would substitute the elapsed fraction of a trading day.
+        --
+        --    Attribute per position using SodGreekSnapshot row:
         --      delta_pnl       = delta * dS
         --      gamma_pnl       = 0.5 * gamma * dS^2
         --      vega_pnl        = vega * dvol
-        --      theta_pnl       = theta * days_elapsed
+        --      theta_pnl       = theta * dt
         --      rho_pnl         = rho * drate
         --      vanna_pnl       = vanna * dS * dvol
         --      volga_pnl       = 0.5 * volga * dvol^2
-        --      charm_pnl       = charm * dS * days_elapsed
-        --      cross_gamma_pnl = sum over (i,j) of cross_gamma(i,j) * dS_i * dS_j
-        --                        (cross-instrument term for multi-asset books)
+        --      charm_pnl       = charm * dS * dt
+        --      cross_gamma_pnl = correlation-weighted approximation across
+        --                        all (i, j) pairs:
+        --                          cross_ij = corr(i, j) * gamma_i * dS_i
+        --                                                 * gamma_j * dS_j
+        --                        The contribution is split evenly between i
+        --                        and j when reported per position. True
+        --                        analytical cross-gamma sensitivities are
+        --                        not sourced today; the correlation-weighted
+        --                        approximation is the wire contract.
         --      unexplained_pnl = total_pnl - sum of all attributed terms
         -- 7. Set data_quality_flag:
-        --      full_attribution  — all Greeks and intraday vols/rates available
-        --      price_only        — SodGreekSnapshot missing; delta terms not computed
-        --      stale_greeks      — SodGreekSnapshot present but locked > 2 hours before open
+        --      full_attribution  — at least one position has a non-zero
+        --                          vanna/volga/charm (i.e. option Greeks were
+        --                          available in SodGreekSnapshot).
+        --      price_only        — no SodGreekSnapshot rows OR all higher-order
+        --                          Greeks are zero (e.g. linear-only book).
+        --      stale_greeks      — SodGreekSnapshot present but locked more
+        --                          than 2 hours before market open. Defined
+        --                          on AttributionDataQuality but not yet
+        --                          assigned (see follow-up plan).
         -- 8. Persist PnlAttribution.
 }
 
