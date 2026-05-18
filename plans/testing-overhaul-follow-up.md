@@ -113,7 +113,7 @@ That brings in `org.testcontainers.kafka.KafkaContainer` transitively, plus the 
   - Acceptance: `./gradlew :test-support:build :test-support:test`
 - [x] **5.6** Add `test-support/src/main/kotlin/com/kinetix/testsupport/builders/TestVolSurface.kt` with `flatAt(0.20)` and `withSmile(...)` constructors.
   - Acceptance: `./gradlew :test-support:build :test-support:test`
-- [ ] **5.7** Add `test-support/src/main/kotlin/com/kinetix/testsupport/builders/TestPriceCurve.kt` with `constant(100.0)` and `linear(start, slope)` constructors.
+- [x] **5.7** Add `test-support/src/main/kotlin/com/kinetix/testsupport/builders/TestPriceCurve.kt` with `constant(100.0)` and `linear(start, slope)` constructors.
   - Acceptance: `./gradlew :test-support:build :test-support:test`
 - [ ] **5.8** Refactor `position-service/src/test/kotlin/.../KafkaTestSetup.kt` to delegate to `com.kinetix.testsupport.kafka.KafkaTestSetup` (one-line delegation), or delete it and update imports.
   - Acceptance: `./gradlew :position-service:test :position-service:integrationTest`
