@@ -73,6 +73,12 @@ interface RiskTabProps {
    * still change it via the date picker afterwards.
    */
   initialValuationDate?: string | null
+  /**
+   * Plan §8.2 — Hedge Recommendation panel state lives at App level so the
+   * global ticker-strip CTA and breach banner can open the same panel. The
+   * tab-local "Suggest Hedge" button delegates to this callback.
+   */
+  onOpenHedgePanel?: () => void
 }
 
 export function RiskTab({
@@ -92,6 +98,7 @@ export function RiskTab({
   marketRegime = null,
   onShowAlerts,
   initialValuationDate = null,
+  onOpenHedgePanel,
 }: RiskTabProps) {
   const [subTab, setSubTab] = useState<RiskSubTab>('dashboard')
   const [valuationDate, setValuationDate] = useState<string | null>(initialValuationDate)
@@ -207,6 +214,10 @@ export function RiskTab({
   const [jobRefreshSignal, setJobRefreshSignal] = useState(0)
 
   useEffect(() => {
+    // Plan §8.2 — when an App-level handler is supplied, that owner installs
+    // its own Shift+H listener; otherwise RiskTab keeps the local handler so
+    // the shortcut still works when RiskTab is rendered stand-alone.
+    if (onOpenHedgePanel) return
     function handleKeyDown(e: KeyboardEvent) {
       if (e.shiftKey && e.key === 'H' && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
         setHedgePanelOpen((prev) => !prev)
@@ -214,7 +225,7 @@ export function RiskTab({
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
+  }, [onOpenHedgePanel])
 
   const handleRefresh = useCallback(async () => {
     if (aggregatedView) {
@@ -283,7 +294,14 @@ export function RiskTab({
               <LastUpdatedIndicator timestamp={lastUpdated} />
               {!aggregatedView && (
                 <button
-                  onClick={() => setHedgePanelOpen(true)}
+                  onClick={() => {
+                    // Plan §8.2 — prefer the App-level handler so the panel
+                    // state is shared with the global ticker-strip CTA and
+                    // breach-banner CTA; fall back to local state when
+                    // RiskTab is rendered stand-alone.
+                    if (onOpenHedgePanel) onOpenHedgePanel()
+                    else setHedgePanelOpen(true)
+                  }}
                   className="text-xs px-2 py-1 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 border border-blue-200 dark:border-blue-800 transition-colors"
                   title="Suggest Hedge (Shift+H)"
                   data-testid="suggest-hedge-open-button"
@@ -478,16 +496,21 @@ export function RiskTab({
         </div>
       )}
 
-      <HedgeRecommendationPanel
-        open={hedgePanelOpen}
-        onClose={() => setHedgePanelOpen(false)}
-        bookId={bookId}
-        recommendation={hedgeRec}
-        loading={hedgeLoading}
-        error={hedgeError}
-        onSuggest={suggestHedge}
-        onSendToWhatIf={onWhatIf ? () => onWhatIf() : undefined}
-      />
+      {/* Plan §8.2 — when an App-level owner provides onOpenHedgePanel, that
+          owner renders the single shared panel; RiskTab only renders its own
+          panel when used stand-alone. */}
+      {!onOpenHedgePanel && (
+        <HedgeRecommendationPanel
+          open={hedgePanelOpen}
+          onClose={() => setHedgePanelOpen(false)}
+          bookId={bookId}
+          recommendation={hedgeRec}
+          loading={hedgeLoading}
+          error={hedgeError}
+          onSuggest={suggestHedge}
+          onSendToWhatIf={onWhatIf ? () => onWhatIf() : undefined}
+        />
+      )}
     </div>
   )
 }

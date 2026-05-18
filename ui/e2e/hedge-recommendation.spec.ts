@@ -1,5 +1,57 @@
-import { test, expect, type Page } from '@playwright/test'
+import { test, expect, type Page, type Route } from '@playwright/test'
 import { mockAllApiRoutes, mockHedgeSuggest, TEST_HEDGE_RECOMMENDATION } from './fixtures'
+
+const VAR_BREACH_RULE = {
+  id: 'rule-var-breach',
+  name: 'VaR Breach',
+  type: 'VAR_BREACH',
+  threshold: 100_000,
+  operator: 'GREATER_THAN',
+  severity: 'HIGH',
+  channels: [],
+  enabled: true,
+}
+
+const SAMPLE_VAR_BREACH = {
+  bookId: 'port-1',
+  varValue: '90000.00', // 90% of 100k > 80% threshold
+  expectedShortfall: '95000.00',
+  confidenceLevel: 'CL_95',
+  calculationType: 'PARAMETRIC',
+  componentBreakdown: [],
+  calculatedAt: '2026-03-24T12:00:00Z',
+  greeks: {
+    bookId: 'port-1',
+    assetClassGreeks: [
+      { assetClass: 'EQUITY', delta: '1000', gamma: '5', vega: '200' },
+    ],
+    theta: '-30',
+    rho: '12',
+    calculatedAt: '2026-03-24T12:00:00Z',
+  },
+}
+
+async function overrideRulesRoute(page: Page, rules: object[]) {
+  await page.unroute('**/api/v1/notifications/rules')
+  await page.route('**/api/v1/notifications/rules', (route: Route) => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(rules),
+    })
+  })
+}
+
+async function overrideVarRoute(page: Page, varResult: object) {
+  await page.unroute('**/api/v1/risk/var/*')
+  await page.route('**/api/v1/risk/var/*', (route: Route) => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(varResult),
+    })
+  })
+}
 
 /**
  * Navigate to the Risk tab with a specific book selected so that
@@ -146,5 +198,45 @@ test.describe('Hedge Recommendation Panel', () => {
 
     // Greek impact table shows Before/After columns; Gamma increases from 200 to 210
     await expect(page.getByTestId('greek-impact-table').getByText('Gamma')).toBeVisible()
+  })
+
+  // ---------------------------------------------------------------------------
+  // Need a hedge CTA on breach (plan §8.2)
+  // ---------------------------------------------------------------------------
+
+  test('need a hedge cta in the ticker strip opens the hedge panel on VaR breach', async ({ page }) => {
+    // Activate a VaR breach so the ticker strip renders the red CTA.
+    await overrideRulesRoute(page, [VAR_BREACH_RULE])
+    await overrideVarRoute(page, SAMPLE_VAR_BREACH)
+
+    await goToBookRiskTab(page)
+
+    // Switch back to Positions to prove the ticker CTA is globally
+    // reachable (the breach banner also renders on Positions, so we click
+    // by stable test id to avoid ambiguity).
+    await page.getByTestId('tab-positions').click()
+
+    const cta = page.getByTestId('ticker-hedge-cta')
+    await expect(cta).toBeVisible({ timeout: 5000 })
+    await expect(cta).toHaveText(/need a hedge/i)
+
+    await cta.click()
+
+    await expect(page.getByTestId('hedge-recommendation-panel')).toBeVisible()
+  })
+
+  test('need a hedge cta in the breach banner opens the hedge panel', async ({ page }) => {
+    await overrideRulesRoute(page, [VAR_BREACH_RULE])
+    await overrideVarRoute(page, SAMPLE_VAR_BREACH)
+
+    await goToBookRiskTab(page)
+
+    const bannerCta = page.getByTestId('breach-banner-hedge-cta')
+    await expect(bannerCta).toBeVisible({ timeout: 5000 })
+    await expect(bannerCta).toHaveText(/need a hedge/i)
+
+    await bannerCta.click()
+
+    await expect(page.getByTestId('hedge-recommendation-panel')).toBeVisible()
   })
 })

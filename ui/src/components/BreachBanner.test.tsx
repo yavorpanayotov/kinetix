@@ -215,6 +215,86 @@ describe('BreachBanner', () => {
     expect(screen.queryByTestId('breach-banner')).not.toBeInTheDocument()
   })
 
+  describe('Hedge CTA (plan §8.2)', () => {
+    it('shows a "Need a hedge?" button when the banner is visible and onOpenHedgePanel is supplied', () => {
+      render(
+        <BreachBanner
+          activeTab="positions"
+          varValue={900_000}
+          varLimit={1_000_000}
+          alerts={[]}
+          onDismiss={vi.fn()}
+          onOpenHedgePanel={vi.fn()}
+        />,
+      )
+
+      const cta = screen.getByTestId('breach-banner-hedge-cta')
+      expect(cta).toBeInTheDocument()
+      expect(cta).toHaveTextContent(/need a hedge/i)
+    })
+
+    it('invokes onOpenHedgePanel when the CTA is clicked', () => {
+      const onOpenHedgePanel = vi.fn()
+      render(
+        <BreachBanner
+          activeTab="positions"
+          varValue={900_000}
+          varLimit={1_000_000}
+          alerts={[]}
+          onDismiss={vi.fn()}
+          onOpenHedgePanel={onOpenHedgePanel}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('breach-banner-hedge-cta'))
+      expect(onOpenHedgePanel).toHaveBeenCalledTimes(1)
+    })
+
+    it('does not render the CTA when the banner itself is hidden (no breach)', () => {
+      render(
+        <BreachBanner
+          activeTab="positions"
+          varValue={500_000}
+          varLimit={1_000_000}
+          alerts={[]}
+          onDismiss={vi.fn()}
+          onOpenHedgePanel={vi.fn()}
+        />,
+      )
+
+      expect(screen.queryByTestId('breach-banner-hedge-cta')).not.toBeInTheDocument()
+    })
+
+    it('does not render the CTA when no callback is supplied', () => {
+      render(
+        <BreachBanner
+          activeTab="positions"
+          varValue={900_000}
+          varLimit={1_000_000}
+          alerts={[]}
+          onDismiss={vi.fn()}
+        />,
+      )
+
+      expect(screen.queryByTestId('breach-banner-hedge-cta')).not.toBeInTheDocument()
+    })
+
+    it('still shows the CTA when the trigger is a CRITICAL alert (no VaR breach)', () => {
+      render(
+        <BreachBanner
+          activeTab="risk"
+          varValue={500_000}
+          varLimit={1_000_000}
+          alerts={[makeAlert({ severity: 'CRITICAL' })]}
+          onDismiss={vi.fn()}
+          onOpenHedgePanel={vi.fn()}
+        />,
+      )
+
+      expect(screen.getByTestId('breach-banner-hedge-cta')).toBeInTheDocument()
+    })
+  })
+
   it('hides on alerts tab even with breach conditions (alerts tab itself shows them)', () => {
     render(
       <BreachBanner

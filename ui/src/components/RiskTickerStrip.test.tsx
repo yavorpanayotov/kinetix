@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
 import type {
   BookAggregationDto,
   GreeksResultDto,
@@ -283,6 +283,80 @@ describe('RiskTickerStrip', () => {
       )
 
       expect(screen.getByTestId('ticker-connection-status').className).toContain('bg-red-500')
+    })
+  })
+
+  describe('Hedge CTA (plan §8.2)', () => {
+    it('shows a "Need a hedge?" CTA when VaR utilisation exceeds 80% and onOpenHedgePanel is supplied', () => {
+      const onOpenHedgePanel = vi.fn()
+      render(
+        <RiskTickerStrip
+          bookId="book-1"
+          bookSummary={sampleBookSummary()}
+          intradaySnapshot={null}
+          varResult={sampleVaR({ varValue: '85000.00' })}
+          greeksResult={null}
+          varLimit={100000}
+          streamConnected={true}
+          onOpenHedgePanel={onOpenHedgePanel}
+        />,
+      )
+
+      const cta = screen.getByTestId('ticker-hedge-cta')
+      expect(cta).toBeInTheDocument()
+      expect(cta).toHaveTextContent(/need a hedge/i)
+    })
+
+    it('invokes onOpenHedgePanel when the CTA is clicked', () => {
+      const onOpenHedgePanel = vi.fn()
+      render(
+        <RiskTickerStrip
+          bookId="book-1"
+          bookSummary={sampleBookSummary()}
+          intradaySnapshot={null}
+          varResult={sampleVaR({ varValue: '85000.00' })}
+          greeksResult={null}
+          varLimit={100000}
+          streamConnected={true}
+          onOpenHedgePanel={onOpenHedgePanel}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('ticker-hedge-cta'))
+      expect(onOpenHedgePanel).toHaveBeenCalledTimes(1)
+    })
+
+    it('does not render the CTA when VaR utilisation is at or below 80%', () => {
+      render(
+        <RiskTickerStrip
+          bookId="book-1"
+          bookSummary={sampleBookSummary()}
+          intradaySnapshot={null}
+          varResult={sampleVaR({ varValue: '70000.00' })}
+          greeksResult={null}
+          varLimit={100000}
+          streamConnected={true}
+          onOpenHedgePanel={vi.fn()}
+        />,
+      )
+
+      expect(screen.queryByTestId('ticker-hedge-cta')).not.toBeInTheDocument()
+    })
+
+    it('does not render the CTA when no callback is supplied, even on breach', () => {
+      render(
+        <RiskTickerStrip
+          bookId="book-1"
+          bookSummary={sampleBookSummary()}
+          intradaySnapshot={null}
+          varResult={sampleVaR({ varValue: '85000.00' })}
+          greeksResult={null}
+          varLimit={100000}
+          streamConnected={true}
+        />,
+      )
+
+      expect(screen.queryByTestId('ticker-hedge-cta')).not.toBeInTheDocument()
     })
   })
 

@@ -14,6 +14,8 @@ import { ScenariosTab } from './components/ScenariosTab'
 import { RegulatoryTab } from './components/RegulatoryTab'
 import { PnlTab } from './components/PnlTab'
 import { WhatIfPanel } from './components/WhatIfPanel'
+import { HedgeRecommendationPanel } from './components/HedgeRecommendationPanel'
+import { useHedgeRecommendation } from './hooks/useHedgeRecommendation'
 import { CounterpartyRiskDashboard } from './components/CounterpartyRiskDashboard'
 import { ReportsTab } from './components/ReportsTab'
 import { EodTimelineTab } from './components/EodTimelineTab'
@@ -110,6 +112,11 @@ function App() {
     if (nextTab) setActiveTab(nextTab)
   }
   const [whatIfOpen, setWhatIfOpen] = useState(false)
+  // Plan §8.2 — Hedge Recommendation panel is owned at the App level so the
+  // breach surfacing (ticker-strip CTA, breach-banner CTA, RiskTab's own
+  // "Suggest Hedge" button, and the Shift+H shortcut) can all converge on a
+  // single open/close state and a single panel render.
+  const [hedgePanelOpen, setHedgePanelOpen] = useState(false)
   const [tradesSubTab, setTradesSubTab] = useState<'blotter' | 'place' | 'cost' | 'reconciliation'>('blotter')
   // Cross-tab link (plan §2.4): when the user jumps from a counterparty row
   // to the Trades blotter, the chosen counterparty id flows in here so the
@@ -145,6 +152,27 @@ function App() {
         focusBeforeOverlayRef.current = document.activeElement
       }
       setShortcutsOverlayOpen(true)
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  // Plan §8.2 — Shift+H opens/closes the Hedge Recommendation panel from
+  // anywhere in the app. Same input-focus guard as the other power-user
+  // shortcuts so we don't hijack native text editing.
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (!e.shiftKey || (e.key !== 'H' && e.key !== 'h')) return
+      const target = e.target
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      ) {
+        return
+      }
+      setHedgePanelOpen((prev) => !prev)
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
@@ -250,6 +278,23 @@ function App() {
   const { varLimit } = useVarLimit()
   const { alerts: breachAlerts, dismissAlert: dismissBreachAlert } = useAlerts()
   const { latest: intradayLatest, connected: intradayConnected } = useIntradayPnlStream(effectiveBookId)
+  // Plan §8.2 — Hedge recommendation hook lives at the App level so the
+  // panel can be opened from the global ticker strip, the breach banner, or
+  // RiskTab's own button without each surface owning duplicate state.
+  const hedge = useHedgeRecommendation(effectiveBookId)
+  // Plan §8.2 — A single derived predicate for whether the user is in a
+  // breach state, mirroring BreachBanner's logic (VaR utilisation > 80% OR
+  // any active CRITICAL alert). The ticker strip and breach banner only
+  // surface the "Need a hedge?" CTA when this is true.
+  const varValueNumber = varResult ? Number(varResult.varValue) : null
+  const varUtilisation =
+    varValueNumber !== null && varLimit !== null && varLimit > 0
+      ? varValueNumber / varLimit
+      : null
+  const varBreachActive = varUtilisation !== null && varUtilisation > 0.8
+  const criticalAlertActive = breachAlerts.some((a) => a.severity === 'CRITICAL')
+  const hedgeCtaActive = varBreachActive || criticalAlertActive
+  const openHedgePanel = () => setHedgePanelOpen(true)
   const { isDark, toggle: toggleTheme } = useTheme()
   const dataQuality = useDataQuality()
   const marketRegime = useMarketRegime()
@@ -574,6 +619,7 @@ function App() {
         greeksResult={greeksResult}
         varLimit={varLimit}
         streamConnected={intradayConnected}
+        onOpenHedgePanel={hedgeCtaActive ? openHedgePanel : undefined}
       />
 
       <BreachBanner
@@ -582,6 +628,7 @@ function App() {
         varLimit={varLimit}
         alerts={breachAlerts}
         onDismiss={dismissBreachAlert}
+        onOpenHedgePanel={openHedgePanel}
       />
 
       <main className="flex-1 p-4 md:p-6 dark:bg-surface-900" role="tabpanel" aria-labelledby={`tab-${activeTab}`}>
@@ -717,6 +764,7 @@ function App() {
                     onRunStress={stress.run}
                     onViewStressDetails={() => setActiveTab('scenarios')}
                     onWhatIf={() => setWhatIfOpen(true)}
+                    onOpenHedgePanel={openHedgePanel}
                     onViewPnlTab={() => setActiveTab('pnl')}
                     aggregatedView={hierarchy.selection.level !== 'book'}
                     effectiveBookIds={hierarchy.effectiveBookIds}
@@ -832,6 +880,17 @@ function App() {
         open={commandPaletteOpen}
         onClose={() => setCommandPaletteOpen(false)}
         items={commandPaletteItems}
+      />
+
+      <HedgeRecommendationPanel
+        open={hedgePanelOpen}
+        onClose={() => setHedgePanelOpen(false)}
+        bookId={effectiveBookId ?? bookId}
+        recommendation={hedge.recommendation}
+        loading={hedge.loading}
+        error={hedge.error}
+        onSuggest={hedge.suggest}
+        onSendToWhatIf={() => setWhatIfOpen(true)}
       />
 
       <WhatIfPanel

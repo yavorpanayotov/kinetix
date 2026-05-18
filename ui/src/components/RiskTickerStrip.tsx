@@ -21,6 +21,14 @@ interface RiskTickerStripProps {
   greeksResult: GreeksResultDto | null
   varLimit: number | null
   streamConnected: boolean
+  /**
+   * Plan §8.2 — when VaR utilisation breaches 80% of limit, the strip
+   * surfaces a "Need a hedge?" CTA next to the red VaR cell. Clicking it
+   * invokes this callback to open the Hedge Recommendation panel. If the
+   * callback is not supplied (e.g. in component tests rendering the strip
+   * in isolation), the CTA is not rendered at all.
+   */
+  onOpenHedgePanel?: () => void
 }
 
 const EM_DASH = '—'
@@ -52,6 +60,7 @@ export function RiskTickerStrip({
   greeksResult,
   varLimit,
   streamConnected,
+  onOpenHedgePanel,
 }: RiskTickerStripProps) {
   // When no book is selected, render a neutral hint so the strip stays visible globally.
   if (!bookId) {
@@ -187,6 +196,18 @@ export function RiskTickerStrip({
             className="h-3.5 w-3.5 text-red-600 dark:text-red-400"
             aria-label="VaR limit breach"
           />
+        )}
+        {varBreach && onOpenHedgePanel && (
+          <button
+            type="button"
+            data-testid="ticker-hedge-cta"
+            onClick={onOpenHedgePanel}
+            title="Open hedge recommendations (Shift+H)"
+            aria-label="Open hedge recommendations — VaR limit breached"
+            className="ml-1 inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/50 focus:outline-none focus:ring-2 focus:ring-red-400 transition-colors"
+          >
+            Need a hedge?
+          </button>
         )}
       </div>
 

@@ -16,6 +16,7 @@ vi.mock('./hooks/useWorkspace')
 vi.mock('./hooks/useVaR')
 vi.mock('./hooks/useVarLimit')
 vi.mock('./hooks/useIntradayPnlStream')
+vi.mock('./hooks/useHedgeRecommendation')
 vi.mock('./auth/useAuth')
 vi.mock('./components/TradeBlotter', () => ({
   TradeBlotter: ({ initialCounterpartyFilter }: { initialCounterpartyFilter?: string }) => (
@@ -83,6 +84,7 @@ import { useHierarchySummary } from './hooks/useHierarchySummary'
 import { useVaR } from './hooks/useVaR'
 import { useVarLimit } from './hooks/useVarLimit'
 import { useIntradayPnlStream } from './hooks/useIntradayPnlStream'
+import { useHedgeRecommendation } from './hooks/useHedgeRecommendation'
 import { useAuth } from './auth/useAuth'
 
 const mockUsePositions = vi.mocked(usePositions)
@@ -100,6 +102,7 @@ const mockUseWorkspace = vi.mocked(useWorkspace)
 const mockUseVaR = vi.mocked(useVaR)
 const mockUseVarLimit = vi.mocked(useVarLimit)
 const mockUseIntradayPnlStream = vi.mocked(useIntradayPnlStream)
+const mockUseHedgeRecommendation = vi.mocked(useHedgeRecommendation)
 
 const position: PositionDto = {
   bookId: 'book-1',
@@ -253,6 +256,15 @@ function setupDefaults() {
     snapshots: [],
     latest: null,
     connected: false,
+  })
+  mockUseHedgeRecommendation.mockReturnValue({
+    recommendation: null,
+    history: [],
+    loading: false,
+    error: null,
+    suggest: vi.fn(),
+    loadHistory: vi.fn(),
+    clear: vi.fn(),
   })
 }
 
@@ -1161,6 +1173,106 @@ describe('App', () => {
       expect(order & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
       const orderToPanel = banner.compareDocumentPosition(tabPanel)
       expect(orderToPanel & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    })
+  })
+
+  describe('Hedge CTA on breach (plan §8.2)', () => {
+    const breachVarResult = {
+      bookId: 'book-1',
+      calculationType: 'PARAMETRIC',
+      confidenceLevel: 'CL_95',
+      varValue: '90000.00',
+      expectedShortfall: '95000.00',
+      componentBreakdown: [],
+      calculatedAt: '2026-03-24T09:31:00Z',
+    } as const
+
+    function withVarBreach() {
+      mockUseVaR.mockReturnValue({
+        varResult: breachVarResult,
+        greeksResult: null,
+        history: [],
+        filteredHistory: [],
+        loading: false,
+        historyLoading: false,
+        refreshing: false,
+        error: null,
+        errorTransient: false,
+        refresh: vi.fn(),
+        timeRange: { from: '', to: '', label: 'Last 24h' },
+        setTimeRange: vi.fn(),
+        selectedConfidenceLevel: 'CL_95',
+        setSelectedConfidenceLevel: vi.fn(),
+        zoomIn: vi.fn(),
+        resetZoom: vi.fn(),
+        zoomDepth: 0,
+        isLive: true,
+      })
+      mockUseVarLimit.mockReturnValue({ varLimit: 100_000, loading: false })
+    }
+
+    it('clicking the ticker-strip "Need a hedge?" CTA opens the Hedge Recommendation panel', () => {
+      withVarBreach()
+      render(<App />)
+
+      // Sanity check the breach setup wired the CTA into the strip.
+      const cta = screen.getByTestId('ticker-hedge-cta')
+      expect(cta).toBeInTheDocument()
+
+      // Panel is not yet rendered.
+      expect(screen.queryByTestId('hedge-recommendation-panel')).not.toBeInTheDocument()
+
+      fireEvent.click(cta)
+
+      expect(screen.getByTestId('hedge-recommendation-panel')).toBeInTheDocument()
+    })
+
+    it('clicking the breach-banner "Need a hedge?" CTA opens the Hedge Recommendation panel', () => {
+      withVarBreach()
+      render(<App />)
+
+      const cta = screen.getByTestId('breach-banner-hedge-cta')
+      expect(cta).toBeInTheDocument()
+      expect(screen.queryByTestId('hedge-recommendation-panel')).not.toBeInTheDocument()
+
+      fireEvent.click(cta)
+
+      expect(screen.getByTestId('hedge-recommendation-panel')).toBeInTheDocument()
+    })
+
+    it('does not render the ticker CTA when VaR is well within limit and no CRITICAL alerts', () => {
+      // Defaults: no VaR, no breach. CTA must stay hidden.
+      render(<App />)
+
+      expect(screen.queryByTestId('ticker-hedge-cta')).not.toBeInTheDocument()
+    })
+
+    it('renders the breach-banner CTA when a CRITICAL alert is active even with VaR within limit', () => {
+      mockUseVarLimit.mockReturnValue({ varLimit: 1_000_000, loading: false })
+      mockUseAlerts.mockReturnValue({
+        alerts: [
+          {
+            id: 'crit-1',
+            ruleId: 'rule-1',
+            ruleName: 'PnL drawdown',
+            type: 'PNL_THRESHOLD',
+            severity: 'CRITICAL',
+            message: 'Drawdown -5%',
+            currentValue: -500_000,
+            threshold: -300_000,
+            bookId: 'book-1',
+            triggeredAt: '2026-03-24T09:30:00Z',
+            status: 'TRIGGERED',
+          },
+        ],
+        dismissAlert: vi.fn(),
+      })
+
+      render(<App />)
+
+      // CRITICAL-only triggers the breach banner (and its CTA). The ticker
+      // CTA is scoped to VaR breach specifically per plan §8.2.
+      expect(screen.getByTestId('breach-banner-hedge-cta')).toBeInTheDocument()
     })
   })
 

@@ -24,6 +24,13 @@ interface BreachBannerProps {
   varLimit: number | null
   alerts: AlertEventDto[]
   onDismiss: (id: string) => void
+  /**
+   * Plan §8.2 — when the banner is visible (VaR breach OR active CRITICAL
+   * alert), a "Need a hedge?" button is rendered on the right of the banner
+   * so the user can jump straight into the Hedge Recommendation panel. If
+   * the callback is not supplied, the CTA is not rendered.
+   */
+  onOpenHedgePanel?: () => void
 }
 
 /**
@@ -41,6 +48,7 @@ export function BreachBanner({
   varLimit,
   alerts,
   onDismiss,
+  onOpenHedgePanel,
 }: BreachBannerProps) {
   if (!VISIBLE_TABS.has(activeTab)) return null
 
@@ -81,13 +89,28 @@ export function BreachBanner({
       data-testid="breach-banner"
       className="sticky top-0 z-20 px-4 md:px-6 pt-2 pb-1 bg-surface-50 dark:bg-surface-900"
     >
-      <RiskAlertBanner
-        alerts={visibleAlerts}
-        onDismiss={(id) => {
-          if (id === SYNTHETIC_VAR_ALERT_ID) return
-          onDismiss(id)
-        }}
-      />
+      <div className="flex items-start gap-3">
+        <div className="flex-1 min-w-0">
+          <RiskAlertBanner
+            alerts={visibleAlerts}
+            onDismiss={(id) => {
+              if (id === SYNTHETIC_VAR_ALERT_ID) return
+              onDismiss(id)
+            }}
+          />
+        </div>
+        {onOpenHedgePanel && (
+          <button
+            type="button"
+            data-testid="breach-banner-hedge-cta"
+            onClick={onOpenHedgePanel}
+            title="Open hedge recommendations (Shift+H)"
+            className="shrink-0 mt-1 inline-flex items-center gap-1 text-sm font-medium px-3 py-1.5 rounded border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/50 focus:outline-none focus:ring-2 focus:ring-red-400 transition-colors"
+          >
+            Need a hedge?
+          </button>
+        )}
+      </div>
     </div>
   )
 }
