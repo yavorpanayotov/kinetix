@@ -80,6 +80,31 @@ Report:
 - Key numbers to mention during demo (total VaR, largest position, P&L)
 - Any setup steps needed (e.g. "start the risk-engine first")
 
+## AI features (VaR Explainer + Report Commentary)
+
+Two LLM-powered features ship in v1, both backed by `ai-insights-service`. Demo mode is on by default in `/demo`-seeded environments; flip `DEMO_MODE=false` and run with a host `~/.claude` mount for live mode.
+
+### VaR Explainer
+
+- **Where:** Risk tab → VaR gauge card header.
+- **Action:** click the **Explain** button.
+- **Expected:** an `AIInsightPanel` opens showing a short narrative explaining the current VaR result, 3–5 bullets calling out the top contributors, and a model footer.
+  - In demo mode you'll see a **"Demo mode"** badge next to the model name; the narrative is canned and deterministic.
+  - In live mode the badge is hidden and the model name reflects the Claude model used (e.g. `claude-sonnet-4-6`), with the narrative generated against the host's authenticated `claude` CLI via the Agent SDK.
+
+### AI Commentary (Reports)
+
+- **Where:** Reports tab, below the generated report output.
+- **Action:** select a report template and click **Generate** (the existing flow). Once the report renders, an **AI Commentary** card appears beneath it — first as a loading skeleton, then populated.
+- **Expected:** same `AIInsightPanel` shape as the VaR Explainer — narrative paragraph, bullets, and model footer. Demo-mode badge in canned mode, hidden in live mode.
+
+### Demo mode vs live mode
+
+| Mode | Flag | Behaviour |
+| ---- | ---- | --------- |
+| Demo | `DEMO_MODE=true` (default for `/demo`-seeded envs) | Canned narratives, deterministic output, no host auth required. "Demo mode" badge visible. |
+| Live | `DEMO_MODE=false` with host `~/.claude` mounted | Real Claude responses via the Agent SDK using the host's authenticated `claude` CLI. Badge hidden, model name shown. |
+
 ## Reminders
 
 - Use realistic but not real company names if generating fictional data
