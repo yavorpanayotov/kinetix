@@ -14,9 +14,10 @@ import {
   ArrowRight,
   ArrowUpCircle,
   CheckSquare,
+  Clock,
 } from 'lucide-react'
 import type { AlertRuleDto, AlertEventDto, CreateAlertRuleRequestDto } from '../types'
-import { formatRelativeTime } from '../utils/format'
+import { formatRelativeTime, formatRelativeFuture } from '../utils/format'
 import { exportToCsv } from '../utils/exportCsv'
 import { Card, Button, Badge, Input, Select, Spinner, ErrorCard } from './ui'
 import { ConfirmDialog } from './ui/ConfirmDialog'
@@ -78,12 +79,62 @@ interface NotificationCenterProps {
    */
   onResolve?: (alertId: string, resolutionText: string) => Promise<void> | void
   /**
+   * Snooze action — silences the alert rule until the given ISO-8601 deadline.
+   * The popover offers fixed presets (1h / 4h / 24h / Until tomorrow); see
+   * plan §3.1b.4. Visible on any non-RESOLVED alert. If omitted, the Snooze
+   * button is hidden.
+   */
+  onSnooze?: (alertId: string, snoozedUntil: string) => Promise<void> | void
+  /**
    * Cross-tab navigation: jump from an alert row to the Risk tab focused on
    * the alert's affected book. Receives the alert's bookId, or null when the
    * alert is not scoped to a specific book. See docs/plans/ui-overhaul.md §2.4.
    */
   onJumpToRisk?: (bookId: string | null) => void
 }
+
+/**
+ * Snooze preset definitions — fixed durations per plan §3.1b.4. Each preset
+ * returns an absolute Date when invoked with the current "now" so the caller
+ * can substitute a fixed clock in tests (vi.setSystemTime).
+ */
+const SNOOZE_PRESETS: Array<{
+  id: 'snooze-preset-1h' | 'snooze-preset-4h' | 'snooze-preset-24h' | 'snooze-preset-tomorrow'
+  shortLabel: string
+  label: string
+  compute: (now: Date) => Date
+}> = [
+  {
+    id: 'snooze-preset-1h',
+    shortLabel: '1h',
+    label: '1 hour',
+    compute: (now) => new Date(now.getTime() + 60 * 60 * 1000),
+  },
+  {
+    id: 'snooze-preset-4h',
+    shortLabel: '4h',
+    label: '4 hours',
+    compute: (now) => new Date(now.getTime() + 4 * 60 * 60 * 1000),
+  },
+  {
+    id: 'snooze-preset-24h',
+    shortLabel: '24h',
+    label: '24 hours',
+    compute: (now) => new Date(now.getTime() + 24 * 60 * 60 * 1000),
+  },
+  {
+    id: 'snooze-preset-tomorrow',
+    shortLabel: 'Until tomorrow',
+    label: 'Until tomorrow (09:00)',
+    // 09:00 local time on the next calendar day.
+    compute: (now) => {
+      const d = new Date(now)
+      d.setDate(d.getDate() + 1)
+      d.setHours(9, 0, 0, 0)
+      return d
+    },
+  },
+]
 
 const statusBadgeClass: Record<string, string> = {
   TRIGGERED: 'bg-red-100 text-red-800',
@@ -126,6 +177,7 @@ export function NotificationCenter({
   onAcknowledge,
   onEscalate,
   onResolve,
+  onSnooze,
   onJumpToRisk,
 }: NotificationCenterProps) {
   const [name, setName] = useState('')
@@ -165,6 +217,9 @@ export function NotificationCenter({
   const [resolveText, setResolveText] = useState('')
   const [resolveSubmitting, setResolveSubmitting] = useState(false)
   const [resolveTextError, setResolveTextError] = useState<string | null>(null)
+  // Snooze popover state — only one row's popover open at a time so the row
+  // layout stays compact. §3.1b.4 spec: fixed presets, no custom datepicker.
+  const [snoozeOpenId, setSnoozeOpenId] = useState<string | null>(null)
 
   /**
    * Count of alerts per status — drives the chip badges so the operator can
@@ -377,6 +432,30 @@ export function NotificationCenter({
     }
   }
 
+  function toggleSnoozePopover(alertId: string) {
+    setSnoozeOpenId((current) => (current === alertId ? null : alertId))
+  }
+
+  function closeSnoozePopover() {
+    setSnoozeOpenId(null)
+  }
+
+  async function applySnoozePreset(
+    alertId: string,
+    compute: (now: Date) => Date,
+  ) {
+    if (!onSnooze) return
+    const iso = compute(new Date()).toISOString()
+    closeSnoozePopover()
+    try {
+      await onSnooze(alertId, iso)
+    } catch {
+      // Parent (useNotifications) surfaces the error and rolls back the
+      // optimistic update. The popover is already closed; the user can
+      // re-open and retry.
+    }
+  }
+
   function renderAlertRow(alert: AlertEventDto) {
     const SevIcon = severityIcon[alert.severity] ?? Info
     const canAcknowledge =
@@ -389,10 +468,21 @@ export function NotificationCenter({
       (alert.status === 'TRIGGERED' || alert.status === 'ACKNOWLEDGED')
     // Resolve is available on every non-terminal state.
     const canResolve = onResolve !== undefined && alert.status !== 'RESOLVED'
+    // Snooze: any non-RESOLVED alert (§3.1b.4). The popover is a sibling of
+    // the action cluster — we keep it open even when other inline forms close.
+    const canSnooze = onSnooze !== undefined && alert.status !== 'RESOLVED'
     const ackFormOpen = ackOpenId === alert.id
     const escalateFormOpen = escalateOpenId === alert.id
     const resolveFormOpen = resolveOpenId === alert.id
+    const snoozePopoverOpen = snoozeOpenId === alert.id
     const anyFormOpen = ackFormOpen || escalateFormOpen || resolveFormOpen
+    // Snoozed-until badge: render when snoozedUntil is in the future. Past
+    // values are dropped silently — the badge is purely informational and
+    // not meaningful once the deadline has lapsed.
+    const snoozedActive =
+      typeof alert.snoozedUntil === 'string' &&
+      alert.snoozedUntil !== '' &&
+      new Date(alert.snoozedUntil).getTime() > Date.now()
     return (
       <div
         key={alert.id}
@@ -428,6 +518,16 @@ export function NotificationCenter({
                 className="px-1.5 py-0.5 text-xs font-semibold bg-orange-100 text-orange-800 rounded"
               >
                 ESCALATED
+              </span>
+            )}
+            {snoozedActive && alert.snoozedUntil && (
+              <span
+                data-testid={`snoozed-until-badge-${alert.id}`}
+                title={new Date(alert.snoozedUntil).toLocaleString()}
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-800 rounded"
+              >
+                <Clock className="h-3 w-3" />
+                Snoozed until {formatRelativeFuture(alert.snoozedUntil)}
               </span>
             )}
             {/*
@@ -467,6 +567,42 @@ export function NotificationCenter({
                   <CheckSquare className="h-3 w-3" />
                   Resolve
                 </button>
+              )}
+              {canSnooze && !anyFormOpen && (
+                <div className="relative">
+                  <button
+                    data-testid={`snooze-btn-${alert.id}`}
+                    onClick={() => toggleSnoozePopover(alert.id)}
+                    aria-haspopup="menu"
+                    aria-expanded={snoozePopoverOpen}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded hover:bg-amber-100 transition-colors"
+                  >
+                    <Clock className="h-3 w-3" />
+                    Snooze
+                  </button>
+                  {snoozePopoverOpen && (
+                    <div
+                      data-testid={`snooze-popover-${alert.id}`}
+                      role="menu"
+                      className="absolute right-0 z-10 mt-1 w-44 rounded border border-slate-200 bg-white shadow-lg p-1 flex flex-col gap-0.5"
+                    >
+                      {SNOOZE_PRESETS.map((preset) => (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          role="menuitem"
+                          data-testid={`${preset.id}-${alert.id}`}
+                          onClick={() =>
+                            applySnoozePreset(alert.id, preset.compute)
+                          }
+                          className="text-left px-2 py-1 text-xs text-slate-700 hover:bg-slate-100 rounded"
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
               {onJumpToRisk && (
                 <button

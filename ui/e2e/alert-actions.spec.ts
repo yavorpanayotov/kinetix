@@ -391,4 +391,63 @@ test.describe('Per-alert triage actions', () => {
     )
     expect(acknowledgeRequested).toBe(false)
   })
+
+  // §3.1b.4 of docs/plans/ui-overhaul.md — snooze preset workflow.
+  test('snoozing an alert via the 1h preset posts to the snooze endpoint and shows the snoozed-until badge', async ({
+    page,
+  }) => {
+    let capturedBody: string | null = null
+    await page.route(
+      '**/api/v1/notifications/alerts/*/snooze',
+      (route: Route) => {
+        if (route.request().method() === 'POST') {
+          capturedBody = route.request().postData()
+          const parsed = JSON.parse(
+            (capturedBody as unknown as string) ?? '{}',
+          )
+          route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              ...TRIGGERED_ALERT,
+              snoozedUntil: parsed.snoozedUntil,
+            }),
+          })
+        } else {
+          route.fallback()
+        }
+      },
+    )
+
+    await page.goto('/')
+    await page.getByTestId('tab-alerts').click()
+    await page.waitForSelector('[data-testid="alerts-list"]')
+
+    await page.getByTestId('snooze-btn-alert-ack-1').click()
+    await expect(
+      page.getByTestId('snooze-popover-alert-ack-1'),
+    ).toBeVisible()
+
+    await page.getByTestId('snooze-preset-1h-alert-ack-1').click()
+
+    // Popover closes after preset selection.
+    await expect(
+      page.getByTestId('snooze-popover-alert-ack-1'),
+    ).toHaveCount(0)
+
+    // Snoozed-until badge appears once the server response lands.
+    await expect(
+      page.getByTestId('snoozed-until-badge-alert-ack-1'),
+    ).toBeVisible()
+
+    // The request body contained an ISO timestamp roughly 1h in the future.
+    expect(capturedBody).not.toBeNull()
+    const parsed = JSON.parse(capturedBody as unknown as string)
+    expect(typeof parsed.snoozedUntil).toBe('string')
+    const snoozedUntil = new Date(parsed.snoozedUntil).getTime()
+    const now = Date.now()
+    const expected = now + 60 * 60 * 1000
+    // 2 minute tolerance — covers test runner clock drift + browser latency.
+    expect(Math.abs(snoozedUntil - expected)).toBeLessThanOrEqual(2 * 60 * 1000)
+  })
 })

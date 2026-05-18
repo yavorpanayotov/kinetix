@@ -1329,6 +1329,324 @@ describe('NotificationCenter', () => {
     })
   })
 
+  describe('snooze action', () => {
+    // §3.1b.4 of docs/plans/ui-overhaul.md — operator-driven snooze action with
+    // preset offsets (1h / 4h / 24h / Until tomorrow).
+    //
+    // Visibility: any non-RESOLVED alert.
+    // Preset click computes an ISO timestamp at +offset from "now" and
+    // dispatches onSnooze(alertId, isoTimestamp).
+
+    const triggered: AlertEventDto = {
+      id: 'sn-trig',
+      ruleId: 'rule-1',
+      ruleName: 'VaR Limit',
+      type: 'VAR_BREACH',
+      severity: 'CRITICAL',
+      message: 'VaR exceeded threshold',
+      currentValue: 150000,
+      threshold: 100000,
+      bookId: 'book-1',
+      triggeredAt: '2025-01-15T10:00:00Z',
+      status: 'TRIGGERED',
+    }
+
+    const acknowledged: AlertEventDto = {
+      ...triggered,
+      id: 'sn-ack',
+      status: 'ACKNOWLEDGED',
+    }
+
+    const escalated: AlertEventDto = {
+      ...triggered,
+      id: 'sn-esc',
+      status: 'ESCALATED',
+      escalatedAt: '2025-01-15T10:30:00Z',
+      escalatedTo: 'risk-manager',
+    }
+
+    const resolvedAlert: AlertEventDto = {
+      ...triggered,
+      id: 'sn-res',
+      status: 'RESOLVED',
+      resolvedAt: '2025-01-15T11:00:00Z',
+    }
+
+    it('renders a Snooze button on TRIGGERED, ACKNOWLEDGED, and ESCALATED alerts but not RESOLVED', () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2025-01-15T12:00:00Z'))
+
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[triggered, acknowledged, escalated, resolvedAlert]}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+          onSnooze={async () => {}}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('status-filter-resolved'))
+
+      expect(screen.getByTestId('snooze-btn-sn-trig')).toBeInTheDocument()
+      expect(screen.getByTestId('snooze-btn-sn-ack')).toBeInTheDocument()
+      expect(screen.getByTestId('snooze-btn-sn-esc')).toBeInTheDocument()
+      expect(screen.queryByTestId('snooze-btn-sn-res')).not.toBeInTheDocument()
+
+      vi.useRealTimers()
+    })
+
+    it('omits Snooze button when the callback is not provided', () => {
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[triggered]}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+        />,
+      )
+
+      expect(screen.queryByTestId('snooze-btn-sn-trig')).not.toBeInTheDocument()
+    })
+
+    it('clicking Snooze opens a popover with four preset buttons', () => {
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[triggered]}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+          onSnooze={async () => {}}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('snooze-btn-sn-trig'))
+
+      expect(screen.getByTestId('snooze-popover-sn-trig')).toBeInTheDocument()
+      expect(screen.getByTestId('snooze-preset-1h-sn-trig')).toBeInTheDocument()
+      expect(screen.getByTestId('snooze-preset-4h-sn-trig')).toBeInTheDocument()
+      expect(screen.getByTestId('snooze-preset-24h-sn-trig')).toBeInTheDocument()
+      expect(
+        screen.getByTestId('snooze-preset-tomorrow-sn-trig'),
+      ).toBeInTheDocument()
+    })
+
+    it('clicking the 1h preset calls onSnooze with an ISO timestamp ~1h in the future', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      const now = new Date('2025-01-15T12:00:00Z')
+      vi.setSystemTime(now)
+      const onSnooze = vi.fn().mockResolvedValue(undefined)
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[triggered]}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+          onSnooze={onSnooze}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('snooze-btn-sn-trig'))
+      fireEvent.click(screen.getByTestId('snooze-preset-1h-sn-trig'))
+
+      await waitFor(() => {
+        expect(onSnooze).toHaveBeenCalledTimes(1)
+      })
+      const [alertId, iso] = onSnooze.mock.calls[0]
+      expect(alertId).toBe('sn-trig')
+      const expected = new Date(now.getTime() + 60 * 60 * 1000).getTime()
+      const actual = new Date(iso as string).getTime()
+      // Tolerate a small skew (within 1s) since the component recomputes "now".
+      expect(Math.abs(actual - expected)).toBeLessThanOrEqual(1000)
+
+      vi.useRealTimers()
+    })
+
+    it('clicking the 4h preset calls onSnooze with an ISO timestamp ~4h in the future', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      const now = new Date('2025-01-15T12:00:00Z')
+      vi.setSystemTime(now)
+      const onSnooze = vi.fn().mockResolvedValue(undefined)
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[triggered]}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+          onSnooze={onSnooze}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('snooze-btn-sn-trig'))
+      fireEvent.click(screen.getByTestId('snooze-preset-4h-sn-trig'))
+
+      await waitFor(() => {
+        expect(onSnooze).toHaveBeenCalledTimes(1)
+      })
+      const [, iso] = onSnooze.mock.calls[0]
+      const expected = new Date(now.getTime() + 4 * 60 * 60 * 1000).getTime()
+      const actual = new Date(iso as string).getTime()
+      expect(Math.abs(actual - expected)).toBeLessThanOrEqual(1000)
+
+      vi.useRealTimers()
+    })
+
+    it('clicking the 24h preset calls onSnooze with an ISO timestamp ~24h in the future', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      const now = new Date('2025-01-15T12:00:00Z')
+      vi.setSystemTime(now)
+      const onSnooze = vi.fn().mockResolvedValue(undefined)
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[triggered]}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+          onSnooze={onSnooze}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('snooze-btn-sn-trig'))
+      fireEvent.click(screen.getByTestId('snooze-preset-24h-sn-trig'))
+
+      await waitFor(() => {
+        expect(onSnooze).toHaveBeenCalledTimes(1)
+      })
+      const [, iso] = onSnooze.mock.calls[0]
+      const expected = new Date(now.getTime() + 24 * 60 * 60 * 1000).getTime()
+      const actual = new Date(iso as string).getTime()
+      expect(Math.abs(actual - expected)).toBeLessThanOrEqual(1000)
+
+      vi.useRealTimers()
+    })
+
+    it('clicking "Until tomorrow" calls onSnooze with next-day 09:00 local time', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      const now = new Date('2025-01-15T12:00:00Z')
+      vi.setSystemTime(now)
+      const onSnooze = vi.fn().mockResolvedValue(undefined)
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[triggered]}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+          onSnooze={onSnooze}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('snooze-btn-sn-trig'))
+      fireEvent.click(screen.getByTestId('snooze-preset-tomorrow-sn-trig'))
+
+      await waitFor(() => {
+        expect(onSnooze).toHaveBeenCalledTimes(1)
+      })
+      const [, iso] = onSnooze.mock.calls[0]
+      const result = new Date(iso as string)
+      // Tomorrow at 09:00 local time.
+      const tomorrow9 = new Date(now)
+      tomorrow9.setDate(tomorrow9.getDate() + 1)
+      tomorrow9.setHours(9, 0, 0, 0)
+      expect(result.getTime()).toBe(tomorrow9.getTime())
+
+      vi.useRealTimers()
+    })
+
+    it('selecting a preset closes the popover', () => {
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[triggered]}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+          onSnooze={async () => {}}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('snooze-btn-sn-trig'))
+      expect(screen.getByTestId('snooze-popover-sn-trig')).toBeInTheDocument()
+      fireEvent.click(screen.getByTestId('snooze-preset-1h-sn-trig'))
+
+      expect(
+        screen.queryByTestId('snooze-popover-sn-trig'),
+      ).not.toBeInTheDocument()
+    })
+
+    it('renders a "Snoozed until …" badge when snoozedUntil is in the future', () => {
+      vi.useFakeTimers()
+      const now = new Date('2025-01-15T12:00:00Z')
+      vi.setSystemTime(now)
+      const snoozed: AlertEventDto = {
+        ...triggered,
+        id: 'sn-snz',
+        snoozedUntil: new Date(now.getTime() + 60 * 60 * 1000).toISOString(),
+      }
+
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[snoozed]}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+          onSnooze={async () => {}}
+        />,
+      )
+
+      const badge = screen.getByTestId('snoozed-until-badge-sn-snz')
+      expect(badge).toBeInTheDocument()
+      expect(badge.textContent).toMatch(/Snoozed until/i)
+
+      vi.useRealTimers()
+    })
+
+    it('does not render the snoozed-until badge when snoozedUntil is in the past', () => {
+      vi.useFakeTimers()
+      const now = new Date('2025-01-15T12:00:00Z')
+      vi.setSystemTime(now)
+      const snoozed: AlertEventDto = {
+        ...triggered,
+        id: 'sn-past',
+        snoozedUntil: new Date(now.getTime() - 60 * 60 * 1000).toISOString(),
+      }
+
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[snoozed]}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+          onSnooze={async () => {}}
+        />,
+      )
+
+      expect(
+        screen.queryByTestId('snoozed-until-badge-sn-past'),
+      ).not.toBeInTheDocument()
+
+      vi.useRealTimers()
+    })
+  })
+
   describe('cross-tab jump to Risk', () => {
     const triggeredAlert: AlertEventDto = {
       id: 'jump-evt-1',

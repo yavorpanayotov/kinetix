@@ -65,6 +65,31 @@ export function formatRelativeTime(isoString: string): string {
   return `${days}d ago`
 }
 
+/**
+ * Render an ISO-8601 timestamp as a relative-future string ("in 1h", "in 3d").
+ * Mirror of {@link formatRelativeTime} for deadlines such as snooze-until
+ * markers. Past timestamps fall back to "now" since the deadline has lapsed.
+ */
+export function formatRelativeFuture(isoString: string): string {
+  const now = Date.now()
+  const then = new Date(isoString).getTime()
+  const diffMs = then - now
+
+  if (diffMs <= 0) return 'now'
+
+  const seconds = Math.floor(diffMs / 1000)
+  if (seconds < 60) return 'in <1m'
+
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `in ${minutes}m`
+
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `in ${hours}h`
+
+  const days = Math.floor(hours / 24)
+  return `in ${days}d`
+}
+
 export function formatTimestamp(isoString: string): string {
   const date = new Date(isoString)
   const pad = (n: number) => String(n).padStart(2, '0')

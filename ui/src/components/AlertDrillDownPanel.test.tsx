@@ -439,4 +439,151 @@ describe('AlertDrillDownPanel', () => {
       })
     })
   })
+
+  describe('snooze action', () => {
+    // §3.1b.4 of docs/plans/ui-overhaul.md — same Snooze action in the
+    // drill-down view as in the per-row triage UI.
+
+    it('renders a Snooze button on non-RESOLVED alerts when onSnooze is provided', async () => {
+      mockFetch.mockResolvedValue([])
+      const statuses: Array<'TRIGGERED' | 'ACKNOWLEDGED' | 'ESCALATED'> = [
+        'TRIGGERED',
+        'ACKNOWLEDGED',
+        'ESCALATED',
+      ]
+      for (const status of statuses) {
+        const { unmount } = render(
+          <AlertDrillDownPanel
+            alert={{ ...sampleAlert, status }}
+            onClose={() => {}}
+            onSnooze={async () => {}}
+          />,
+        )
+        expect(screen.getByTestId('drill-down-snooze-btn')).toBeInTheDocument()
+        unmount()
+      }
+    })
+
+    it('does not render Snooze button on RESOLVED alerts', async () => {
+      mockFetch.mockResolvedValue([])
+      render(
+        <AlertDrillDownPanel
+          alert={{ ...sampleAlert, status: 'RESOLVED' }}
+          onClose={() => {}}
+          onSnooze={async () => {}}
+        />,
+      )
+
+      expect(screen.queryByTestId('drill-down-snooze-btn')).not.toBeInTheDocument()
+    })
+
+    it('clicking Snooze opens a preset popover with four buttons', async () => {
+      mockFetch.mockResolvedValue([])
+      render(
+        <AlertDrillDownPanel
+          alert={sampleAlert}
+          onClose={() => {}}
+          onSnooze={async () => {}}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('drill-down-snooze-btn'))
+
+      expect(screen.getByTestId('drill-down-snooze-popover')).toBeInTheDocument()
+      expect(
+        screen.getByTestId('drill-down-snooze-preset-1h'),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByTestId('drill-down-snooze-preset-4h'),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByTestId('drill-down-snooze-preset-24h'),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByTestId('drill-down-snooze-preset-tomorrow'),
+      ).toBeInTheDocument()
+    })
+
+    it('clicking the 1h preset calls onSnooze with a ~1h-future ISO timestamp', async () => {
+      mockFetch.mockResolvedValue([])
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      const now = new Date('2025-01-15T12:00:00Z')
+      vi.setSystemTime(now)
+      const onSnooze = vi.fn().mockResolvedValue(undefined)
+      render(
+        <AlertDrillDownPanel
+          alert={sampleAlert}
+          onClose={() => {}}
+          onSnooze={onSnooze}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('drill-down-snooze-btn'))
+      fireEvent.click(screen.getByTestId('drill-down-snooze-preset-1h'))
+
+      await waitFor(() => {
+        expect(onSnooze).toHaveBeenCalledTimes(1)
+      })
+      const [alertId, iso] = onSnooze.mock.calls[0]
+      expect(alertId).toBe('alert-1')
+      const expected = new Date(now.getTime() + 60 * 60 * 1000).getTime()
+      const actual = new Date(iso as string).getTime()
+      expect(Math.abs(actual - expected)).toBeLessThanOrEqual(1000)
+
+      vi.useRealTimers()
+    })
+
+    it('clicking "Until tomorrow" calls onSnooze with next-day 09:00 local time', async () => {
+      mockFetch.mockResolvedValue([])
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      const now = new Date('2025-01-15T12:00:00Z')
+      vi.setSystemTime(now)
+      const onSnooze = vi.fn().mockResolvedValue(undefined)
+      render(
+        <AlertDrillDownPanel
+          alert={sampleAlert}
+          onClose={() => {}}
+          onSnooze={onSnooze}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('drill-down-snooze-btn'))
+      fireEvent.click(screen.getByTestId('drill-down-snooze-preset-tomorrow'))
+
+      await waitFor(() => {
+        expect(onSnooze).toHaveBeenCalledTimes(1)
+      })
+      const [, iso] = onSnooze.mock.calls[0]
+      const result = new Date(iso as string)
+      const tomorrow9 = new Date(now)
+      tomorrow9.setDate(tomorrow9.getDate() + 1)
+      tomorrow9.setHours(9, 0, 0, 0)
+      expect(result.getTime()).toBe(tomorrow9.getTime())
+
+      vi.useRealTimers()
+    })
+
+    it('renders a "Snoozed until …" badge when snoozedUntil is in the future', async () => {
+      mockFetch.mockResolvedValue([])
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      const now = new Date('2025-01-15T12:00:00Z')
+      vi.setSystemTime(now)
+      const snoozedAlert = {
+        ...sampleAlert,
+        snoozedUntil: new Date(now.getTime() + 60 * 60 * 1000).toISOString(),
+      }
+      render(
+        <AlertDrillDownPanel
+          alert={snoozedAlert}
+          onClose={() => {}}
+        />,
+      )
+
+      const badge = screen.getByTestId('drill-down-snoozed-until-badge')
+      expect(badge).toBeInTheDocument()
+      expect(badge.textContent).toMatch(/Snoozed until/i)
+
+      vi.useRealTimers()
+    })
+  })
 })

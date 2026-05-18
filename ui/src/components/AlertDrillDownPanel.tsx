@@ -1,9 +1,46 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowUpCircle, Check, CheckSquare, X } from 'lucide-react'
+import { ArrowUpCircle, Check, CheckSquare, Clock, X } from 'lucide-react'
 import type { AlertEventDto } from '../types'
 import { fetchAlertContributors, type PositionContributor } from '../api/alertContributors'
-import { formatCurrency } from '../utils/format'
+import { formatCurrency, formatRelativeFuture } from '../utils/format'
 import { Button, EmptyState, Input, Spinner } from './ui'
+
+/**
+ * Snooze preset definitions — fixed durations per plan §3.1b.4. Duplicated
+ * (intentionally — small constant) with NotificationCenter so the drill-down
+ * panel stays a self-contained component that can be reused elsewhere.
+ */
+const SNOOZE_PRESETS: Array<{
+  id: 'drill-down-snooze-preset-1h' | 'drill-down-snooze-preset-4h' | 'drill-down-snooze-preset-24h' | 'drill-down-snooze-preset-tomorrow'
+  label: string
+  compute: (now: Date) => Date
+}> = [
+  {
+    id: 'drill-down-snooze-preset-1h',
+    label: '1 hour',
+    compute: (now) => new Date(now.getTime() + 60 * 60 * 1000),
+  },
+  {
+    id: 'drill-down-snooze-preset-4h',
+    label: '4 hours',
+    compute: (now) => new Date(now.getTime() + 4 * 60 * 60 * 1000),
+  },
+  {
+    id: 'drill-down-snooze-preset-24h',
+    label: '24 hours',
+    compute: (now) => new Date(now.getTime() + 24 * 60 * 60 * 1000),
+  },
+  {
+    id: 'drill-down-snooze-preset-tomorrow',
+    label: 'Until tomorrow (09:00)',
+    compute: (now) => {
+      const d = new Date(now)
+      d.setDate(d.getDate() + 1)
+      d.setHours(9, 0, 0, 0)
+      return d
+    },
+  },
+]
 
 function useAlertContributors(alertId: string) {
   const [contributors, setContributors] = useState<PositionContributor[]>([])
@@ -48,6 +85,13 @@ interface AlertDrillDownPanelProps {
    * Resolve button is hidden.
    */
   onResolve?: (alertId: string, resolutionText: string) => Promise<void> | void
+  /**
+   * Snooze action. Fires with the alert id + an ISO-8601 deadline computed
+   * from the preset (1h / 4h / 24h / next-day 09:00 local). Visible on any
+   * non-RESOLVED alert. If omitted, the Snooze button is hidden. See plan
+   * §3.1b.4.
+   */
+  onSnooze?: (alertId: string, snoozedUntil: string) => Promise<void> | void
 }
 
 const statusBadgeClass: Record<string, string> = {
@@ -63,6 +107,7 @@ export function AlertDrillDownPanel({
   onAcknowledge,
   onEscalate,
   onResolve,
+  onSnooze,
 }: AlertDrillDownPanelProps) {
   const { contributors, loading } = useAlertContributors(alert.id)
   const [expanded, setExpanded] = useState(false)
@@ -80,6 +125,7 @@ export function AlertDrillDownPanel({
   const [resolveText, setResolveText] = useState('')
   const [resolveSubmitting, setResolveSubmitting] = useState(false)
   const [resolveTextError, setResolveTextError] = useState<string | null>(null)
+  const [snoozeOpen, setSnoozeOpen] = useState(false)
   const closeRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
@@ -104,7 +150,13 @@ export function AlertDrillDownPanel({
     (alert.status === 'TRIGGERED' || alert.status === 'ACKNOWLEDGED')
   // Resolve is available on every non-terminal state.
   const canResolve = onResolve !== undefined && alert.status !== 'RESOLVED'
+  // Snooze: any non-RESOLVED alert (§3.1b.4).
+  const canSnooze = onSnooze !== undefined && alert.status !== 'RESOLVED'
   const anyFormOpen = ackOpen || escalateOpen || resolveOpen
+  const snoozedActive =
+    typeof alert.snoozedUntil === 'string' &&
+    alert.snoozedUntil !== '' &&
+    new Date(alert.snoozedUntil).getTime() > Date.now()
 
   async function submitAcknowledge() {
     if (!onAcknowledge) return
@@ -169,6 +221,17 @@ export function AlertDrillDownPanel({
     }
   }
 
+  async function applySnoozePreset(compute: (now: Date) => Date) {
+    if (!onSnooze) return
+    const iso = compute(new Date()).toISOString()
+    setSnoozeOpen(false)
+    try {
+      await onSnooze(alert.id, iso)
+    } catch {
+      // Parent rolls back optimistic state.
+    }
+  }
+
   return (
     <div
       role="dialog"
@@ -191,6 +254,16 @@ export function AlertDrillDownPanel({
             >
               {alert.status}
             </span>
+            {snoozedActive && alert.snoozedUntil && (
+              <span
+                data-testid="drill-down-snoozed-until-badge"
+                title={new Date(alert.snoozedUntil).toLocaleString()}
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-800 rounded"
+              >
+                <Clock className="h-3 w-3" />
+                Snoozed until {formatRelativeFuture(alert.snoozedUntil)}
+              </span>
+            )}
           </div>
           <button
             ref={closeRef}
@@ -208,7 +281,7 @@ export function AlertDrillDownPanel({
           <div>Triggered: {new Date(alert.triggeredAt).toLocaleString()}</div>
         </div>
 
-        {!anyFormOpen && (canAcknowledge || canEscalate || canResolve) && (
+        {!anyFormOpen && (canAcknowledge || canEscalate || canResolve || canSnooze) && (
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {canAcknowledge && (
               <Button
@@ -242,6 +315,41 @@ export function AlertDrillDownPanel({
               >
                 Resolve
               </Button>
+            )}
+            {canSnooze && (
+              <div className="relative">
+                <Button
+                  data-testid="drill-down-snooze-btn"
+                  variant="secondary"
+                  size="sm"
+                  icon={<Clock className="h-3 w-3" />}
+                  onClick={() => setSnoozeOpen((v) => !v)}
+                  aria-haspopup="menu"
+                  aria-expanded={snoozeOpen}
+                >
+                  Snooze
+                </Button>
+                {snoozeOpen && (
+                  <div
+                    data-testid="drill-down-snooze-popover"
+                    role="menu"
+                    className="absolute left-0 z-10 mt-1 w-48 rounded border border-slate-200 bg-white dark:bg-slate-800 dark:border-slate-700 shadow-lg p-1 flex flex-col gap-0.5"
+                  >
+                    {SNOOZE_PRESETS.map((preset) => (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        role="menuitem"
+                        data-testid={preset.id}
+                        onClick={() => applySnoozePreset(preset.compute)}
+                        className="text-left px-2 py-1 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded"
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
           </div>
         )}
