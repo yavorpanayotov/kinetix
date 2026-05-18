@@ -32,6 +32,13 @@ private val logger = LoggerFactory.getLogger("PreTradeCheckRoutes")
 /** Timeout for the pre-trade risk check as specified in execution.allium config. */
 private const val RISK_CHECK_TIMEOUT_MS = 100L
 
+/**
+ * Synthetic trader id used when the bookId is unknown to the demo roster. Pre-trade
+ * check is hypothetical (no persistence, no audit trail) so trader ownership is not
+ * a hard requirement — the value is never validated or written downstream.
+ */
+private const val PRE_TRADE_CHECK_SENTINEL_TRADER_ID = "pre-trade-check"
+
 fun Route.preTradeCheckRoutes(preTradeCheckService: PreTradeCheckService) {
     route("/api/v1/risk") {
         post("/pre-trade-check", {
@@ -56,6 +63,13 @@ fun Route.preTradeCheckRoutes(preTradeCheckService: PreTradeCheckService) {
             val priceAmt = BigDecimal(request.priceAmount)
             require(priceAmt >= BigDecimal.ZERO) { "priceAmount must be non-negative, was $priceAmt" }
 
+            // Pre-trade check is read-only — no persistence, no audit trail, no trader
+            // validation. The check service ignores command.traderId entirely. We still
+            // populate it (BookTradeCommand requires non-null) but fall back to a
+            // synthetic sentinel when the book is unknown to the demo roster, rather
+            // than fail-fast as the booking path does.
+            val traderId = DemoTraderRoster.primaryTraderFor(request.bookId)
+                ?: PRE_TRADE_CHECK_SENTINEL_TRADER_ID
             val command = BookTradeCommand(
                 tradeId = TradeId(UUID.randomUUID().toString()),
                 bookId = BookId(request.bookId),
@@ -66,7 +80,7 @@ fun Route.preTradeCheckRoutes(preTradeCheckService: PreTradeCheckService) {
                 price = Money(priceAmt, Currency.getInstance(request.priceCurrency)),
                 tradedAt = Instant.now(),
                 instrumentType = request.instrumentType,
-                traderId = TraderId(DemoTraderRoster.requirePrimaryTraderFor(request.bookId)),
+                traderId = TraderId(traderId),
             )
 
             // Fail-safe on timeout: reject the order rather than allowing it through
