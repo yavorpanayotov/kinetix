@@ -32,6 +32,11 @@ value BenchmarkDailyReturn {
 
 -- LiquidityTier is defined in core.allium as a shared enum.
 
+enum NettingAgreementStatus { active | expired }
+-- Derived from NettingAgreement.expiry_date at read time:
+-- expired when expiry_date is non-null and now > expiry_date, else active.
+-- Surfaced by CounterpartyRiskDashboard as the "expired-ISDA" anomaly pill.
+
 ------------------------------------------------------------
 -- Entities and Variants
 ------------------------------------------------------------
@@ -49,6 +54,28 @@ entity Desk {
     division: Division
     desk_head: String?
     description: String?
+
+    -- Relationships
+    traders: Trader with desk_id = this
+}
+
+entity Trader {
+    trader_id: String
+    name: String
+    desk_id: Desk
+    email: String?
+    notional_limit_usd: Decimal?
+    created_at: Timestamp
+    updated_at: Timestamp
+
+    @guidance
+        -- Source of truth for the trader registry. Position-service calls
+        -- TraderLookup.GetTrader at trade-booking time to validate
+        -- BookTradeCommand.trader_id; NOT_FOUND is a hard reject.
+        --
+        -- notional_limit_usd is informational at present; pre-trade limit
+        -- enforcement against this cap is tracked in limits.allium under
+        -- the TRADER hierarchy level (future work, not yet wired).
 }
 
 entity Instrument {
@@ -203,8 +230,20 @@ entity NettingAgreement {
     close_out_netting: Boolean
     csa_threshold: Decimal?
     currency: String?
+    expiry_date: Timestamp?
     created_at: Timestamp
     updated_at: Timestamp
+
+    -- Derived (not persisted)
+    agreement_status: NettingAgreementStatus
+
+    @guidance
+        -- expiry_date is the ISDA / netting agreement maturity. When set
+        -- and in the past, the derived agreement_status is `expired` and
+        -- counterparty risk treats the agreement as if close-out netting
+        -- were unavailable (every position becomes its own netting set).
+        -- This is the expired-ISDA anomaly contract surfaced on the
+        -- CounterpartyRiskDashboard.
 }
 
 entity Benchmark {
@@ -217,19 +256,42 @@ entity Benchmark {
 entity InstrumentLiquidity {
     instrument_id: String
     adv: Decimal
+    adv_shares: Decimal?
     bid_ask_spread_bps: Decimal
+    market_depth_score: Decimal?
     asset_class: core/AssetClass
     liquidity_tier: core/LiquidityTier
+    source: String
+    hedging_eligible: Boolean?
     adv_updated_at: Timestamp
     created_at: Timestamp
     updated_at: Timestamp
 
+    -- Derived (not persisted) — surfaced on the liquidity route response
+    adv_stale: Boolean
+    adv_staleness_days: Integer
+
     @guidance
-        -- liquidity_tier is auto-classified based on ADV and spread:
+        -- liquidity_tier is auto-classified based on ADV (notional) and spread:
         --   HIGH_LIQUID: adv >= 50,000,000 AND spread <= 5 bps
         --   LIQUID: adv >= 10,000,000 AND spread <= 20 bps
         --   SEMI_LIQUID: adv >= 1,000,000
         --   ILLIQUID: everything else, or no ADV data
+        --
+        -- adv_shares is a parallel notional-in-shares figure used by the
+        -- engine for volume participation; market_depth_score is a 0..1
+        -- depth-of-book heuristic from the vendor feed; source labels the
+        -- upstream feed name (e.g. "bloomberg", "internal", "manual").
+        --
+        -- hedging_eligible is a per-instrument override consumed by
+        -- hedge/eligible_instruments. NULL is treated as eligible
+        -- (fail-open) for backwards compatibility with rows seeded
+        -- before V11. Set to false to exclude an instrument from
+        -- automatic hedge recommendations.
+        --
+        -- adv_stale and adv_staleness_days are derived from
+        -- adv_updated_at at read time and surface a freshness signal
+        -- to UI / engine consumers; they are not persisted.
 }
 
 ------------------------------------------------------------
@@ -254,6 +316,54 @@ rule CreateDesk {
 
     @guidance
         -- Desk names must be unique within a division.
+}
+
+-- Trader registry management
+--
+-- TraderLookup is the gRPC surface position-service calls at trade-booking
+-- time. It is intentionally separate from the REST routes so that the
+-- request/response shapes can evolve without breaking the wire contract.
+
+rule CreateTrader {
+    when: CreateTraderRequested(trader_id, name, desk_id, email, notional_limit_usd)
+    let desk = Desk{name: desk_id}
+    requires: trader_id != ""
+    requires: name != ""
+    requires: desk != null
+    requires: notional_limit_usd = null or notional_limit_usd >= 0
+
+    ensures: Trader.created(
+        trader_id: trader_id,
+        name: name,
+        desk_id: desk,
+        email: email,
+        notional_limit_usd: notional_limit_usd,
+        created_at: now,
+        updated_at: now
+    )
+}
+
+rule GetTrader {
+    when: GetTraderRequested(trader_id)
+    let trader = Trader{trader_id: trader_id}
+    requires: trader != null
+
+    @guidance
+        -- Hard NOT_FOUND when the trader is unknown. position-service
+        -- maps this to a 4xx reject of the BookTradeCommand. Exposed
+        -- both via REST (GET /api/v1/traders/{id}) and gRPC
+        -- (TraderLookupService.GetTrader).
+}
+
+rule ListTradersForDesk {
+    when: ListTradersForDeskRequested(desk_id)
+    let desk = Desk{name: desk_id}
+    requires: desk != null
+
+    @guidance
+        -- Returns all traders attached to the given desk. Exposed both
+        -- via REST (GET /api/v1/desks/{deskId}/traders) and gRPC
+        -- (TraderLookupService.ListTradersForDesk).
 }
 
 rule RegisterInstrument {
@@ -328,7 +438,7 @@ rule UpsertCounterparty {
 -- Netting agreement management
 
 rule UpsertNettingAgreement {
-    when: UpsertNettingAgreementRequested(netting_set_id, counterparty_id, agreement_type, close_out_netting, csa_threshold, currency)
+    when: UpsertNettingAgreementRequested(netting_set_id, counterparty_id, agreement_type, close_out_netting, csa_threshold, currency, expiry_date)
     requires: netting_set_id != ""
     requires: counterparty_id != ""
 
@@ -339,6 +449,7 @@ rule UpsertNettingAgreement {
         close_out_netting: close_out_netting,
         csa_threshold: csa_threshold,
         currency: currency,
+        expiry_date: expiry_date,
         created_at: now,
         updated_at: now
     )
@@ -346,6 +457,8 @@ rule UpsertNettingAgreement {
     @guidance
         -- Upserts: if a netting agreement with the same netting_set_id exists,
         -- its fields are updated and updated_at is set to now.
+        -- expiry_date is optional; when null the agreement is treated as
+        -- evergreen.
 }
 
 -- Benchmark management
@@ -448,4 +561,15 @@ invariant UniqueInstrumentLiquidityIds {
     for l1 in InstrumentLiquidities:
         for l2 in InstrumentLiquidities:
             l1 = l2 or l1.instrument_id != l2.instrument_id
+}
+
+invariant UniqueTraderIds {
+    for t1 in Traders:
+        for t2 in Traders:
+            t1 = t2 or t1.trader_id != t2.trader_id
+}
+
+invariant TraderDeskExists {
+    for t in Traders:
+        exists Desk{name: t.desk_id}
 }
