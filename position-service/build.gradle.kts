@@ -1,10 +1,24 @@
 plugins {
     id("kinetix.kotlin-service")
     id("kinetix.kotlin-testing")
+    id("kinetix.kotlin-mutation")
 }
 
 application {
     mainClass.set("com.kinetix.position.ApplicationKt")
+}
+
+// Narrow the PIT mutation scope to NettingSetAssigner. The convention
+// plugin's default of `com.kinetix.*` would mutation-test the whole
+// position-service — far too slow and prone to OOM/hang on the
+// property-based and Testcontainers-backed suites here. NettingSetAssigner
+// is a single self-contained class with four MockK-backed unit tests
+// covering null counterparty, empty-agreements, exception-swallow and
+// happy-path branches — enough behaviour for PIT to mutate meaningfully
+// while keeping the loop-driven acceptance check fast.
+pitest {
+    targetClasses.set("com.kinetix.position.service.NettingSetAssigner")
+    targetTests.set("com.kinetix.position.service.NettingSetAssignerTest")
 }
 
 dependencies {
