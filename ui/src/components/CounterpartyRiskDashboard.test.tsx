@@ -361,4 +361,78 @@ describe('CounterpartyRiskDashboard', () => {
     const cvaButton = screen.getByTestId('compute-cva-button')
     expect(cvaButton).toBeDisabled()
   })
+
+  // Light-mode support: every bare slate utility class on a rendered element
+  // must be paired with a `dark:` counterpart of the same family on the same
+  // element. The reverse — `dark:bg-slate-800` must have a same-element
+  // light-mode counterpart of the same family (any colour, e.g. `bg-white`)
+  // so the element is not transparent in light mode. A bare `bg-slate-800` /
+  // `text-slate-200` / `border-slate-700` with no `dark:` companion is the
+  // regression we are guarding against.
+  it('pairs every slate utility class with a light-mode and dark-mode counterpart', () => {
+    mockUseCounterpartyRisk.mockReturnValue({
+      ...defaultHook,
+      exposures: [SAMPLE_EXPOSURE, HIGH_EXPOSURE],
+      selected: SAMPLE_EXPOSURE,
+    })
+
+    const { container } = render(<CounterpartyRiskDashboard />)
+
+    type Offender = { reason: string; family: string; classAttr: string }
+    const offenders: Offender[] = []
+
+    container.querySelectorAll<HTMLElement>('[class]').forEach((node) => {
+      const classAttr = node.getAttribute('class') ?? ''
+      const tokens = classAttr.split(/\s+/).filter(Boolean)
+
+      // For each utility "family" — keyed by the non-`dark:` modifier chain
+      // plus the utility prefix (`bg` / `text` / `border`) — collect the
+      // bare ("light") and `dark:`-prefixed tokens that target it. A family
+      // is healthy only when both buckets are populated.
+      //
+      // Example: `dark:hover:bg` is a family. Tokens belonging to it are
+      // `hover:bg-…` (light) and `dark:hover:bg-…` (dark).
+      const families: Record<string, { light: string[]; dark: string[]; slateLight: boolean; slateDark: boolean }> = {}
+      for (const token of tokens) {
+        const match = token.match(/^((?:[\w-]+:)*)((?:bg|text|border|placeholder)-[\w/-]+)$/)
+        if (!match) continue
+        const variants = match[1] // e.g. "dark:hover:" or "hover:"
+        const utility = match[2] // e.g. "bg-slate-800" / "bg-white"
+        const utilityKind = utility.split('-')[0] // bg | text | border | placeholder
+        const isDark = /\bdark:/.test(variants)
+        const familyKey = `${variants.replace(/(^|:)dark:/g, '$1')}${utilityKind}`
+        const bucket = (families[familyKey] ??= { light: [], dark: [], slateLight: false, slateDark: false })
+        const isSlate = /^(?:bg|text|border|placeholder)-slate-/.test(utility)
+        if (isDark) {
+          bucket.dark.push(token)
+          if (isSlate) bucket.slateDark = true
+        } else {
+          bucket.light.push(token)
+          if (isSlate) bucket.slateLight = true
+        }
+      }
+
+      for (const [family, { light, dark, slateLight, slateDark }] of Object.entries(families)) {
+        // We only care about families that involve a slate utility — those
+        // are the ones that risk hardcoding the dark palette.
+        if (!slateLight && !slateDark) continue
+        if (dark.length === 0) {
+          offenders.push({
+            reason: 'bare slate utility without a `dark:` counterpart',
+            family,
+            classAttr,
+          })
+        }
+        if (light.length === 0) {
+          offenders.push({
+            reason: '`dark:` slate utility without a light-mode counterpart',
+            family,
+            classAttr,
+          })
+        }
+      }
+    })
+
+    expect(offenders).toEqual([])
+  })
 })

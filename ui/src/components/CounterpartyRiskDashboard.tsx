@@ -27,7 +27,7 @@ function SortableHeader({ column, label, align, sortColumn, sortDirection, onSor
     <th
       data-testid={`sort-header-${column}`}
       onClick={() => onSort(column)}
-      className={`px-4 py-2.5 text-${align} text-xs font-medium text-slate-400 uppercase tracking-wider cursor-pointer select-none hover:text-slate-200`}
+      className={`px-4 py-2.5 text-${align} text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider cursor-pointer select-none hover:text-slate-700 dark:hover:text-slate-200`}
       aria-sort={isActive ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
     >
       <span className={`inline-flex items-center gap-1 ${justify}`}>
@@ -63,7 +63,7 @@ function PfeChart({ profile }: PfeChartProps) {
     return (
       <div
         data-testid="pfe-chart-empty"
-        className="flex items-center justify-center h-40 text-sm text-slate-400"
+        className="flex items-center justify-center h-40 text-sm text-slate-500 dark:text-slate-400"
       >
         No PFE profile available. Run PFE computation to generate.
       </div>
@@ -184,13 +184,13 @@ function CounterpartyRow({ exposure, isSelected, highThreshold, onSelect }: Coun
     <tr
       data-testid={`counterparty-row-${exposure.counterpartyId}`}
       onClick={onSelect}
-      className={`cursor-pointer border-b border-slate-700 transition-colors ${
+      className={`cursor-pointer border-b border-slate-200 dark:border-slate-700 transition-colors ${
         isSelected
           ? 'bg-indigo-900/30'
-          : 'hover:bg-slate-700/40'
+          : 'hover:bg-slate-100 dark:hover:bg-slate-700/40'
       }`}
     >
-      <td className="px-4 py-2.5 text-sm font-mono text-slate-200">
+      <td className="px-4 py-2.5 text-sm font-mono text-slate-700 dark:text-slate-200">
         <div className="flex items-center gap-2">
           {hasHighExposure && (
             <AlertTriangle
@@ -213,7 +213,7 @@ function CounterpartyRow({ exposure, isSelected, highThreshold, onSelect }: Coun
           )}
         </div>
       </td>
-      <td className="px-4 py-2.5 text-sm text-right font-mono text-slate-200">
+      <td className="px-4 py-2.5 text-sm text-right font-mono text-slate-700 dark:text-slate-200">
         {formatCurrency(exposure.currentNetExposure)}
       </td>
       <td className="px-4 py-2.5 text-sm text-right font-mono text-amber-300">
@@ -221,12 +221,12 @@ function CounterpartyRow({ exposure, isSelected, highThreshold, onSelect }: Coun
       </td>
       <td className="px-4 py-2.5 text-sm text-right font-mono">
         {hasCva ? (
-          <span className={exposure.cvaEstimated ? 'text-slate-400 italic' : 'text-indigo-300'}>
+          <span className={exposure.cvaEstimated ? 'text-slate-500 dark:text-slate-400 italic' : 'text-indigo-300'}>
             {formatCurrency(exposure.cva!)}
             {exposure.cvaEstimated && ' *'}
           </span>
         ) : (
-          <span className="text-slate-500">—</span>
+          <span className="text-slate-400 dark:text-slate-500">—</span>
         )}
       </td>
       <td className="px-4 py-2.5 text-sm text-center">
@@ -239,7 +239,7 @@ function CounterpartyRow({ exposure, isSelected, highThreshold, onSelect }: Coun
             High
           </span>
         ) : (
-          <span className="text-slate-500 text-xs">Normal</span>
+          <span className="text-slate-400 dark:text-slate-500 text-xs">Normal</span>
         )}
       </td>
     </tr>
@@ -262,7 +262,7 @@ function DetailPanel({ exposure, computing, onComputePFE, onComputeCVA }: Detail
     <div data-testid="counterparty-detail-panel" className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="text-base font-semibold text-slate-200">
+        <h3 className="text-base font-semibold text-slate-700 dark:text-slate-200">
           {exposure.counterpartyId}
         </h3>
         <div className="flex items-center gap-2">
@@ -289,28 +289,28 @@ function DetailPanel({ exposure, computing, onComputePFE, onComputeCVA }: Detail
 
       {/* Metrics */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-lg bg-slate-800 p-3">
-          <div className="text-xs text-slate-400 mb-1">Net Exposure</div>
+        <div className="rounded-lg bg-white dark:bg-slate-800 p-3">
+          <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">Net Exposure</div>
           <div
             data-testid="detail-net-exposure"
-            className="text-lg font-mono font-semibold text-slate-100"
+            className="text-lg font-mono font-semibold text-slate-900 dark:text-slate-100"
           >
             {formatCurrency(exposure.currentNetExposure)}
           </div>
-          <div className="text-xs text-slate-500 mt-0.5">{exposure.currency}</div>
+          <div className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{exposure.currency}</div>
         </div>
-        <div className="rounded-lg bg-slate-800 p-3">
-          <div className="text-xs text-slate-400 mb-1">Peak PFE</div>
+        <div className="rounded-lg bg-white dark:bg-slate-800 p-3">
+          <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">Peak PFE</div>
           <div
             data-testid="detail-peak-pfe"
             className="text-lg font-mono font-semibold text-amber-300"
           >
             {formatCurrency(exposure.peakPfe)}
           </div>
-          <div className="text-xs text-slate-500 mt-0.5">95th percentile</div>
+          <div className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">95th percentile</div>
         </div>
-        <div className="rounded-lg bg-slate-800 p-3">
-          <div className="text-xs text-slate-400 mb-1">CVA</div>
+        <div className="rounded-lg bg-white dark:bg-slate-800 p-3">
+          <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">CVA</div>
           <div
             data-testid="detail-cva"
             className="text-lg font-mono font-semibold text-indigo-300"
@@ -319,25 +319,25 @@ function DetailPanel({ exposure, computing, onComputePFE, onComputeCVA }: Detail
               <>
                 {formatCurrency(exposure.cva)}
                 {exposure.cvaEstimated && (
-                  <span className="text-xs text-slate-400 ml-1">(est.)</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400 ml-1">(est.)</span>
                 )}
               </>
             ) : (
-              <span className="text-slate-500 text-base">Not computed</span>
+              <span className="text-slate-400 dark:text-slate-500 text-base">Not computed</span>
             )}
           </div>
-          <div className="text-xs text-slate-500 mt-0.5">Credit Valuation Adj.</div>
+          <div className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Credit Valuation Adj.</div>
         </div>
       </div>
 
       {/* PFE Chart */}
-      <div className="rounded-lg bg-slate-800 p-4">
-        <h4 className="text-sm font-medium text-slate-300 mb-3">PFE Profile</h4>
+      <div className="rounded-lg bg-white dark:bg-slate-800 p-4">
+        <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">PFE Profile</h4>
         <PfeChart profile={exposure.pfeProfile} />
       </div>
 
       {/* Calculation timestamp */}
-      <div className="text-xs text-slate-500">
+      <div className="text-xs text-slate-400 dark:text-slate-500">
         Last calculated:{' '}
         {new Date(exposure.calculatedAt).toLocaleString(undefined, {
           dateStyle: 'medium',
@@ -451,8 +451,8 @@ export function CounterpartyRiskDashboard() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Users className="h-5 w-5 text-indigo-400" />
-          <h2 className="text-base font-semibold text-slate-200">Counterparty Risk</h2>
-          <span className="text-xs text-slate-500">
+          <h2 className="text-base font-semibold text-slate-700 dark:text-slate-200">Counterparty Risk</h2>
+          <span className="text-xs text-slate-400 dark:text-slate-500">
             {exposures.length} counterpart{exposures.length === 1 ? 'y' : 'ies'}
           </span>
         </div>
@@ -460,7 +460,7 @@ export function CounterpartyRiskDashboard() {
           data-testid="refresh-exposures-button"
           onClick={refresh}
           disabled={loading}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-300 border border-slate-600 rounded-md hover:bg-slate-700 disabled:opacity-50 transition-colors"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50 transition-colors"
           aria-label="Refresh counterparty exposures"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
@@ -481,7 +481,7 @@ export function CounterpartyRiskDashboard() {
 
       {/* Loading */}
       {loading && exposures.length === 0 && (
-        <div className="flex items-center justify-center py-12 text-slate-400 gap-2">
+        <div className="flex items-center justify-center py-12 text-slate-500 dark:text-slate-400 gap-2">
           <Spinner />
           Loading counterparty exposures...
         </div>
@@ -491,11 +491,11 @@ export function CounterpartyRiskDashboard() {
       {!loading && exposures.length === 0 && !error && (
         <div
           data-testid="counterparty-empty-state"
-          className="flex flex-col items-center justify-center py-16 text-slate-400 gap-2"
+          className="flex flex-col items-center justify-center py-16 text-slate-500 dark:text-slate-400 gap-2"
         >
-          <Users className="h-10 w-10 text-slate-600" />
+          <Users className="h-10 w-10 text-slate-400 dark:text-slate-600" />
           <p className="text-sm">No counterparty exposures found.</p>
-          <p className="text-xs text-slate-500">Book trades and run PFE computation to populate.</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500">Book trades and run PFE computation to populate.</p>
         </div>
       )}
 
@@ -506,7 +506,7 @@ export function CounterpartyRiskDashboard() {
           {/* Counterparty list */}
           <div className="xl:col-span-2 space-y-2">
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 dark:text-slate-500" aria-hidden="true" />
               <input
                 data-testid="counterparty-search"
                 type="text"
@@ -514,13 +514,13 @@ export function CounterpartyRiskDashboard() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search counterparty..."
                 aria-label="Search counterparty"
-                className="w-full pl-8 pr-3 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full pl-8 pr-3 py-1.5 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
             </div>
-            <div className="rounded-lg bg-slate-800/60 border border-slate-700 overflow-hidden">
+            <div className="rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 overflow-hidden">
               <table className="w-full" aria-label="Counterparty exposures">
                 <thead>
-                  <tr className="border-b border-slate-700">
+                  <tr className="border-b border-slate-200 dark:border-slate-700">
                     <SortableHeader
                       column="counterpartyId"
                       label="Counterparty"
@@ -569,7 +569,7 @@ export function CounterpartyRiskDashboard() {
                       <td
                         colSpan={5}
                         data-testid="counterparty-no-search-results"
-                        className="px-4 py-6 text-center text-sm text-slate-500"
+                        className="px-4 py-6 text-center text-sm text-slate-400 dark:text-slate-500"
                       >
                         No counterparties match &quot;{searchQuery}&quot;
                       </td>
@@ -587,7 +587,7 @@ export function CounterpartyRiskDashboard() {
                 </tbody>
               </table>
               {selected?.cvaEstimated && (
-                <div className="px-4 py-2 text-xs text-slate-500 border-t border-slate-700">
+                <div className="px-4 py-2 text-xs text-slate-400 dark:text-slate-500 border-t border-slate-200 dark:border-slate-700">
                   * CVA marked as estimated (no CDS spread available)
                 </div>
               )}
@@ -597,7 +597,7 @@ export function CounterpartyRiskDashboard() {
           {/* Detail panel */}
           <div className="xl:col-span-3">
             {selected ? (
-              <div className="rounded-lg bg-slate-800/60 border border-slate-700 p-4">
+              <div className="rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 p-4">
                 <DetailPanel
                   exposure={selected}
                   computing={computing}
@@ -608,7 +608,7 @@ export function CounterpartyRiskDashboard() {
             ) : (
               <div
                 data-testid="detail-panel-placeholder"
-                className="rounded-lg bg-slate-800/30 border border-slate-700/50 h-full flex items-center justify-center min-h-48 text-slate-500 text-sm"
+                className="rounded-lg bg-slate-50 dark:bg-slate-800/30 border border-slate-200 dark:border-slate-700/50 h-full flex items-center justify-center min-h-48 text-slate-400 dark:text-slate-500 text-sm"
               >
                 Select a counterparty to view details
               </div>
