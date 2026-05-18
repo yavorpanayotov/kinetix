@@ -570,6 +570,41 @@ jobs:
         working-directory: infra/prometheus
         run: promtool test rules alert-rules-test.yml
 
+  coverage-ratchet:
+    needs: [kotlin-unit-tests, python-unit-tests, ui-build]
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts
+            coverage-baselines.json
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: kover-coverage-*
+          path: kover-artifacts/
+      - uses: actions/download-artifact@v4
+        with:
+          name: pytest-coverage
+          path: risk-engine/reports/
+        continue-on-error: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: vitest-coverage
+          path: ui/coverage/
+        continue-on-error: true
+      - name: Relayout Kover artifacts into expected paths
+        run: |
+          for d in kover-artifacts/kover-coverage-*; do
+            module=$(basename "$d" | sed 's/^kover-coverage-//')
+            mkdir -p "$module/build/reports/kover"
+            cp -r "$d"/* "$module/build/reports/kover/" || true
+          done
+      - name: Coverage ratchet
+        # Soft-warn until baselines for Kotlin modules are filled in.
+        run: python3 scripts/check-coverage-ratchet.py || echo "::warning::Coverage ratchet breached"
+
   test-summary:
     needs: [kotlin-unit-tests, kotlin-acceptance-tests, kotlin-integration, end-to-end-tests, load-tests, python-unit-tests, python-integration-tests, ui-build, ui-e2e-tests, smoke-tests]
     if: always() && !cancelled()

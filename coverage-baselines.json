@@ -1,0 +1,7 @@
+{
+  "_comment": "Coverage ratchet baselines. Update these when coverage genuinely improves; do not lower them to absorb regressions. scripts/check-coverage-ratchet.py enforces them in CI with a 0.5pp tolerance.",
+  "_established": "2026-05-18 (initial Phase 1 measurement)",
+  "ui": 80.81,
+  "python": 83.00,
+  "kotlin": {}
+}
