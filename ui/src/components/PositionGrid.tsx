@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Wifi, WifiOff, Inbox, Settings, Download, Eye, EyeOff } from 'lucide-react'
-import type { PositionDto, PositionRiskDto } from '../types'
+import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Wifi, WifiOff, Inbox, Settings, Download, Eye, EyeOff, StickyNote } from 'lucide-react'
+import type { PositionDto, PositionNoteDto, PositionRiskDto } from '../types'
 import { formatMoney, formatSignedMoney, formatNum, formatQuantity, pnlColorClass } from '../utils/format'
 import { formatCompactCurrency } from '../utils/formatCompactCurrency'
 import { exportToCsv } from '../utils/exportCsv'
@@ -10,6 +10,7 @@ import { InstrumentTypeBadge } from './InstrumentTypeBadge'
 import { INSTRUMENT_TYPE_OPTIONS, formatInstrumentTypeLabel } from '../utils/instrumentTypes'
 import { buildStrategyGroups } from '../utils/strategyGrouping'
 import { StrategyGroupRow } from './StrategyGroupRow'
+import { PositionNotePopover } from './PositionNotePopover'
 
 type SortField = 'delta' | 'gamma' | 'vega' | 'var-pct'
 type SortDirection = 'asc' | 'desc'
@@ -21,6 +22,14 @@ interface PositionGridProps {
   lastConnectedAt?: Date | null
   positionRisk?: PositionRiskDto[]
   showBookColumn?: boolean
+  /**
+   * When supplied, enables the per-row notes column (plan §7.3.3). The grid
+   * delegates loading/persistence to the caller — typically `usePositionNotes`.
+   */
+  bookId?: string | null
+  notesByInstrument?: Map<string, PositionNoteDto[]>
+  onAddNote?: (instrumentId: string, text: string) => Promise<unknown> | void
+  onDeleteNote?: (id: string) => Promise<unknown> | void
 }
 
 function riskValue(risk: PositionRiskDto | undefined, field: SortField): number {
@@ -71,7 +80,7 @@ function loadColumnVisibility(): Record<string, boolean> {
   return {}
 }
 
-export function PositionGrid({ positions, connected, reconnecting, lastConnectedAt, positionRisk, showBookColumn = false }: PositionGridProps) {
+export function PositionGrid({ positions, connected, reconnecting, lastConnectedAt, positionRisk, showBookColumn = false, bookId, notesByInstrument, onAddNote, onDeleteNote }: PositionGridProps) {
   const { preferences, updatePreference } = useWorkspace()
   const showPositionDetails = preferences.showPositionDetails
   const [sortField, setSortField] = useState<SortField | null>(null)
@@ -83,6 +92,20 @@ export function PositionGrid({ positions, connected, reconnecting, lastConnected
   const [instrumentSearch, setInstrumentSearch] = useState('')
   const [filterResetNotice, setFilterResetNotice] = useState<string | null>(null)
   const settingsRef = useRef<HTMLDivElement>(null)
+  const notesEnabled = bookId != null
+  const [openNoteInstrument, setOpenNoteInstrument] = useState<string | null>(null)
+  const openNoteRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!notesEnabled || openNoteInstrument == null) return
+    function handleMouseDown(e: MouseEvent) {
+      if (openNoteRef.current && !openNoteRef.current.contains(e.target as Node)) {
+        setOpenNoteInstrument(null)
+      }
+    }
+    document.addEventListener('mousedown', handleMouseDown)
+    return () => document.removeEventListener('mousedown', handleMouseDown)
+  }, [notesEnabled, openNoteInstrument])
 
   const toggleDetails = () => {
     updatePreference('showPositionDetails', !showPositionDetails)
@@ -522,6 +545,9 @@ export function PositionGrid({ positions, connected, reconnecting, lastConnected
                     </th>
                   </>
                 )}
+                {notesEnabled && (
+                  <th aria-label="Notes" className="px-2 py-2 text-right text-sm font-semibold text-slate-700 dark:text-slate-300 w-8" />
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-surface-700">
@@ -529,12 +555,12 @@ export function PositionGrid({ positions, connected, reconnecting, lastConnected
                 <StrategyGroupRow
                   key={strategy.strategyId}
                   strategy={strategy}
-                  colSpan={positionColCount + (hasRisk ? riskColCount : 0)}
+                  colSpan={positionColCount + (hasRisk ? riskColCount : 0) + (notesEnabled ? 1 : 0)}
                 />
               ))}
               {sortedPositions.length === 0 && (instrumentTypeFilter || instrumentSearch) && (
                 <tr>
-                  <td colSpan={positionColCount + (hasRisk ? riskColCount : 0)} className="px-4 py-8 text-center text-sm text-slate-500">
+                  <td colSpan={positionColCount + (hasRisk ? riskColCount : 0) + (notesEnabled ? 1 : 0)} className="px-4 py-8 text-center text-sm text-slate-500">
                     No positions match the current filter.
                   </td>
                 </tr>
@@ -569,6 +595,8 @@ export function PositionGrid({ positions, connected, reconnecting, lastConnected
                     </td>
                   ),
                 }
+                const instrumentNotes = notesByInstrument?.get(pos.instrumentId) ?? []
+                const isOpen = openNoteInstrument === pos.instrumentId
                 return (
                   <tr key={pos.instrumentId} data-testid={`position-row-${pos.instrumentId}`} className="hover:bg-slate-50 dark:hover:bg-surface-700 transition-colors">
                     {visiblePositionCols.map((col) => cellMap[col.key])}
@@ -599,6 +627,50 @@ export function PositionGrid({ positions, connected, reconnecting, lastConnected
                           {risk ? `${formatNum(risk.percentageOfTotal)}%` : 'N/A'}
                         </td>
                       </>
+                    )}
+                    {notesEnabled && (
+                      <td className="px-2 py-2 text-sm text-right">
+                        <div className="relative inline-block" ref={isOpen ? openNoteRef : undefined}>
+                          <button
+                            type="button"
+                            data-testid={`position-note-icon-${pos.instrumentId}`}
+                            aria-label={instrumentNotes.length > 0
+                              ? `${instrumentNotes.length} note${instrumentNotes.length === 1 ? '' : 's'} for ${pos.instrumentId}`
+                              : `Add note for ${pos.instrumentId}`}
+                            aria-haspopup="dialog"
+                            aria-expanded={isOpen}
+                            onClick={() =>
+                              setOpenNoteInstrument((cur) => (cur === pos.instrumentId ? null : pos.instrumentId))
+                            }
+                            className={`inline-flex items-center gap-1 px-1.5 py-1 rounded transition-colors ${
+                              instrumentNotes.length > 0
+                                ? 'text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30'
+                                : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-surface-700'
+                            }`}
+                          >
+                            <StickyNote
+                              className="h-4 w-4"
+                              fill={instrumentNotes.length > 0 ? 'currentColor' : 'none'}
+                            />
+                            {instrumentNotes.length > 0 && (
+                              <span className="text-xs font-medium">{instrumentNotes.length}</span>
+                            )}
+                          </button>
+                          {isOpen && (
+                            <PositionNotePopover
+                              instrumentId={pos.instrumentId}
+                              notes={instrumentNotes}
+                              onAdd={async (text) => {
+                                if (onAddNote) await onAddNote(pos.instrumentId, text)
+                              }}
+                              onDelete={async (id) => {
+                                if (onDeleteNote) await onDeleteNote(id)
+                              }}
+                              onClose={() => setOpenNoteInstrument(null)}
+                            />
+                          )}
+                        </div>
+                      </td>
                     )}
                   </tr>
                 )

@@ -24,6 +24,7 @@ import { RiskTickerStrip } from './components/RiskTickerStrip'
 import { BreachBanner } from './components/BreachBanner'
 import { SystemStatusBanner } from './components/SystemStatusBanner'
 import { usePositions } from './hooks/usePositions'
+import { usePositionNotes } from './hooks/usePositionNotes'
 import { useAlerts } from './hooks/useAlerts'
 import { useVaR } from './hooks/useVaR'
 import { useVarLimit } from './hooks/useVarLimit'
@@ -293,6 +294,9 @@ function AppContent() {
   void handleBookChange // used indirectly via hierarchy selection changes
 
   const bookId = hierarchy.effectiveBookId ?? (isAllSelected ? ALL_BOOKS : rawBookId)
+  // Plan §7.3.3 — per-instrument notes only meaningful when a concrete book is
+  // selected (not the firm-wide "All" aggregate).
+  const positionNotes = usePositionNotes(effectiveBookId)
   const notifications = useNotifications(auth.username)
   const systemHealth = useSystemHealth()
   const whatIf = useWhatIf(effectiveBookId)
@@ -741,6 +745,10 @@ function AppContent() {
                       lastConnectedAt={lastConnectedAt}
                       positionRisk={positionRisk}
                       showBookColumn={hierarchy.selection.level !== 'book'}
+                      bookId={effectiveBookId}
+                      notesByInstrument={positionNotes.notesByInstrument}
+                      onAddNote={(instrumentId, text) => positionNotes.createNote(instrumentId, text)}
+                      onDeleteNote={(id) => positionNotes.deleteNote(id)}
                     />
                   </div>
                 )}

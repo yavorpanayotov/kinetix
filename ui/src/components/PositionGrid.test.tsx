@@ -1,6 +1,6 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PositionDto, PositionRiskDto } from '../types'
 import { PositionGrid } from './PositionGrid'
 
@@ -923,6 +923,140 @@ describe('PositionGrid', () => {
 
       const row = screen.getByTestId('position-row-AAPL')
       expect(within(row).getByText('Cash Equity')).toBeInTheDocument()
+    })
+  })
+
+  describe('position notes', () => {
+    const notes = (overrides: Partial<import('../types').PositionNoteDto> = {}) => ({
+      id: 'n-1',
+      bookId: 'port-1',
+      instrumentId: 'AAPL',
+      note: 'Watching earnings',
+      author: 'alice',
+      createdAt: '2026-05-18T10:00:00Z',
+      ...overrides,
+    })
+
+    it('does not render note icon when bookId is not supplied', () => {
+      render(<PositionGrid positions={[makePosition()]} />)
+      expect(screen.queryByTestId('position-note-icon-AAPL')).not.toBeInTheDocument()
+    })
+
+    it('renders a per-row note icon when bookId is supplied', () => {
+      render(
+        <PositionGrid
+          positions={[makePosition()]}
+          bookId="port-1"
+          notesByInstrument={new Map()}
+          onAddNote={() => Promise.resolve()}
+          onDeleteNote={() => Promise.resolve()}
+        />,
+      )
+
+      expect(screen.getByTestId('position-note-icon-AAPL')).toBeInTheDocument()
+    })
+
+    it('shows count badge when the instrument has existing notes', () => {
+      const map = new Map<string, import('../types').PositionNoteDto[]>([
+        ['AAPL', [notes({ id: 'a' }), notes({ id: 'b' })]],
+      ])
+      render(
+        <PositionGrid
+          positions={[makePosition()]}
+          bookId="port-1"
+          notesByInstrument={map}
+          onAddNote={() => Promise.resolve()}
+          onDeleteNote={() => Promise.resolve()}
+        />,
+      )
+
+      const icon = screen.getByTestId('position-note-icon-AAPL')
+      expect(icon).toHaveTextContent('2')
+    })
+
+    it('opens the popover for the clicked row showing its instrument notes', async () => {
+      const user = userEvent.setup()
+      const map = new Map<string, import('../types').PositionNoteDto[]>([
+        ['AAPL', [notes({ id: 'a', note: 'Earnings soon' })]],
+      ])
+      render(
+        <PositionGrid
+          positions={[makePosition()]}
+          bookId="port-1"
+          notesByInstrument={map}
+          onAddNote={() => Promise.resolve()}
+          onDeleteNote={() => Promise.resolve()}
+        />,
+      )
+
+      await user.click(screen.getByTestId('position-note-icon-AAPL'))
+
+      const popover = screen.getByTestId('position-note-popover-AAPL')
+      expect(within(popover).getByText('Earnings soon')).toBeInTheDocument()
+    })
+
+    it('only one popover is open at a time', async () => {
+      const user = userEvent.setup()
+      const positions = [
+        makePosition({ instrumentId: 'AAPL' }),
+        makePosition({ instrumentId: 'GOOGL' }),
+      ]
+      render(
+        <PositionGrid
+          positions={positions}
+          bookId="port-1"
+          notesByInstrument={new Map()}
+          onAddNote={() => Promise.resolve()}
+          onDeleteNote={() => Promise.resolve()}
+        />,
+      )
+
+      await user.click(screen.getByTestId('position-note-icon-AAPL'))
+      expect(screen.getByTestId('position-note-popover-AAPL')).toBeInTheDocument()
+
+      await user.click(screen.getByTestId('position-note-icon-GOOGL'))
+      expect(screen.queryByTestId('position-note-popover-AAPL')).not.toBeInTheDocument()
+      expect(screen.getByTestId('position-note-popover-GOOGL')).toBeInTheDocument()
+    })
+
+    it('submitting the add form calls onAddNote with instrumentId and text', async () => {
+      const user = userEvent.setup()
+      const onAddNote = vi.fn().mockResolvedValue(undefined)
+      render(
+        <PositionGrid
+          positions={[makePosition()]}
+          bookId="port-1"
+          notesByInstrument={new Map()}
+          onAddNote={onAddNote}
+          onDeleteNote={() => Promise.resolve()}
+        />,
+      )
+
+      await user.click(screen.getByTestId('position-note-icon-AAPL'))
+      await user.type(screen.getByTestId('position-note-input-AAPL'), 'New note')
+      await user.click(screen.getByTestId('position-note-submit-AAPL'))
+
+      expect(onAddNote).toHaveBeenCalledWith('AAPL', 'New note')
+    })
+
+    it('clicking the icon again toggles the popover closed', async () => {
+      const user = userEvent.setup()
+      render(
+        <PositionGrid
+          positions={[makePosition()]}
+          bookId="port-1"
+          notesByInstrument={new Map()}
+          onAddNote={() => Promise.resolve()}
+          onDeleteNote={() => Promise.resolve()}
+        />,
+      )
+
+      const icon = screen.getByTestId('position-note-icon-AAPL')
+      await user.click(icon)
+      expect(screen.getByTestId('position-note-popover-AAPL')).toBeInTheDocument()
+
+      await user.click(icon)
+      expect(screen.queryByTestId('position-note-popover-AAPL')).not.toBeInTheDocument()
     })
   })
 })
