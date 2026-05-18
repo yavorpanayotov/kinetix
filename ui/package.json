@@ -11,6 +11,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "test:mutation": "stryker run",
     "playwright": "playwright test",
     "playwright:headed": "playwright test --headed",
     "playwright:ui": "playwright test --ui",
@@ -43,6 +44,9 @@
     "typescript-eslint": "^8.48.0",
     "vite": "^7.3.1",
     "vitest": "^4.0.18",
-    "@vitest/coverage-v8": "^4.0.18"
+    "@vitest/coverage-v8": "^4.0.18",
+    "@stryker-mutator/core": "^9.0.0",
+    "@stryker-mutator/typescript-checker": "^9.0.0",
+    "@stryker-mutator/vitest-runner": "^9.0.0"
   }
 }

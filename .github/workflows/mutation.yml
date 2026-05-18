@@ -1,0 +1,79 @@
+name: Mutation testing
+
+# Mutation testing surfaces tests that pass without actually verifying
+# behaviour. It's slow (often 10× the unit-test budget per stack), so it
+# runs weekly on a schedule rather than per-PR, and the result is treated
+# as a quality dashboard rather than a merge gate.
+
+on:
+  schedule:
+    # Sundays at 02:00 UTC.
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+
+  python-mutation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: risk-engine
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: uv sync
+      - name: Run mutmut
+        run: uv run mutmut run || true
+      - name: Generate HTML report
+        if: always()
+        run: uv run mutmut html || true
+      - name: Upload mutmut report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutmut-report
+          path: |
+            risk-engine/html/
+            risk-engine/.mutmut-cache
+          retention-days: 30
+
+  ui-mutation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - run: npm ci
+      - name: Run Stryker
+        run: npm run test:mutation || true
+      - name: Upload Stryker report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stryker-report
+          path: |
+            ui/reports/mutation/
+          retention-days: 30
+
+  # Kotlin mutation testing (PIT) is deferred — the gradle-pitest-plugin
+  # versions currently published are incompatible with Gradle 9 (a
+  # reporting.baseDir API was removed). Re-add when a Gradle 9-compatible
+  # version of info.solidsoft.gradle.pitest:gradle-pitest-plugin is released,
+  # or evaluate an alternative such as direct PIT CLI invocation.

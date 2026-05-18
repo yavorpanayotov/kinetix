@@ -22,6 +22,7 @@ dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",
     "hypothesis>=6.100",
+    "mutmut>=3.0",
     "grpcio-tools>=1.60",
 ]
 
@@ -54,6 +55,14 @@ exclude_lines = [
 ]
 show_missing = true
 skip_covered = false
+
+[tool.mutmut]
+# Mutation testing config. Run with `uv run mutmut run`; results land in
+# .mutmut-cache. Focus on the calculation modules where invariant tests
+# (test_*_invariants.py, hypothesis-driven) should catch most mutants.
+paths_to_mutate = "src/kinetix_risk/black_scholes.py,src/kinetix_risk/greeks.py,src/kinetix_risk/var_historical.py,src/kinetix_risk/var_parametric.py,src/kinetix_risk/var_monte_carlo.py,src/kinetix_risk/monte_carlo.py,src/kinetix_risk/bond_pricing.py,src/kinetix_risk/swap_pricing.py,src/kinetix_risk/volatility.py"
+runner = "uv run pytest -x -q -m unit --no-cov"
+tests_dir = "tests"
 
 [build-system]
 requires = ["hatchling"]
