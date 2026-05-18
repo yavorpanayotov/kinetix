@@ -141,7 +141,7 @@ That brings in `org.testcontainers.kafka.KafkaContainer` transitively, plus the 
   - Acceptance: `./gradlew :volatility-service:pitest && test -f volatility-service/build/reports/pitest/mutations.xml`
 - [x] **6.5** Apply `kinetix.kotlin-mutation` to `regulatory-service/build.gradle.kts`.
   - Acceptance: `./gradlew :regulatory-service:pitest && test -f regulatory-service/build/reports/pitest/mutations.xml`
-- [ ] **6.6** Apply `kinetix.kotlin-mutation` to `audit-service/build.gradle.kts`.
+- [x] **6.6** Apply `kinetix.kotlin-mutation` to `audit-service/build.gradle.kts`.
   - Acceptance: `./gradlew :audit-service:pitest && test -f audit-service/build/reports/pitest/mutations.xml`
 - [ ] **6.7** Add a `kotlin-mutation` job to `.github/workflows/mutation.yml` that runs `./gradlew pitest` across the six modules on the weekly Sunday cadence and uploads `pit-report-<module>` artifacts. (Approval for this CI edit is granted under "CI/CD approval" above.)
   - Acceptance: `python3 -c "import yaml; data=yaml.safe_load(open('.github/workflows/mutation.yml')); assert 'kotlin-mutation' in data['jobs'], 'kotlin-mutation job missing'"`
