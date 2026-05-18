@@ -1,5 +1,6 @@
 package com.kinetix.testsupport.database
 
+import com.kinetix.testsupport.containers.TestcontainerCaps
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import org.flywaydb.core.Flyway
@@ -43,10 +44,13 @@ class PostgresTestSetup(
     private val maxPoolSize: Int = 5,
 ) : AutoCloseable {
 
-    private val container: PostgreSQLContainer<*> = PostgreSQLContainer(image)
-        .withDatabaseName(databaseName)
-        .withUsername(username)
-        .withPassword(password)
+    private val container: PostgreSQLContainer<*> = TestcontainerCaps.tunePostgres(
+        PostgreSQLContainer(image)
+            .withDatabaseName(databaseName)
+            .withUsername(username)
+            .withPassword(password),
+        withTimescale = image.asCanonicalNameString().contains("timescale"),
+    )
 
     private var dataSource: HikariDataSource? = null
 

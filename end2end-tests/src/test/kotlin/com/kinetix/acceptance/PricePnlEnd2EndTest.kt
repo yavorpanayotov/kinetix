@@ -6,6 +6,7 @@ import com.kinetix.position.kafka.KafkaTradeEventPublisher
 import com.kinetix.position.persistence.ExposedPositionRepository
 import com.kinetix.position.persistence.ExposedTradeEventRepository
 import com.kinetix.position.service.*
+import com.kinetix.testsupport.containers.TestcontainerCaps
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.*
@@ -26,12 +27,16 @@ class PricePnlEnd2EndTest : BehaviorSpec({
 
     // --- Infrastructure ---
 
-    val positionDb = PostgreSQLContainer("postgres:17-alpine")
-        .withDatabaseName("position_test")
-        .withUsername("test")
-        .withPassword("test")
+    val positionDb = TestcontainerCaps.tunePostgres(
+        PostgreSQLContainer("postgres:17-alpine")
+            .withDatabaseName("position_test")
+            .withUsername("test")
+            .withPassword("test"),
+    )
 
-    val kafka = org.testcontainers.kafka.KafkaContainer("apache/kafka:3.8.1")
+    val kafka = TestcontainerCaps.tuneKafka(
+        org.testcontainers.kafka.KafkaContainer("apache/kafka:3.8.1"),
+    )
 
     // --- Services (initialized in beforeSpec) ---
 

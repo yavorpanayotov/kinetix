@@ -6,6 +6,7 @@ import com.kinetix.regulatory.persistence.DatabaseConfig
 import com.kinetix.regulatory.persistence.DatabaseFactory
 import com.kinetix.regulatory.persistence.ExposedFrtbCalculationRepository
 import com.kinetix.regulatory.persistence.ExposedStressScenarioRepository
+import com.kinetix.testsupport.containers.TestcontainerCaps
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.matchers.shouldBe
 import io.ktor.client.request.*
@@ -19,13 +20,16 @@ import org.testcontainers.utility.DockerImageName
 
 class StressScenarioEnd2EndTest : BehaviorSpec({
 
-    val regulatoryDb = PostgreSQLContainer(
-        DockerImageName.parse("timescale/timescaledb:latest-pg17")
-            .asCompatibleSubstituteFor("postgres")
+    val regulatoryDb = TestcontainerCaps.tunePostgres(
+        PostgreSQLContainer(
+            DockerImageName.parse("timescale/timescaledb:latest-pg17")
+                .asCompatibleSubstituteFor("postgres"),
+        )
+            .withDatabaseName("regulatory_test")
+            .withUsername("test")
+            .withPassword("test"),
+        withTimescale = true,
     )
-        .withDatabaseName("regulatory_test")
-        .withUsername("test")
-        .withPassword("test")
 
     lateinit var frtbRepo: ExposedFrtbCalculationRepository
     lateinit var stressRepo: ExposedStressScenarioRepository

@@ -14,6 +14,7 @@ import com.kinetix.position.persistence.ExposedPositionRepository
 import com.kinetix.position.persistence.ExposedTemporaryLimitIncreaseRepository
 import com.kinetix.position.persistence.ExposedTradeEventRepository
 import com.kinetix.position.service.*
+import com.kinetix.testsupport.containers.TestcontainerCaps
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.matchers.collections.shouldHaveSize
@@ -38,20 +39,27 @@ class TradeLifecycleEnd2EndTest : BehaviorSpec({
 
     // --- Infrastructure ---
 
-    val positionDb = PostgreSQLContainer("postgres:17-alpine")
-        .withDatabaseName("position_lifecycle_test")
-        .withUsername("test")
-        .withPassword("test")
-
-    val auditDb = PostgreSQLContainer(
-        DockerImageName.parse("timescale/timescaledb:latest-pg17")
-            .asCompatibleSubstituteFor("postgres")
+    val positionDb = TestcontainerCaps.tunePostgres(
+        PostgreSQLContainer("postgres:17-alpine")
+            .withDatabaseName("position_lifecycle_test")
+            .withUsername("test")
+            .withPassword("test"),
     )
-        .withDatabaseName("audit_lifecycle_test")
-        .withUsername("test")
-        .withPassword("test")
 
-    val kafka = org.testcontainers.kafka.KafkaContainer("apache/kafka:3.8.1")
+    val auditDb = TestcontainerCaps.tunePostgres(
+        PostgreSQLContainer(
+            DockerImageName.parse("timescale/timescaledb:latest-pg17")
+                .asCompatibleSubstituteFor("postgres"),
+        )
+            .withDatabaseName("audit_lifecycle_test")
+            .withUsername("test")
+            .withPassword("test"),
+        withTimescale = true,
+    )
+
+    val kafka = TestcontainerCaps.tuneKafka(
+        org.testcontainers.kafka.KafkaContainer("apache/kafka:3.8.1"),
+    )
 
     // --- Services (initialized in beforeSpec) ---
 

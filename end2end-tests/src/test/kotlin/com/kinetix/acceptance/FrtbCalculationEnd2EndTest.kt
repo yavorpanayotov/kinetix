@@ -9,6 +9,7 @@ import com.kinetix.regulatory.module
 import com.kinetix.regulatory.persistence.DatabaseConfig
 import com.kinetix.regulatory.persistence.DatabaseFactory
 import com.kinetix.regulatory.persistence.ExposedFrtbCalculationRepository
+import com.kinetix.testsupport.containers.TestcontainerCaps
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
@@ -26,13 +27,16 @@ import java.time.Instant
 
 class FrtbCalculationEnd2EndTest : BehaviorSpec({
 
-    val regulatoryDb = PostgreSQLContainer(
-        DockerImageName.parse("timescale/timescaledb:latest-pg17")
-            .asCompatibleSubstituteFor("postgres")
+    val regulatoryDb = TestcontainerCaps.tunePostgres(
+        PostgreSQLContainer(
+            DockerImageName.parse("timescale/timescaledb:latest-pg17")
+                .asCompatibleSubstituteFor("postgres"),
+        )
+            .withDatabaseName("regulatory_test")
+            .withUsername("test")
+            .withPassword("test"),
+        withTimescale = true,
     )
-        .withDatabaseName("regulatory_test")
-        .withUsername("test")
-        .withPassword("test")
 
     lateinit var frtbRepo: ExposedFrtbCalculationRepository
     val riskClient = mockk<RiskOrchestratorClient>()

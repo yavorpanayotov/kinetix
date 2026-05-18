@@ -21,6 +21,7 @@ dependencies {
     testImplementation(project(":correlation-service"))
     testImplementation(project(":volatility-service"))
     testImplementation(project(":notification-service"))
+    testImplementation(project(":test-support"))
     testImplementation(libs.bundles.exposed)
     testImplementation(libs.bundles.database)
     testImplementation(libs.bundles.grpc)

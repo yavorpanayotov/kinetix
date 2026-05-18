@@ -27,6 +27,7 @@ import com.kinetix.position.routes.dtos.OrderResponse
 import com.kinetix.position.routes.orderRoutes
 import com.kinetix.position.service.BookTradeCommand
 import com.kinetix.position.service.PreTradeCheckService
+import com.kinetix.testsupport.containers.TestcontainerCaps
 import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
 import io.kotest.assertions.withClue
@@ -89,10 +90,12 @@ import java.util.concurrent.atomic.AtomicReference
  */
 class OrderPlacementEnd2EndTest : FunSpec({
 
-    val postgres = PostgreSQLContainer("postgres:17-alpine")
-        .withDatabaseName("position_e2e_place")
-        .withUsername("test")
-        .withPassword("test")
+    val postgres = TestcontainerCaps.tunePostgres(
+        PostgreSQLContainer("postgres:17-alpine")
+            .withDatabaseName("position_e2e_place")
+            .withUsername("test")
+            .withPassword("test"),
+    )
 
     lateinit var orderRepo: ExposedExecutionOrderRepository
     lateinit var orderSubmissionService: OrderSubmissionService

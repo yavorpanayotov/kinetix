@@ -1,13 +1,16 @@
 package com.kinetix.rates.cache
 
+import com.kinetix.testsupport.containers.TestcontainerCaps
 import io.lettuce.core.RedisClient
 import io.lettuce.core.api.StatefulRedisConnection
 import org.testcontainers.containers.GenericContainer
 
 object RedisTestSetup {
 
-    private val redis = GenericContainer("redis:7-alpine")
-        .withExposedPorts(6379)
+    private val redis = TestcontainerCaps.tuneRedis(
+        GenericContainer("redis:7-alpine")
+            .withExposedPorts(6379),
+    )
 
     fun start(): StatefulRedisConnection<String, String> {
         if (!redis.isRunning) {

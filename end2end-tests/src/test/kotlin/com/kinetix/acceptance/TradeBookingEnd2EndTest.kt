@@ -3,6 +3,7 @@ package com.kinetix.acceptance
 import com.kinetix.audit.kafka.AuditEventConsumer
 import com.kinetix.audit.persistence.ExposedAuditEventRepository
 import com.kinetix.common.model.*
+import com.kinetix.testsupport.containers.TestcontainerCaps
 import com.kinetix.position.kafka.KafkaTradeEventPublisher
 import com.kinetix.position.persistence.ExposedPositionRepository
 import com.kinetix.position.persistence.ExposedTradeEventRepository
@@ -27,20 +28,27 @@ class TradeBookingEnd2EndTest : BehaviorSpec({
 
     // --- Infrastructure ---
 
-    val positionDb = PostgreSQLContainer("postgres:17-alpine")
-        .withDatabaseName("position_test")
-        .withUsername("test")
-        .withPassword("test")
-
-    val auditDb = PostgreSQLContainer(
-        DockerImageName.parse("timescale/timescaledb:latest-pg17")
-            .asCompatibleSubstituteFor("postgres")
+    val positionDb = TestcontainerCaps.tunePostgres(
+        PostgreSQLContainer("postgres:17-alpine")
+            .withDatabaseName("position_test")
+            .withUsername("test")
+            .withPassword("test"),
     )
-        .withDatabaseName("audit_test")
-        .withUsername("test")
-        .withPassword("test")
 
-    val kafka = org.testcontainers.kafka.KafkaContainer("apache/kafka:3.8.1")
+    val auditDb = TestcontainerCaps.tunePostgres(
+        PostgreSQLContainer(
+            DockerImageName.parse("timescale/timescaledb:latest-pg17")
+                .asCompatibleSubstituteFor("postgres"),
+        )
+            .withDatabaseName("audit_test")
+            .withUsername("test")
+            .withPassword("test"),
+        withTimescale = true,
+    )
+
+    val kafka = TestcontainerCaps.tuneKafka(
+        org.testcontainers.kafka.KafkaContainer("apache/kafka:3.8.1"),
+    )
 
     // --- Services (initialized in beforeSpec) ---
 

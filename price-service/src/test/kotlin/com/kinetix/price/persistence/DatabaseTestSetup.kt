@@ -1,18 +1,22 @@
 package com.kinetix.price.persistence
 
+import com.kinetix.testsupport.containers.TestcontainerCaps
 import org.jetbrains.exposed.sql.Database
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.utility.DockerImageName
 
 object DatabaseTestSetup {
 
-    val postgres: PostgreSQLContainer<*> = PostgreSQLContainer(
-        DockerImageName.parse("timescale/timescaledb:latest-pg17")
-            .asCompatibleSubstituteFor("postgres"),
+    val postgres: PostgreSQLContainer<*> = TestcontainerCaps.tunePostgres(
+        PostgreSQLContainer(
+            DockerImageName.parse("timescale/timescaledb:latest-pg17")
+                .asCompatibleSubstituteFor("postgres"),
+        )
+            .withDatabaseName("price_test")
+            .withUsername("test")
+            .withPassword("test"),
+        withTimescale = true,
     )
-        .withDatabaseName("price_test")
-        .withUsername("test")
-        .withPassword("test")
 
     fun startAndMigrate(): Database {
         if (!postgres.isRunning) {

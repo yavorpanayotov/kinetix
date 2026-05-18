@@ -28,6 +28,7 @@ import com.kinetix.position.persistence.ExposedPositionRepository
 import com.kinetix.position.persistence.ExposedTradeEventRepository
 import com.kinetix.position.service.ExposedTransactionalRunner
 import com.kinetix.position.service.TradeBookingService
+import com.kinetix.testsupport.containers.TestcontainerCaps
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
@@ -78,11 +79,13 @@ import java.util.UUID
  */
 class FixGatewayInboundEnd2EndTest : FunSpec({
 
-    val postgres = PostgreSQLContainer("postgres:17-alpine")
-        .withDatabaseName("position_e2e")
-        .withUsername("test")
-        .withPassword("test")
-    val kafka = KafkaContainer("apache/kafka:3.8.1")
+    val postgres = TestcontainerCaps.tunePostgres(
+        PostgreSQLContainer("postgres:17-alpine")
+            .withDatabaseName("position_e2e")
+            .withUsername("test")
+            .withPassword("test"),
+    )
+    val kafka = TestcontainerCaps.tuneKafka(KafkaContainer("apache/kafka:3.8.1"))
 
     lateinit var orderRepo: ExposedExecutionOrderRepository
     lateinit var fillRepo: ExposedExecutionFillRepository

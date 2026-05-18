@@ -1,5 +1,6 @@
 package com.kinetix.referencedata.kafka
 
+import com.kinetix.testsupport.containers.TestcontainerCaps
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.producer.KafkaProducer
@@ -10,7 +11,9 @@ import java.util.Properties
 
 object KafkaTestSetup {
 
-    private val kafka = org.testcontainers.kafka.KafkaContainer("apache/kafka:3.8.1")
+    private val kafka = TestcontainerCaps.tuneKafka(
+        org.testcontainers.kafka.KafkaContainer("apache/kafka:3.8.1"),
+    )
 
     fun start(): String {
         if (!kafka.isRunning) {

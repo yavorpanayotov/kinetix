@@ -18,6 +18,7 @@ dependencies {
     implementation(libs.redis.lettuce)
     implementation(libs.kotlinx.serialization.json)
 
+    testImplementation(project(":test-support"))
     testImplementation(libs.testcontainers.core)
     testImplementation(libs.testcontainers.postgresql)
     testImplementation(libs.testcontainers.kafka)

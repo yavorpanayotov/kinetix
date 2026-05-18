@@ -35,6 +35,7 @@ dependencies {
     implementation(libs.ktor.client.content.negotiation)
     implementation(libs.redis.lettuce)
 
+    testImplementation(project(":test-support"))
     testImplementation(libs.testcontainers.core)
     testImplementation(libs.testcontainers.kafka)
     testImplementation(libs.testcontainers.postgresql)

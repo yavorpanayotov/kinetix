@@ -14,6 +14,7 @@ import com.kinetix.common.kafka.events.RiskResultEvent
 import com.kinetix.risk.kafka.KafkaRiskResultPublisher
 import com.kinetix.risk.model.*
 import com.kinetix.risk.service.VaRCalculationService
+import com.kinetix.testsupport.containers.TestcontainerCaps
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.comparables.shouldBeGreaterThan as shouldBeGreaterThanComparable
@@ -175,12 +176,16 @@ class VaRCalculationEnd2EndTest : BehaviorSpec({
 
     // --- Infrastructure ---
 
-    val positionDb = PostgreSQLContainer("postgres:17-alpine")
-        .withDatabaseName("position_test")
-        .withUsername("test")
-        .withPassword("test")
+    val positionDb = TestcontainerCaps.tunePostgres(
+        PostgreSQLContainer("postgres:17-alpine")
+            .withDatabaseName("position_test")
+            .withUsername("test")
+            .withPassword("test"),
+    )
 
-    val kafka = org.testcontainers.kafka.KafkaContainer("apache/kafka:3.8.1")
+    val kafka = TestcontainerCaps.tuneKafka(
+        org.testcontainers.kafka.KafkaContainer("apache/kafka:3.8.1"),
+    )
 
     // --- Services (initialized in beforeSpec) ---
 
