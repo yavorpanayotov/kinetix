@@ -8,6 +8,8 @@ import {
   type ReportTemplate,
   type ReportOutput,
 } from '../api/reports'
+import { AIInsightPanel } from './AIInsightPanel'
+import { explainReport, type InsightResponse } from '../api/insights'
 
 interface ReportsTabProps {
   bookId: string | null
@@ -46,6 +48,13 @@ export function ReportsTab({ bookId, onJumpToRiskAtDate }: ReportsTabProps) {
   const [expandedOutputId, setExpandedOutputId] = useState<string | null>(null)
   const [csvDownloading, setCsvDownloading] = useState(false)
 
+  // AI Commentary card (plan §3.4): once the report finishes generating,
+  // fetch a narrative summary via the insights service and render it in
+  // an AIInsightPanel directly below the generated report output.
+  const [commentaryLoading, setCommentaryLoading] = useState(false)
+  const [commentaryError, setCommentaryError] = useState<string | null>(null)
+  const [commentary, setCommentary] = useState<InsightResponse | null>(null)
+
   useEffect(() => {
     let cancelled = false
 
@@ -77,6 +86,12 @@ export function ReportsTab({ bookId, onJumpToRiskAtDate }: ReportsTabProps) {
     setGenerating(true)
     setGenerateError(null)
     setCurrentOutput(null)
+    // The AI Commentary card should show its loading skeleton from the
+    // moment generation starts — well before the commentary fetch fires
+    // — so the user sees a single, unified "thinking" state.
+    setCommentary(null)
+    setCommentaryError(null)
+    setCommentaryLoading(true)
 
     try {
       const output = await generateReport({
@@ -92,8 +107,31 @@ export function ReportsTab({ bookId, onJumpToRiskAtDate }: ReportsTabProps) {
         { ...output, bookId: selectedBookId, date: selectedDate },
         ...prev,
       ])
+      // Kick off AI commentary fetch using whatever context we have.
+      // The report output is intentionally minimal (no metrics/drivers
+      // echoed back from the backend), so we derive a plausible payload
+      // from the user's selections; the canned/live client on the
+      // backend handles missing context gracefully.
+      try {
+        const insight = await explainReport({
+          template_id: output.templateId,
+          report_date: selectedDate || new Date().toISOString().slice(0, 10),
+          summary_metrics: { row_count: output.rowCount },
+          top_drivers: [],
+          breaches: [],
+        })
+        setCommentary(insight)
+      } catch (err) {
+        setCommentaryError(
+          err instanceof Error ? err.message : 'Failed to generate AI commentary',
+        )
+      } finally {
+        setCommentaryLoading(false)
+      }
     } catch (err) {
       setGenerateError(err instanceof Error ? err.message : 'Failed to generate report')
+      // Report failed — don't try to fetch commentary; clear the card.
+      setCommentaryLoading(false)
     } finally {
       setGenerating(false)
     }
@@ -272,6 +310,17 @@ export function ReportsTab({ bookId, onJumpToRiskAtDate }: ReportsTabProps) {
             Report generated successfully with {currentOutput.rowCount} rows. Download CSV to view
             the data.
           </p>
+        </div>
+      )}
+
+      {(commentaryLoading || commentaryError || commentary) && (
+        <div data-testid="ai-commentary-card">
+          <AIInsightPanel
+            title="AI Commentary"
+            loading={commentaryLoading}
+            error={commentaryError}
+            insight={commentary}
+          />
         </div>
       )}
 

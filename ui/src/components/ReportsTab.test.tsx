@@ -9,11 +9,17 @@ vi.mock('../api/reports', () => ({
   downloadReportCsv: vi.fn(),
 }))
 
+vi.mock('../api/insights', () => ({
+  explainReport: vi.fn(),
+}))
+
 import { fetchReportTemplates, generateReport, downloadReportCsv } from '../api/reports'
+import { explainReport } from '../api/insights'
 
 const mockFetchTemplates = vi.mocked(fetchReportTemplates)
 const mockGenerate = vi.mocked(generateReport)
 const mockDownloadCsv = vi.mocked(downloadReportCsv)
+const mockExplainReport = vi.mocked(explainReport)
 
 const TEMPLATES = [
   {
@@ -42,9 +48,19 @@ const OUTPUT = {
   rowCount: 42,
 }
 
+const CANNED_COMMENTARY = {
+  narrative: 'Portfolio risk concentration shifted into US equities this period.',
+  bullets: ['US equities up 4%', 'Rates exposure flat'],
+  model: 'claude-canned-v1',
+  mode: 'canned' as const,
+}
+
 describe('ReportsTab', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    // Default: commentary resolves to a canned insight so existing
+    // tests that don't care about commentary aren't disturbed.
+    mockExplainReport.mockResolvedValue(CANNED_COMMENTARY)
   })
 
   it('shows loading state while fetching templates', () => {
@@ -378,5 +394,169 @@ describe('ReportsTab', () => {
     const heading = screen.getByRole('heading', { name: /generate report/i })
     expect(heading.className).toContain('text-base')
     expect(heading.className).toContain('font-semibold')
+  })
+
+  describe('AI Commentary card', () => {
+    it('shows a loading skeleton while the report is generating', async () => {
+      const user = userEvent.setup()
+      mockFetchTemplates.mockResolvedValue(TEMPLATES)
+      // Hold the report generation open so we can observe the loading state.
+      let resolveGenerate: (output: typeof OUTPUT) => void = () => {}
+      mockGenerate.mockReturnValue(
+        new Promise<typeof OUTPUT>(resolve => {
+          resolveGenerate = resolve
+        }),
+      )
+
+      render(<ReportsTab bookId="BOOK-1" />)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('report-template-select')).toBeInTheDocument()
+      })
+
+      await user.selectOptions(
+        screen.getByTestId('report-template-select'),
+        'tpl-risk-summary',
+      )
+      await user.click(screen.getByTestId('report-generate-button'))
+
+      // While the report is still generating, the AI Commentary card
+      // should already be visible in its loading state — so the user
+      // sees a single, unified "thinking" UI.
+      await waitFor(() => {
+        expect(screen.getByTestId('ai-commentary-card')).toBeInTheDocument()
+      })
+      expect(screen.getByTestId('ai-insight-loading')).toBeInTheDocument()
+
+      // Let the report (and the chained commentary fetch) resolve so
+      // the act() warnings stay quiet.
+      resolveGenerate(OUTPUT)
+      await waitFor(() => {
+        expect(screen.getByTestId('ai-insight-content')).toBeInTheDocument()
+      })
+    })
+
+    it('renders the AI commentary after both the report and the commentary resolve', async () => {
+      const user = userEvent.setup()
+      mockFetchTemplates.mockResolvedValue(TEMPLATES)
+      mockGenerate.mockResolvedValue(OUTPUT)
+      mockExplainReport.mockResolvedValue(CANNED_COMMENTARY)
+
+      render(<ReportsTab bookId="BOOK-1" />)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('report-template-select')).toBeInTheDocument()
+      })
+
+      await user.selectOptions(
+        screen.getByTestId('report-template-select'),
+        'tpl-risk-summary',
+      )
+      await user.click(screen.getByTestId('report-generate-button'))
+
+      await waitFor(() => {
+        expect(screen.getByTestId('ai-insight-content')).toBeInTheDocument()
+      })
+
+      // The narrative, bullets, and demo-mode badge from the canned
+      // response should all be visible inside the commentary card.
+      const card = screen.getByTestId('ai-commentary-card')
+      expect(card).toHaveTextContent(
+        'Portfolio risk concentration shifted into US equities this period.',
+      )
+      expect(card).toHaveTextContent('US equities up 4%')
+      expect(card).toHaveTextContent('Rates exposure flat')
+      expect(screen.getByTestId('ai-insight-demo-badge')).toBeInTheDocument()
+    })
+
+    it('invokes explainReport with the report context derived from the user selections', async () => {
+      const user = userEvent.setup()
+      mockFetchTemplates.mockResolvedValue(TEMPLATES)
+      mockGenerate.mockResolvedValue(OUTPUT)
+
+      render(<ReportsTab bookId="BOOK-1" />)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('report-template-select')).toBeInTheDocument()
+      })
+
+      await user.selectOptions(
+        screen.getByTestId('report-template-select'),
+        'tpl-risk-summary',
+      )
+      await user.type(screen.getByTestId('report-date-input'), '2025-01-15')
+      await user.click(screen.getByTestId('report-generate-button'))
+
+      await waitFor(() => {
+        expect(mockExplainReport).toHaveBeenCalledTimes(1)
+      })
+      expect(mockExplainReport).toHaveBeenCalledWith(
+        expect.objectContaining({
+          template_id: 'tpl-risk-summary',
+          report_date: '2025-01-15',
+          summary_metrics: expect.objectContaining({ row_count: 42 }),
+          top_drivers: [],
+          breaches: [],
+        }),
+      )
+    })
+
+    it('renders the AI Commentary card below the generated report output', async () => {
+      const user = userEvent.setup()
+      mockFetchTemplates.mockResolvedValue(TEMPLATES)
+      mockGenerate.mockResolvedValue(OUTPUT)
+      mockExplainReport.mockResolvedValue(CANNED_COMMENTARY)
+
+      render(<ReportsTab bookId="BOOK-1" />)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('report-template-select')).toBeInTheDocument()
+      })
+
+      await user.selectOptions(
+        screen.getByTestId('report-template-select'),
+        'tpl-risk-summary',
+      )
+      await user.click(screen.getByTestId('report-generate-button'))
+
+      await waitFor(() => {
+        expect(screen.getByTestId('ai-insight-content')).toBeInTheDocument()
+      })
+
+      // Document order: the AI Commentary card must follow the
+      // generated report-output panel in the DOM, so users see the
+      // report first and the commentary directly underneath it.
+      const outputPanel = screen.getByTestId('report-output-panel')
+      const commentaryCard = screen.getByTestId('ai-commentary-card')
+      expect(
+        outputPanel.compareDocumentPosition(commentaryCard) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
+    })
+
+    it('does not render the AI Commentary card when the report fails to generate', async () => {
+      const user = userEvent.setup()
+      mockFetchTemplates.mockResolvedValue(TEMPLATES)
+      mockGenerate.mockRejectedValue(new Error('Template not found'))
+
+      render(<ReportsTab bookId="BOOK-1" />)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('report-template-select')).toBeInTheDocument()
+      })
+
+      await user.selectOptions(
+        screen.getByTestId('report-template-select'),
+        'tpl-risk-summary',
+      )
+      await user.click(screen.getByTestId('report-generate-button'))
+
+      await waitFor(() => {
+        expect(screen.getByTestId('report-generate-error')).toBeInTheDocument()
+      })
+
+      expect(screen.queryByTestId('ai-commentary-card')).not.toBeInTheDocument()
+      expect(mockExplainReport).not.toHaveBeenCalled()
+    })
   })
 })
