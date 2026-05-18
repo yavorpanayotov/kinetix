@@ -173,7 +173,8 @@ test.describe('Trade Blotter - Empty and Error States', () => {
     await page.goto('/')
     await page.getByTestId('tab-trades').click()
 
-    await expect(page.locator('.text-red-600')).toBeVisible()
+    // TradeBlotter renders failures via the shared ErrorCard component (role="alert").
+    await expect(page.locator('[role="alert"]').first()).toBeVisible()
   })
 })
 
@@ -245,7 +246,8 @@ test.describe('Trade Blotter - Additional Filtering and State', () => {
     await page.goto('/')
     await page.getByTestId('tab-trades').click()
 
-    await expect(page.locator('.text-red-600')).toBeVisible()
+    // TradeBlotter renders failures via the shared ErrorCard component (role="alert").
+    await expect(page.locator('[role="alert"]').first()).toBeVisible()
   })
 
   test('trades refetch when book changes via hierarchy', async ({ page }) => {
@@ -412,8 +414,9 @@ test.describe('Trade Blotter - CSV Data Accuracy', () => {
     const lines = content.trim().split('\n')
     const dataLines = lines.slice(1) // skip header
 
-    // Collect status values from last column
-    const statuses = dataLines.map((line) => line.split(',').at(-1))
+    // CSV columns: Time,Instrument,Name,Type,Side,Qty,Price,Currency,Notional,Status,VenueOrderId
+    // Status is the 10th column (index 9).
+    const statuses = dataLines.map((line) => line.split(',')[9])
 
     // TEST_TRADES has LIVE, CANCELLED, AMENDED — none should be "FILLED"
     expect(statuses).not.toContain('FILLED')
