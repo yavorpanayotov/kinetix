@@ -47,6 +47,22 @@ data class AcknowledgeAlertParams(
     val notes: String? = null,
 )
 
+data class EscalateAlertParams(
+    val reason: String,
+    val assignee: String? = null,
+)
+
+data class ResolveAlertParams(
+    val resolutionText: String,
+)
+
+sealed class AlertActionResult {
+    data class Ok(val alert: AlertEventItem) : AlertActionResult()
+    data object NotFound : AlertActionResult()
+    data class BadRequest(val message: String) : AlertActionResult()
+    data class Conflict(val message: String) : AlertActionResult()
+}
+
 interface NotificationServiceClient {
     suspend fun listRules(): List<AlertRuleItem>
     suspend fun createRule(params: CreateAlertRuleParams): AlertRuleItem
@@ -54,5 +70,7 @@ interface NotificationServiceClient {
     suspend fun listAlerts(limit: Int = 50, status: String? = null): List<AlertEventItem>
     suspend fun listEscalatedAlerts(): List<AlertEventItem>
     suspend fun acknowledgeAlert(alertId: String, params: AcknowledgeAlertParams): AlertEventItem?
+    suspend fun escalateAlert(alertId: String, params: EscalateAlertParams): AlertActionResult
+    suspend fun resolveAlert(alertId: String, params: ResolveAlertParams): AlertActionResult
     suspend fun getAlertContributors(alertId: String): String?
 }

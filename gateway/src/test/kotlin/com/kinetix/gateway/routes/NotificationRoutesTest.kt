@@ -141,6 +141,89 @@ class NotificationRoutesTest : FunSpec({
         }
     }
 
+    test("POST /api/v1/notifications/alerts/{alertId}/escalate forwards body and returns 200 on success") {
+        val escalatedAlert = sampleAlert.copy(status = "ESCALATED", escalatedTo = "risk-manager", escalatedAt = Instant.parse("2025-01-15T10:05:00Z"))
+        coEvery {
+            notificationClient.escalateAlert(
+                "evt-1",
+                EscalateAlertParams(reason = "persisted breach", assignee = "risk-manager"),
+            )
+        } returns AlertActionResult.Ok(escalatedAlert)
+
+        testApplication {
+            application { module(notificationClient) }
+            val response = client.post("/api/v1/notifications/alerts/evt-1/escalate") {
+                contentType(ContentType.Application.Json)
+                setBody("""{"reason":"persisted breach","assignee":"risk-manager"}""")
+            }
+            response.status shouldBe HttpStatusCode.OK
+            val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+            body["status"]?.jsonPrimitive?.content shouldBe "ESCALATED"
+            body["escalatedTo"]?.jsonPrimitive?.content shouldBe "risk-manager"
+        }
+    }
+
+    test("POST /api/v1/notifications/alerts/{alertId}/escalate returns 404 when upstream returns NotFound") {
+        coEvery { notificationClient.escalateAlert(any(), any()) } returns AlertActionResult.NotFound
+
+        testApplication {
+            application { module(notificationClient) }
+            val response = client.post("/api/v1/notifications/alerts/missing/escalate") {
+                contentType(ContentType.Application.Json)
+                setBody("""{"reason":"missing"}""")
+            }
+            response.status shouldBe HttpStatusCode.NotFound
+        }
+    }
+
+    test("POST /api/v1/notifications/alerts/{alertId}/escalate returns 409 when upstream returns Conflict") {
+        coEvery { notificationClient.escalateAlert(any(), any()) } returns AlertActionResult.Conflict("Alert is already escalated")
+
+        testApplication {
+            application { module(notificationClient) }
+            val response = client.post("/api/v1/notifications/alerts/already/escalate") {
+                contentType(ContentType.Application.Json)
+                setBody("""{"reason":"already"}""")
+            }
+            response.status shouldBe HttpStatusCode.Conflict
+        }
+    }
+
+    test("POST /api/v1/notifications/alerts/{alertId}/resolve forwards body and returns 200 on success") {
+        val resolved = sampleAlert.copy(status = "RESOLVED", resolvedReason = "trimmed", resolvedAt = Instant.parse("2025-01-15T10:10:00Z"))
+        coEvery {
+            notificationClient.resolveAlert(
+                "evt-1",
+                ResolveAlertParams(resolutionText = "trimmed"),
+            )
+        } returns AlertActionResult.Ok(resolved)
+
+        testApplication {
+            application { module(notificationClient) }
+            val response = client.post("/api/v1/notifications/alerts/evt-1/resolve") {
+                contentType(ContentType.Application.Json)
+                setBody("""{"resolutionText":"trimmed"}""")
+            }
+            response.status shouldBe HttpStatusCode.OK
+            val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+            body["status"]?.jsonPrimitive?.content shouldBe "RESOLVED"
+            body["resolvedReason"]?.jsonPrimitive?.content shouldBe "trimmed"
+        }
+    }
+
+    test("POST /api/v1/notifications/alerts/{alertId}/resolve returns 400 when upstream rejects body") {
+        coEvery { notificationClient.resolveAlert(any(), any()) } returns AlertActionResult.BadRequest("resolutionText must not be blank")
+
+        testApplication {
+            application { module(notificationClient) }
+            val response = client.post("/api/v1/notifications/alerts/evt-1/resolve") {
+                contentType(ContentType.Application.Json)
+                setBody("""{"resolutionText":""}""")
+            }
+            response.status shouldBe HttpStatusCode.BadRequest
+        }
+    }
+
     test("GET /api/v1/notifications/alerts/escalated response includes escalatedAt field") {
         val escalatedAlert = AlertEventItem(
             id = "esc-2",

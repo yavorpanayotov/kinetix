@@ -3,6 +3,7 @@ package com.kinetix.gateway.client
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
+import io.ktor.client.statement.*
 import io.ktor.http.*
 
 class HttpNotificationServiceClient(
@@ -76,4 +77,38 @@ class HttpNotificationServiceClient(
         val dto: AlertEventDto = response.body()
         return dto.toDomain()
     }
+
+    override suspend fun escalateAlert(alertId: String, params: EscalateAlertParams): AlertActionResult {
+        val response = httpClient.post("$baseUrl/api/v1/notifications/alerts/$alertId/escalate") {
+            contentType(ContentType.Application.Json)
+            setBody(
+                EscalateAlertRequestDto(
+                    reason = params.reason,
+                    assignee = params.assignee,
+                ),
+            )
+        }
+        return mapAlertActionResponse(response)
+    }
+
+    override suspend fun resolveAlert(alertId: String, params: ResolveAlertParams): AlertActionResult {
+        val response = httpClient.post("$baseUrl/api/v1/notifications/alerts/$alertId/resolve") {
+            contentType(ContentType.Application.Json)
+            setBody(
+                ResolveAlertRequestDto(
+                    resolutionText = params.resolutionText,
+                ),
+            )
+        }
+        return mapAlertActionResponse(response)
+    }
+
+    private suspend fun mapAlertActionResponse(response: io.ktor.client.statement.HttpResponse): AlertActionResult =
+        when (response.status) {
+            HttpStatusCode.OK -> AlertActionResult.Ok(response.body<AlertEventDto>().toDomain())
+            HttpStatusCode.NotFound -> AlertActionResult.NotFound
+            HttpStatusCode.BadRequest -> AlertActionResult.BadRequest(response.bodyAsText())
+            HttpStatusCode.Conflict -> AlertActionResult.Conflict(response.bodyAsText())
+            else -> AlertActionResult.BadRequest("Unexpected upstream status ${response.status}")
+        }
 }

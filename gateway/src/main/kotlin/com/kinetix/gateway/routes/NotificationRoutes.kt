@@ -1,9 +1,14 @@
 package com.kinetix.gateway.routes
 
 import com.kinetix.gateway.client.AcknowledgeAlertParams
+import com.kinetix.gateway.client.AlertActionResult
+import com.kinetix.gateway.client.EscalateAlertParams
 import com.kinetix.gateway.client.NotificationServiceClient
+import com.kinetix.gateway.client.ResolveAlertParams
 import com.kinetix.gateway.dtos.AcknowledgeAlertRequest
 import com.kinetix.gateway.dtos.CreateAlertRuleRequest
+import com.kinetix.gateway.dtos.EscalateAlertRequest
+import com.kinetix.gateway.dtos.ResolveAlertRequest
 import com.kinetix.gateway.dtos.toDto
 import com.kinetix.gateway.dtos.toParams
 import io.github.smiley4.ktoropenapi.delete
@@ -116,5 +121,48 @@ fun Route.notificationRoutes(client: NotificationServiceClient) {
                 call.respond(HttpStatusCode.NotFound)
             }
         }
+
+        post("/alerts/{alertId}/escalate", {
+            summary = "Manually escalate an alert"
+            tags = listOf("Notifications")
+            request {
+                pathParameter<String>("alertId") { description = "Alert event identifier" }
+                body<EscalateAlertRequest>()
+            }
+        }) {
+            val alertId = call.requirePathParam("alertId")
+            val request = call.receive<EscalateAlertRequest>()
+            val result = client.escalateAlert(
+                alertId,
+                EscalateAlertParams(reason = request.reason, assignee = request.assignee),
+            )
+            call.respondToAlertAction(result)
+        }
+
+        post("/alerts/{alertId}/resolve", {
+            summary = "Resolve an alert"
+            tags = listOf("Notifications")
+            request {
+                pathParameter<String>("alertId") { description = "Alert event identifier" }
+                body<ResolveAlertRequest>()
+            }
+        }) {
+            val alertId = call.requirePathParam("alertId")
+            val request = call.receive<ResolveAlertRequest>()
+            val result = client.resolveAlert(
+                alertId,
+                ResolveAlertParams(resolutionText = request.resolutionText),
+            )
+            call.respondToAlertAction(result)
+        }
+    }
+}
+
+private suspend fun io.ktor.server.application.ApplicationCall.respondToAlertAction(result: AlertActionResult) {
+    when (result) {
+        is AlertActionResult.Ok -> respond(result.alert.toDto())
+        is AlertActionResult.NotFound -> respond(HttpStatusCode.NotFound)
+        is AlertActionResult.BadRequest -> respond(HttpStatusCode.BadRequest, result.message)
+        is AlertActionResult.Conflict -> respond(HttpStatusCode.Conflict, result.message)
     }
 }

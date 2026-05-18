@@ -360,6 +360,17 @@ data class AcknowledgeAlertRequestDto(
 )
 
 @Serializable
+data class EscalateAlertRequestDto(
+    val reason: String,
+    val assignee: String? = null,
+)
+
+@Serializable
+data class ResolveAlertRequestDto(
+    val resolutionText: String,
+)
+
+@Serializable
 data class CreateAlertRuleRequestDto(
     val name: String,
     val type: String,
