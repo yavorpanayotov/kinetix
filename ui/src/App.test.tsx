@@ -956,6 +956,87 @@ describe('App', () => {
     })
   })
 
+  describe('command palette (plan §7.1)', () => {
+    beforeEach(() => {
+      window.localStorage.clear()
+    })
+
+    it('Cmd+K opens the command palette', () => {
+      render(<App />)
+
+      expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument()
+
+      fireEvent.keyDown(window, { key: 'k', metaKey: true })
+
+      expect(screen.getByTestId('command-palette')).toBeInTheDocument()
+    })
+
+    it('Ctrl+K opens the command palette', () => {
+      render(<App />)
+
+      fireEvent.keyDown(window, { key: 'k', ctrlKey: true })
+
+      expect(screen.getByTestId('command-palette')).toBeInTheDocument()
+    })
+
+    it('does not open when a text input is focused', () => {
+      render(<App />)
+
+      const input = document.createElement('input')
+      input.type = 'text'
+      document.body.appendChild(input)
+      input.focus()
+
+      fireEvent.keyDown(input, { key: 'k', metaKey: true })
+
+      expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument()
+
+      document.body.removeChild(input)
+    })
+
+    it('Escape closes the palette', () => {
+      render(<App />)
+
+      fireEvent.keyDown(window, { key: 'k', metaKey: true })
+      expect(screen.getByTestId('command-palette')).toBeInTheDocument()
+
+      const paletteInput = screen.getByTestId('command-palette-input')
+      fireEvent.keyDown(paletteInput, { key: 'Escape' })
+
+      expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument()
+    })
+
+    it('typing a tab name and pressing Enter switches to that tab', () => {
+      render(<App />)
+
+      // Sanity: Positions is the default active tab.
+      expect(screen.getByTestId('tab-positions')).toHaveAttribute('aria-selected', 'true')
+
+      fireEvent.keyDown(window, { key: 'k', metaKey: true })
+
+      const paletteInput = screen.getByTestId('command-palette-input')
+      // 'Trades' is a unique top-level tab label.
+      fireEvent.change(paletteInput, { target: { value: 'Trades' } })
+
+      // The Trades tab command should be the first (and only) Tabs match.
+      expect(screen.getByTestId('command-palette-item-tab:trades')).toBeInTheDocument()
+
+      fireEvent.keyDown(paletteInput, { key: 'Enter' })
+
+      // The palette should close and the Trades tab should be active.
+      expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument()
+      expect(screen.getByTestId('tab-trades')).toHaveAttribute('aria-selected', 'true')
+    })
+
+    it('exposes loaded books as commands', () => {
+      render(<App />)
+      fireEvent.keyDown(window, { key: 'k', metaKey: true })
+      // useBookSelector mock returns allBookIds: ['book-1', 'book-2']
+      expect(screen.getByTestId('command-palette-item-book:book-1')).toBeInTheDocument()
+      expect(screen.getByTestId('command-palette-item-book:book-2')).toBeInTheDocument()
+    })
+  })
+
   describe('global breach banner', () => {
     const breachVarResult = {
       bookId: 'book-1',

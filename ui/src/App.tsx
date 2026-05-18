@@ -56,6 +56,7 @@ import { DEMO_MODE } from './auth/demoPersonas'
 import { PersonaSwitcher } from './components/PersonaSwitcher'
 import { DemoWelcomeStrip } from './components/DemoWelcomeStrip'
 import { KeyboardShortcutsOverlay } from './components/KeyboardShortcutsOverlay'
+import { CommandPalette, type CommandItem } from './components/CommandPalette'
 
 type Tab = 'positions' | 'trades' | 'pnl' | 'risk' | 'eod' | 'scenarios' | 'regulatory' | 'counterparty-risk' | 'reports' | 'alerts' | 'system'
 
@@ -119,6 +120,9 @@ function App() {
   // as-of the reported date.
   const [riskInitialValuationDate, setRiskInitialValuationDate] = useState<string | null>(null)
   const [shortcutsOverlayOpen, setShortcutsOverlayOpen] = useState(false)
+  // Plan §7.1 — Cmd+K (or Ctrl+K) opens the command palette. State lives at
+  // App.tsx because the palette needs setters across the entire app surface.
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const focusBeforeOverlayRef = useRef<HTMLElement | null>(null)
   const tabRefs = useRef<Map<Tab, HTMLButtonElement>>(new Map())
 
@@ -141,6 +145,29 @@ function App() {
         focusBeforeOverlayRef.current = document.activeElement
       }
       setShortcutsOverlayOpen(true)
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  // Plan §7.1 — Cmd+K (Mac) / Ctrl+K (Linux/Windows) opens the command
+  // palette. Same input-focus guard as '?': power-user shortcut, but no
+  // hijacking native text-editing.
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key !== 'k' && e.key !== 'K') return
+      if (!(e.metaKey || e.ctrlKey)) return
+      const target = e.target
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      ) {
+        return
+      }
+      e.preventDefault()
+      setCommandPaletteOpen(true)
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
@@ -230,6 +257,122 @@ function App() {
   const tapeReplay = useTapeReplayStatus()
   const tradersState = useTraders()
   const [selectedTraderId, setSelectedTraderId] = useState<string | null>(null)
+
+  // Plan §7.1 — Compose command palette items from data reachable at this
+  // level. Sub-tabs are hardcoded per scope ("the sub-tab structure is
+  // static and small"). Counterparties are intentionally not threaded —
+  // useCounterpartyRisk lives inside CounterpartyRiskDashboard and pulling
+  // it up to App.tsx would trigger an unconditional fetch on every page
+  // load; that's flagged as a follow-up.
+  const commandPaletteItems: CommandItem[] = [
+    // Tabs
+    ...TABS.map((tab) => ({
+      id: `tab:${tab.key}`,
+      group: 'Tabs',
+      label: tab.label,
+      onActivate: () => setActiveTab(tab.key),
+    })),
+    // Trades sub-tabs — App.tsx already owns tradesSubTab state.
+    {
+      id: 'trades-subtab:blotter',
+      group: 'Sub-tabs',
+      label: 'Trades · Trade Blotter',
+      onActivate: () => {
+        setTradesSubTab('blotter')
+        setActiveTab('trades')
+      },
+    },
+    {
+      id: 'trades-subtab:place',
+      group: 'Sub-tabs',
+      label: 'Trades · Place Order',
+      onActivate: () => {
+        setTradesSubTab('place')
+        setActiveTab('trades')
+      },
+    },
+    {
+      id: 'trades-subtab:cost',
+      group: 'Sub-tabs',
+      label: 'Trades · Execution Cost',
+      onActivate: () => {
+        setTradesSubTab('cost')
+        setActiveTab('trades')
+      },
+    },
+    {
+      id: 'trades-subtab:reconciliation',
+      group: 'Sub-tabs',
+      label: 'Trades · Reconciliation',
+      onActivate: () => {
+        setTradesSubTab('reconciliation')
+        setActiveTab('trades')
+      },
+    },
+    // Risk sub-tabs (palette navigates to parent tab; deep sub-tab routing is
+    // a follow-up — RiskTab owns the subTab state internally).
+    {
+      id: 'risk-subtab:dashboard',
+      group: 'Sub-tabs',
+      label: 'Risk · Dashboard',
+      onActivate: () => setActiveTab('risk'),
+    },
+    {
+      id: 'risk-subtab:intraday',
+      group: 'Sub-tabs',
+      label: 'Risk · Intraday',
+      onActivate: () => setActiveTab('risk'),
+    },
+    {
+      id: 'risk-subtab:run-compare',
+      group: 'Sub-tabs',
+      label: 'Risk · Run Compare',
+      onActivate: () => setActiveTab('risk'),
+    },
+    {
+      id: 'risk-subtab:market-data',
+      group: 'Sub-tabs',
+      label: 'Risk · Market Data',
+      onActivate: () => setActiveTab('risk'),
+    },
+    // Books — from useBookSelector.allBookIds
+    ...bookSelector.allBookIds.map((id) => ({
+      id: `book:${id}`,
+      group: 'Books',
+      label: id,
+      onActivate: () => {
+        hierarchy.setSelection({
+          level: 'book',
+          divisionId: hierarchy.selection.divisionId,
+          deskId: hierarchy.selection.deskId,
+          bookId: id,
+        })
+        rawSelectBook(id)
+        bookSelector.selectBook(id)
+      },
+    })),
+    // Instruments — from currently loaded positions. Capped at 50 so the
+    // palette stays responsive on large books; the fuzzy filter will surface
+    // any of the loaded set.
+    ...Array.from(new Set(positions.map((p) => p.instrumentId)))
+      .slice(0, 50)
+      .map((instrumentId) => ({
+        id: `instrument:${instrumentId}`,
+        group: 'Instruments',
+        label: instrumentId,
+        onActivate: () => setActiveTab('positions'),
+      })),
+    // Scenarios — useRunAllScenarios already lives in App.tsx
+    ...scenariosAll.scenarios.map((name) => ({
+      id: `scenario:${name}`,
+      group: 'Scenarios',
+      label: name,
+      onActivate: () => {
+        scenariosAll.setSelectedScenario(name)
+        setActiveTab('scenarios')
+      },
+    })),
+  ]
 
   const [disconnectElapsed, setDisconnectElapsed] = useState(0)
   useEffect(() => {
@@ -683,6 +826,12 @@ function App() {
       <KeyboardShortcutsOverlay
         open={shortcutsOverlayOpen}
         onClose={closeShortcutsOverlay}
+      />
+
+      <CommandPalette
+        open={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
+        items={commandPaletteItems}
       />
 
       <WhatIfPanel
