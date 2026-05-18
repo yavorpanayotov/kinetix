@@ -50,7 +50,11 @@ enum InstrumentTypeKey {
 
 enum FetchOutcome { fetched | not_found | client_unavailable | exception }
 
-enum PositionResolutionMethod { pass_through | delta_adjusted | dv01_based }
+enum PositionResolutionMethod { pass_through | delta_adjusted | dv01_based | intrinsic_value }
+-- intrinsic_value applies to options past expiry (expiry_days <= 0):
+-- effective_mv = max(0, intrinsic) for calls and max(0, strike - spot)
+-- for puts. Used by position_resolver.py to keep terminal options on
+-- the books long enough to settle without producing nonsensical Greeks.
 
 ------------------------------------------------------------
 -- Value Types
@@ -100,6 +104,25 @@ value ResolvedExposure {
     market_value: Decimal     -- effective linear exposure after resolution
     method: PositionResolutionMethod
 }
+-- ResolvedExposure is the spec-level conceptual shape of a single
+-- resolved position. In the running implementation,
+-- risk-engine/position_resolver.resolve_positions returns
+-- (List<PositionRisk>, List<String>) where the second list carries
+-- per-position degradation flags (e.g. "OPTION_NO_VOL",
+-- "SWAP_NO_CURVE", "OPTION_EXPIRED_INTRINSIC"). The resolution
+-- method is recoverable from each PositionRisk's flags rather than
+-- carried as a discrete column. Treat ResolvedExposure as the
+-- documentary contract; the in-process tuple is the live wire form.
+
+value DegradationFlag {
+    position_id: String
+    instrument_id: String
+    reason: String
+}
+-- Emitted alongside each resolved batch when an input was missing or
+-- a fallback path was taken. Consumed by the orchestrator to populate
+-- ValuationJob.data_quality_flags and surfaces in the UI as a
+-- per-position N/A pill.
 
 ------------------------------------------------------------
 -- Data Service Routing
@@ -181,7 +204,11 @@ rule DiscoverMarketDataDependencies {
         --     spot_price        (required, instrument_id = position.underlying_id)
         --     forward_curve     (optional, instrument_id = position.underlying_id)
         --     risk_free_rate    (optional, currency = position.currency)
-        --     historical_prices (optional, lookbackDays = "252")
+        --     historical_prices (optional, instrument_id = position.instrument_id,
+        --                        lookbackDays = "252")
+        --     -- Historical prices track the futures contract itself, not the
+        --     -- underlying spot, because VaR on a futures position needs the
+        --     -- contract's own return distribution (which embeds basis dynamics).
         --
         --   government_bond:
         --     yield_curve       (required, curveId = position.currency)
@@ -338,6 +365,23 @@ rule ResolvePositions {
         --   Produces ResolvedExposure with method = pass_through.
         --   Their market_value is already a reasonable linear exposure
         --   measure for VaR computation.
+        --
+        -- Expired options (expiry_days <= 0):
+        --   Produces ResolvedExposure with method = intrinsic_value.
+        --   effective_mv = max(0, intrinsic_value); Greeks are not
+        --   computed. A DegradationFlag with reason="OPTION_EXPIRED_INTRINSIC"
+        --   is emitted alongside.
+        --
+        -- The engine returns (List<ResolvedExposure>, List<DegradationFlag>).
+        -- The flag list is preserved on the ValuationJob and surfaced to
+        -- the UI; consumers must not assume the resolution succeeded
+        -- without inspecting it.
+
+        -- Code-side note: risk-engine/dependencies.py currently emits
+        -- the second yield-curve dependency for FX options as
+        -- curveId="EUR" when the base currency is USD, breaking the
+        -- spec contract that both curves should match the underlying
+        -- FX pair. Tracked in docs/plans/spec-weeding-followup-2026-05-18.md.
 }
 
 ------------------------------------------------------------
