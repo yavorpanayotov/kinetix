@@ -110,6 +110,31 @@ describe('NotificationCenter', () => {
     expect(options).not.toContain('DATA_STALENESS')
   })
 
+  it('does not offer EQUALS as an operator option in the create-rule form', () => {
+    // "Equal to" for floating-point risk values never fires — removed from new-rule creation.
+    render(
+      <NotificationCenter
+        rules={[]}
+        alerts={[]}
+        loading={false}
+        error={null}
+        onCreateRule={() => {}}
+        onDeleteRule={() => {}}
+      />,
+    )
+
+    const operatorSelect = screen.getByTestId('rule-operator-select')
+    const optionValues = Array.from(operatorSelect.querySelectorAll('option')).map((o) => o.value)
+    const optionLabels = Array.from(operatorSelect.querySelectorAll('option')).map((o) => o.textContent)
+
+    expect(optionValues).not.toContain('EQUALS')
+    expect(optionLabels).not.toContain('Equal to')
+
+    // Sanity-check that the other operators are still present.
+    expect(optionValues).toContain('GREATER_THAN')
+    expect(optionValues).toContain('LESS_THAN')
+  })
+
   it('renders recent alerts list', () => {
     render(
       <NotificationCenter

@@ -144,9 +144,13 @@ export function NotificationCenter({
             value={operator}
             onChange={(e) => setOperator(e.target.value)}
           >
+            {/*
+              EQUALS removed: "Equal to" for floating-point risk values never fires.
+              Backend still accepts EQUALS for pre-existing rules, but users can no
+              longer create new rules with it. See docs/plans/ui-overhaul.md §3.3.
+            */}
             <option value="GREATER_THAN">Above</option>
             <option value="LESS_THAN">Below</option>
-            <option value="EQUALS">Equal to</option>
           </Select>
           <Select
             data-testid="rule-severity-select"
