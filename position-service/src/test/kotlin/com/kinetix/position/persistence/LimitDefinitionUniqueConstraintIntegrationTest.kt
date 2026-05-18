@@ -11,6 +11,7 @@ import org.jetbrains.exposed.exceptions.ExposedSQLException
 import org.jetbrains.exposed.sql.deleteAll
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
+import org.jetbrains.exposed.sql.transactions.transaction
 import java.math.BigDecimal
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
@@ -60,7 +61,8 @@ class LimitDefinitionUniqueConstraintIntegrationTest : FunSpec({
 
         val now = OffsetDateTime.now(ZoneOffset.UTC)
         val ex = shouldThrow<ExposedSQLException> {
-            newSuspendedTransaction(db = db) {
+            transaction(db) {
+                maxAttempts = 1
                 LimitDefinitionsTable.insert {
                     it[id] = "lim-2"
                     it[level] = LimitLevel.BOOK.name
