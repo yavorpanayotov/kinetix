@@ -3,12 +3,11 @@ import type { Page, Route } from '@playwright/test'
 import { mockAllApiRoutes } from './fixtures'
 
 /**
- * E2E coverage for per-alert triage actions (UI overhaul §3.1).
+ * E2E coverage for per-alert triage actions (UI overhaul §3.1, §3.1b.2).
  *
- * Backend currently exposes the Acknowledge endpoint only — Escalate /
- * Resolve / Snooze HTTP endpoints don't exist yet (see follow-ups in the
- * plan). The acknowledge round-trip is mocked here so we can assert the
- * status badge transitions optimistically and after the server response.
+ * Acknowledge / Escalate / Resolve all round-trip through mocked endpoints
+ * so we can assert the status badge transitions optimistically and after
+ * the server response.
  */
 
 const TRIGGERED_ALERT = {
@@ -179,6 +178,182 @@ test.describe('Per-alert triage actions', () => {
     await expect(
       page.getByTestId('acknowledge-btn-alert-ack-1'),
     ).toBeVisible()
+  })
+
+  test('escalating an alert flips the badge to ESCALATED and posts reason + assignee', async ({
+    page,
+  }) => {
+    let capturedBody: string | null = null
+    await page.route(
+      '**/api/v1/notifications/alerts/*/escalate',
+      (route: Route) => {
+        if (route.request().method() === 'POST') {
+          capturedBody = route.request().postData()
+          route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              ...TRIGGERED_ALERT,
+              status: 'ESCALATED',
+              escalatedAt: '2025-01-15T09:10:00Z',
+              escalatedTo: 'risk-manager',
+            }),
+          })
+        } else {
+          route.fallback()
+        }
+      },
+    )
+
+    await page.goto('/')
+    await page.getByTestId('tab-alerts').click()
+    await page.waitForSelector('[data-testid="alerts-list"]')
+
+    await page.getByTestId('escalate-btn-alert-ack-1').click()
+    await expect(
+      page.getByTestId('escalate-form-alert-ack-1'),
+    ).toBeVisible()
+
+    await page
+      .getByTestId('escalate-reason-alert-ack-1')
+      .fill('unack for 30 minutes')
+    await page
+      .getByTestId('escalate-assignee-alert-ack-1')
+      .fill('risk-manager')
+    await page.getByTestId('escalate-submit-alert-ack-1').click()
+
+    await expect(page.getByTestId('status-badge-alert-ack-1')).toHaveText(
+      'ESCALATED',
+    )
+    expect(capturedBody).not.toBeNull()
+    const parsed = JSON.parse(capturedBody as unknown as string)
+    expect(parsed.reason).toBe('unack for 30 minutes')
+    expect(parsed.assignee).toBe('risk-manager')
+  })
+
+  test('escalate validation: blank reason is rejected client-side', async ({
+    page,
+  }) => {
+    let requested = false
+    await page.route(
+      '**/api/v1/notifications/alerts/*/escalate',
+      (route: Route) => {
+        if (route.request().method() === 'POST') {
+          requested = true
+          route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({ ...TRIGGERED_ALERT, status: 'ESCALATED' }),
+          })
+        } else {
+          route.fallback()
+        }
+      },
+    )
+
+    await page.goto('/')
+    await page.getByTestId('tab-alerts').click()
+    await page.waitForSelector('[data-testid="alerts-list"]')
+
+    await page.getByTestId('escalate-btn-alert-ack-1').click()
+    await page.getByTestId('escalate-submit-alert-ack-1').click()
+
+    // Form remains open, error surfaces, no API call made.
+    await expect(
+      page.getByTestId('escalate-form-alert-ack-1'),
+    ).toBeVisible()
+    await expect(
+      page.getByTestId('escalate-reason-error-alert-ack-1'),
+    ).toBeVisible()
+    expect(requested).toBe(false)
+  })
+
+  test('resolving an alert flips the badge to RESOLVED and posts resolutionText', async ({
+    page,
+  }) => {
+    let capturedBody: string | null = null
+    // Use the test's "now" for resolvedAt so the resolved row stays in the
+    // hot-list and not in the older-resolved (>24h) summary section.
+    const resolvedAtIso = new Date().toISOString()
+    await page.route(
+      '**/api/v1/notifications/alerts/*/resolve',
+      (route: Route) => {
+        if (route.request().method() === 'POST') {
+          capturedBody = route.request().postData()
+          route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              ...TRIGGERED_ALERT,
+              triggeredAt: resolvedAtIso,
+              status: 'RESOLVED',
+              resolvedAt: resolvedAtIso,
+              resolvedReason: 'positions reduced',
+            }),
+          })
+        } else {
+          route.fallback()
+        }
+      },
+    )
+
+    await page.goto('/')
+    await page.getByTestId('tab-alerts').click()
+    await page.waitForSelector('[data-testid="alerts-list"]')
+
+    await page.getByTestId('resolve-btn-alert-ack-1').click()
+    await expect(
+      page.getByTestId('resolve-form-alert-ack-1'),
+    ).toBeVisible()
+
+    await page
+      .getByTestId('resolve-text-alert-ack-1')
+      .fill('positions reduced')
+    await page.getByTestId('resolve-submit-alert-ack-1').click()
+
+    // RESOLVED is hidden from the default queue view; surface it so we can
+    // assert on the badge transition.
+    await page.getByTestId('status-filter-resolved').click()
+    await expect(page.getByTestId('status-badge-alert-ack-1')).toHaveText(
+      'RESOLVED',
+    )
+    expect(capturedBody).not.toBeNull()
+    const parsed = JSON.parse(capturedBody as unknown as string)
+    expect(parsed.resolutionText).toBe('positions reduced')
+  })
+
+  test('resolve validation: blank resolutionText is rejected client-side', async ({
+    page,
+  }) => {
+    let requested = false
+    await page.route(
+      '**/api/v1/notifications/alerts/*/resolve',
+      (route: Route) => {
+        if (route.request().method() === 'POST') {
+          requested = true
+          route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({ ...TRIGGERED_ALERT, status: 'RESOLVED' }),
+          })
+        } else {
+          route.fallback()
+        }
+      },
+    )
+
+    await page.goto('/')
+    await page.getByTestId('tab-alerts').click()
+    await page.waitForSelector('[data-testid="alerts-list"]')
+
+    await page.getByTestId('resolve-btn-alert-ack-1').click()
+    await page.getByTestId('resolve-submit-alert-ack-1').click()
+
+    await expect(page.getByTestId('resolve-form-alert-ack-1')).toBeVisible()
+    await expect(
+      page.getByTestId('resolve-text-error-alert-ack-1'),
+    ).toBeVisible()
+    expect(requested).toBe(false)
   })
 
   test('Cancel closes the acknowledge form without dispatching a request', async ({
