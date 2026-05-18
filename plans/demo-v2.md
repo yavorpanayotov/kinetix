@@ -123,7 +123,7 @@ and flag (per `/work-plan` guardrails).
       `DevDataSeeder` counterparties. Unit test covers outside-hours no-op,
       weekend no-op, in-hours generates profile-respecting payloads.
       Acceptance: `./gradlew :demo-orchestrator:test --tests "*SimulatedTraderJobTest"`
-- [ ] 2.3 Wire `SimulatedTraderJob` into `Application.kt` behind
+- [x] 2.3 Wire `SimulatedTraderJob` into `Application.kt` behind
       `DEMO_MODE=true`.
       Acceptance: `./gradlew :demo-orchestrator:build`
 - [ ] 2.4 Add `src/acceptanceTest/.../SimulatedTradingAcceptanceTest.kt` —
