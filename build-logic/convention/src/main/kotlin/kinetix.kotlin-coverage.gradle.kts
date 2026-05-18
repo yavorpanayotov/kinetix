@@ -1,14 +1,5 @@
 plugins {
-    alias(libs.plugins.kotlin.jvm) apply false
-    alias(libs.plugins.kotlin.serialization) apply false
-    alias(libs.plugins.protobuf) apply false
-    alias(libs.plugins.kover)
-}
-
-dependencies {
-    subprojects
-        .filter { it.name != "proto" }
-        .forEach { kover(project(":${it.name}")) }
+    id("org.jetbrains.kotlinx.kover")
 }
 
 kover {
@@ -28,6 +19,19 @@ kover {
                     "com.kinetix.proto.*",
                 )
                 annotatedBy("kotlinx.serialization.Serializable")
+            }
+        }
+        verify {
+            rule {
+                disabled = true
+            }
+        }
+        total {
+            html {
+                onCheck = false
+            }
+            xml {
+                onCheck = false
             }
         }
     }

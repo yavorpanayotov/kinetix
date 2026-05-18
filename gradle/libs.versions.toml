@@ -29,6 +29,7 @@ testcontainers = "1.20.5"
 
 # Build
 protobuf-plugin = "0.9.4"
+kover = "0.9.1"
 
 [libraries]
 # Ktor Server
@@ -171,3 +172,4 @@ opentelemetry-logging = [
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 protobuf = { id = "com.google.protobuf", version.ref = "protobuf-plugin" }
+kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
