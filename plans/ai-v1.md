@@ -117,7 +117,7 @@ Per CLAUDE.md guardrails, the following are explicitly approved in this plan so 
       Acceptance: `docker compose -f deploy/docker-compose.services.yml config --quiet`
 - [x] 4.2 Add `deploy/helm/kinetix/charts/ai-insights-service/` chart mirroring an existing per-service chart (e.g. `deploy/helm/kinetix/charts/risk-orchestrator/`): `Chart.yaml`, `values.yaml` (with a `claudeAuth.hostPath` value defaulting to `/root/.claude`), `templates/deployment.yaml` (with a `hostPath`-typed volume mount for the host's Claude credentials, gated by a `claudeAuth.enabled` value that defaults to `true`), `templates/service.yaml`, `templates/configmap.yaml`. Add the chart to the parent `deploy/helm/kinetix/Chart.yaml` dependencies.
       Acceptance: `helm lint deploy/helm/kinetix/charts/ai-insights-service && helm template deploy/helm/kinetix > /dev/null`
-- [ ] 4.3 Update `.claude/skills/demo/SKILL.md` to mention the VaR Explainer and Report Commentary features in the demo walkthrough — what to click, what to expect to see in demo mode vs live mode.
+- [x] 4.3 Update `.claude/skills/demo/SKILL.md` to mention the VaR Explainer and Report Commentary features in the demo walkthrough — what to click, what to expect to see in demo mode vs live mode.
       Acceptance: `grep -q 'Explain' .claude/skills/demo/SKILL.md && grep -q 'AI Commentary\|AI commentary' .claude/skills/demo/SKILL.md`
 - [ ] 4.4 Add a brief "AI features" section to `README.md` (below the hero) describing the two features and linking to `ai-insights-service/README.md` for the host-auth + DEMO_MODE explanation.
       Acceptance: `grep -q 'AI features\|VaR Explainer' README.md && grep -q 'ai-insights-service/README.md' README.md`
