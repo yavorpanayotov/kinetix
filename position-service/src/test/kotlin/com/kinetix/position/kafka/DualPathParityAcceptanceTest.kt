@@ -1,5 +1,6 @@
 package com.kinetix.position.kafka
 
+import com.kinetix.testsupport.kafka.KafkaTestSetup
 import com.kinetix.common.execution.ExecutionEventType
 import com.kinetix.common.execution.ExecutionReportEvent
 import com.kinetix.common.kafka.ConsumerLivenessTracker

@@ -1,7 +1,7 @@
 package com.kinetix.position
 
 import com.kinetix.position.fix.ExposedExecutionCostRepository
-import com.kinetix.position.kafka.KafkaTestSetup
+import com.kinetix.testsupport.kafka.KafkaTestSetup
 import com.kinetix.position.kafka.KafkaTradeEventPublisher
 import com.kinetix.position.persistence.DatabaseTestSetup
 import com.kinetix.position.persistence.ExposedLimitDefinitionRepository

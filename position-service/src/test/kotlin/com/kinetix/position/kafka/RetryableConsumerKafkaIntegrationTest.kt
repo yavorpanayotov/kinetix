@@ -1,5 +1,6 @@
 package com.kinetix.position.kafka
 
+import com.kinetix.testsupport.kafka.KafkaTestSetup
 import com.kinetix.common.kafka.RetryableConsumer
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec

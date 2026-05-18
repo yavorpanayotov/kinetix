@@ -2,7 +2,7 @@ package com.kinetix.position
 
 import com.kinetix.common.kafka.events.TradeEventMessage
 import com.kinetix.common.model.*
-import com.kinetix.position.kafka.KafkaTestSetup
+import com.kinetix.testsupport.kafka.KafkaTestSetup
 import com.kinetix.position.kafka.KafkaTradeEventPublisher
 import com.kinetix.position.model.LimitBreachSeverity
 import com.kinetix.position.model.LimitDefinition

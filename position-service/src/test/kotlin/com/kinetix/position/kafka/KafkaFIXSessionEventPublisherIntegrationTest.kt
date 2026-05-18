@@ -1,5 +1,6 @@
 package com.kinetix.position.kafka
 
+import com.kinetix.testsupport.kafka.KafkaTestSetup
 import com.kinetix.position.fix.FIXSessionDisconnectedEvent
 import com.kinetix.position.fix.KafkaFIXSessionEventPublisher
 import io.kotest.core.spec.style.FunSpec

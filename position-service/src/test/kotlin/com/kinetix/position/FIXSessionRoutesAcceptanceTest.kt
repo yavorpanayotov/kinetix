@@ -6,7 +6,7 @@ import com.kinetix.position.fix.FIXSessionDisconnectedEvent
 import com.kinetix.position.fix.FIXSessionEventPublisher
 import com.kinetix.position.fix.FIXSessionStatus
 import com.kinetix.position.fix.KafkaFIXSessionEventPublisher
-import com.kinetix.position.kafka.KafkaTestSetup
+import com.kinetix.testsupport.kafka.KafkaTestSetup
 import com.kinetix.position.persistence.DatabaseTestSetup
 import com.kinetix.position.routes.fixSessionRoutes
 import io.kotest.core.spec.style.FunSpec

@@ -1,5 +1,6 @@
 package com.kinetix.position.kafka
 
+import com.kinetix.testsupport.kafka.KafkaTestSetup
 import com.kinetix.common.kafka.events.RiskResultEvent
 import com.kinetix.position.fix.PrimeBrokerReconciliation
 import com.kinetix.position.fix.ReconciliationBreak

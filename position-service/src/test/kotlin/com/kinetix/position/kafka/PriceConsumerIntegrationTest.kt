@@ -1,5 +1,6 @@
 package com.kinetix.position.kafka
 
+import com.kinetix.testsupport.kafka.KafkaTestSetup
 import com.kinetix.common.kafka.events.PriceEvent
 import com.kinetix.common.model.*
 import com.kinetix.position.persistence.DatabaseTestSetup

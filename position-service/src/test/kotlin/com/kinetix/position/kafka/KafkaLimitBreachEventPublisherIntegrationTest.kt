@@ -1,5 +1,6 @@
 package com.kinetix.position.kafka
 
+import com.kinetix.testsupport.kafka.KafkaTestSetup
 import com.kinetix.common.kafka.events.LimitBreachEvent
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
