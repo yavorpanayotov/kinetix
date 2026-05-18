@@ -96,7 +96,7 @@ and flag (per `/work-plan` guardrails).
       `POST /api/v1/risk/budgets`). DTOs in `client/dtos/`, one per file.
       MockEngine-based unit test.
       Acceptance: `./gradlew :demo-orchestrator:test --tests "*RiskOrchestratorClientTest"`
-- [ ] 1.3 Add `schedule/LimitSeedJob.kt`. Behaviour: for each seeded book read
+- [x] 1.3 Add `schedule/LimitSeedJob.kt`. Behaviour: for each seeded book read
       current exposure, post limits at 80% of `varValue` and 70% of absolute
       delta. Idempotent on `(bookId, limitType)`. Unit test drives the job
       with a MockK fake client and asserts the right thresholds were posted.
