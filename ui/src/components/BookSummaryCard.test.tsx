@@ -136,6 +136,21 @@ describe('BookSummaryCard', () => {
     expect(screen.getByTestId('total-unrealized-pnl').className).toContain('text-red-600')
   })
 
+  it('renders the title via the canonical SectionHeading primitive', () => {
+    render(
+      <BookSummaryCard
+        summary={summary}
+        baseCurrency="USD"
+        onBaseCurrencyChange={vi.fn()}
+        title="Book Summary"
+      />,
+    )
+
+    const heading = screen.getByRole('heading', { name: /book summary/i })
+    expect(heading.className).toContain('text-base')
+    expect(heading.className).toContain('font-semibold')
+  })
+
   it('renders loading state when summary is null', () => {
     render(
       <BookSummaryCard

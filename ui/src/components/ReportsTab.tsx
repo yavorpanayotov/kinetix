@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { FileText, Download, Play, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react'
-import { Spinner } from './ui'
+import { SectionHeading, Spinner } from './ui'
 import {
   fetchReportTemplates,
   generateReport,
@@ -145,10 +145,10 @@ export function ReportsTab({ bookId, onJumpToRiskAtDate }: ReportsTabProps) {
   return (
     <div className="space-y-6">
       <div className="bg-white dark:bg-surface-800 rounded-lg border border-slate-200 dark:border-surface-700 p-6">
-        <h2 className="text-base font-semibold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
+        <SectionHeading as="h2" className="mb-4 flex items-center gap-2">
           <FileText className="h-5 w-5 text-primary-500" />
           Generate Report
-        </h2>
+        </SectionHeading>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
           <div>
@@ -250,17 +250,20 @@ export function ReportsTab({ bookId, onJumpToRiskAtDate }: ReportsTabProps) {
           data-testid="report-output-panel"
           className="bg-white dark:bg-surface-800 rounded-lg border border-slate-200 dark:border-surface-700 p-6"
         >
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-              Report Output
-            </h3>
-            <span
-              data-testid="report-output-meta"
-              className="text-xs text-slate-500 dark:text-slate-400"
+          <div className="mb-3">
+            <SectionHeading
+              right={
+                <span
+                  data-testid="report-output-meta"
+                  className="text-xs text-slate-500 dark:text-slate-400"
+                >
+                  {currentOutput.rowCount} rows &middot; generated{' '}
+                  {new Date(currentOutput.generatedAt).toLocaleString()}
+                </span>
+              }
             >
-              {currentOutput.rowCount} rows &middot; generated{' '}
-              {new Date(currentOutput.generatedAt).toLocaleString()}
-            </span>
+              Report Output
+            </SectionHeading>
           </div>
           <p
             data-testid="report-no-data-message"
@@ -277,9 +280,7 @@ export function ReportsTab({ bookId, onJumpToRiskAtDate }: ReportsTabProps) {
           data-testid="report-history-panel"
           className="bg-white dark:bg-surface-800 rounded-lg border border-slate-200 dark:border-surface-700 p-6"
         >
-          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-3">
-            Report History
-          </h3>
+          <SectionHeading className="mb-3">Report History</SectionHeading>
           <ul className="divide-y divide-slate-100 dark:divide-surface-700" role="list">
             {history.map(output => (
               <li

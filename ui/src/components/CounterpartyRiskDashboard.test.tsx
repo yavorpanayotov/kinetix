@@ -478,4 +478,17 @@ describe('CounterpartyRiskDashboard', () => {
 
     expect(offenders).toEqual([])
   })
+
+  it('renders the "Counterparty Risk" heading via the canonical SectionHeading primitive', () => {
+    mockUseCounterpartyRisk.mockReturnValue({
+      ...defaultHook,
+      exposures: [SAMPLE_EXPOSURE],
+    })
+
+    render(<CounterpartyRiskDashboard />)
+
+    const heading = screen.getByRole('heading', { name: /counterparty risk/i })
+    expect(heading.className).toContain('text-base')
+    expect(heading.className).toContain('font-semibold')
+  })
 })

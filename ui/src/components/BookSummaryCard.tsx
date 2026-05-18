@@ -1,6 +1,6 @@
 import type { BookAggregationDto } from '../types'
 import { formatMoney, formatSignedMoney, pnlColorClass } from '../utils/format'
-import { Card, Spinner } from './ui'
+import { Card, SectionHeading, Spinner } from './ui'
 
 const CURRENCIES = ['USD', 'EUR', 'GBP', 'JPY']
 
@@ -34,18 +34,23 @@ export function BookSummaryCard({
 
   return (
     <Card data-testid="book-summary-card">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">{title}</h3>
-        <select
-          data-testid="base-currency-selector"
-          value={baseCurrency}
-          onChange={(e) => onBaseCurrencyChange(e.target.value)}
-          className="bg-white dark:bg-surface-700 border border-slate-300 dark:border-surface-600 text-slate-700 dark:text-slate-200 rounded-md px-2 py-1 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+      <div className="mb-4">
+        <SectionHeading
+          right={
+            <select
+              data-testid="base-currency-selector"
+              value={baseCurrency}
+              onChange={(e) => onBaseCurrencyChange(e.target.value)}
+              className="bg-white dark:bg-surface-700 border border-slate-300 dark:border-surface-600 text-slate-700 dark:text-slate-200 rounded-md px-2 py-1 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            >
+              {CURRENCIES.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          }
         >
-          {CURRENCIES.map((c) => (
-            <option key={c} value={c}>{c}</option>
-          ))}
-        </select>
+          {title}
+        </SectionHeading>
       </div>
 
       <div className="grid grid-cols-2 gap-4 mb-4">

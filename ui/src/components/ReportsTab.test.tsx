@@ -365,4 +365,18 @@ describe('ReportsTab', () => {
       expect(onJumpToRiskAtDate).toHaveBeenCalledWith('BOOK-1', '2025-01-15')
     })
   })
+
+  it('renders the "Generate Report" heading via the canonical SectionHeading primitive', async () => {
+    mockFetchTemplates.mockResolvedValue(TEMPLATES)
+
+    render(<ReportsTab bookId="BOOK-1" />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('report-template-select')).toBeInTheDocument()
+    })
+
+    const heading = screen.getByRole('heading', { name: /generate report/i })
+    expect(heading.className).toContain('text-base')
+    expect(heading.className).toContain('font-semibold')
+  })
 })

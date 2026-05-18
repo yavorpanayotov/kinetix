@@ -14,7 +14,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import type { SystemHealthResponse } from '../api/system'
-import { Card, Button, StatusDot, Spinner, ErrorCard } from './ui'
+import { Card, Button, StatusDot, Spinner, ErrorCard, SectionHeading } from './ui'
 
 interface Props {
   health: SystemHealthResponse | null
@@ -155,10 +155,10 @@ export function SystemDashboard({ health, loading, error, onRefresh }: Props) {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2">
-          <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+          <SectionHeading as="h2" className="mb-3 flex items-center gap-2">
             <Server className="h-5 w-5 text-slate-500" />
             Service Health
-          </h2>
+          </SectionHeading>
           <div
             data-testid="service-health-grid"
             className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4"
@@ -207,7 +207,7 @@ export function SystemDashboard({ health, loading, error, onRefresh }: Props) {
         </div>
 
         <div className="md:col-span-1">
-          <h2 className="text-lg font-semibold mb-3">Observability</h2>
+          <SectionHeading as="h2" className="mb-3">Observability</SectionHeading>
           <div data-testid="observability-links" className="space-y-2">
             {OBSERVABILITY_LINK_DEFS.map((link) => {
               const url = link.path != null

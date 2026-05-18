@@ -383,4 +383,22 @@ describe('SystemDashboard', () => {
     screen.getByTestId('system-refresh-btn').click()
     expect(onRefresh).toHaveBeenCalledTimes(1)
   })
+
+  it('renders section headings via the canonical SectionHeading primitive', () => {
+    render(
+      <SystemDashboard
+        health={allUpHealth}
+        loading={false}
+        error={null}
+        onRefresh={() => {}}
+      />,
+    )
+
+    const serviceHealth = screen.getByRole('heading', { name: /service health/i })
+    const observability = screen.getByRole('heading', { name: /observability/i })
+    expect(serviceHealth.className).toContain('text-base')
+    expect(serviceHealth.className).toContain('font-semibold')
+    expect(observability.className).toContain('text-base')
+    expect(observability.className).toContain('font-semibold')
+  })
 })

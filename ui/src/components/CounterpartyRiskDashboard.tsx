@@ -5,7 +5,7 @@ import type { CounterpartyExposureDto, ExposureAtTenorDto } from '../api/counter
 import { fetchSaCcr } from '../api/saCcr'
 import type { SaCcrResultDto } from '../types'
 import { formatCurrency } from '../utils/format'
-import { Spinner } from './ui'
+import { SectionHeading, Spinner } from './ui'
 import { SaCcrPanel } from './SaCcrPanel'
 
 type SortColumn = 'counterpartyId' | 'currentNetExposure' | 'peakPfe' | 'cva' | 'wwr'
@@ -281,31 +281,32 @@ function DetailPanel({ exposure, computing, onComputePFE, onComputeCVA }: Detail
   return (
     <div data-testid="counterparty-detail-panel" className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h3 className="text-base font-semibold text-slate-700 dark:text-slate-200">
-          {exposure.counterpartyId}
-        </h3>
-        <div className="flex items-center gap-2">
-          <button
-            data-testid="compute-pfe-button"
-            onClick={onComputePFE}
-            disabled={computing}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-md transition-colors"
-          >
-            {computing ? <Spinner size="sm" /> : <Activity className="h-3.5 w-3.5" />}
-            Compute PFE
-          </button>
-          <button
-            data-testid="compute-cva-button"
-            onClick={onComputeCVA}
-            disabled={computing || exposure.pfeProfile.length === 0}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-amber-600 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-md transition-colors"
-          >
-            {computing ? <Spinner size="sm" /> : <Activity className="h-3.5 w-3.5" />}
-            Compute CVA
-          </button>
-        </div>
-      </div>
+      <SectionHeading
+        right={
+          <>
+            <button
+              data-testid="compute-pfe-button"
+              onClick={onComputePFE}
+              disabled={computing}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-md transition-colors"
+            >
+              {computing ? <Spinner size="sm" /> : <Activity className="h-3.5 w-3.5" />}
+              Compute PFE
+            </button>
+            <button
+              data-testid="compute-cva-button"
+              onClick={onComputeCVA}
+              disabled={computing || exposure.pfeProfile.length === 0}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-amber-600 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-md transition-colors"
+            >
+              {computing ? <Spinner size="sm" /> : <Activity className="h-3.5 w-3.5" />}
+              Compute CVA
+            </button>
+          </>
+        }
+      >
+        {exposure.counterpartyId}
+      </SectionHeading>
 
       {/* Metrics */}
       <div className="grid grid-cols-3 gap-3">
@@ -480,7 +481,7 @@ export function CounterpartyRiskDashboard({ onJumpToTrades }: CounterpartyRiskDa
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Users className="h-5 w-5 text-indigo-400" />
-          <h2 className="text-base font-semibold text-slate-700 dark:text-slate-200">Counterparty Risk</h2>
+          <SectionHeading as="h2">Counterparty Risk</SectionHeading>
           <span className="text-xs text-slate-400 dark:text-slate-500">
             {exposures.length} counterpart{exposures.length === 1 ? 'y' : 'ies'}
           </span>
