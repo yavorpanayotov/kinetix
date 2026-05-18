@@ -309,7 +309,7 @@ If an item's scope has been partially addressed already (some sub-fixes shipped 
 - [x] 8.2 Hedge engine surfacing on breach (scope §8.2) — "Need a hedge?" CTA when VaR utilisation > 80% or any CRITICAL alert is active; reachable from the ticker strip's VaR indicator.
 - [x] 8.3 Stale data visual unambiguity (scope §8.3) — STALE pill replaced with desaturated overlay / yellow tint over the whole panel + explicit "computed at X, source as of Y" line.
 - [x] 8.4 Trade markers on intraday P&L and VaR trend charts (scope §8.4) — extend `tradeAnnotations` pattern from `IntradayVaRChart` to `IntradayPnlChart` and the VaR trend chart.
-- [ ] 8.6 "Compare with snapshot" — ad-hoc time-shifted compare (scope §8.6) — button on Risk tab → pick -15m / -1h / -EOD yesterday → diff overlay on the same panels.
+- [x] 8.6 "Compare with snapshot" — ad-hoc time-shifted compare (scope §8.6) — button on Risk tab → pick -15m / -1h / -EOD yesterday → diff overlay on the same panels.
 
 ### Phase 5 — Responsive Strategy
 
