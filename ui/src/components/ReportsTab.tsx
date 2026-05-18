@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { FileText, Download, Play, ChevronDown, ChevronUp } from 'lucide-react'
+import { FileText, Download, Play, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react'
 import { Spinner } from './ui'
 import {
   fetchReportTemplates,
@@ -11,9 +11,27 @@ import {
 
 interface ReportsTabProps {
   bookId: string | null
+  /**
+   * Cross-tab jump (plan §2.4): open the Risk tab focused on the reported
+   * book and valuation date. Receives the report's bookId and the
+   * valuation date used when the report was generated. Date may be empty
+   * when the report ran "as of today" — the parent should treat that as
+   * "use today's date".
+   */
+  onJumpToRiskAtDate?: (bookId: string, valuationDate: string) => void
 }
 
-export function ReportsTab({ bookId }: ReportsTabProps) {
+/**
+ * History row: a ReportOutput plus the bookId / date the user supplied
+ * to generate it. The backend's ReportOutput shape doesn't echo these
+ * back, so we capture them client-side to support cross-tab links.
+ */
+interface ReportHistoryEntry extends ReportOutput {
+  bookId: string
+  date: string
+}
+
+export function ReportsTab({ bookId, onJumpToRiskAtDate }: ReportsTabProps) {
   const [templates, setTemplates] = useState<ReportTemplate[]>([])
   const [templatesLoading, setTemplatesLoading] = useState(true)
   const [templatesError, setTemplatesError] = useState<string | null>(null)
@@ -24,7 +42,7 @@ export function ReportsTab({ bookId }: ReportsTabProps) {
   const [generating, setGenerating] = useState(false)
   const [generateError, setGenerateError] = useState<string | null>(null)
   const [currentOutput, setCurrentOutput] = useState<ReportOutput | null>(null)
-  const [history, setHistory] = useState<ReportOutput[]>([])
+  const [history, setHistory] = useState<ReportHistoryEntry[]>([])
   const [expandedOutputId, setExpandedOutputId] = useState<string | null>(null)
   const [csvDownloading, setCsvDownloading] = useState(false)
 
@@ -68,7 +86,12 @@ export function ReportsTab({ bookId }: ReportsTabProps) {
         format: 'JSON',
       })
       setCurrentOutput(output)
-      setHistory(prev => [output, ...prev])
+      // Capture the bookId / date that drove this generation so the
+      // history row can power the cross-tab "Open in Risk" link.
+      setHistory(prev => [
+        { ...output, bookId: selectedBookId, date: selectedDate },
+        ...prev,
+      ])
     } catch (err) {
       setGenerateError(err instanceof Error ? err.message : 'Failed to generate report')
     } finally {
@@ -264,25 +287,40 @@ export function ReportsTab({ bookId }: ReportsTabProps) {
                 data-testid={`report-history-item-${output.outputId}`}
                 className="py-2"
               >
-                <button
-                  className="w-full flex items-center justify-between text-left hover:bg-slate-50 dark:hover:bg-surface-700 rounded px-2 py-1 transition-colors"
-                  onClick={() => handleToggleHistory(output)}
-                >
-                  <div>
-                    <span className="text-sm text-slate-700 dark:text-slate-200 font-medium">
-                      {output.templateId}
-                    </span>
-                    <span className="ml-3 text-xs text-slate-400 dark:text-slate-500">
-                      {output.rowCount} rows &middot;{' '}
-                      {new Date(output.generatedAt).toLocaleString()}
-                    </span>
-                  </div>
-                  {expandedOutputId === output.outputId ? (
-                    <ChevronUp className="h-4 w-4 text-slate-400" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-slate-400" />
+                <div className="w-full flex items-center justify-between gap-2 hover:bg-slate-50 dark:hover:bg-surface-700 rounded px-2 py-1 transition-colors">
+                  <button
+                    className="flex-1 flex items-center justify-between text-left"
+                    onClick={() => handleToggleHistory(output)}
+                  >
+                    <div>
+                      <span className="text-sm text-slate-700 dark:text-slate-200 font-medium">
+                        {output.templateId}
+                      </span>
+                      <span className="ml-3 text-xs text-slate-400 dark:text-slate-500">
+                        {output.rowCount} rows &middot;{' '}
+                        {new Date(output.generatedAt).toLocaleString()}
+                      </span>
+                    </div>
+                    {expandedOutputId === output.outputId ? (
+                      <ChevronUp className="h-4 w-4 text-slate-400" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4 text-slate-400" />
+                    )}
+                  </button>
+                  {onJumpToRiskAtDate && (
+                    <button
+                      type="button"
+                      data-testid={`open-in-risk-${output.outputId}`}
+                      onClick={() => onJumpToRiskAtDate(output.bookId, output.date)}
+                      title={`Open ${output.bookId} on the Risk tab at ${output.date || 'today'}`}
+                      aria-label={`Open ${output.bookId} on the Risk tab at ${output.date || 'today'}`}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
+                    >
+                      <ArrowRight className="h-3 w-3" />
+                      Open in Risk
+                    </button>
                   )}
-                </button>
+                </div>
               </li>
             ))}
           </ul>

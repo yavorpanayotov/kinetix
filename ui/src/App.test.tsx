@@ -26,7 +26,12 @@ vi.mock('./components/TradeBlotter', () => ({
   ),
 }))
 vi.mock('./components/RiskTab', () => ({
-  RiskTab: () => <div data-testid="risk-tab-wrapper" />,
+  RiskTab: ({ initialValuationDate }: { initialValuationDate?: string | null }) => (
+    <div
+      data-testid="risk-tab-wrapper"
+      data-initial-valuation-date={initialValuationDate ?? ''}
+    />
+  ),
 }))
 vi.mock('./components/ScenariosTab', () => ({
   ScenariosTab: () => <div data-testid="scenarios-tab-wrapper" />,
@@ -42,6 +47,22 @@ vi.mock('./components/CounterpartyRiskDashboard', () => ({
         onClick={() => onJumpToTrades?.('CP-MOCK')}
       >
         Jump
+      </button>
+    </div>
+  ),
+}))
+vi.mock('./components/ReportsTab', () => ({
+  ReportsTab: ({
+    onJumpToRiskAtDate,
+  }: {
+    onJumpToRiskAtDate?: (bookId: string, valuationDate: string) => void
+  }) => (
+    <div data-testid="reports-tab-wrapper">
+      <button
+        data-testid="mock-open-report-in-risk"
+        onClick={() => onJumpToRiskAtDate?.('book-2', '2025-01-15')}
+      >
+        Open in Risk
       </button>
     </div>
   ),
@@ -626,6 +647,37 @@ describe('App', () => {
       const blotter = screen.getByTestId('trade-blotter-wrapper')
       expect(blotter).toBeInTheDocument()
       expect(blotter.getAttribute('data-counterparty-filter')).toBe('CP-MOCK')
+    })
+
+    it('jump from a report output switches to Risk tab at the reported book and date', () => {
+      const setSelection = vi.fn()
+      mockUseHierarchySelector.mockReturnValue({
+        selection: { level: 'firm', divisionId: 'div-1', deskId: 'desk-1', bookId: null },
+        setSelection,
+        breadcrumb: [{ level: 'firm', id: null, label: 'Firm' }],
+        effectiveBookId: null,
+        effectiveBookIds: ['book-1', 'book-2'],
+        divisions: [],
+        desks: [],
+        books: [{ bookId: 'book-1' }, { bookId: 'book-2' }],
+        loading: false,
+        error: null,
+      })
+
+      render(<App />)
+      fireEvent.click(screen.getByTestId('tab-reports'))
+      fireEvent.click(screen.getByTestId('mock-open-report-in-risk'))
+
+      expect(setSelection).toHaveBeenCalledWith({
+        level: 'book',
+        divisionId: 'div-1',
+        deskId: 'desk-1',
+        bookId: 'book-2',
+      })
+
+      const risk = screen.getByTestId('risk-tab-wrapper')
+      expect(risk).toBeInTheDocument()
+      expect(risk.getAttribute('data-initial-valuation-date')).toBe('2025-01-15')
     })
   })
 

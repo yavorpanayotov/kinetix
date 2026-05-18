@@ -83,6 +83,10 @@ function App() {
   // to the Trades blotter, the chosen counterparty id flows in here so the
   // TradeBlotter opens already filtered to that counterparty.
   const [tradesCounterpartyFilter, setTradesCounterpartyFilter] = useState<string>('')
+  // Cross-tab link (plan §2.4): when the user jumps from a report row to
+  // Risk, this seeds RiskTab's valuation date so the dashboard re-renders
+  // as-of the reported date.
+  const [riskInitialValuationDate, setRiskInitialValuationDate] = useState<string | null>(null)
   const [shortcutsOverlayOpen, setShortcutsOverlayOpen] = useState(false)
   const focusBeforeOverlayRef = useRef<HTMLElement | null>(null)
   const tabRefs = useRef<Map<Tab, HTMLButtonElement>>(new Map())
@@ -529,6 +533,7 @@ function App() {
                     activeScenario={activeScenario.scenario}
                     marketRegime={marketRegime.regime?.regime ?? null}
                     onShowAlerts={() => setActiveTab('alerts')}
+                    initialValuationDate={riskInitialValuationDate}
                   />
                 )}
 
@@ -576,7 +581,24 @@ function App() {
                 )}
 
                 {activeTab === 'reports' && (
-                  <ReportsTab bookId={effectiveBookId} />
+                  <ReportsTab
+                    bookId={effectiveBookId}
+                    onJumpToRiskAtDate={(reportBookId, valuationDate) => {
+                      // Cross-tab link (plan §2.4): focus the hierarchy on
+                      // the reported book, seed RiskTab's valuation date,
+                      // then switch to the Risk tab. Empty valuationDate
+                      // means "as of today", which maps to null in
+                      // ValuationDatePicker.
+                      hierarchy.setSelection({
+                        level: 'book',
+                        divisionId: hierarchy.selection.divisionId,
+                        deskId: hierarchy.selection.deskId,
+                        bookId: reportBookId,
+                      })
+                      setRiskInitialValuationDate(valuationDate || null)
+                      setActiveTab('risk')
+                    }}
+                  />
                 )}
 
                 {activeTab === 'alerts' && (

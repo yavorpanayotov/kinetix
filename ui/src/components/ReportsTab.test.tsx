@@ -295,4 +295,74 @@ describe('ReportsTab', () => {
       )
     })
   })
+
+  describe('cross-tab jump to Risk at the reported valuation date', () => {
+    it('renders an "Open in Risk" button on each generated report row when onJumpToRiskAtDate is provided', async () => {
+      const user = userEvent.setup()
+      mockFetchTemplates.mockResolvedValue(TEMPLATES)
+      mockGenerate.mockResolvedValue(OUTPUT)
+
+      render(<ReportsTab bookId="BOOK-1" onJumpToRiskAtDate={() => {}} />)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('report-template-select')).toBeInTheDocument()
+      })
+
+      await user.selectOptions(screen.getByTestId('report-template-select'), 'tpl-risk-summary')
+      await user.type(screen.getByTestId('report-date-input'), '2025-01-15')
+      await user.click(screen.getByTestId('report-generate-button'))
+
+      await waitFor(() => {
+        expect(screen.getByTestId('open-in-risk-out-abc')).toBeInTheDocument()
+      })
+    })
+
+    it('does not render "Open in Risk" when onJumpToRiskAtDate is omitted', async () => {
+      const user = userEvent.setup()
+      mockFetchTemplates.mockResolvedValue(TEMPLATES)
+      mockGenerate.mockResolvedValue(OUTPUT)
+
+      render(<ReportsTab bookId="BOOK-1" />)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('report-template-select')).toBeInTheDocument()
+      })
+
+      await user.selectOptions(screen.getByTestId('report-template-select'), 'tpl-risk-summary')
+      await user.click(screen.getByTestId('report-generate-button'))
+
+      await waitFor(() => {
+        expect(screen.getByTestId('report-history-item-out-abc')).toBeInTheDocument()
+      })
+
+      expect(screen.queryByTestId('open-in-risk-out-abc')).not.toBeInTheDocument()
+    })
+
+    it('clicking "Open in Risk" invokes onJumpToRiskAtDate with the report bookId and date', async () => {
+      const user = userEvent.setup()
+      mockFetchTemplates.mockResolvedValue(TEMPLATES)
+      mockGenerate.mockResolvedValue(OUTPUT)
+      const onJumpToRiskAtDate = vi.fn()
+
+      render(
+        <ReportsTab bookId="BOOK-1" onJumpToRiskAtDate={onJumpToRiskAtDate} />,
+      )
+
+      await waitFor(() => {
+        expect(screen.getByTestId('report-template-select')).toBeInTheDocument()
+      })
+
+      await user.selectOptions(screen.getByTestId('report-template-select'), 'tpl-risk-summary')
+      await user.type(screen.getByTestId('report-date-input'), '2025-01-15')
+      await user.click(screen.getByTestId('report-generate-button'))
+
+      await waitFor(() => {
+        expect(screen.getByTestId('open-in-risk-out-abc')).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByTestId('open-in-risk-out-abc'))
+
+      expect(onJumpToRiskAtDate).toHaveBeenCalledWith('BOOK-1', '2025-01-15')
+    })
+  })
 })

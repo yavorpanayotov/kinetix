@@ -65,6 +65,13 @@ interface RiskTabProps {
   marketRegime?: MarketRegime | null
   /** Switch to the Alerts tab — wired by the breach-header "recent alerts" chip. */
   onShowAlerts?: () => void
+  /**
+   * Cross-tab link (plan §2.4): when the user opens RiskTab via a "Open in
+   * Risk" link from the Reports tab, this seed value sets the valuation
+   * date picker so the dashboard renders as-of that date. The user can
+   * still change it via the date picker afterwards.
+   */
+  initialValuationDate?: string | null
 }
 
 export function RiskTab({
@@ -83,9 +90,17 @@ export function RiskTab({
   activeScenario = null,
   marketRegime = null,
   onShowAlerts,
+  initialValuationDate = null,
 }: RiskTabProps) {
   const [subTab, setSubTab] = useState<RiskSubTab>('dashboard')
-  const [valuationDate, setValuationDate] = useState<string | null>(null)
+  const [valuationDate, setValuationDate] = useState<string | null>(initialValuationDate)
+  // Sync the picker when the parent threads a new initial valuation date —
+  // e.g. the user clicks a different report's "Open in Risk".
+  const [lastInitialValuationDate, setLastInitialValuationDate] = useState(initialValuationDate)
+  if (initialValuationDate !== lastInitialValuationDate) {
+    setLastInitialValuationDate(initialValuationDate)
+    setValuationDate(initialValuationDate)
+  }
   const [pendingJobCompare, setPendingJobCompare] = useState<{ baseJobId: string; targetJobId: string } | null>(null)
   const [hedgePanelOpen, setHedgePanelOpen] = useState(false)
   const limitsPanelRef = useRef<HTMLDivElement | null>(null)
