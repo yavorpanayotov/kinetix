@@ -347,7 +347,7 @@ Survey on 2026-05-18 found these failing on `main`:
 - [x] FX2 Fix `fix-gateway:test FixGatewayServiceImplTest > "PlaceOrder returns PENDING_NEW with venue_order_id when correlator wakes with PendingNew"`. Acceptance: `./gradlew :fix-gateway:test` green.
 - [x] FX3 Fix `end2end-tests:test SeedDataConsistencyTest`: "audit event trade IDs match position-service trade IDs" + "audit event count matches trade count". Likely fixture / seed-data drift between audit-service and position-service. Acceptance: `./gradlew :end2end-tests:test` green.
 - [x] FX4 Fix `position-service:acceptanceTest PreTradeCheckAcceptanceTest` (5 tests). Likely one root cause shared by all five — diagnose first, fix once. Acceptance: `./gradlew :position-service:acceptanceTest --tests "*PreTradeCheckAcceptanceTest*"` green.
-- [ ] FX5 Fix `position-service:acceptanceTest` Kafka regressions: `DualPathParityAcceptanceTest` (1 test) + `ExecutionReportConsumerAcceptanceTest` (2 tests). Likely shared Kafka-fixture or serialization root cause. Acceptance: `./gradlew :position-service:acceptanceTest --tests "*DualPathParity*" --tests "*ExecutionReportConsumer*"` green.
+- [x] FX5 Fix `position-service:acceptanceTest` Kafka regressions: `DualPathParityAcceptanceTest` (1 test) + `ExecutionReportConsumerAcceptanceTest` (2 tests). Likely shared Kafka-fixture or serialization root cause. Acceptance: `./gradlew :position-service:acceptanceTest --tests "*DualPathParity*" --tests "*ExecutionReportConsumer*"` green. (Bonus: the DB-pool fix also resolved the wider position-service acceptance suite — all 23 suites / 140 tests now pass.)
 
 ### Blocked items needing decisions
 
