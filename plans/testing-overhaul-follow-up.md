@@ -92,7 +92,7 @@ That brings in `org.testcontainers.kafka.KafkaContainer` transitively, plus the 
   - Acceptance: `./gradlew :correlation-service:test --tests "*CorrelationPsdValidatorTest"`
 - [x] **4.2** Create `volatility-service/src/test/kotlin/com/kinetix/volatility/property/VolSurfaceButterflyTest.kt`. For three knots at a fixed maturity with strikes `K1 < K2 < K3`, the vol smile should be convex enough that `C(K1) - 2·C(K2) + C(K3) ≥ 0` (or, in vol terms, the implied-vol curve does not violate static arbitrage). Generate random three-strike slices with Kotest `Arb`; assert the convexity property. Inputs that violate it are unlikely in practice — the test documents the invariant.
   - Acceptance: `./gradlew :volatility-service:test --tests "*VolSurfaceButterflyTest"`
-- [ ] **4.3** Extract extrapolation coverage from `VolSurfaceInvariantsTest` into a dedicated `volatility-service/src/test/kotlin/com/kinetix/volatility/property/VolSurfaceExtrapolationTest.kt`. Exercise extreme out-of-grid strikes (1.0, 10_000.0) and maturities (1 day, 10 years) so failures point clearly at extrapolation logic. After extraction, leave the moved test removed from `VolSurfaceInvariantsTest` — no duplication.
+- [x] **4.3** Extract extrapolation coverage from `VolSurfaceInvariantsTest` into a dedicated `volatility-service/src/test/kotlin/com/kinetix/volatility/property/VolSurfaceExtrapolationTest.kt`. Exercise extreme out-of-grid strikes (1.0, 10_000.0) and maturities (1 day, 10 years) so failures point clearly at extrapolation logic. After extraction, leave the moved test removed from `VolSurfaceInvariantsTest` — no duplication.
   - Acceptance: `./gradlew :volatility-service:test --tests "*VolSurfaceExtrapolationTest" "*VolSurfaceInvariantsTest"`
 
 ---
