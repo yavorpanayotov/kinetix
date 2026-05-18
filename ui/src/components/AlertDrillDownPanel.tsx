@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { X } from 'lucide-react'
+import { Check, X } from 'lucide-react'
 import type { AlertEventDto } from '../types'
 import { fetchAlertContributors, type PositionContributor } from '../api/alertContributors'
 import { formatCurrency } from '../utils/format'
+import { Button, Input } from './ui'
 
 function useAlertContributors(alertId: string) {
   const [contributors, setContributors] = useState<PositionContributor[]>([])
@@ -28,11 +29,27 @@ function useAlertContributors(alertId: string) {
 interface AlertDrillDownPanelProps {
   alert: AlertEventDto
   onClose: () => void
+  /**
+   * Acknowledge action. When provided and the alert is in TRIGGERED state, the
+   * drill-down panel renders an inline Acknowledge form. Escalate/Resolve are
+   * intentionally not yet wired — see docs/plans/ui-overhaul.md §3.1 follow-ups.
+   */
+  onAcknowledge?: (alertId: string, notes?: string) => Promise<void> | void
 }
 
-export function AlertDrillDownPanel({ alert, onClose }: AlertDrillDownPanelProps) {
+const statusBadgeClass: Record<string, string> = {
+  TRIGGERED: 'bg-red-100 text-red-800',
+  ACKNOWLEDGED: 'bg-blue-100 text-blue-800',
+  ESCALATED: 'bg-orange-100 text-orange-800',
+  RESOLVED: 'bg-green-100 text-green-800',
+}
+
+export function AlertDrillDownPanel({ alert, onClose, onAcknowledge }: AlertDrillDownPanelProps) {
   const { contributors, loading } = useAlertContributors(alert.id)
   const [expanded, setExpanded] = useState(false)
+  const [ackOpen, setAckOpen] = useState(false)
+  const [ackNote, setAckNote] = useState('')
+  const [ackSubmitting, setAckSubmitting] = useState(false)
   const closeRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
@@ -50,6 +67,23 @@ export function AlertDrillDownPanel({ alert, onClose }: AlertDrillDownPanelProps
   const remaining = contributors.length - 5
 
   const breachMagnitude = alert.currentValue - alert.threshold
+  const canAcknowledge = onAcknowledge !== undefined && alert.status === 'TRIGGERED'
+
+  async function submitAcknowledge() {
+    if (!onAcknowledge) return
+    setAckSubmitting(true)
+    try {
+      const trimmed = ackNote.trim()
+      await onAcknowledge(alert.id, trimmed === '' ? undefined : trimmed)
+    } catch {
+      // Parent surfaces the error; we close the form so the user can see
+      // the rolled-back state and the inline error banner.
+    } finally {
+      setAckSubmitting(false)
+      setAckOpen(false)
+      setAckNote('')
+    }
+  }
 
   return (
     <div
@@ -63,7 +97,17 @@ export function AlertDrillDownPanel({ alert, onClose }: AlertDrillDownPanelProps
       {/* Header */}
       <div className="p-4 border-b border-slate-200 dark:border-slate-700">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Alert Investigation</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Alert Investigation</h2>
+            <span
+              data-testid="drill-down-status-badge"
+              className={`px-1.5 py-0.5 text-xs font-semibold rounded ${
+                statusBadgeClass[alert.status] ?? 'bg-slate-100 text-slate-700'
+              }`}
+            >
+              {alert.status}
+            </span>
+          </div>
           <button
             ref={closeRef}
             data-testid="drill-down-close"
@@ -79,6 +123,63 @@ export function AlertDrillDownPanel({ alert, onClose }: AlertDrillDownPanelProps
           <div>Breach: <span className="font-medium text-red-600">{formatCurrency(breachMagnitude)}</span> over threshold of {formatCurrency(alert.threshold)}</div>
           <div>Triggered: {new Date(alert.triggeredAt).toLocaleString()}</div>
         </div>
+
+        {canAcknowledge && !ackOpen && (
+          <div className="mt-3">
+            <Button
+              data-testid="drill-down-acknowledge-btn"
+              variant="primary"
+              size="sm"
+              icon={<Check className="h-3 w-3" />}
+              onClick={() => setAckOpen(true)}
+            >
+              Acknowledge
+            </Button>
+          </div>
+        )}
+
+        {ackOpen && canAcknowledge && (
+          <form
+            data-testid="drill-down-acknowledge-form"
+            onSubmit={(e) => {
+              e.preventDefault()
+              submitAcknowledge()
+            }}
+            className="mt-3 space-y-2"
+          >
+            <Input
+              data-testid="drill-down-acknowledge-note"
+              placeholder="Optional note (what did you find?)"
+              value={ackNote}
+              onChange={(e) => setAckNote(e.target.value)}
+              className="w-full"
+            />
+            <div className="flex items-center gap-2">
+              <Button
+                data-testid="drill-down-acknowledge-submit"
+                type="submit"
+                variant="primary"
+                size="sm"
+                disabled={ackSubmitting}
+              >
+                Submit
+              </Button>
+              <Button
+                data-testid="drill-down-acknowledge-cancel"
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setAckOpen(false)
+                  setAckNote('')
+                }}
+                disabled={ackSubmitting}
+              >
+                Cancel
+              </Button>
+            </div>
+          </form>
+        )}
       </div>
 
       {/* Contributors */}

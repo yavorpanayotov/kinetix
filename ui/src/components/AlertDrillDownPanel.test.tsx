@@ -167,4 +167,68 @@ describe('AlertDrillDownPanel', () => {
       expect(screen.getByText('No contributor data available for this alert.')).toBeInTheDocument(),
     )
   })
+
+  describe('acknowledge action', () => {
+    it('renders an Acknowledge button when the alert is TRIGGERED and onAcknowledge is provided', async () => {
+      mockFetch.mockResolvedValue([])
+      render(
+        <AlertDrillDownPanel
+          alert={sampleAlert}
+          onClose={() => {}}
+          onAcknowledge={async () => {}}
+        />,
+      )
+
+      expect(screen.getByTestId('drill-down-acknowledge-btn')).toBeInTheDocument()
+    })
+
+    it('does not render Acknowledge button on already-acknowledged alerts', async () => {
+      mockFetch.mockResolvedValue([])
+      render(
+        <AlertDrillDownPanel
+          alert={{ ...sampleAlert, status: 'ACKNOWLEDGED' }}
+          onClose={() => {}}
+          onAcknowledge={async () => {}}
+        />,
+      )
+
+      expect(screen.queryByTestId('drill-down-acknowledge-btn')).not.toBeInTheDocument()
+    })
+
+    it('shows the lifecycle status badge', async () => {
+      mockFetch.mockResolvedValue([])
+      render(
+        <AlertDrillDownPanel
+          alert={{ ...sampleAlert, status: 'ACKNOWLEDGED' }}
+          onClose={() => {}}
+        />,
+      )
+
+      expect(screen.getByTestId('drill-down-status-badge')).toHaveTextContent(
+        'ACKNOWLEDGED',
+      )
+    })
+
+    it('submitting the Acknowledge form calls onAcknowledge with the alert id and note', async () => {
+      mockFetch.mockResolvedValue([])
+      const onAcknowledge = vi.fn().mockResolvedValue(undefined)
+      render(
+        <AlertDrillDownPanel
+          alert={sampleAlert}
+          onClose={() => {}}
+          onAcknowledge={onAcknowledge}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('drill-down-acknowledge-btn'))
+      fireEvent.change(screen.getByTestId('drill-down-acknowledge-note'), {
+        target: { value: 'reviewing' },
+      })
+      fireEvent.click(screen.getByTestId('drill-down-acknowledge-submit'))
+
+      await waitFor(() => {
+        expect(onAcknowledge).toHaveBeenCalledWith('alert-1', 'reviewing')
+      })
+    })
+  })
 })
