@@ -117,7 +117,7 @@ That brings in `org.testcontainers.kafka.KafkaContainer` transitively, plus the 
   - Acceptance: `./gradlew :test-support:build :test-support:test`
 - [x] **5.8** Refactor `position-service/src/test/kotlin/.../KafkaTestSetup.kt` to delegate to `com.kinetix.testsupport.kafka.KafkaTestSetup` (one-line delegation), or delete it and update imports.
   - Acceptance: `./gradlew :position-service:test :position-service:integrationTest`
-- [ ] **5.9** Refactor `audit-service/src/test/kotlin/.../KafkaTestSetup.kt` the same way.
+- [x] **5.9** Refactor `audit-service/src/test/kotlin/.../KafkaTestSetup.kt` the same way.
   - Acceptance: `./gradlew :audit-service:test :audit-service:integrationTest`
 
 ---
