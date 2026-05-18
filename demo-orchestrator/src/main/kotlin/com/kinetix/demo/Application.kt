@@ -1,5 +1,6 @@
 package com.kinetix.demo
 
+import com.kinetix.demo.config.DemoConfig
 import io.ktor.http.ContentType
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
@@ -20,8 +21,8 @@ fun main(args: Array<String>) {
 }
 
 fun Application.module() {
-    val demoMode = System.getenv("DEMO_MODE")?.toBoolean() ?: false
-    if (demoMode) {
+    val config = DemoConfig.fromEnv()
+    if (config.demoMode) {
         log.info("demo mode enabled")
     } else {
         log.info("demo mode disabled — running as no-op")
