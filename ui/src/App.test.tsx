@@ -548,6 +548,60 @@ describe('App', () => {
     expect(screen.queryByTestId('risk-tab-wrapper')).not.toBeInTheDocument()
   })
 
+  describe('cross-tab navigation (plan §2.4)', () => {
+    it('jump to Risk from an alert switches to Risk tab and focuses the alert book', () => {
+      const setSelection = vi.fn()
+      mockUseHierarchySelector.mockReturnValue({
+        selection: { level: 'firm', divisionId: 'div-1', deskId: 'desk-1', bookId: null },
+        setSelection,
+        breadcrumb: [{ level: 'firm', id: null, label: 'Firm' }],
+        effectiveBookId: null,
+        effectiveBookIds: ['book-1', 'book-2'],
+        divisions: [],
+        desks: [],
+        books: [{ bookId: 'book-1' }, { bookId: 'book-2' }],
+        loading: false,
+        error: null,
+      })
+      mockUseNotifications.mockReturnValue({
+        rules: [],
+        alerts: [
+          {
+            id: 'evt-jump-1',
+            ruleId: 'rule-1',
+            ruleName: 'VaR Limit',
+            type: 'VAR_BREACH',
+            severity: 'CRITICAL',
+            message: 'VaR breach on book-2',
+            currentValue: 150000,
+            threshold: 100000,
+            bookId: 'book-2',
+            triggeredAt: '2025-01-15T10:00:00Z',
+            status: 'TRIGGERED',
+          },
+        ],
+        loading: false,
+        error: null,
+        createRule: vi.fn(),
+        deleteRule: vi.fn(),
+        acknowledgeAlert: vi.fn(),
+      })
+
+      render(<App />)
+      fireEvent.click(screen.getByTestId('tab-alerts'))
+      fireEvent.click(screen.getByTestId('jump-to-risk-evt-jump-1'))
+
+      expect(setSelection).toHaveBeenCalledWith({
+        level: 'book',
+        divisionId: 'div-1',
+        deskId: 'desk-1',
+        bookId: 'book-2',
+      })
+      expect(screen.getByTestId('risk-tab-wrapper')).toBeInTheDocument()
+      expect(screen.queryByTestId('notification-center')).not.toBeInTheDocument()
+    })
+  })
+
   describe('WAI-ARIA accessibility', () => {
     it('tab bar has role tablist', () => {
       render(<App />)

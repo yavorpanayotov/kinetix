@@ -857,4 +857,90 @@ describe('NotificationCenter', () => {
       expect(screen.getByTestId('escalation-badge-esc-1')).toBeInTheDocument()
     })
   })
+
+  describe('cross-tab jump to Risk', () => {
+    const triggeredAlert: AlertEventDto = {
+      id: 'jump-evt-1',
+      ruleId: 'rule-1',
+      ruleName: 'VaR Limit',
+      type: 'VAR_BREACH',
+      severity: 'CRITICAL',
+      message: 'VaR breach on book-1',
+      currentValue: 250000,
+      threshold: 100000,
+      bookId: 'book-1',
+      triggeredAt: '2025-01-15T09:00:00Z',
+      status: 'TRIGGERED',
+    }
+
+    it('renders a "Go to Risk" button next to each alert row when onJumpToRisk is provided', () => {
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[triggeredAlert]}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+          onJumpToRisk={() => {}}
+        />,
+      )
+
+      expect(screen.getByTestId('jump-to-risk-jump-evt-1')).toBeInTheDocument()
+    })
+
+    it('does not render the "Go to Risk" button when onJumpToRisk is omitted', () => {
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[triggeredAlert]}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+        />,
+      )
+
+      expect(screen.queryByTestId('jump-to-risk-jump-evt-1')).not.toBeInTheDocument()
+    })
+
+    it('clicking "Go to Risk" calls onJumpToRisk with the alert bookId', () => {
+      const onJumpToRisk = vi.fn()
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[triggeredAlert]}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+          onJumpToRisk={onJumpToRisk}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('jump-to-risk-jump-evt-1'))
+
+      expect(onJumpToRisk).toHaveBeenCalledWith('book-1')
+    })
+
+    it('passes null bookId when the alert has no bookId', () => {
+      const onJumpToRisk = vi.fn()
+      const alertNoBook: AlertEventDto = { ...triggeredAlert, id: 'jump-evt-2', bookId: '' }
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[alertNoBook]}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+          onJumpToRisk={onJumpToRisk}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('jump-to-risk-jump-evt-2'))
+
+      expect(onJumpToRisk).toHaveBeenCalledWith(null)
+    })
+  })
 })

@@ -11,6 +11,7 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
+  ArrowRight,
 } from 'lucide-react'
 import type { AlertRuleDto, AlertEventDto, CreateAlertRuleRequestDto } from '../types'
 import { formatRelativeTime } from '../utils/format'
@@ -62,6 +63,12 @@ interface NotificationCenterProps {
    * docs/plans/ui-overhaul.md §3.1 follow-ups.
    */
   onAcknowledge?: (alertId: string, notes?: string) => Promise<void> | void
+  /**
+   * Cross-tab navigation: jump from an alert row to the Risk tab focused on
+   * the alert's affected book. Receives the alert's bookId, or null when the
+   * alert is not scoped to a specific book. See docs/plans/ui-overhaul.md §2.4.
+   */
+  onJumpToRisk?: (bookId: string | null) => void
 }
 
 const statusBadgeClass: Record<string, string> = {
@@ -103,6 +110,7 @@ export function NotificationCenter({
   onCreateRule,
   onDeleteRule,
   onAcknowledge,
+  onJumpToRisk,
 }: NotificationCenterProps) {
   const [name, setName] = useState('')
   const [type, setType] = useState('VAR_BREACH')
@@ -296,6 +304,18 @@ export function NotificationCenter({
               >
                 <Check className="h-3 w-3" />
                 Acknowledge
+              </button>
+            )}
+            {onJumpToRisk && (
+              <button
+                data-testid={`jump-to-risk-${alert.id}`}
+                onClick={() => onJumpToRisk(alert.bookId ? alert.bookId : null)}
+                className={`${canAcknowledge && !ackFormOpen ? '' : 'ml-auto'} inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded hover:bg-indigo-100 transition-colors`}
+                title="Open the affected book on the Risk tab"
+                aria-label={`Jump to Risk tab for ${alert.bookId || 'unknown book'}`}
+              >
+                <ArrowRight className="h-3 w-3" />
+                Go to Risk
               </button>
             )}
           </div>

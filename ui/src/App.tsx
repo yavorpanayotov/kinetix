@@ -569,6 +569,20 @@ function App() {
                     onCreateRule={notifications.createRule}
                     onDeleteRule={notifications.deleteRule}
                     onAcknowledge={notifications.acknowledgeAlert}
+                    onJumpToRisk={(targetBookId) => {
+                      // Cross-tab link (plan §2.4): focus the hierarchy on the
+                      // alert's book so RiskTab opens scoped to it, then
+                      // switch to the Risk tab.
+                      if (targetBookId) {
+                        hierarchy.setSelection({
+                          level: 'book',
+                          divisionId: hierarchy.selection.divisionId,
+                          deskId: hierarchy.selection.deskId,
+                          bookId: targetBookId,
+                        })
+                      }
+                      setActiveTab('risk')
+                    }}
                   />
                 )}
           </>
