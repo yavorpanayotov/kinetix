@@ -107,7 +107,7 @@ and flag (per `/work-plan` guardrails).
 
 ### PR 2 — Simulated trading
 
-- [ ] 2.1 Add `client/PositionServiceClient.kt` interface plus
+- [x] 2.1 Add `client/PositionServiceClient.kt` interface plus
       `client/PositionServiceHttpClient.kt` Ktor-CIO implementation. Method
       `bookTrade(bookId, strategyId, request: StrategyTradeRequest)` against
       `POST /api/v1/books/{bookId}/strategies/{strategyId}/trades`. Local DTO
