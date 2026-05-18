@@ -72,7 +72,7 @@ That brings in `org.testcontainers.kafka.KafkaContainer` transitively, plus the 
   - VaR additivity does **not** hold (sub-additivity invariant: `VaR(A∪B) ≤ VaR(A) + VaR(B)` for coherent risk measures — verify this holds for the historical method and document it as a property).
   - Empty portfolio returns zero VaR.
   - Acceptance: `./gradlew :risk-orchestrator:test --tests "*VaRCalculationPropertyTest"`
-- [ ] **3.2** Create `risk-orchestrator/src/test/kotlin/com/kinetix/orchestrator/property/PnLAdditivityPropertyTest.kt`:
+- [x] **3.2** Create `risk-orchestrator/src/test/kotlin/com/kinetix/orchestrator/property/PnLAdditivityPropertyTest.kt`:
   - For a portfolio split into N book-sized chunks, sum of per-book P&L equals portfolio-level P&L within floating-point tolerance.
   - Property holds across random book partitions and random market shifts.
   - Acceptance: `./gradlew :risk-orchestrator:test --tests "*PnLAdditivityPropertyTest"`
