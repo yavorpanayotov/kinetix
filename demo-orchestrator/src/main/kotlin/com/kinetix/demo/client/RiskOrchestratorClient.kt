@@ -1,7 +1,9 @@
 package com.kinetix.demo.client
 
 import com.kinetix.demo.client.dtos.BookExposureSnapshot
+import com.kinetix.demo.client.dtos.EodTimelineResponse
 import java.math.BigDecimal
+import java.time.LocalDate
 
 /**
  * Contract over `risk-orchestrator` HTTP APIs that the demo orchestrator
@@ -28,4 +30,14 @@ interface RiskOrchestratorClient {
      * expose a dedicated per-book VaR/Delta limit route.
      */
     suspend fun seedLimit(bookId: String, limitType: LimitType, threshold: BigDecimal)
+
+    /**
+     * Reads the official end-of-day timeline for the given book over the
+     * inclusive `[from, to]` window from `GET /api/v1/risk/eod-timeline/{bookId}`.
+     *
+     * Entries are returned ascending by valuation date. Consumers pair
+     * consecutive entries to derive `(VaR prediction, realised P&L)` samples
+     * for backtesting.
+     */
+    suspend fun eodTimeline(bookId: String, from: LocalDate, to: LocalDate): EodTimelineResponse
 }

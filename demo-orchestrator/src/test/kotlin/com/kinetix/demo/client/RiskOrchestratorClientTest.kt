@@ -17,6 +17,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import kotlinx.coroutines.test.runTest
 import java.math.BigDecimal
+import java.time.LocalDate
 
 class RiskOrchestratorClientTest : FunSpec({
 
@@ -129,6 +130,70 @@ class RiskOrchestratorClientTest : FunSpec({
         capturedBody!! shouldContain "\"budgetType\":\"DELTA_ABS\""
         capturedBody!! shouldContain "\"entityId\":\"BOOK-FX-02\""
         capturedBody!! shouldContain "\"budgetAmount\":\"250000\""
+    }
+
+    test("eodTimeline parses entries with the requested date window") {
+        val client = RiskOrchestratorHttpClient(
+            httpClient = mockHttpClient { request ->
+                request.method shouldBe HttpMethod.Get
+                request.url.toString() shouldBe
+                    "http://orchestrator/api/v1/risk/eod-timeline/BOOK-EQ-01?from=2026-04-17&to=2026-05-18"
+                respond(
+                    content = """
+                        {
+                          "bookId":"BOOK-EQ-01",
+                          "from":"2026-04-17",
+                          "to":"2026-05-18",
+                          "entries":[
+                            {"valuationDate":"2026-04-17","jobId":"j1","varValue":1000.0,"pvValue":50000.0},
+                            {"valuationDate":"2026-04-18","jobId":"j2","varValue":1100.0,"pvValue":50250.0,"delta":1.2}
+                          ]
+                        }
+                    """.trimIndent(),
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+            },
+            baseUrl = "http://orchestrator",
+        )
+
+        runTest {
+            val response = client.eodTimeline(
+                bookId = "BOOK-EQ-01",
+                from = LocalDate.parse("2026-04-17"),
+                to = LocalDate.parse("2026-05-18"),
+            )
+            response.bookId shouldBe "BOOK-EQ-01"
+            response.from shouldBe "2026-04-17"
+            response.to shouldBe "2026-05-18"
+            response.entries.size shouldBe 2
+            response.entries[0].valuationDate shouldBe "2026-04-17"
+            response.entries[0].varValue shouldBe 1000.0
+            response.entries[0].pvValue shouldBe 50000.0
+            response.entries[1].varValue shouldBe 1100.0
+            response.entries[1].pvValue shouldBe 50250.0
+        }
+    }
+
+    test("eodTimeline throws IllegalStateException on 5xx") {
+        val client = RiskOrchestratorHttpClient(
+            httpClient = mockHttpClient {
+                respond(content = "timeline down", status = HttpStatusCode.InternalServerError)
+            },
+            baseUrl = "http://orchestrator",
+        )
+
+        runTest {
+            val thrown = shouldThrow<IllegalStateException> {
+                client.eodTimeline(
+                    bookId = "BOOK-EQ-01",
+                    from = LocalDate.parse("2026-04-17"),
+                    to = LocalDate.parse("2026-05-18"),
+                )
+            }
+            thrown.message!! shouldContain "500"
+            thrown.message!! shouldContain "GET"
+            thrown.message!! shouldContain "timeline down"
+        }
     }
 
     test("seedLimit throws IllegalStateException on 4xx") {

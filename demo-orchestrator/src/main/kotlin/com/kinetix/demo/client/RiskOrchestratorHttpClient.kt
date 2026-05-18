@@ -2,6 +2,7 @@ package com.kinetix.demo.client
 
 import com.kinetix.demo.client.dtos.BookExposureSnapshot
 import com.kinetix.demo.client.dtos.CreateRiskBudgetRequest
+import com.kinetix.demo.client.dtos.EodTimelineResponse
 import com.kinetix.demo.client.dtos.HierarchyRiskResponse
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
@@ -64,6 +65,27 @@ class RiskOrchestratorHttpClient(
             varValue = varValue,
             absoluteDelta = null, // hierarchy endpoint does not expose abs-delta today
         )
+    }
+
+    override suspend fun eodTimeline(
+        bookId: String,
+        from: LocalDate,
+        to: LocalDate,
+    ): EodTimelineResponse {
+        val url = "$baseUrl/api/v1/risk/eod-timeline/$bookId?from=$from&to=$to"
+        val response = httpClient.get(url)
+        if (!response.status.isSuccess()) {
+            failLoudly("GET", url, response)
+        }
+        val body = response.bodyAsText()
+        return try {
+            json.decodeFromString(EodTimelineResponse.serializer(), body)
+        } catch (e: Exception) {
+            throw IllegalStateException(
+                "Failed to decode EodTimelineResponse from $url: body=${body.take(BODY_EXCERPT_LIMIT)}",
+                e,
+            )
+        }
     }
 
     override suspend fun seedLimit(bookId: String, limitType: LimitType, threshold: BigDecimal) {

@@ -9,9 +9,9 @@ import com.kinetix.demo.schedule.DefaultPriceBook
 import com.kinetix.demo.schedule.DefaultStrategyIdResolver
 import com.kinetix.demo.schedule.EodCycleObserverJob
 import com.kinetix.demo.schedule.LimitSeedJob
+import com.kinetix.demo.schedule.RiskOrchestratorBacktestInputProvider
 import com.kinetix.demo.schedule.SchedulingHelpers
 import com.kinetix.demo.schedule.SimulatedTraderJob
-import com.kinetix.demo.schedule.StubBacktestInputProvider
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
@@ -114,7 +114,7 @@ private fun Application.wireDemoSchedulers(config: DemoConfig) {
     val regulatoryClient = RegulatoryServiceHttpClient(httpClient, config.regulatoryServiceUrl)
     val eodObserverJob = EodCycleObserverJob(
         regulatoryClient = regulatoryClient,
-        backtestInputProvider = StubBacktestInputProvider(),
+        backtestInputProvider = RiskOrchestratorBacktestInputProvider(client = riskClient),
     )
     val officialEodConsumer = OfficialEodConsumer(
         consumer = buildOfficialEodKafkaConsumer(config.kafkaBootstrapServers),
