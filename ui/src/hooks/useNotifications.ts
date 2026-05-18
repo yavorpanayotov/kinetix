@@ -7,6 +7,7 @@ import {
   acknowledgeAlert as apiAcknowledgeAlert,
   escalateAlert as apiEscalateAlert,
   resolveAlert as apiResolveAlert,
+  snoozeAlert as apiSnoozeAlert,
 } from '../api/notifications'
 import type { AlertRuleDto, AlertEventDto, CreateAlertRuleRequestDto } from '../types'
 
@@ -24,6 +25,7 @@ export interface UseNotificationsResult {
     assignee?: string,
   ) => Promise<void>
   resolveAlert: (alertId: string, resolutionText: string) => Promise<void>
+  snoozeAlert: (alertId: string, snoozedUntil: string) => Promise<void>
 }
 
 /**
@@ -186,6 +188,39 @@ export function useNotifications(username: string | null = null): UseNotificatio
     [alerts],
   )
 
+  /**
+   * Snooze an alert until the given ISO-8601 timestamp with optimistic update
+   * and rollback on error.
+   *
+   * Mirrors the other lifecycle actions: sets `snoozedUntil` locally
+   * immediately, reconciles with the server response, rolls back on failure.
+   * Status itself is not flipped — snoozing leaves the lifecycle state alone
+   * (per the backend contract).
+   */
+  const snoozeAlert = useCallback(
+    async (alertId: string, snoozedUntil: string) => {
+      const previous = alerts
+      setAlerts((current) =>
+        current.map((a) =>
+          a.id === alertId ? { ...a, snoozedUntil } : a,
+        ),
+      )
+      setError(null)
+      try {
+        const updated = await apiSnoozeAlert(alertId, snoozedUntil)
+        setAlerts((current) =>
+          current.map((a) => (a.id === alertId ? updated : a)),
+        )
+      } catch (err) {
+        setAlerts(previous)
+        const message = err instanceof Error ? err.message : String(err)
+        setError(message)
+        throw err
+      }
+    },
+    [alerts],
+  )
+
   return {
     rules,
     alerts,
@@ -196,5 +231,6 @@ export function useNotifications(username: string | null = null): UseNotificatio
     acknowledgeAlert,
     escalateAlert,
     resolveAlert,
+    snoozeAlert,
   }
 }

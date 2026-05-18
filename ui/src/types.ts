@@ -345,6 +345,13 @@ export interface AlertEventDto {
   escalatedTo?: string
   correlationId?: string
   suggestedAction?: string
+  /**
+   * Operator-set snooze deadline (ISO-8601). When in the future, the
+   * notification evaluator skips firing for this rule until the deadline
+   * passes. Optional — backend may return null which we coerce to undefined.
+   * See docs/plans/ui-overhaul.md §3.1b.4.
+   */
+  snoozedUntil?: string | null
 }
 
 export interface CreateAlertRuleRequestDto {

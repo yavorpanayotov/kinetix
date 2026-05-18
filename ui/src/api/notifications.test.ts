@@ -8,6 +8,7 @@ import {
   acknowledgeAlert,
   escalateAlert,
   resolveAlert,
+  snoozeAlert,
 } from './notifications'
 
 describe('notifications API', () => {
@@ -372,6 +373,59 @@ describe('notifications API', () => {
       await expect(resolveAlert('evt-1', 'done')).rejects.toThrow(
         'Failed to resolve alert: 409 Conflict',
       )
+    })
+  })
+
+  describe('snoozeAlert', () => {
+    it('sends POST to the snooze endpoint with the snoozedUntil timestamp', async () => {
+      const snoozed = {
+        ...sampleAlert,
+        snoozedUntil: '2025-01-15T11:00:00Z',
+      }
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(snoozed),
+      })
+
+      const result = await snoozeAlert('evt-1', '2025-01-15T11:00:00Z')
+
+      expect(result).toEqual(snoozed)
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/v1/notifications/alerts/evt-1/snooze',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ snoozedUntil: '2025-01-15T11:00:00Z' }),
+        },
+      )
+    })
+
+    it('url-encodes the alert id', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(sampleAlert),
+      })
+
+      await snoozeAlert('alert with space', '2025-01-15T11:00:00Z')
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/v1/notifications/alerts/alert%20with%20space/snooze',
+        expect.anything(),
+      )
+    })
+
+    it('throws on non-2xx', async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 409,
+        statusText: 'Conflict',
+      })
+
+      await expect(
+        snoozeAlert('evt-1', '2025-01-15T11:00:00Z'),
+      ).rejects.toThrow('Failed to snooze alert: 409 Conflict')
     })
   })
 

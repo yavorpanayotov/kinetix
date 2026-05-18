@@ -116,6 +116,34 @@ export async function escalateAlert(
 }
 
 /**
+ * Snooze an alert until the given ISO-8601 timestamp via
+ * `POST /api/v1/notifications/alerts/{id}/snooze`.
+ *
+ * The backend skips firing the rule again until `snoozedUntil` passes. The
+ * returned alert reflects the new `snoozedUntil` value. See plan §3.1b.3 /
+ * §3.1b.4.
+ */
+export async function snoozeAlert(
+  alertId: string,
+  snoozedUntil: string,
+): Promise<AlertEventDto> {
+  const response = await authFetch(
+    `/api/v1/notifications/alerts/${encodeURIComponent(alertId)}/snooze`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ snoozedUntil }),
+    },
+  )
+  if (!response.ok) {
+    throw new Error(
+      `Failed to snooze alert: ${response.status} ${response.statusText}`,
+    )
+  }
+  return response.json()
+}
+
+/**
  * Resolve an alert via `POST /api/v1/notifications/alerts/{id}/resolve`.
  *
  * `resolutionText` is required and must be non-blank — the backend records it

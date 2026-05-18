@@ -12,6 +12,7 @@ import {
   acknowledgeAlert,
   escalateAlert,
   resolveAlert,
+  snoozeAlert,
 } from '../api/notifications'
 import { useNotifications } from './useNotifications'
 
@@ -22,6 +23,7 @@ const mockFetchAlerts = vi.mocked(fetchAlerts)
 const mockAcknowledgeAlert = vi.mocked(acknowledgeAlert)
 const mockEscalateAlert = vi.mocked(escalateAlert)
 const mockResolveAlert = vi.mocked(resolveAlert)
+const mockSnoozeAlert = vi.mocked(snoozeAlert)
 
 const rule: AlertRuleDto = {
   id: 'rule-1',
@@ -277,6 +279,56 @@ describe('useNotifications', () => {
     })
 
     expect(result.current.alerts[0].status).toBe('TRIGGERED')
+    expect(result.current.error).toContain('Conflict')
+  })
+
+  it('snoozes an alert optimistically and uses the server response', async () => {
+    mockFetchRules.mockResolvedValue([])
+    mockFetchAlerts.mockResolvedValue([alert])
+    const snoozedUntil = '2025-01-15T11:00:00Z'
+    const snoozed: AlertEventDto = {
+      ...alert,
+      snoozedUntil,
+    }
+    mockSnoozeAlert.mockResolvedValue(snoozed)
+
+    const { result } = renderHook(() => useNotifications('alice'))
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+
+    expect(result.current.alerts[0].snoozedUntil).toBeUndefined()
+
+    await act(async () => {
+      await result.current.snoozeAlert('alert-1', snoozedUntil)
+    })
+
+    expect(mockSnoozeAlert).toHaveBeenCalledWith('alert-1', snoozedUntil)
+    expect(result.current.alerts[0].snoozedUntil).toBe(snoozedUntil)
+    expect(result.current.error).toBeNull()
+  })
+
+  it('reverts the alert snoozedUntil on snooze failure and surfaces an error', async () => {
+    mockFetchRules.mockResolvedValue([])
+    mockFetchAlerts.mockResolvedValue([alert])
+    mockSnoozeAlert.mockRejectedValue(new Error('Conflict'))
+
+    const { result } = renderHook(() => useNotifications('alice'))
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+
+    await act(async () => {
+      try {
+        await result.current.snoozeAlert('alert-1', '2025-01-15T11:00:00Z')
+      } catch {
+        // expected
+      }
+    })
+
+    expect(result.current.alerts[0].snoozedUntil).toBeUndefined()
     expect(result.current.error).toContain('Conflict')
   })
 
