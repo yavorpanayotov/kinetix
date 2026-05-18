@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Check, X } from 'lucide-react'
+import { ArrowUpCircle, Check, CheckSquare, X } from 'lucide-react'
 import type { AlertEventDto } from '../types'
 import { fetchAlertContributors, type PositionContributor } from '../api/alertContributors'
 import { formatCurrency } from '../utils/format'
@@ -31,10 +31,23 @@ interface AlertDrillDownPanelProps {
   onClose: () => void
   /**
    * Acknowledge action. When provided and the alert is in TRIGGERED state, the
-   * drill-down panel renders an inline Acknowledge form. Escalate/Resolve are
-   * intentionally not yet wired — see docs/plans/ui-overhaul.md §3.1 follow-ups.
+   * drill-down panel renders an inline Acknowledge form.
    */
   onAcknowledge?: (alertId: string, notes?: string) => Promise<void> | void
+  /**
+   * Manual escalate action. Visible on TRIGGERED + ACKNOWLEDGED alerts only
+   * (backend transition rules). If omitted, the Escalate button is hidden.
+   */
+  onEscalate?: (
+    alertId: string,
+    reason: string,
+    assignee?: string,
+  ) => Promise<void> | void
+  /**
+   * Resolve action. Visible on any non-RESOLVED alert. If omitted, the
+   * Resolve button is hidden.
+   */
+  onResolve?: (alertId: string, resolutionText: string) => Promise<void> | void
 }
 
 const statusBadgeClass: Record<string, string> = {
@@ -44,12 +57,29 @@ const statusBadgeClass: Record<string, string> = {
   RESOLVED: 'bg-green-100 text-green-800',
 }
 
-export function AlertDrillDownPanel({ alert, onClose, onAcknowledge }: AlertDrillDownPanelProps) {
+export function AlertDrillDownPanel({
+  alert,
+  onClose,
+  onAcknowledge,
+  onEscalate,
+  onResolve,
+}: AlertDrillDownPanelProps) {
   const { contributors, loading } = useAlertContributors(alert.id)
   const [expanded, setExpanded] = useState(false)
   const [ackOpen, setAckOpen] = useState(false)
   const [ackNote, setAckNote] = useState('')
   const [ackSubmitting, setAckSubmitting] = useState(false)
+  const [escalateOpen, setEscalateOpen] = useState(false)
+  const [escalateReason, setEscalateReason] = useState('')
+  const [escalateAssignee, setEscalateAssignee] = useState('')
+  const [escalateSubmitting, setEscalateSubmitting] = useState(false)
+  const [escalateReasonError, setEscalateReasonError] = useState<string | null>(
+    null,
+  )
+  const [resolveOpen, setResolveOpen] = useState(false)
+  const [resolveText, setResolveText] = useState('')
+  const [resolveSubmitting, setResolveSubmitting] = useState(false)
+  const [resolveTextError, setResolveTextError] = useState<string | null>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
@@ -68,6 +98,13 @@ export function AlertDrillDownPanel({ alert, onClose, onAcknowledge }: AlertDril
 
   const breachMagnitude = alert.currentValue - alert.threshold
   const canAcknowledge = onAcknowledge !== undefined && alert.status === 'TRIGGERED'
+  // Backend allows manual escalation only from TRIGGERED or ACKNOWLEDGED.
+  const canEscalate =
+    onEscalate !== undefined &&
+    (alert.status === 'TRIGGERED' || alert.status === 'ACKNOWLEDGED')
+  // Resolve is available on every non-terminal state.
+  const canResolve = onResolve !== undefined && alert.status !== 'RESOLVED'
+  const anyFormOpen = ackOpen || escalateOpen || resolveOpen
 
   async function submitAcknowledge() {
     if (!onAcknowledge) return
@@ -82,6 +119,53 @@ export function AlertDrillDownPanel({ alert, onClose, onAcknowledge }: AlertDril
       setAckSubmitting(false)
       setAckOpen(false)
       setAckNote('')
+    }
+  }
+
+  async function submitEscalate() {
+    if (!onEscalate) return
+    const trimmedReason = escalateReason.trim()
+    if (trimmedReason === '') {
+      // Backend rejects blank reason with HTTP 400 — surface inline first.
+      setEscalateReasonError('Reason is required.')
+      return
+    }
+    setEscalateSubmitting(true)
+    const trimmedAssignee = escalateAssignee.trim()
+    try {
+      await onEscalate(
+        alert.id,
+        trimmedReason,
+        trimmedAssignee === '' ? undefined : trimmedAssignee,
+      )
+    } catch {
+      // Parent rolls back optimistic state.
+    } finally {
+      setEscalateSubmitting(false)
+      setEscalateOpen(false)
+      setEscalateReason('')
+      setEscalateAssignee('')
+      setEscalateReasonError(null)
+    }
+  }
+
+  async function submitResolve() {
+    if (!onResolve) return
+    const trimmed = resolveText.trim()
+    if (trimmed === '') {
+      setResolveTextError('Resolution is required.')
+      return
+    }
+    setResolveSubmitting(true)
+    try {
+      await onResolve(alert.id, trimmed)
+    } catch {
+      // Parent rolls back optimistic state.
+    } finally {
+      setResolveSubmitting(false)
+      setResolveOpen(false)
+      setResolveText('')
+      setResolveTextError(null)
     }
   }
 
@@ -124,17 +208,41 @@ export function AlertDrillDownPanel({ alert, onClose, onAcknowledge }: AlertDril
           <div>Triggered: {new Date(alert.triggeredAt).toLocaleString()}</div>
         </div>
 
-        {canAcknowledge && !ackOpen && (
-          <div className="mt-3">
-            <Button
-              data-testid="drill-down-acknowledge-btn"
-              variant="primary"
-              size="sm"
-              icon={<Check className="h-3 w-3" />}
-              onClick={() => setAckOpen(true)}
-            >
-              Acknowledge
-            </Button>
+        {!anyFormOpen && (canAcknowledge || canEscalate || canResolve) && (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {canAcknowledge && (
+              <Button
+                data-testid="drill-down-acknowledge-btn"
+                variant="primary"
+                size="sm"
+                icon={<Check className="h-3 w-3" />}
+                onClick={() => setAckOpen(true)}
+              >
+                Acknowledge
+              </Button>
+            )}
+            {canEscalate && (
+              <Button
+                data-testid="drill-down-escalate-btn"
+                variant="secondary"
+                size="sm"
+                icon={<ArrowUpCircle className="h-3 w-3" />}
+                onClick={() => setEscalateOpen(true)}
+              >
+                Escalate
+              </Button>
+            )}
+            {canResolve && (
+              <Button
+                data-testid="drill-down-resolve-btn"
+                variant="secondary"
+                size="sm"
+                icon={<CheckSquare className="h-3 w-3" />}
+                onClick={() => setResolveOpen(true)}
+              >
+                Resolve
+              </Button>
+            )}
           </div>
         )}
 
@@ -174,6 +282,152 @@ export function AlertDrillDownPanel({ alert, onClose, onAcknowledge }: AlertDril
                   setAckNote('')
                 }}
                 disabled={ackSubmitting}
+              >
+                Cancel
+              </Button>
+            </div>
+          </form>
+        )}
+
+        {escalateOpen && canEscalate && (
+          <form
+            data-testid="drill-down-escalate-form"
+            onSubmit={(e) => {
+              e.preventDefault()
+              submitEscalate()
+            }}
+            noValidate
+            className="mt-3 space-y-2"
+          >
+            <Input
+              data-testid="drill-down-escalate-reason"
+              placeholder="Reason (required)"
+              value={escalateReason}
+              onChange={(e) => {
+                setEscalateReason(e.target.value)
+                if (
+                  escalateReasonError !== null &&
+                  e.target.value.trim() !== ''
+                ) {
+                  setEscalateReasonError(null)
+                }
+              }}
+              aria-invalid={escalateReasonError !== null ? 'true' : undefined}
+              aria-describedby={
+                escalateReasonError !== null
+                  ? 'drill-down-escalate-reason-error'
+                  : undefined
+              }
+              className="w-full"
+            />
+            {escalateReasonError !== null && (
+              <p
+                id="drill-down-escalate-reason-error"
+                data-testid="drill-down-escalate-reason-error"
+                role="alert"
+                className="text-xs text-red-600 dark:text-red-400"
+              >
+                {escalateReasonError}
+              </p>
+            )}
+            <Input
+              data-testid="drill-down-escalate-assignee"
+              placeholder="Assignee (optional)"
+              value={escalateAssignee}
+              onChange={(e) => setEscalateAssignee(e.target.value)}
+              className="w-full"
+            />
+            <div className="flex items-center gap-2">
+              <Button
+                data-testid="drill-down-escalate-submit"
+                type="submit"
+                variant="primary"
+                size="sm"
+                disabled={escalateSubmitting}
+              >
+                Submit
+              </Button>
+              <Button
+                data-testid="drill-down-escalate-cancel"
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setEscalateOpen(false)
+                  setEscalateReason('')
+                  setEscalateAssignee('')
+                  setEscalateReasonError(null)
+                }}
+                disabled={escalateSubmitting}
+              >
+                Cancel
+              </Button>
+            </div>
+          </form>
+        )}
+
+        {resolveOpen && canResolve && (
+          <form
+            data-testid="drill-down-resolve-form"
+            onSubmit={(e) => {
+              e.preventDefault()
+              submitResolve()
+            }}
+            noValidate
+            className="mt-3 space-y-2"
+          >
+            <Input
+              data-testid="drill-down-resolve-text"
+              placeholder="Resolution (required)"
+              value={resolveText}
+              onChange={(e) => {
+                setResolveText(e.target.value)
+                if (
+                  resolveTextError !== null &&
+                  e.target.value.trim() !== ''
+                ) {
+                  setResolveTextError(null)
+                }
+              }}
+              aria-invalid={resolveTextError !== null ? 'true' : undefined}
+              aria-describedby={
+                resolveTextError !== null
+                  ? 'drill-down-resolve-text-error'
+                  : undefined
+              }
+              className="w-full"
+            />
+            {resolveTextError !== null && (
+              <p
+                id="drill-down-resolve-text-error"
+                data-testid="drill-down-resolve-text-error"
+                role="alert"
+                className="text-xs text-red-600 dark:text-red-400"
+              >
+                {resolveTextError}
+              </p>
+            )}
+            <div className="flex items-center gap-2">
+              <Button
+                data-testid="drill-down-resolve-submit"
+                type="submit"
+                variant="primary"
+                size="sm"
+                disabled={resolveSubmitting}
+              >
+                Submit
+              </Button>
+              <Button
+                data-testid="drill-down-resolve-cancel"
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setResolveOpen(false)
+                  setResolveText('')
+                  setResolveTextError(null)
+                }}
+                disabled={resolveSubmitting}
               >
                 Cancel
               </Button>

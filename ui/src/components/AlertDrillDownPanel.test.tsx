@@ -231,4 +231,212 @@ describe('AlertDrillDownPanel', () => {
       })
     })
   })
+
+  describe('escalate and resolve actions', () => {
+    it('renders an Escalate button on TRIGGERED alerts when onEscalate is provided', async () => {
+      mockFetch.mockResolvedValue([])
+      render(
+        <AlertDrillDownPanel
+          alert={sampleAlert}
+          onClose={() => {}}
+          onEscalate={async () => {}}
+        />,
+      )
+
+      expect(screen.getByTestId('drill-down-escalate-btn')).toBeInTheDocument()
+    })
+
+    it('renders an Escalate button on ACKNOWLEDGED alerts', async () => {
+      mockFetch.mockResolvedValue([])
+      render(
+        <AlertDrillDownPanel
+          alert={{ ...sampleAlert, status: 'ACKNOWLEDGED' }}
+          onClose={() => {}}
+          onEscalate={async () => {}}
+        />,
+      )
+
+      expect(screen.getByTestId('drill-down-escalate-btn')).toBeInTheDocument()
+    })
+
+    it('does not render Escalate button on ESCALATED or RESOLVED alerts', async () => {
+      mockFetch.mockResolvedValue([])
+      const { rerender } = render(
+        <AlertDrillDownPanel
+          alert={{ ...sampleAlert, status: 'ESCALATED' }}
+          onClose={() => {}}
+          onEscalate={async () => {}}
+        />,
+      )
+      expect(screen.queryByTestId('drill-down-escalate-btn')).not.toBeInTheDocument()
+
+      rerender(
+        <AlertDrillDownPanel
+          alert={{ ...sampleAlert, status: 'RESOLVED' }}
+          onClose={() => {}}
+          onEscalate={async () => {}}
+        />,
+      )
+      expect(screen.queryByTestId('drill-down-escalate-btn')).not.toBeInTheDocument()
+    })
+
+    it('renders a Resolve button on any non-RESOLVED alert', async () => {
+      mockFetch.mockResolvedValue([])
+      const statuses: Array<'TRIGGERED' | 'ACKNOWLEDGED' | 'ESCALATED'> = [
+        'TRIGGERED',
+        'ACKNOWLEDGED',
+        'ESCALATED',
+      ]
+      for (const status of statuses) {
+        const { unmount } = render(
+          <AlertDrillDownPanel
+            alert={{ ...sampleAlert, status }}
+            onClose={() => {}}
+            onResolve={async () => {}}
+          />,
+        )
+        expect(screen.getByTestId('drill-down-resolve-btn')).toBeInTheDocument()
+        unmount()
+      }
+    })
+
+    it('does not render Resolve button on RESOLVED alerts', async () => {
+      mockFetch.mockResolvedValue([])
+      render(
+        <AlertDrillDownPanel
+          alert={{ ...sampleAlert, status: 'RESOLVED' }}
+          onClose={() => {}}
+          onResolve={async () => {}}
+        />,
+      )
+
+      expect(screen.queryByTestId('drill-down-resolve-btn')).not.toBeInTheDocument()
+    })
+
+    it('clicking Escalate opens an inline form with reason + assignee', async () => {
+      mockFetch.mockResolvedValue([])
+      render(
+        <AlertDrillDownPanel
+          alert={sampleAlert}
+          onClose={() => {}}
+          onEscalate={async () => {}}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('drill-down-escalate-btn'))
+
+      expect(screen.getByTestId('drill-down-escalate-form')).toBeInTheDocument()
+      expect(screen.getByTestId('drill-down-escalate-reason')).toBeInTheDocument()
+      expect(screen.getByTestId('drill-down-escalate-assignee')).toBeInTheDocument()
+      expect(screen.getByTestId('drill-down-escalate-submit')).toBeInTheDocument()
+      expect(screen.getByTestId('drill-down-escalate-cancel')).toBeInTheDocument()
+    })
+
+    it('submitting Escalate without a reason does not call onEscalate', () => {
+      mockFetch.mockResolvedValue([])
+      const onEscalate = vi.fn().mockResolvedValue(undefined)
+      render(
+        <AlertDrillDownPanel
+          alert={sampleAlert}
+          onClose={() => {}}
+          onEscalate={onEscalate}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('drill-down-escalate-btn'))
+      fireEvent.click(screen.getByTestId('drill-down-escalate-submit'))
+
+      expect(onEscalate).not.toHaveBeenCalled()
+      expect(screen.getByTestId('drill-down-escalate-form')).toBeInTheDocument()
+      expect(screen.getByTestId('drill-down-escalate-reason-error')).toBeInTheDocument()
+    })
+
+    it('submitting Escalate with reason + assignee calls onEscalate', async () => {
+      mockFetch.mockResolvedValue([])
+      const onEscalate = vi.fn().mockResolvedValue(undefined)
+      render(
+        <AlertDrillDownPanel
+          alert={sampleAlert}
+          onClose={() => {}}
+          onEscalate={onEscalate}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('drill-down-escalate-btn'))
+      fireEvent.change(screen.getByTestId('drill-down-escalate-reason'), {
+        target: { value: 'unack timeout' },
+      })
+      fireEvent.change(screen.getByTestId('drill-down-escalate-assignee'), {
+        target: { value: 'risk-manager' },
+      })
+      fireEvent.click(screen.getByTestId('drill-down-escalate-submit'))
+
+      await waitFor(() => {
+        expect(onEscalate).toHaveBeenCalledWith(
+          'alert-1',
+          'unack timeout',
+          'risk-manager',
+        )
+      })
+    })
+
+    it('clicking Resolve opens an inline form with a resolution field', async () => {
+      mockFetch.mockResolvedValue([])
+      render(
+        <AlertDrillDownPanel
+          alert={sampleAlert}
+          onClose={() => {}}
+          onResolve={async () => {}}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('drill-down-resolve-btn'))
+
+      expect(screen.getByTestId('drill-down-resolve-form')).toBeInTheDocument()
+      expect(screen.getByTestId('drill-down-resolve-text')).toBeInTheDocument()
+      expect(screen.getByTestId('drill-down-resolve-submit')).toBeInTheDocument()
+      expect(screen.getByTestId('drill-down-resolve-cancel')).toBeInTheDocument()
+    })
+
+    it('submitting Resolve without text does not call onResolve', () => {
+      mockFetch.mockResolvedValue([])
+      const onResolve = vi.fn().mockResolvedValue(undefined)
+      render(
+        <AlertDrillDownPanel
+          alert={sampleAlert}
+          onClose={() => {}}
+          onResolve={onResolve}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('drill-down-resolve-btn'))
+      fireEvent.click(screen.getByTestId('drill-down-resolve-submit'))
+
+      expect(onResolve).not.toHaveBeenCalled()
+      expect(screen.getByTestId('drill-down-resolve-form')).toBeInTheDocument()
+      expect(screen.getByTestId('drill-down-resolve-text-error')).toBeInTheDocument()
+    })
+
+    it('submitting Resolve with text calls onResolve with the resolutionText', async () => {
+      mockFetch.mockResolvedValue([])
+      const onResolve = vi.fn().mockResolvedValue(undefined)
+      render(
+        <AlertDrillDownPanel
+          alert={sampleAlert}
+          onClose={() => {}}
+          onResolve={onResolve}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('drill-down-resolve-btn'))
+      fireEvent.change(screen.getByTestId('drill-down-resolve-text'), {
+        target: { value: 'positions reduced' },
+      })
+      fireEvent.click(screen.getByTestId('drill-down-resolve-submit'))
+
+      await waitFor(() => {
+        expect(onResolve).toHaveBeenCalledWith('alert-1', 'positions reduced')
+      })
+    })
+  })
 })
