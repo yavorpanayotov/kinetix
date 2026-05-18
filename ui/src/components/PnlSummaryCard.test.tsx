@@ -132,6 +132,28 @@ describe('PnlSummaryCard', () => {
       expect(screen.getByTestId('pnl-total-value')).toHaveTextContent('12,500.50')
     })
 
+    it('prefixes a + on a positive total P&L value', () => {
+      render(<PnlSummaryCard {...defaultProps} pnlData={pnlData} />)
+
+      expect(screen.getByTestId('pnl-total-value').textContent).toBe('+12,500.50')
+    })
+
+    it('does not prefix a + on a negative total P&L value', () => {
+      const negativeData: PnlAttributionDto = { ...pnlData, totalPnl: '-5000.00' }
+      render(<PnlSummaryCard {...defaultProps} pnlData={negativeData} />)
+
+      expect(screen.getByTestId('pnl-total-value').textContent).toBe('-5,000.00')
+    })
+
+    it('prefixes a + on positive factor values and not on negatives', () => {
+      render(<PnlSummaryCard {...defaultProps} pnlData={pnlData} />)
+
+      // deltaPnl = 8000.00 (positive) — should carry a + prefix
+      expect(screen.getByTestId('pnl-factor-delta').textContent).toBe('+8,000.00')
+      // gammaPnl = -1200.00 (negative) — should keep its minus sign without +
+      expect(screen.getByTestId('pnl-factor-gamma').textContent).toBe('-1,200.00')
+    })
+
     it('applies green colour to positive total P&L', () => {
       render(<PnlSummaryCard {...defaultProps} pnlData={pnlData} />)
 

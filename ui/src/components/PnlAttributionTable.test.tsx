@@ -61,6 +61,15 @@ describe('PnlAttributionTable', () => {
     expect(deltaRow).toHaveTextContent('53.3%')
   })
 
+  it('prefixes a + on positive factor amounts and not on negatives', () => {
+    render(<PnlAttributionTable data={attribution} />)
+
+    // deltaPnl = 8000.00 (positive) — should carry a + prefix
+    expect(screen.getByTestId('factor-amount-delta').textContent).toBe('+8,000.00')
+    // thetaPnl = -1500.00 (negative) — should keep its minus sign without +
+    expect(screen.getByTestId('factor-amount-theta').textContent).toBe('-1,500.00')
+  })
+
   it('expands position drill-down when a factor row is clicked', () => {
     render(<PnlAttributionTable data={attribution} />)
 
@@ -90,6 +99,8 @@ describe('PnlAttributionTable', () => {
     const aaplDetail = screen.getByTestId('position-detail-delta-AAPL')
     expect(aaplDetail).toHaveTextContent('AAPL')
     expect(aaplDetail).toHaveTextContent('5,000.00')
+    // Positive position amount should be prefixed with +
+    expect(aaplDetail).toHaveTextContent('+5,000.00')
   })
 
   it('applies green color class to positive amounts and red to negative', () => {

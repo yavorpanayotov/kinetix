@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { IntradayPnlSnapshotDto, TradeAnnotationDto } from '../types'
-import { formatNum, formatTimeOnly, pnlColorClass } from '../utils/format'
+import { formatNum, formatSignedNum, formatTimeOnly, pnlColorClass } from '../utils/format'
 import { formatCompactCurrency } from '../utils/formatCompactCurrency'
 import { clampTooltipLeft } from '../utils/clampTooltipLeft'
 
@@ -245,7 +245,7 @@ export function IntradayPnlChart({ snapshots, tradeAnnotations = [] }: IntradayP
           data-testid="intraday-chart-latest-total"
           className={`text-sm font-mono font-semibold tabular-nums ${pnlColorClass(latest.totalPnl)}`}
         >
-          {formatNum(latest.totalPnl)}
+          {formatSignedNum(latest.totalPnl)}
         </span>
       </div>
 

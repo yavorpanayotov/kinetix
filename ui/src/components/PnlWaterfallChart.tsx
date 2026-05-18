@@ -1,5 +1,5 @@
 import type { PnlAttributionDto } from '../types'
-import { formatNum, pnlColorClass } from '../utils/format'
+import { formatSignedNum, pnlColorClass } from '../utils/format'
 import { PNL_FACTOR_COLORS } from '../utils/factorColors'
 
 interface PnlWaterfallChartProps {
@@ -78,7 +78,7 @@ export function PnlWaterfallChart({ data }: PnlWaterfallChartProps) {
               data-testid={`waterfall-value-${factor.key}`}
               className={`w-36 text-right text-sm font-mono tabular-nums whitespace-nowrap shrink-0 ${pnlColorClass(valueStr)}`}
             >
-              {formatNum(factor.value)}
+              {formatSignedNum(factor.value)}
             </span>
           </div>
         )

@@ -1,7 +1,7 @@
 import { Fragment, useState } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import type { StrategyGroupDto } from '../types'
-import { formatNum, pnlColorClass } from '../utils/format'
+import { formatNum, formatSignedNum, pnlColorClass } from '../utils/format'
 
 interface StrategyGroupRowProps {
   strategy: StrategyGroupDto
@@ -79,7 +79,7 @@ export function StrategyGroupRow({ strategy, colSpan }: StrategyGroupRowProps) {
           data-testid={`strategy-net-pnl-${strategy.strategyId}`}
           className={`px-4 py-2 text-right text-sm font-mono tabular-nums font-semibold ${pnlColorClass(strategy.netPnl)}`}
         >
-          {formatNum(strategy.netPnl)}
+          {formatSignedNum(strategy.netPnl)}
         </td>
       </tr>
 

@@ -81,6 +81,22 @@ describe('IntradayPnlChart', () => {
     expect(screen.getByTestId('intraday-chart-latest-total')).toHaveTextContent('1,500.00')
   })
 
+  it('prefixes a + on a positive latest total P&L', () => {
+    render(<IntradayPnlChart snapshots={twoSnapshots} />)
+
+    expect(screen.getByTestId('intraday-chart-latest-total').textContent).toBe('+1,500.00')
+  })
+
+  it('does not prefix a + on a negative latest total P&L', () => {
+    const snapshots = [
+      makeSnapshot('2026-03-24T09:30:00Z', { totalPnl: '-500.00' }),
+      makeSnapshot('2026-03-24T09:31:00Z', { totalPnl: '-750.00' }),
+    ]
+    render(<IntradayPnlChart snapshots={snapshots} />)
+
+    expect(screen.getByTestId('intraday-chart-latest-total').textContent).toBe('-750.00')
+  })
+
   it('applies green colour to positive latest total P&L', () => {
     render(<IntradayPnlChart snapshots={twoSnapshots} />)
 

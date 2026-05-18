@@ -51,6 +51,14 @@ describe('PnlWaterfallChart', () => {
     expect(screen.getByTestId('waterfall-value-total')).toHaveTextContent('15,000.00')
   })
 
+  it('prefixes a + on positive factor values and not on negative or zero', () => {
+    render(<PnlWaterfallChart data={attribution} />)
+
+    expect(screen.getByTestId('waterfall-value-delta').textContent).toBe('+8,000.00')
+    expect(screen.getByTestId('waterfall-value-total').textContent).toBe('+15,000.00')
+    expect(screen.getByTestId('waterfall-value-theta').textContent).toBe('-1,500.00')
+  })
+
   it('applies green color class to positive values and red to negative', () => {
     render(<PnlWaterfallChart data={attribution} />)
 

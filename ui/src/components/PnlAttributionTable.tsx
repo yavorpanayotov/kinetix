@@ -1,7 +1,7 @@
 import { Fragment, useState } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import type { PnlAttributionDto, PositionPnlAttributionDto } from '../types'
-import { formatNum, pnlColorClass } from '../utils/format'
+import { formatSignedNum, pnlColorClass } from '../utils/format'
 import { PNL_FACTOR_COLORS } from '../utils/factorColors'
 
 interface PnlAttributionTableProps {
@@ -108,7 +108,7 @@ export function PnlAttributionTable({ data }: PnlAttributionTableProps) {
                       data-testid={`factor-amount-${factor.key}`}
                       className={`font-mono tabular-nums ${pnlColorClass(amount)}`}
                     >
-                      {formatNum(amountNum)}
+                      {formatSignedNum(amountNum)}
                     </span>
                   </td>
                   <td className="py-2 px-3 text-right font-mono tabular-nums text-slate-600">
@@ -132,7 +132,7 @@ export function PnlAttributionTable({ data }: PnlAttributionTableProps) {
                         <span className="ml-2 text-xs text-slate-400">{pos.assetClass}</span>
                       </td>
                       <td className={`py-1.5 px-3 text-right font-mono tabular-nums ${pnlColorClass(posAmount)}`}>
-                        {formatNum(posAmountNum)}
+                        {formatSignedNum(posAmountNum)}
                       </td>
                       <td className="py-1.5 px-3 text-right font-mono tabular-nums text-slate-400">
                         {totalPnl !== 0 ? ((posAmountNum / totalPnl) * 100).toFixed(1) : '0.0'}%

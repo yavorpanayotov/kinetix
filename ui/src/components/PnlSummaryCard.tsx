@@ -2,7 +2,7 @@ import { TrendingUp, ExternalLink } from 'lucide-react'
 import type { PnlAttributionDto, SodBaselineStatusDto } from '../types'
 import { Card, Button } from './ui'
 import { ScenarioBadge } from './ScenarioBadge'
-import { formatNum, pnlColorClass } from '../utils/format'
+import { formatSignedNum, pnlColorClass } from '../utils/format'
 
 interface PnlSummaryCardProps {
   sodStatus: SodBaselineStatusDto | null
@@ -76,7 +76,7 @@ export function PnlSummaryCard({ sodStatus, pnlData, computing, onComputePnl, on
                 data-testid="pnl-total-value"
                 className={`text-2xl font-bold tabular-nums ${pnlColorClass(pnlData.totalPnl)}`}
               >
-                {formatNum(pnlData.totalPnl)}
+                {formatSignedNum(pnlData.totalPnl)}
               </p>
               <ScenarioBadge scenario={activeScenario} regime={null} />
             </div>
@@ -90,7 +90,7 @@ export function PnlSummaryCard({ sodStatus, pnlData, computing, onComputePnl, on
                   data-testid={`pnl-factor-${f.key}`}
                   className={`ml-1 font-mono tabular-nums ${pnlColorClass(f.value)}`}
                 >
-                  {formatNum(f.value)}
+                  {formatSignedNum(f.value)}
                 </span>
               </div>
             ))}

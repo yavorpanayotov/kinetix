@@ -73,6 +73,48 @@ describe('StrategyGroupRow', () => {
     expect(screen.getByTestId('strategy-net-pnl-strat-1')).toBeInTheDocument()
   })
 
+  it('prefixes a + on positive net P&L', () => {
+    render(
+      <table>
+        <tbody>
+          <StrategyGroupRow strategy={makeStrategy({ netPnl: '500.00' })} colSpan={9} />
+        </tbody>
+      </table>,
+    )
+
+    expect(screen.getByTestId('strategy-net-pnl-strat-1').textContent).toBe('+500.00')
+  })
+
+  it('does not prefix a + on negative net P&L', () => {
+    render(
+      <table>
+        <tbody>
+          <StrategyGroupRow strategy={makeStrategy({ netPnl: '-250.00' })} colSpan={9} />
+        </tbody>
+      </table>,
+    )
+
+    expect(screen.getByTestId('strategy-net-pnl-strat-1').textContent).toBe('-250.00')
+  })
+
+  it('does not prefix net Greeks (delta/gamma/vega) with a sign', () => {
+    render(
+      <table>
+        <tbody>
+          <StrategyGroupRow
+            strategy={makeStrategy({ netDelta: '0.05', netGamma: '0.10', netVega: '20.0' })}
+            colSpan={9}
+          />
+        </tbody>
+      </table>,
+    )
+
+    // Greeks are not P&L; they keep formatNum semantics with no + prefix.
+    expect(screen.getByTestId('strategy-net-delta-strat-1').textContent).toBe('0.05')
+    expect(screen.getByTestId('strategy-net-gamma-strat-1').textContent).toBe('0.10')
+    expect(screen.getByTestId('strategy-net-vega-strat-1').textContent).toBe('20.00')
+  })
+
   it('leg rows are hidden initially (collapsed by default)', () => {
     render(
       <table>
