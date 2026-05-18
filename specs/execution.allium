@@ -18,7 +18,22 @@ use "./trading.allium" as trading
 -- Enumerations
 ------------------------------------------------------------
 
-enum OrderStatus { pending_risk_check | approved | rejected | sent | partial | filled | cancelled | expired }
+enum OrderStatus {
+    pending_risk_check
+    | approved
+    | rejected
+    | sent
+    | partial
+    | filled
+    | cancelled
+    | expired
+    | pending_failed
+}
+-- pending_failed (ADR-0035 phase 4): routing to fix-gateway failed
+-- (FIX session down or gRPC deadline exceeded). Non-terminal — the
+-- trader retries via the UI; the retry reuses the original clOrdId so
+-- fix-gateway reconciles via FIX 35=H OrderStatusRequest rather than
+-- producing a duplicate venue order.
 
 enum FillType { full | partial }
 
@@ -87,7 +102,11 @@ entity Order {
         pending_risk_check -> approved
         pending_risk_check -> rejected
         approved -> sent
+        approved -> rejected
+        approved -> pending_failed
         approved -> expired
+        pending_failed -> sent
+        pending_failed -> cancelled
         sent -> partial
         sent -> filled
         sent -> cancelled
@@ -98,9 +117,10 @@ entity Order {
         terminal: filled, cancelled, expired, rejected
     }
 
-    risk_check_result: String when status = approved | rejected | sent | partial | filled | cancelled | expired
-    risk_check_details: String? when status = approved | rejected | sent | partial | filled | cancelled | expired
+    risk_check_result: String when status = approved | rejected | sent | partial | filled | cancelled | expired | pending_failed
+    risk_check_details: String? when status = approved | rejected | sent | partial | filled | cancelled | expired | pending_failed
     fix_session_id: String?
+    venue_order_id: String?
     time_in_force: TimeInForce
     expires_at: Timestamp?
 
@@ -123,6 +143,10 @@ entity Order {
         -- arrival_price: mid-price at order submission time.
         -- Captured from price-service at the moment the order enters the system.
         -- Used for slippage measurement: slippage = avg_fill_price - arrival_price.
+        --
+        -- venue_order_id is populated by fix-gateway when the venue
+        -- acknowledges the order (PENDING_NEW). Required by most venues
+        -- for FIX 35=F cancels. Added in ADR-0035 phase 4 (V29 column).
         --
         -- time_in_force / expires_at lifecycle (ADR-0035):
         --   day  - sweeper expires OPEN/PARTIAL day orders past venue-cutoff
@@ -155,6 +179,31 @@ entity ExecutionFill {
         -- fix_exec_id is the FIX ExecID for deduplication.
         -- fill_id is deterministically derived from fix_session_id + fix_exec_id
         --   to ensure idempotent processing on reconnect.
+}
+
+entity GhostFill {
+    order_id: String
+    prior_status: OrderStatus
+    venue: String
+    fix_exec_id: String
+    fill_qty: Decimal
+    fill_price: Decimal
+    cumulative_qty: Decimal
+    detected_at: Timestamp
+    raw_event: String
+
+    invariant PriorStatusIsTerminalNonFilled {
+        prior_status in {expired, cancelled, rejected}
+    }
+
+    @guidance
+        -- A 35=8 FIX fill that arrived against an already-terminal
+        -- order. Persisted via GhostFillRepository and surfaced on
+        -- the order detail panel; the accompanying RiskBreakEvent
+        -- flows on `risk.breaks` at CRITICAL severity. Position is
+        -- NOT auto-updated for ghost fills — the trade desk must
+        -- decide whether to book the fill manually after
+        -- investigation.
 }
 
 entity ExecutionCostAnalysis {
@@ -303,6 +352,40 @@ rule SendOrderToFIX {
         -- and is retried when session reconnects.
 }
 
+rule FIXGatewayRoutingFailed {
+    when: FIXGatewayRouteFailed(order, reason)
+    requires: order.status = approved
+    requires: reason in {"SESSION_DOWN", "DEADLINE_EXCEEDED", "DUPLICATE_IN_FLIGHT"}
+
+    ensures: order.status = pending_failed
+    ensures: order.risk_check_details = reason
+
+    @guidance
+        -- ADR-0035 phase 4. Routing to fix-gateway failed before the
+        -- venue acknowledged the order. The order parks in
+        -- pending_failed until the trader retries via the UI; the
+        -- retry reuses the original clOrdId so fix-gateway reconciles
+        -- via FIX 35=H OrderStatusRequest rather than emitting a
+        -- duplicate venue order.
+}
+
+rule RejectApprovedAtFIX {
+    when: FIXGatewayRouteRejected(order, reason)
+    requires: order.status = approved
+    requires: reason in {"REJECTED", "UNKNOWN_VENUE", "INVALID_REQUEST"}
+
+    ensures: order.status = rejected
+    ensures: order.risk_check_details = reason
+
+    @guidance
+        -- ADR-0035 phase 4. fix-gateway reported a hard rejection for
+        -- an already-approved order (e.g. unknown venue, malformed
+        -- request, venue refused). The order transitions directly
+        -- from approved to rejected; the original risk_check_result
+        -- is preserved while risk_check_details captures the venue
+        -- reason.
+}
+
 -- Fill processing
 
 rule ProcessFIXFill {
@@ -369,6 +452,61 @@ rule ProcessFIXFillDuplicate {
         -- Duplicate fill detected (same exec_id already processed).
         -- Log and discard. No trade booked. This handles the reconnect
         -- scenario where FIX resends fills during gap fill.
+}
+
+rule ProcessFIXFillGhost {
+    when: FIXExecutionReportReceived(session_id, exec_id, order_id, exec_type, last_qty, last_price, cum_qty, avg_price, venue)
+    requires: exec_type in {"F", "1"}
+    let order = Order{order_id: order_id}
+    requires: order != null
+    requires: order.status in {expired, cancelled, rejected}
+
+    ensures: GhostFill.created(
+        order_id: order_id,
+        prior_status: order.status,
+        venue: venue,
+        fix_exec_id: exec_id,
+        fill_qty: last_qty,
+        fill_price: last_price,
+        cumulative_qty: cum_qty,
+        detected_at: now,
+        raw_event: serialize_event()
+    )
+    ensures: RiskBreakEvent(
+        order_id: order_id,
+        break_type: "GHOST_FILL",
+        severity: "CRITICAL"
+    )
+
+    @guidance
+        -- ADR-0035 phase 2. Fill arrived against a terminal order
+        -- (EXPIRED / CANCELLED / REJECTED) — no ExecutionFill is
+        -- created, no trade is booked, and the position is NOT
+        -- auto-updated. The accompanying CRITICAL RiskBreakEvent
+        -- flows on `risk.breaks` so risk/operations can investigate.
+}
+
+rule RejectOverfill {
+    when: FIXExecutionReportReceived(session_id, exec_id, order_id, exec_type, last_qty, last_price, cum_qty, avg_price, venue)
+    requires: exec_type in {"F", "1"}
+    let order = Order{order_id: order_id}
+    requires: order != null
+    requires: cum_qty > order.quantity
+
+    ensures: RiskBreakEvent(
+        order_id: order_id,
+        break_type: "OVERFILL",
+        severity: "CRITICAL"
+    )
+
+    @guidance
+        -- ADR-0035 phase 2. Runtime guard for FillsMatchOrder: if a
+        -- venue fill would push cumulative_qty past the ordered
+        -- quantity, the fill is rejected (no ExecutionFill row, no
+        -- trade booking) and a CRITICAL OVERFILL RiskBreakEvent is
+        -- emitted. Cancel/replace races that would otherwise produce
+        -- this condition are tracked in the `cancel_attempts` table
+        -- (V23) for forensic correlation.
 }
 
 -- FIX cancellation
@@ -502,10 +640,10 @@ rule UpdateReconciliationBreakStatus {
         --   investigating -> resolved | open
         --   resolved      -> (terminal — no transitions)
         --
-        -- HTTP: PATCH /api/v1/reconciliations/{reconciliationId}/breaks/{instrumentId}/status
+        -- HTTP: PATCH /api/v1/execution/reconciliation-breaks/{reconciliationId}/{instrumentId}/status
         --       Body: { "status": "OPEN | INVESTIGATING | RESOLVED" }
-        -- Implementation: ExecutionRoutes.kt:120-136 →
-        -- PrimeBrokerReconciliationRepository.updateBreakStatus().
+        -- Implementation: ExecutionRoutes.kt → PrimeBrokerReconciliationRepository.updateBreakStatus().
+        -- All execution endpoints are namespaced under /api/v1/execution.
 }
 
 -- FIX session health
