@@ -32,7 +32,11 @@ entity YieldCurve {
     long_rate: tenors.last.rate
 
     @guidance
-        -- Tenors must be sorted by maturity days ascending.
+        -- Tenors must be sorted by maturity days strictly ascending and
+        -- each tenor's `days` must be unique within a curve. Both
+        -- constraints are enforced at construction time by YieldCurve.kt;
+        -- attempting to build a curve with duplicate or unordered tenors
+        -- throws and the curve is never persisted.
         -- rateAt(days) performs linear interpolation between surrounding tenors.
         --   NOTE: linear interpolation is inadequate for key rate duration (KRD) computation.
         --   For KRD, monotone cubic spline interpolation (Hyman modification of Fritsch-Carlson)
@@ -127,6 +131,28 @@ value VolSurfaceDiff {
     diffs: List<VolPointDiff>
 }
 
+value StaleInstrument {
+    instrument_id: String
+    last_price_at: Timestamp
+    staleness_seconds: Integer
+}
+
+value InterpolatedTenor {
+    curve_id: String
+    tenor: String
+    rate: Decimal
+    interpolated: Boolean
+}
+
+value VolReconciliation {
+    instrument_id: String
+    as_of: Timestamp
+    atm_implied_vol: Decimal
+    realised_vol: Decimal
+    spread_bps: Decimal
+    within_tolerance: Boolean
+}
+
 ------------------------------------------------------------
 -- Config
 ------------------------------------------------------------
@@ -177,6 +203,52 @@ rule IngestYieldCurve {
     @guidance
         -- Tenors are validated to be monotonically increasing in maturity.
         -- Published to Kafka rates.yield-curves topic with key=curveId.
+}
+
+-- Data-quality anomaly surfaces
+--
+-- These rules describe read-time anomaly contracts surfaced to UI /
+-- engine consumers. They are not "publish new data" rules; instead
+-- they document the structured payload each anomaly endpoint returns
+-- and the threshold that classifies a row as anomalous.
+
+rule QueryStalePrices {
+    when: QueryStalePricesRequested(stale_after)
+
+    @guidance
+        -- HTTP: GET /api/v1/prices/stale?staleAfter={ISO8601}
+        -- Returns a list of StaleInstrument records for every
+        -- instrument whose most recent PricePoint.timestamp is older
+        -- than the supplied threshold (default: 1.hour for intraday,
+        -- 25.hours for EOD). Surfaced on the DataQualityIndicator
+        -- as the price-staleness anomaly contract.
+}
+
+rule QueryInterpolatedYieldCurveTenor {
+    when: QueryYieldCurveTenorRequested(curve_id, tenor)
+
+    @guidance
+        -- HTTP: GET /api/v1/rates/curves/{curveId}/tenor/{tenor}
+        -- Returns an InterpolatedTenor with interpolated=true when the
+        -- requested tenor is not a stored grid point (e.g. GBP 5Y
+        -- when only 2Y / 10Y are quoted). The gateway aggregate
+        -- proxy forwards the interpolated flag through to the UI so
+        -- the yield-curve chart can render the synthetic point with
+        -- a distinct marker. Documented as the missing-5Y-curve-node
+        -- anomaly contract.
+}
+
+rule ReconcileImpliedVsRealisedVol {
+    when: VolReconciliationRequested(instrument_id)
+
+    @guidance
+        -- Compares the ATM implied vol from the latest VolSurface
+        -- against the rolling realised vol of the underlying tape over
+        -- a fixed window. Returns a VolReconciliation record; the
+        -- within_tolerance flag is true when |spread_bps| is below the
+        -- configured tolerance. Exercised by
+        -- VolReconciliationAcceptanceTest and surfaced as a data-quality
+        -- signal on the VolatilityDashboard.
 }
 
 -- Risk-free rate ingestion
@@ -278,6 +350,11 @@ invariant NonNegativePrices {
 }
 
 invariant YieldCurveTenorOrder {
+    -- YieldCurve.kt rejects construction with zero tenors, with
+    -- duplicate tenor days, or with tenors that are not strictly
+    -- ascending. The non-empty constraint is the machine-checkable
+    -- piece below; uniqueness and strict ordering are enforced at the
+    -- domain-object boundary and documented in @guidance on YieldCurve.
     for curve in YieldCurves:
         curve.tenors.count >= 1
 }
