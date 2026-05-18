@@ -104,7 +104,7 @@ Per CLAUDE.md guardrails, the following are explicitly approved in this plan so 
       Acceptance: `./gradlew :gateway:acceptanceTest --tests "*InsightsRoutesAcceptanceTest"`
 - [x] 3.3 Extend `ui/src/api/insights.ts` with `explainReport(payload)`. Vitest unit test for the new method.
       Acceptance: `cd ui && npm run test -- insights.test`
-- [ ] 3.4 Add an "AI Commentary" card to `ui/src/components/ReportsTab.tsx` that renders below the generated report. Uses the same `AIInsightPanel` component. Card shows a loading skeleton while the report generates, then fetches the commentary. Vitest unit test covers the integration.
+- [x] 3.4 Add an "AI Commentary" card to `ui/src/components/ReportsTab.tsx` that renders below the generated report. Uses the same `AIInsightPanel` component. Card shows a loading skeleton while the report generates, then fetches the commentary. Vitest unit test covers the integration.
       Acceptance: `cd ui && npm run test -- ReportsTab`
 - [ ] 3.5 Add `ui/e2e/report-commentary.spec.ts` Playwright test mocking both `/api/v1/reports/generate` and `/api/v1/insights/explain/report`, generates a report, asserts the commentary card renders with narrative + bullets + demo-mode badge.
       Acceptance: `cd ui && npx playwright test report-commentary`
