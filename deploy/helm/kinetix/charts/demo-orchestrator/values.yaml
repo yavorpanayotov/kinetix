@@ -1,0 +1,46 @@
+replicaCount: 1
+
+image:
+  repository: kinetix/demo-orchestrator
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8094
+
+env:
+  PORT: "8094"
+  DATABASE_URL: "jdbc:postgresql://kinetix-postgresql:5432/kinetix_risk"
+  KAFKA_BOOTSTRAP_SERVERS: "kinetix-kafka:9092"
+  RISK_ENGINE_HOST: "kinetix-risk-engine"
+  RISK_ENGINE_PORT: "50051"
+  OTEL_JAVA_GLOBAL_AUTOCONFIGURE_ENABLED: "true"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://kinetix-opentelemetry-collector:4317"
+  OTEL_SERVICE_NAME: "demo-orchestrator"
+  OTEL_LOGS_EXPORTER: "otlp"
+  OTEL_METRICS_EXPORTER: "none"
+  OTEL_TRACES_EXPORTER: "otlp"
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 768Mi
+  limits:
+    cpu: "1"
+    memory: 1536Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+
+probes:
+  path: /health
+  readinessPath: /health/ready
+
+minReadySeconds: 30
+
+pdb:
+  enabled: false
+  minAvailable: 1
