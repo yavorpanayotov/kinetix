@@ -62,7 +62,7 @@ Per CLAUDE.md guardrails, the following are explicitly approved in this plan so 
 
 ### PR 1 — `ai-insights-service` Python scaffold
 
-- [ ] 1.1 Scaffold `ai-insights-service/` Python module mirroring `risk-engine/` shape: `pyproject.toml` (with `claude-agent-sdk`, `fastapi`, `uvicorn`, `pydantic`, `pytest`, `pytest-asyncio`, `httpx` for TestClient; markers `unit`/`integration` matching `risk-engine`), `src/kinetix_insights/__init__.py`, `src/kinetix_insights/app.py` exposing a FastAPI app with `/health` and `/ready` endpoints. Add a `Makefile` matching `risk-engine` conventions. No business logic.
+- [x] 1.1 Scaffold `ai-insights-service/` Python module mirroring `risk-engine/` shape: `pyproject.toml` (with `claude-agent-sdk`, `fastapi`, `uvicorn`, `pydantic`, `pytest`, `pytest-asyncio`, `httpx` for TestClient; markers `unit`/`integration` matching `risk-engine`), `src/kinetix_insights/__init__.py`, `src/kinetix_insights/app.py` exposing a FastAPI app with `/health` and `/ready` endpoints. Add a `Makefile` matching `risk-engine` conventions. No business logic.
       Acceptance: `cd ai-insights-service && uv sync && uv run pytest -m unit && uv run python -c "from kinetix_insights.app import app; assert app"`
 - [ ] 1.2 Add `InsightRequest` and `InsightResponse` pydantic models in `src/kinetix_insights/models.py`. `InsightRequest` carries `kind: Literal["var", "report"]` plus a `payload: dict[str, Any]`. `InsightResponse` carries `narrative: str`, `bullets: list[str]`, `model: str`, `mode: Literal["live", "canned"]`. Unit test asserts JSON round-trip for both shapes.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_models.py`
