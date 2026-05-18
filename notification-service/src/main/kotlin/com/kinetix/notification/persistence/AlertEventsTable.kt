@@ -23,6 +23,7 @@ object AlertEventsTable : Table("alert_events") {
     val contributors = text("contributors").nullable()
     val correlationId = varchar("correlation_id", 255).nullable()
     val suggestedAction = text("suggested_action").nullable()
+    val snoozedUntil = timestampWithTimeZone("snoozed_until").nullable()
 
     override val primaryKey = PrimaryKey(id)
 }

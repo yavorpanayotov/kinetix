@@ -31,6 +31,7 @@ class ExposedAlertEventRepository(private val db: Database? = null) : AlertEvent
             it[correlationId] = event.correlationId
             it[contributors] = event.contributors
             it[suggestedAction] = event.suggestedAction
+            it[snoozedUntil] = event.snoozedUntil?.let { ts -> OffsetDateTime.ofInstant(ts, ZoneOffset.UTC) }
         }
     }
 
@@ -54,6 +55,20 @@ class ExposedAlertEventRepository(private val db: Database? = null) : AlertEvent
                     (AlertEventsTable.ruleId eq ruleId) and
                         (AlertEventsTable.bookId eq bookId) and
                         (AlertEventsTable.status eq AlertStatus.TRIGGERED.name)
+                }
+                .orderBy(AlertEventsTable.triggeredAt, SortOrder.DESC)
+                .limit(1)
+                .map { it.toAlertEvent() }
+                .firstOrNull()
+        }
+
+    override suspend fun findLatestByRuleAndBook(ruleId: String, bookId: String): AlertEvent? =
+        newSuspendedTransaction(db = db) {
+            AlertEventsTable
+                .selectAll()
+                .where {
+                    (AlertEventsTable.ruleId eq ruleId) and
+                        (AlertEventsTable.bookId eq bookId)
                 }
                 .orderBy(AlertEventsTable.triggeredAt, SortOrder.DESC)
                 .limit(1)
@@ -134,6 +149,21 @@ class ExposedAlertEventRepository(private val db: Database? = null) : AlertEvent
             .firstOrNull()
     }
 
+    override suspend fun snooze(id: String, until: Instant): AlertEvent? = newSuspendedTransaction(db = db) {
+        val updated = AlertEventsTable.update({ AlertEventsTable.id eq id }) {
+            it[AlertEventsTable.snoozedUntil] = OffsetDateTime.ofInstant(until, ZoneOffset.UTC)
+        }
+        if (updated == 0) {
+            null
+        } else {
+            AlertEventsTable
+                .selectAll()
+                .where { AlertEventsTable.id eq id }
+                .map { it.toAlertEvent() }
+                .firstOrNull()
+        }
+    }
+
     private fun ResultRow.toAlertEvent(): AlertEvent = AlertEvent(
         id = this[AlertEventsTable.id],
         ruleId = this[AlertEventsTable.ruleId],
@@ -154,5 +184,6 @@ class ExposedAlertEventRepository(private val db: Database? = null) : AlertEvent
         correlationId = this[AlertEventsTable.correlationId],
         contributors = this[AlertEventsTable.contributors],
         suggestedAction = this[AlertEventsTable.suggestedAction],
+        snoozedUntil = this[AlertEventsTable.snoozedUntil]?.toInstant(),
     )
 }

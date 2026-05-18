@@ -54,6 +54,18 @@ class RulesEngine(
             if (triggered) {
                 firedRuleIds.add(rule.id)
 
+                // Snooze: if there's any existing alert for this (rule, book) that is
+                // currently snoozed (snoozed_until > now), skip re-firing entirely.
+                val now = Instant.now()
+                val existingForRule = eventRepository?.findLatestByRuleAndBook(rule.id, event.bookId)
+                if (existingForRule != null && existingForRule.snoozedUntil != null && existingForRule.snoozedUntil.isAfter(now)) {
+                    logger.debug(
+                        "Skipping snoozed alert for rule={}, book={}, snoozedUntil={}",
+                        rule.name, event.bookId, existingForRule.snoozedUntil,
+                    )
+                    return@mapNotNull null
+                }
+
                 // Deduplication: skip if an active alert already exists for this (rule, book)
                 val existing = eventRepository?.findActiveByRuleAndBook(rule.id, event.bookId)
                 if (existing != null) {

@@ -20,6 +20,10 @@ class InMemoryAlertEventRepository : AlertEventRepository {
     override suspend fun findActiveByRuleAndBook(ruleId: String, bookId: String): AlertEvent? =
         events.find { it.ruleId == ruleId && it.bookId == bookId && it.status == AlertStatus.TRIGGERED }
 
+    override suspend fun findLatestByRuleAndBook(ruleId: String, bookId: String): AlertEvent? =
+        events.filter { it.ruleId == ruleId && it.bookId == bookId }
+            .maxByOrNull { it.triggeredAt }
+
     override suspend fun findActiveByBook(bookId: String): List<AlertEvent> =
         events.filter { it.bookId == bookId && it.status == AlertStatus.TRIGGERED }
 
@@ -62,4 +66,12 @@ class InMemoryAlertEventRepository : AlertEventRepository {
         events.filter { it.status == AlertStatus.ACKNOWLEDGED && it.acknowledgedAt != null && it.acknowledgedAt < cutoff }
 
     override suspend fun findById(id: String): AlertEvent? = events.find { it.id == id }
+
+    override suspend fun snooze(id: String, until: Instant): AlertEvent? {
+        val event = events.find { it.id == id } ?: return null
+        val updated = event.copy(snoozedUntil = until)
+        events.remove(event)
+        events.addFirst(updated)
+        return updated
+    }
 }

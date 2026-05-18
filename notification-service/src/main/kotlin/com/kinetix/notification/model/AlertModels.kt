@@ -62,4 +62,5 @@ data class AlertEvent(
     val correlationId: String? = null,
     val contributors: String? = null,
     val suggestedAction: String? = null,
+    val snoozedUntil: Instant? = null,
 )
