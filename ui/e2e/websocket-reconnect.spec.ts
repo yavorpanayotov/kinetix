@@ -249,7 +249,9 @@ test.describe('WebSocket Reconnect - Banner and Recovery', () => {
 
     const banner = page.getByTestId('reconnecting-banner')
     await expect(banner).toBeVisible({ timeout: 5000 })
-    await expect(banner).toHaveAttribute('role', 'alert')
+    // role="alert" lives on a child span so the elapsed-time counter
+    // (a sibling with aria-live="off") does not re-announce every second.
+    await expect(banner.getByRole('alert')).toBeVisible()
   })
 
   test('positions retain their last known values when WebSocket is disconnected', async ({

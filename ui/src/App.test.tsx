@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PositionDto } from './types'
 
@@ -597,6 +597,33 @@ describe('App', () => {
       render(<App />)
 
       expect(screen.queryByTestId('reconnecting-banner')).not.toBeInTheDocument()
+    })
+
+    it('separates the elapsed-time counter from the role=alert region so it does not re-fire on each tick', () => {
+      const disconnectedSince = new Date(Date.now() - 47_000)
+      mockUsePriceStream.mockReturnValue({
+        positions: [position],
+        connected: false,
+        reconnecting: true,
+        exhausted: false,
+        lastConnectedAt: null,
+        disconnectedSince,
+        manualReconnect: vi.fn(),
+      })
+
+      render(<App />)
+
+      const banner = screen.getByTestId('reconnecting-banner')
+      // Banner contains the status text only — assistive tech announces this once.
+      const alert = within(banner).getByRole('alert')
+      expect(alert.textContent ?? '').not.toMatch(/\d+s/)
+      // The elapsed-seconds value is rendered in a sibling element marked aria-live="off"
+      // so visual users still see it tick, but screen readers do not re-announce on each tick.
+      const elapsed = within(banner).getByTestId('reconnecting-banner-elapsed')
+      expect(elapsed).toHaveAttribute('aria-live', 'off')
+      expect(elapsed.textContent).toContain('47s')
+      // The elapsed element must be a sibling of the alert, not a descendant.
+      expect(alert.contains(elapsed)).toBe(false)
     })
   })
 

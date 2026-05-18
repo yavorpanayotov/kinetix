@@ -259,13 +259,18 @@ test.describe('UI Resilience', () => {
     // The banner must carry the "Reconnecting..." core text
     await expect(banner).toContainText('Reconnecting...')
 
-    // The banner must have role="alert" so screen readers announce it immediately
-    await expect(banner).toHaveAttribute('role', 'alert')
+    // The status text lives in a child span with role="alert" so screen readers
+    // announce it once on appearance. The elapsed-time counter is a sibling with
+    // aria-live="off" so it does not re-announce on every tick.
+    await expect(banner.getByRole('alert')).toBeVisible()
 
-    // After a further wait the elapsed-time counter appears as "(Xs)". The counter
-    // ticks via setInterval(1000ms); under heavy parallel test load Chromium can
-    // throttle background timers, so allow a generous timeout.
-    await expect(banner).toContainText(/\(\d+s\)/, { timeout: 15000 })
+    // After a further wait the elapsed-time counter appears as "(Xs)" inside its
+    // own aria-live="off" sibling. The counter ticks via setInterval(1000ms);
+    // under heavy parallel test load Chromium can throttle background timers, so
+    // allow a generous timeout.
+    const elapsed = banner.getByTestId('reconnecting-banner-elapsed')
+    await expect(elapsed).toHaveAttribute('aria-live', 'off')
+    await expect(elapsed).toContainText(/\(\d+s\)/, { timeout: 15000 })
   })
 
   // ---------------------------------------------------------------------------

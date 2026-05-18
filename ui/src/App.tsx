@@ -340,10 +340,15 @@ function App() {
           bannerText = 'Reconnecting...'
           bannerClass = 'bg-amber-100 border-b border-amber-300 text-amber-800'
         }
-        const elapsed = disconnectElapsed > 0 ? ` (${disconnectElapsed}s)` : ''
         return (
-          <div data-testid="reconnecting-banner" className={`${bannerClass} px-6 py-2 text-sm font-medium`} role="alert">
-            {bannerText}{elapsed}
+          <div data-testid="reconnecting-banner" className={`${bannerClass} px-6 py-2 text-sm font-medium`}>
+            <span role="alert">{bannerText}</span>
+            <span
+              data-testid="reconnecting-banner-elapsed"
+              aria-live="off"
+            >
+              {disconnectElapsed > 0 ? ` (${disconnectElapsed}s)` : ''}
+            </span>
           </div>
         )
       })()}
