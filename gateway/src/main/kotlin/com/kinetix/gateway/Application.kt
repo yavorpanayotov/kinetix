@@ -38,6 +38,7 @@ import com.kinetix.gateway.routes.jobHistoryRoutes
 import com.kinetix.gateway.routes.priceRoutes
 import com.kinetix.gateway.routes.auditProxyRoutes
 import com.kinetix.gateway.routes.instrumentRoutes
+import com.kinetix.gateway.routes.insightsRoutes
 import com.kinetix.gateway.routes.traderRoutes
 import com.kinetix.gateway.routes.notificationRoutes
 import com.kinetix.gateway.routes.positionRoutes
@@ -344,6 +345,13 @@ fun Application.moduleWithYieldCurveProxy(httpClient: HttpClient, ratesBaseUrl: 
     }
 }
 
+fun Application.moduleWithInsightsProxy(httpClient: HttpClient, insightsBaseUrl: String) {
+    module()
+    routing {
+        insightsRoutes(httpClient, insightsBaseUrl)
+    }
+}
+
 fun Application.devModule() {
     val authEnabled = System.getenv("GATEWAY_AUTH_ENABLED")?.toBoolean() ?: true
     val servicesConfig = environment.config.config("services")
@@ -357,6 +365,7 @@ fun Application.devModule() {
     val correlationUrl = servicesConfig.property("correlation.url").getString()
     val regulatoryUrl = servicesConfig.property("regulatory.url").getString()
     val auditUrl = servicesConfig.property("audit.url").getString()
+    val insightsUrl = servicesConfig.property("insights.url").getString()
 
     val jwtCfg = environment.config.config("jwt")
     val jwtConfig = JwtConfig(
@@ -496,6 +505,7 @@ fun Application.devModule() {
                 saCcrRoutes(riskClient)
                 volSurfaceRoutes(volatilityClient)
                 yieldCurveProxyRoutes(httpClient, ratesUrl)
+                insightsRoutes(httpClient, insightsUrl)
                 demoStressWindowsRoutes()
                 demoScenarioRoutes()
                 tapeReplayStatusRoutes()
