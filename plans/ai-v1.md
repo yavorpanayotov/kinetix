@@ -76,7 +76,7 @@ Per CLAUDE.md guardrails, the following are explicitly approved in this plan so 
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_cache.py`
 - [x] 1.7 Add `ai-insights-service/README.md` documenting the host-auth model: native local dev uses `~/.claude/` automatically; Docker requires `~/.claude:/root/.claude:ro` volume mount; CI uses `DEMO_MODE=true`; no `ANTHROPIC_API_KEY`. Add a "Demo mode vs live mode" section showing the response shape difference (`mode` field) and how to flip.
       Acceptance: `test -f ai-insights-service/README.md && grep -q 'DEMO_MODE' ai-insights-service/README.md && grep -q '/root/.claude' ai-insights-service/README.md`
-- [ ] 1.8 Add `ai-insights-service/Dockerfile` matching `risk-engine/Dockerfile` shape (uv-based build), exposing port 8095. Add a `.env.example` entry at the repo root documenting `DEMO_MODE` and `CLAUDE_HOME`.
+- [x] 1.8 Add `ai-insights-service/Dockerfile` matching `risk-engine/Dockerfile` shape (uv-based build), exposing port 8095. Add a `.env.example` entry at the repo root documenting `DEMO_MODE` and `CLAUDE_HOME`.
       Acceptance: `test -f ai-insights-service/Dockerfile && grep -q 'DEMO_MODE' .env.example`
 
 ### PR 2 — VaR Explainer endpoint + UI
