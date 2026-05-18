@@ -126,7 +126,7 @@ That brings in `org.testcontainers.kafka.KafkaContainer` transitively, plus the 
 
 **Status:** Deferred. `info.solidsoft.gradle.pitest:gradle-pitest-plugin` versions 1.15 and earlier reference `reporting.baseDir` which Gradle 9 removed. The reason is documented in `.github/workflows/mutation.yml`. Per the decision above we implement the CLI-via-exec workaround using `org.pitest:pitest-command-line:1.17.x` — invoked from an `exec` task in a `kinetix.kotlin-mutation.gradle.kts` convention plugin that emits HTML + XML under `build/reports/pitest/`.
 
-- [ ] **6.1** Create `build-logic/convention/src/main/kotlin/kinetix.kotlin-mutation.gradle.kts` convention plugin. Register a `pitest` `JavaExec` task per consuming module that:
+- [x] **6.1** Create `build-logic/convention/src/main/kotlin/kinetix.kotlin-mutation.gradle.kts` convention plugin. Register a `pitest` `JavaExec` task per consuming module that:
   - Builds the test runtime classpath from the module's source sets.
   - Invokes `org.pitest:pitest-command-line:1.17.x` with `--targetClasses`, `--targetTests`, `--reportDir build/reports/pitest`.
   - Emits HTML and XML.
