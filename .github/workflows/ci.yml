@@ -602,8 +602,7 @@ jobs:
             cp -r "$d"/* "$module/build/reports/kover/" || true
           done
       - name: Coverage ratchet
-        # Soft-warn until baselines for Kotlin modules are filled in.
-        run: python3 scripts/check-coverage-ratchet.py || echo "::warning::Coverage ratchet breached"
+        run: python3 scripts/check-coverage-ratchet.py
 
   test-summary:
     needs: [kotlin-unit-tests, kotlin-acceptance-tests, kotlin-integration, end-to-end-tests, load-tests, python-unit-tests, python-integration-tests, ui-build, ui-e2e-tests, smoke-tests]
