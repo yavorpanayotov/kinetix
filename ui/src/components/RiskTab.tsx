@@ -40,6 +40,8 @@ import { YieldCurvePanel } from './YieldCurvePanel'
 import { IntradayVaRChart } from './IntradayVaRChart'
 import { KrdPanel } from './KrdPanel'
 import { Spinner } from './ui/Spinner'
+import { SectionBlock } from './ui/SectionBlock'
+import { useWorkspace, type RiskDashboardSectionsState } from '../hooks/useWorkspace'
 
 type RiskSubTab = 'dashboard' | 'run-compare' | 'market-data' | 'intraday'
 
@@ -86,6 +88,15 @@ export function RiskTab({
   const [pendingJobCompare, setPendingJobCompare] = useState<{ baseJobId: string; targetJobId: string } | null>(null)
   const [hedgePanelOpen, setHedgePanelOpen] = useState(false)
   const limitsPanelRef = useRef<HTMLDivElement | null>(null)
+
+  const { preferences, updatePreference } = useWorkspace()
+  const sections = preferences.riskDashboardSections
+  const toggleSection = useCallback(
+    (key: keyof RiskDashboardSectionsState, next: boolean) => {
+      updatePreference('riskDashboardSections', { ...sections, [key]: next })
+    },
+    [sections, updatePreference],
+  )
 
   const scrollToLimitsPanel = useCallback(() => {
     limitsPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -275,135 +286,166 @@ export function RiskTab({
               )}
             </div>
           </div>
-          <ErrorBoundary fallback={<SectionErrorCard name="VaR Dashboard" />}>
-            <VaRDashboard
-              varResult={varResult}
-              filteredHistory={filteredHistory}
-              loading={varLoading}
-              historyLoading={varHistoryLoading}
-              refreshing={varRefreshing || crossBookRefreshing}
-              error={crossBookError || varError}
-              onRefresh={handleRefresh}
-              timeRange={varTimeRange}
-              setTimeRange={setVarTimeRange}
-              zoomIn={varZoomIn}
-              resetZoom={varResetZoom}
-              zoomDepth={varZoomDepth}
-              greeksResult={greeksResult}
-              varLimit={varLimit}
-              onWhatIf={onWhatIf}
-              selectedConfidenceLevel={selectedConfidenceLevel}
-              onConfidenceLevelChange={setSelectedConfidenceLevel}
-              isLive={isLive}
-              valuationDate={valuationDate}
-              totalStandaloneVar={crossBookResult ? Number(crossBookResult.totalStandaloneVar) : undefined}
-              diversificationBenefit={crossBookResult ? Number(crossBookResult.diversificationBenefit) : undefined}
-              activeScenario={activeScenario}
-              marketRegime={marketRegime}
-            />
-          </ErrorBoundary>
-          {aggregatedView && crossBookResult && (
-            <>
+          <div className="space-y-4 mt-2">
+            <SectionBlock
+              title="Market Risk"
+              open={sections.marketRisk}
+              onToggle={(next) => toggleSection('marketRisk', next)}
+              data-testid="section-block-market-risk"
+            >
+              <ErrorBoundary fallback={<SectionErrorCard name="VaR Dashboard" />}>
+                <VaRDashboard
+                  varResult={varResult}
+                  filteredHistory={filteredHistory}
+                  loading={varLoading}
+                  historyLoading={varHistoryLoading}
+                  refreshing={varRefreshing || crossBookRefreshing}
+                  error={crossBookError || varError}
+                  onRefresh={handleRefresh}
+                  timeRange={varTimeRange}
+                  setTimeRange={setVarTimeRange}
+                  zoomIn={varZoomIn}
+                  resetZoom={varResetZoom}
+                  zoomDepth={varZoomDepth}
+                  greeksResult={greeksResult}
+                  varLimit={varLimit}
+                  onWhatIf={onWhatIf}
+                  selectedConfidenceLevel={selectedConfidenceLevel}
+                  onConfidenceLevelChange={setSelectedConfidenceLevel}
+                  isLive={isLive}
+                  valuationDate={valuationDate}
+                  totalStandaloneVar={crossBookResult ? Number(crossBookResult.totalStandaloneVar) : undefined}
+                  diversificationBenefit={crossBookResult ? Number(crossBookResult.diversificationBenefit) : undefined}
+                  activeScenario={activeScenario}
+                  marketRegime={marketRegime}
+                />
+              </ErrorBoundary>
+              {aggregatedView && crossBookResult && (
+                <>
+                  <div className="mt-4">
+                    <BookContributionTable
+                      contributions={crossBookResult.bookContributions}
+                      onBookClick={onNavigateToBook}
+                    />
+                  </div>
+                  <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <CorrelationHeatmap
+                      assetClasses={[...new Set(crossBookResult.componentBreakdown.map((c) => c.assetClass))]}
+                    />
+                  </div>
+                </>
+              )}
+              {aggregatedView && hierarchyNode && (
+                <div className="mt-4 space-y-3" data-testid="hierarchy-contribution-section">
+                  <RiskBudgetPanel node={hierarchyNode} />
+                  <HierarchyContributionTable
+                    node={hierarchyNode}
+                    onEntityClick={onNavigateToBook}
+                  />
+                </div>
+              )}
+            </SectionBlock>
+
+            <SectionBlock
+              title="Position & Factor Risk"
+              open={sections.positionFactor}
+              onToggle={(next) => toggleSection('positionFactor', next)}
+              data-testid="section-block-position-factor"
+            >
+              <ErrorBoundary fallback={<SectionErrorCard name="Position Risk" />}>
+                <PositionRiskTable
+                  data={positionRisk}
+                  loading={positionRiskLoading}
+                  error={positionRiskError}
+                  onRetry={refreshPositionRisk}
+                  activeScenario={activeScenario}
+                  marketRegime={marketRegime}
+                />
+              </ErrorBoundary>
               <div className="mt-4">
-                <BookContributionTable
-                  contributions={crossBookResult.bookContributions}
-                  onBookClick={onNavigateToBook}
+                <KrdPanel
+                  aggregated={krdAggregated}
+                  instruments={krdInstruments}
+                  loading={krdLoading}
+                  error={krdError}
+                  activeScenario={activeScenario}
+                  marketRegime={marketRegime}
                 />
               </div>
-              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <CorrelationHeatmap
-                  assetClasses={[...new Set(crossBookResult.componentBreakdown.map((c) => c.assetClass))]}
+              <div className="mt-4">
+                <ErrorBoundary fallback={<SectionErrorCard name="Factor Decomposition" />}>
+                  <FactorDecompositionPanel
+                    result={factorRiskResult}
+                    loading={factorRiskLoading}
+                    error={factorRiskError}
+                    activeScenario={activeScenario}
+                    marketRegime={marketRegime}
+                  />
+                </ErrorBoundary>
+              </div>
+              <div className="mt-4">
+                <FactorAttributionHistoryChart
+                  history={factorRiskHistory}
+                  loading={factorRiskHistoryLoading}
+                  error={factorRiskHistoryError}
                 />
               </div>
-            </>
-          )}
-          {aggregatedView && hierarchyNode && (
-            <div className="mt-4 space-y-3" data-testid="hierarchy-contribution-section">
-              <RiskBudgetPanel node={hierarchyNode} />
-              <HierarchyContributionTable
-                node={hierarchyNode}
-                onEntityClick={onNavigateToBook}
-              />
-            </div>
-          )}
-          <div className="mt-4">
-            <ErrorBoundary fallback={<SectionErrorCard name="Position Risk" />}>
-              <PositionRiskTable
-                data={positionRisk}
-                loading={positionRiskLoading}
-                error={positionRiskError}
-                onRetry={refreshPositionRisk}
-                activeScenario={activeScenario}
-                marketRegime={marketRegime}
-              />
-            </ErrorBoundary>
-          </div>
-          <div className="mt-4">
-            <KrdPanel
-              aggregated={krdAggregated}
-              instruments={krdInstruments}
-              loading={krdLoading}
-              error={krdError}
-              activeScenario={activeScenario}
-              marketRegime={marketRegime}
-            />
-          </div>
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <PnlSummaryCard
-              sodStatus={sod.status}
-              pnlData={pnlData}
-              computing={sod.computing}
-              onComputePnl={sod.computeAttribution}
-              onViewFullAttribution={onViewPnlTab}
-              activeScenario={activeScenario}
-            />
-            <StressSummaryCard
-              results={stressResults}
-              loading={stressLoading}
-              onRun={onRunStress}
-              onViewDetails={onViewStressDetails}
-              activeScenario={activeScenario}
-            />
-          </div>
-          <div className="mt-4">
-            <ErrorBoundary fallback={<SectionErrorCard name="Liquidity Risk" />}>
-              <LiquidityRiskPanel
-                result={liquidityResult}
-                loading={liquidityLoading}
-                onRefresh={handleLiquidityRefresh}
-              />
-            </ErrorBoundary>
-          </div>
-          <div className="mt-4">
-            <ErrorBoundary fallback={<SectionErrorCard name="Margin" />}>
-              <MarginPanel bookId={bookId} />
-            </ErrorBoundary>
-          </div>
-          <div className="mt-4" ref={limitsPanelRef}>
-            <ErrorBoundary fallback={<SectionErrorCard name="Limits" />}>
-              <LimitsPanel />
-            </ErrorBoundary>
-          </div>
-          <div className="mt-4">
-            <ErrorBoundary fallback={<SectionErrorCard name="Factor Decomposition" />}>
-              <FactorDecompositionPanel
-                result={factorRiskResult}
-                loading={factorRiskLoading}
-                error={factorRiskError}
-                activeScenario={activeScenario}
-                marketRegime={marketRegime}
-              />
-            </ErrorBoundary>
-          </div>
-          <div className="mt-4">
-            <FactorAttributionHistoryChart
-              history={factorRiskHistory}
-              loading={factorRiskHistoryLoading}
-              error={factorRiskHistoryError}
-            />
-          </div>
-          <div className="mt-4">
-            <JobHistory bookId={bookId} refreshSignal={jobRefreshSignal} onCompareJobs={handleCompareJobs} />
+            </SectionBlock>
+
+            <SectionBlock
+              title="P&L, Stress & Liquidity"
+              open={sections.pnlStressLiquidity}
+              onToggle={(next) => toggleSection('pnlStressLiquidity', next)}
+              data-testid="section-block-pnl-stress-liquidity"
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <PnlSummaryCard
+                  sodStatus={sod.status}
+                  pnlData={pnlData}
+                  computing={sod.computing}
+                  onComputePnl={sod.computeAttribution}
+                  onViewFullAttribution={onViewPnlTab}
+                  activeScenario={activeScenario}
+                />
+                <StressSummaryCard
+                  results={stressResults}
+                  loading={stressLoading}
+                  onRun={onRunStress}
+                  onViewDetails={onViewStressDetails}
+                  activeScenario={activeScenario}
+                />
+              </div>
+              <div className="mt-4">
+                <ErrorBoundary fallback={<SectionErrorCard name="Liquidity Risk" />}>
+                  <LiquidityRiskPanel
+                    result={liquidityResult}
+                    loading={liquidityLoading}
+                    onRefresh={handleLiquidityRefresh}
+                  />
+                </ErrorBoundary>
+              </div>
+              <div className="mt-4">
+                <ErrorBoundary fallback={<SectionErrorCard name="Margin" />}>
+                  <MarginPanel bookId={bookId} />
+                </ErrorBoundary>
+              </div>
+            </SectionBlock>
+
+            <SectionBlock
+              title="Limits & Jobs"
+              open={sections.limitsJobs}
+              onToggle={(next) => toggleSection('limitsJobs', next)}
+              data-testid="section-block-limits-jobs"
+            >
+              <div ref={limitsPanelRef}>
+                <ErrorBoundary fallback={<SectionErrorCard name="Limits" />}>
+                  <LimitsPanel />
+                </ErrorBoundary>
+              </div>
+              <div className="mt-4">
+                <JobHistory bookId={bookId} refreshSignal={jobRefreshSignal} onCompareJobs={handleCompareJobs} />
+              </div>
+            </SectionBlock>
           </div>
         </>
       )}

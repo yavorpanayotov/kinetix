@@ -11,6 +11,7 @@ vi.mock('../hooks/useAlerts')
 vi.mock('../hooks/useSodBaseline')
 vi.mock('../hooks/usePnlAttribution')
 vi.mock('../hooks/useHierarchyNodeRisk')
+vi.mock('../hooks/useWorkspace')
 
 import { RiskTab } from './RiskTab'
 import { useVaR } from '../hooks/useVaR'
@@ -21,6 +22,7 @@ import { useAlerts } from '../hooks/useAlerts'
 import { useSodBaseline } from '../hooks/useSodBaseline'
 import { usePnlAttribution } from '../hooks/usePnlAttribution'
 import { useHierarchyNodeRisk } from '../hooks/useHierarchyNodeRisk'
+import { useWorkspace, DEFAULT_PREFERENCES } from '../hooks/useWorkspace'
 
 const mockUseVaR = vi.mocked(useVaR)
 const mockUseJobHistory = vi.mocked(useJobHistory)
@@ -30,6 +32,7 @@ const mockUseAlerts = vi.mocked(useAlerts)
 const mockUseSodBaseline = vi.mocked(useSodBaseline)
 const mockUsePnlAttribution = vi.mocked(usePnlAttribution)
 const mockUseHierarchyNodeRisk = vi.mocked(useHierarchyNodeRisk)
+const mockUseWorkspace = vi.mocked(useWorkspace)
 
 const stressResult: StressTestResultDto = {
   scenarioName: 'MARKET_CRASH',
@@ -135,6 +138,11 @@ describe('RiskTab', () => {
       node: null,
       loading: false,
       error: null,
+    })
+    mockUseWorkspace.mockReturnValue({
+      preferences: DEFAULT_PREFERENCES,
+      updatePreference: vi.fn(),
+      resetPreferences: vi.fn(),
     })
   })
 
@@ -627,5 +635,78 @@ describe('RiskTab', () => {
 
     expect(screen.getByTestId('pnl-summary-data')).toBeInTheDocument()
     expect(screen.getByTestId('pnl-total-value')).toHaveTextContent('12,500.50')
+  })
+
+  describe('Dashboard section blocks (plan §2.2)', () => {
+    it('renders the four group headings on the Dashboard sub-tab', () => {
+      render(<RiskTab bookId="book-1" {...defaultStressProps} />)
+
+      expect(screen.getByTestId('section-block-market-risk')).toBeInTheDocument()
+      expect(screen.getByTestId('section-block-position-factor')).toBeInTheDocument()
+      expect(screen.getByTestId('section-block-pnl-stress-liquidity')).toBeInTheDocument()
+      expect(screen.getByTestId('section-block-limits-jobs')).toBeInTheDocument()
+    })
+
+    it('defaults all four sections to open and renders their panels', () => {
+      render(<RiskTab bookId="book-1" {...defaultStressProps} />)
+
+      // Market Risk section content
+      expect(screen.getByTestId('var-empty')).toBeInTheDocument()
+      // Position & Factor section content
+      expect(screen.getByTestId('position-risk-section')).toBeInTheDocument()
+      // P&L / Stress / Liquidity section content
+      expect(screen.getByTestId('pnl-summary-card')).toBeInTheDocument()
+      expect(screen.getByTestId('stress-summary-card')).toBeInTheDocument()
+      // Limits & Jobs section content
+      expect(screen.getByTestId('job-history')).toBeInTheDocument()
+    })
+
+    it('renders the LimitsBreachHeader above the four section blocks', () => {
+      render(<RiskTab bookId="book-1" {...defaultStressProps} />)
+
+      const header = screen.getByTestId('limits-breach-header')
+      const marketRiskSection = screen.getByTestId('section-block-market-risk')
+      expect(header.compareDocumentPosition(marketRiskSection) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    })
+
+    it('persists section collapse state through the useWorkspace updatePreference hook', async () => {
+      const user = userEvent.setup()
+      const updatePreference = vi.fn()
+      mockUseWorkspace.mockReturnValue({
+        preferences: DEFAULT_PREFERENCES,
+        updatePreference,
+        resetPreferences: vi.fn(),
+      })
+
+      render(<RiskTab bookId="book-1" {...defaultStressProps} />)
+
+      await user.click(screen.getByRole('button', { name: /market risk/i }))
+
+      expect(updatePreference).toHaveBeenCalledWith(
+        'riskDashboardSections',
+        expect.objectContaining({ marketRisk: false }),
+      )
+    })
+
+    it('honours a saved collapsed section from workspace prefs', () => {
+      mockUseWorkspace.mockReturnValue({
+        preferences: {
+          ...DEFAULT_PREFERENCES,
+          riskDashboardSections: {
+            ...DEFAULT_PREFERENCES.riskDashboardSections,
+            marketRisk: false,
+          },
+        },
+        updatePreference: vi.fn(),
+        resetPreferences: vi.fn(),
+      })
+
+      render(<RiskTab bookId="book-1" {...defaultStressProps} />)
+
+      const marketRiskToggle = screen.getByRole('button', { name: /market risk/i })
+      expect(marketRiskToggle).toHaveAttribute('aria-expanded', 'false')
+      // Market Risk panel content hidden when section collapsed
+      expect(screen.queryByTestId('var-empty')).not.toBeInTheDocument()
+    })
   })
 })
