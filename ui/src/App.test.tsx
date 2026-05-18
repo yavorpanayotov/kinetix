@@ -219,6 +219,19 @@ describe('App', () => {
     expect(screen.queryByTestId('position-row-AAPL')).not.toBeInTheDocument()
   })
 
+  it('active Trades sub-tab has a dark-mode primary text class', () => {
+    render(<App />)
+
+    fireEvent.click(screen.getByTestId('tab-trades'))
+
+    // 'blotter' is the default active sub-tab
+    const activeSubTab = screen.getByTestId('trades-subtab-blotter')
+    expect(activeSubTab).toHaveAttribute('aria-selected', 'true')
+    // The active sub-tab must include a dark-mode counterpart for the active text color
+    // so it remains readable in dark mode — mirrors the convention used in RiskTab.tsx.
+    expect(activeSubTab.className).toMatch(/dark:text-primary-/)
+  })
+
   it('clicking Risk tab renders the RiskTab wrapper', () => {
     render(<App />)
 

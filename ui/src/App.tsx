@@ -455,7 +455,7 @@ function App() {
 
             {activeTab === 'trades' && (
                   <div>
-                    <div className="flex gap-1 mb-4 border-b border-slate-200" role="tablist" aria-label="Trades sections">
+                    <div className="flex gap-1 mb-4 border-b border-slate-200 dark:border-surface-700" role="tablist" aria-label="Trades sections">
                       {(['blotter', 'place', 'cost', 'reconciliation'] as const).map((subTab) => (
                         <button
                           key={subTab}
@@ -465,8 +465,8 @@ function App() {
                           onClick={() => setTradesSubTab(subTab)}
                           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                             tradesSubTab === subTab
-                              ? 'border-primary-500 text-primary-600'
-                              : 'border-transparent text-slate-500 hover:text-slate-700'
+                              ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                              : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
                           }`}
                         >
                           {subTab === 'blotter' && 'Trade Blotter'}
