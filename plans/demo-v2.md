@@ -101,7 +101,7 @@ and flag (per `/work-plan` guardrails).
       delta. Idempotent on `(bookId, limitType)`. Unit test drives the job
       with a MockK fake client and asserts the right thresholds were posted.
       Acceptance: `./gradlew :demo-orchestrator:test --tests "*LimitSeedJobTest"`
-- [ ] 1.4 Wire `LimitSeedJob` into `Application.kt`: run once at startup and
+- [x] 1.4 Wire `LimitSeedJob` into `Application.kt`: run once at startup and
       schedule daily at 06:05 UTC. All wiring guarded by `DEMO_MODE=true`.
       Acceptance: `./gradlew :demo-orchestrator:build`
 
