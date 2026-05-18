@@ -29,6 +29,7 @@ include(
     "reference-data-service",
     "volatility-service",
     "correlation-service",
+    "demo-orchestrator",
     "end2end-tests",
     "schema-tests",
     "smoke-tests",
