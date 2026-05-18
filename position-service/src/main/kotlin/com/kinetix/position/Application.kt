@@ -8,6 +8,7 @@ import com.kinetix.position.kafka.PriceConsumer
 import com.kinetix.position.persistence.DatabaseConfig
 import com.kinetix.position.persistence.DatabaseFactory
 import com.kinetix.position.persistence.ExposedPositionRepository
+import com.kinetix.position.persistence.ExposedPositionNotesRepository
 import com.kinetix.position.persistence.ExposedTradeEventRepository
 import com.kinetix.position.persistence.ExposedLimitDefinitionRepository
 import com.kinetix.position.persistence.ExposedTemporaryLimitIncreaseRepository
@@ -32,6 +33,7 @@ import com.kinetix.position.routes.internalRoutes
 import com.kinetix.position.routes.limitRoutes
 import com.kinetix.position.routes.orderRoutes
 import com.kinetix.position.persistence.ExposedTradeStrategyRepository
+import com.kinetix.position.routes.positionNotesRoutes
 import com.kinetix.position.routes.positionRoutes
 import com.kinetix.position.routes.strategyRoutes
 import com.kinetix.position.service.TradeStrategyService
@@ -47,6 +49,7 @@ import com.kinetix.position.model.LimitType
 import com.kinetix.position.service.ExposedTransactionalRunner
 import com.kinetix.position.service.HierarchyBasedPreTradeCheckService
 import com.kinetix.position.service.LimitHierarchyService
+import com.kinetix.position.service.PositionNotesService
 import com.kinetix.position.service.PositionQueryService
 import com.kinetix.position.service.PriceUpdateService
 import com.kinetix.position.service.TradeBookingService
@@ -194,6 +197,9 @@ fun Application.moduleWithRoutes() {
     )
     val tradeStrategyRepository = ExposedTradeStrategyRepository(db)
     val tradeStrategyService = TradeStrategyService(tradeStrategyRepository)
+
+    val positionNotesRepository = ExposedPositionNotesRepository(db)
+    val positionNotesService = PositionNotesService(positionNotesRepository)
 
     val positionQueryService = PositionQueryService(positionRepository)
     val tradeLifecycleService = TradeLifecycleService(
@@ -434,6 +440,7 @@ fun Application.moduleWithRoutes() {
 
     routing {
         positionRoutes(positionRepository, positionQueryService, tradeBookingService, tradeEventRepository, tradeLifecycleService, portfolioAggregationService)
+        positionNotesRoutes(positionNotesService)
         strategyRoutes(tradeStrategyService, tradeBookingService)
         limitRoutes(limitDefinitionRepo, temporaryLimitIncreaseRepo)
         counterpartyRoutes(counterpartyExposureService)
