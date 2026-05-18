@@ -187,7 +187,8 @@ class JwtAuthenticationTest : FunSpec({
                         "quantity": "100",
                         "priceAmount": "150.00",
                         "priceCurrency": "USD",
-                        "tradedAt": "2025-01-15T10:00:00Z"
+                        "tradedAt": "2025-01-15T10:00:00Z",
+                        "instrumentType": "CASH_EQUITY"
                     }
                 """.trimIndent())
             }
@@ -214,7 +215,8 @@ class JwtAuthenticationTest : FunSpec({
                         "quantity": "100",
                         "priceAmount": "150.00",
                         "priceCurrency": "USD",
-                        "tradedAt": "2025-01-15T10:00:00Z"
+                        "tradedAt": "2025-01-15T10:00:00Z",
+                        "instrumentType": "CASH_EQUITY"
                     }
                 """.trimIndent())
             }

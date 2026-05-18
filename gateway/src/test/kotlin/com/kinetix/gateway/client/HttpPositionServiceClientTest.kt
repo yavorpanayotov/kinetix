@@ -52,7 +52,8 @@ class HttpPositionServiceClientTest : FunSpec({
                 "averageCost": { "amount": "150.00", "currency": "USD" },
                 "marketPrice": { "amount": "155.50", "currency": "USD" },
                 "marketValue": { "amount": "15550.00", "currency": "USD" },
-                "unrealizedPnl": { "amount": "550.00", "currency": "USD" }
+                "unrealizedPnl": { "amount": "550.00", "currency": "USD" },
+                "instrumentType": "CASH_EQUITY"
               }
             ]
         """.trimIndent()
@@ -100,7 +101,8 @@ class HttpPositionServiceClientTest : FunSpec({
                 "side": "BUY",
                 "quantity": "50",
                 "price": { "amount": "152.00", "currency": "USD" },
-                "tradedAt": "2025-03-15T14:30:00Z"
+                "tradedAt": "2025-03-15T14:30:00Z",
+                "instrumentType": "CASH_EQUITY"
               },
               "position": {
                 "bookId": "port-1",
@@ -110,7 +112,8 @@ class HttpPositionServiceClientTest : FunSpec({
                 "averageCost": { "amount": "150.67", "currency": "USD" },
                 "marketPrice": { "amount": "155.50", "currency": "USD" },
                 "marketValue": { "amount": "23325.00", "currency": "USD" },
-                "unrealizedPnl": { "amount": "724.50", "currency": "USD" }
+                "unrealizedPnl": { "amount": "724.50", "currency": "USD" },
+                "instrumentType": "CASH_EQUITY"
               }
             }
         """.trimIndent()
