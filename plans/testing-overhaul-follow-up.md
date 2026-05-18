@@ -154,7 +154,7 @@ That brings in `org.testcontainers.kafka.KafkaContainer` transitively, plus the 
 
 - [x] **7.1** Run kover locally for every Kotlin module that publishes coverage (`./gradlew koverXmlReport`), parse the resulting per-module line-coverage percentages, and populate `coverage-baselines.json`'s `"kotlin"` map with the observed values rounded **down** by 0.5pp (provides immediate headroom). Modules to include: `common`, `position-service`, `price-service`, `rates-service`, `volatility-service`, `correlation-service`, `reference-data-service`, `risk-orchestrator`, `regulatory-service`, `notification-service`, `audit-service`, `gateway`. Skip modules where coverage isn't measured (e.g. `proto`).
   - Acceptance: `python3 scripts/check-coverage-ratchet.py` exits 0 against the populated baselines.
-- [ ] **7.2** Remove `|| echo "::warning::Coverage ratchet breached"` from `.github/workflows/ci.yml` line 606 — let a non-zero exit fail the job. (Approval for this CI edit is granted under "CI/CD approval" above.)
+- [x] **7.2** Remove `|| echo "::warning::Coverage ratchet breached"` from `.github/workflows/ci.yml` line 606 — let a non-zero exit fail the job. (Approval for this CI edit is granted under "CI/CD approval" above.)
   - Acceptance: `! grep -F '|| echo "::warning::Coverage ratchet' .github/workflows/ci.yml`
 - [ ] **7.3** Document baseline raise/lower procedure in `docs/testing.md`: how to legitimately lower a baseline (deliberate behavioural change, document why in the PR description), how to raise one (after a verified improvement), and the policy that lowering requires explicit reviewer sign-off.
   - Acceptance: `grep -E "lower.*baseline|raise.*baseline" docs/testing.md`
