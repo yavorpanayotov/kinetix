@@ -32,6 +32,7 @@ import com.kinetix.notification.persistence.ExposedAlertEventRepository
 import com.kinetix.notification.persistence.ExposedAlertRuleRepository
 import com.kinetix.notification.routes.dtos.EscalateAlertRequest
 import com.kinetix.notification.routes.dtos.ResolveAlertRequest
+import com.kinetix.notification.routes.dtos.SnoozeAlertRequest
 import com.kinetix.notification.seed.DevDataSeeder
 import io.github.smiley4.ktoropenapi.OpenApi
 import io.github.smiley4.ktoropenapi.delete
@@ -340,6 +341,7 @@ data class AlertEventResponse(
     val escalatedTo: String? = null,
     val correlationId: String? = null,
     val suggestedAction: String? = null,
+    val snoozedUntil: String? = null,
 )
 
 fun Route.notificationRoutes(
@@ -591,6 +593,57 @@ fun Route.notificationRoutes(
             call.respond(fetched.toEventResponse())
         }
 
+        post("/alerts/{alertId}/snooze", {
+            summary = "Snooze an alert until a future timestamp"
+            tags = listOf("Alerts")
+            request {
+                pathParameter<String>("alertId") { description = "Alert event identifier" }
+                body<SnoozeAlertRequest>()
+            }
+        }) {
+            val alertId = call.parameters["alertId"]
+                ?: throw IllegalArgumentException("Missing required path parameter: alertId")
+            val request = call.receive<SnoozeAlertRequest>()
+            val snoozedUntil = try {
+                java.time.Instant.parse(request.snoozedUntil)
+            } catch (_: java.time.format.DateTimeParseException) {
+                call.respond(
+                    HttpStatusCode.BadRequest,
+                    ErrorResponse("Bad Request", "snoozedUntil must be a valid ISO-8601 timestamp"),
+                )
+                return@post
+            }
+            val now = java.time.Instant.now()
+            if (!snoozedUntil.isAfter(now)) {
+                call.respond(
+                    HttpStatusCode.BadRequest,
+                    ErrorResponse("Bad Request", "snoozedUntil must be in the future"),
+                )
+                return@post
+            }
+            val eventRepo = inAppDelivery.repository
+
+            val alert = eventRepo.findById(alertId)
+            if (alert == null) {
+                call.respond(HttpStatusCode.NotFound, ErrorResponse("Not Found", "Alert not found"))
+                return@post
+            }
+            if (alert.status == AlertStatus.RESOLVED) {
+                call.respond(
+                    HttpStatusCode.Conflict,
+                    ErrorResponse("Conflict", "Cannot snooze a RESOLVED alert"),
+                )
+                return@post
+            }
+
+            val updated = eventRepo.snooze(alertId, snoozedUntil)
+            if (updated == null) {
+                call.respond(HttpStatusCode.NotFound, ErrorResponse("Not Found", "Alert not found"))
+                return@post
+            }
+            call.respond(updated.toEventResponse())
+        }
+
         get("/alerts/{alertId}/contributors", {
             summary = "Get alert contributors (position breakdown at breach time)"
             tags = listOf("Alerts")
@@ -649,4 +702,5 @@ private fun com.kinetix.notification.model.AlertEvent.toEventResponse() = AlertE
     escalatedTo = escalatedTo,
     correlationId = correlationId,
     suggestedAction = suggestedAction,
+    snoozedUntil = snoozedUntil?.toString(),
 )
