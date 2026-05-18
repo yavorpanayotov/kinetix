@@ -89,7 +89,7 @@ Per CLAUDE.md guardrails, the following are explicitly approved in this plan so 
       Acceptance: `cd ui && npm run test -- insights.test`
 - [x] 2.4 Add `ui/src/components/AIInsightPanel.tsx` — reusable slide-over/card component rendering `narrative`, `bullets`, and a footer with `model` + a "Demo mode" badge when `mode === "canned"`. Vitest unit test covers loading skeleton, error state, demo-mode badge, and live-mode model display.
       Acceptance: `cd ui && npm run test -- AIInsightPanel`
-- [ ] 2.5 Wire an "Explain" button into `ui/src/components/VaRDashboard.tsx`'s VaR-gauge header. Click ⇒ fetch via `insights.ts` ⇒ render `AIInsightPanel`. Vitest unit test asserts button visible, click opens panel, loading state shown, narrative renders after resolve.
+- [x] 2.5 Wire an "Explain" button into `ui/src/components/VaRDashboard.tsx`'s VaR-gauge header. Click ⇒ fetch via `insights.ts` ⇒ render `AIInsightPanel`. Vitest unit test asserts button visible, click opens panel, loading state shown, narrative renders after resolve.
       Acceptance: `cd ui && npm run test -- VaRDashboard`
 - [ ] 2.6 Add `ui/e2e/var-explainer.spec.ts` Playwright test that mocks `/api/v1/insights/explain/var` per `ui/e2e/fixtures.ts` patterns, navigates to Risk tab, clicks "Explain", asserts panel renders with narrative + bullets + "Demo mode" badge. Extend `ui/e2e/fixtures.ts` with an `insightsMock` helper.
       Acceptance: `cd ui && npx playwright test var-explainer`
