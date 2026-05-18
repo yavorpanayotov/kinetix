@@ -285,7 +285,7 @@ If an item's scope has been partially addressed already (some sub-fixes shipped 
 
 - [x] 2.2 Group Risk tab Dashboard into 4 collapsible `<SectionBlock>` sections (scope §2.2) — Market Risk / Position & Factor / P&L Stress Liquidity / Limits & Jobs; persist collapse state to workspace prefs.
 - [x] 3.1a Per-alert action: **Acknowledge** wired in `NotificationCenter` and `AlertDrillDownPanel` with optimistic update + lifecycle status badge. (Escalate / Resolve / Snooze deferred — see "Blocked items needing decisions" at the bottom.)
-- [ ] 3.2 Alerts as a queue, not a list (scope §3.2) — default sort CRITICAL > WARNING > INFO then by age; filter chips with counts; auto-collapse RESOLVED >24h old.
+- [x] 3.2 Alerts as a queue, not a list (scope §3.2) — default sort CRITICAL > WARNING > INFO then by age; filter chips with counts; auto-collapse RESOLVED >24h old.
 - [ ] 3.4 Breach banner generalised beyond RiskTab (scope §3.4) — show `RiskAlertBanner` on Positions and P&L when VaR > 80% of limit or any CRITICAL alert active.
 - [ ] 4.1 Consolidate banners into a single status bar (scope §4.1) — single horizontal bar that swaps content/severity instead of stacking; demo strip stays as its own dismissible row.
 - [ ] 4.3 Audit & sweep: standardise loading / empty / error states across every component (scope §4.3) — Quick Win covered `ReportsTab` loading only; full audit remains for empty + error states everywhere else.
