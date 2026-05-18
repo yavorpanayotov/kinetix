@@ -305,7 +305,7 @@ If an item's scope has been partially addressed already (some sub-fixes shipped 
 ### Phase 4 — Power-User & Trader Polish (last per plan)
 
 - [x] 7.1 Cmd+K command palette (scope §7.1) — new `CommandPalette.tsx`, global keydown in `App.tsx`, fuzzy filter over tabs / sub-tabs / books / instruments / counterparties / scenarios.
-- [ ] 7.3 Position-level annotations (scope §7.3) — **requires new backend endpoint per scope; subagent must flag the architectural decision and stop before adding any contract.**
+- [x] 7.3 Position-level annotations — moved to "Blocked items needing decisions" (needs new backend endpoint per §7.3; see below).
 - [ ] 8.2 Hedge engine surfacing on breach (scope §8.2) — "Need a hedge?" CTA when VaR utilisation > 80% or any CRITICAL alert is active; reachable from the ticker strip's VaR indicator.
 - [ ] 8.3 Stale data visual unambiguity (scope §8.3) — STALE pill replaced with desaturated overlay / yellow tint over the whole panel + explicit "computed at X, source as of Y" line.
 - [ ] 8.4 Trade markers on intraday P&L and VaR trend charts (scope §8.4) — extend `tradeAnnotations` pattern from `IntradayVaRChart` to `IntradayPnlChart` and the VaR trend chart.
@@ -320,6 +320,7 @@ If an item's scope has been partially addressed already (some sub-fixes shipped 
 These are surfaced for the user to weigh in on. The loop will not re-attempt them automatically — they need an explicit approval to add backend contracts (a guardrail per CLAUDE.md).
 
 - 3.1b **Escalate / Resolve / Snooze per-alert actions** — Plan claimed "alert action endpoints already exist" but only `POST /alerts/{id}/acknowledge` is actually wired in `notification-service`. Repository methods for escalate/resolve exist but no HTTP routes; Snooze has no backend support at all. Decision needed: (a) add the three missing routes (and Snooze backend) in a separate Kotlin/notification-service iteration, or (b) drop Escalate/Resolve/Snooze from scope.
+- 7.3 **Position-level annotations** — Scope §7.3 says "click a position → add a note … new endpoint". No notes table / endpoint exists in `position-service` or `gateway`. Decision needed: (a) add a `position_notes` table + CRUD endpoints in `position-service`, or (b) drop this feature.
 
 ---
 
