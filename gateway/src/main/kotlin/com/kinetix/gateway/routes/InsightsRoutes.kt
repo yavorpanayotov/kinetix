@@ -18,12 +18,14 @@ import io.ktor.server.routing.post
 import io.ktor.utils.io.toByteArray
 
 /**
- * Gateway proxy routes for AI insight endpoints (PR 2 — VaR Explainer).
+ * Gateway proxy routes for AI insight endpoints.
  *
- * Forwards `POST /api/v1/insights/explain/var` to the `ai-insights-service`
- * backend without transforming the body. The gateway does not own the
- * insight schema — request and response bodies pass through as raw bytes so
- * downstream schema evolution does not require redeploying the gateway.
+ * Forwards `POST /api/v1/insights/explain/var` (PR 2 — VaR Explainer) and
+ * `POST /api/v1/insights/explain/report` (PR 3 — Risk Report Generator) to
+ * the `ai-insights-service` backend without transforming the body. The
+ * gateway does not own the insight schema — request and response bodies
+ * pass through as raw bytes so downstream schema evolution does not
+ * require redeploying the gateway.
  *
  * The configured `insightsBaseUrl` is sourced from `services.insights.url` in
  * `application.conf`, which honours the `INSIGHTS_SERVICE_URL` env override.
@@ -31,6 +33,9 @@ import io.ktor.utils.io.toByteArray
 fun Route.insightsRoutes(httpClient: HttpClient, insightsBaseUrl: String) {
     post("/api/v1/insights/explain/var") {
         proxyToInsights(httpClient, "$insightsBaseUrl/api/v1/insights/explain/var", call)
+    }
+    post("/api/v1/insights/explain/report") {
+        proxyToInsights(httpClient, "$insightsBaseUrl/api/v1/insights/explain/report", call)
     }
 }
 
