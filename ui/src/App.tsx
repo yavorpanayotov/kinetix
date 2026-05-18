@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { Activity, BarChart3, ScrollText, TrendingUp, Shield, FlaskConical, Scale, Bell, Server, FlaskRound, Sun, Moon, CalendarDays, Users, FileText, LogOut } from 'lucide-react'
 import { ErrorBoundary, SectionErrorCard } from './components/ErrorBoundary'
+import { SubTabBar } from './components/ui/SubTabBar'
 import { PositionGrid } from './components/PositionGrid'
 import { TradeBlotter } from './components/TradeBlotter'
 import { PlaceOrderPanel } from './components/PlaceOrderPanel'
@@ -532,27 +533,23 @@ function App() {
 
             {activeTab === 'trades' && (
                   <div>
-                    <div className="flex gap-1 mb-4 border-b border-slate-200 dark:border-surface-700" role="tablist" aria-label="Trades sections">
-                      {(['blotter', 'place', 'cost', 'reconciliation'] as const).map((subTab) => (
-                        <button
-                          key={subTab}
-                          role="tab"
-                          aria-selected={tradesSubTab === subTab}
-                          data-testid={`trades-subtab-${subTab}`}
-                          onClick={() => setTradesSubTab(subTab)}
-                          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                            tradesSubTab === subTab
-                              ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                              : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
-                          }`}
-                        >
-                          {subTab === 'blotter' && 'Trade Blotter'}
-                          {subTab === 'place' && 'Place Order'}
-                          {subTab === 'cost' && 'Execution Cost'}
-                          {subTab === 'reconciliation' && 'Reconciliation'}
-                        </button>
-                      ))}
-                    </div>
+                    <SubTabBar
+                      aria-label="Trades sections"
+                      activeId={tradesSubTab}
+                      onSelect={(id) =>
+                        setTradesSubTab(id as 'blotter' | 'place' | 'cost' | 'reconciliation')
+                      }
+                      tabs={[
+                        { id: 'blotter', label: 'Trade Blotter', testId: 'trades-subtab-blotter' },
+                        { id: 'place', label: 'Place Order', testId: 'trades-subtab-place' },
+                        { id: 'cost', label: 'Execution Cost', testId: 'trades-subtab-cost' },
+                        {
+                          id: 'reconciliation',
+                          label: 'Reconciliation',
+                          testId: 'trades-subtab-reconciliation',
+                        },
+                      ]}
+                    />
                     {tradesSubTab === 'blotter' && (
                       <TradeBlotter
                         bookId={bookId}

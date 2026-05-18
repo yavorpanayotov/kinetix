@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ErrorBoundary, SectionErrorCard } from './ErrorBoundary'
+import { SubTabBar } from './ui/SubTabBar'
 import { useVaR } from '../hooks/useVaR'
 import { useCrossBookVaR } from '../hooks/useCrossBookVaR'
 import { usePositionRisk } from '../hooks/usePositionRisk'
@@ -237,34 +238,24 @@ export function RiskTab({
 
   const lastUpdated = varResult?.calculatedAt ?? null
 
-  const subTabs: { key: RiskSubTab; label: string }[] = [
-    { key: 'dashboard', label: 'Dashboard' },
-    { key: 'intraday', label: 'Intraday' },
-    { key: 'run-compare', label: 'Run Compare' },
-    { key: 'market-data', label: 'Market Data' },
+  const subTabs: { id: RiskSubTab; label: string; testId: string }[] = [
+    { id: 'dashboard', label: 'Dashboard', testId: 'risk-subtab-dashboard' },
+    { id: 'intraday', label: 'Intraday', testId: 'risk-subtab-intraday' },
+    { id: 'run-compare', label: 'Run Compare', testId: 'risk-subtab-run-compare' },
+    { id: 'market-data', label: 'Market Data', testId: 'risk-subtab-market-data' },
   ]
 
   const instrumentIds = [...new Set(positionRisk.map((p) => p.instrumentId))]
 
   return (
     <div>
-      {/* Sub-tab bar */}
-      <div className="flex gap-1 mb-4 border-b border-slate-200 dark:border-surface-700">
-        {subTabs.map((t) => (
-          <button
-            key={t.key}
-            data-testid={`risk-subtab-${t.key}`}
-            onClick={() => setSubTab(t.key)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              subTab === t.key
-                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <SubTabBar
+        aria-label="Risk sections"
+        activeId={subTab}
+        onSelect={(id) => setSubTab(id as RiskSubTab)}
+        tabs={subTabs}
+      />
+
 
       {subTab === 'dashboard' && (
         <>
