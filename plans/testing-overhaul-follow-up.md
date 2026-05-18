@@ -117,6 +117,14 @@ That brings in `org.testcontainers.kafka.KafkaContainer` transitively, plus the 
   - Acceptance: `./gradlew :test-support:build :test-support:test`
 - [ ] **5.8** Refactor `position-service/src/test/kotlin/.../KafkaTestSetup.kt` to delegate to `com.kinetix.testsupport.kafka.KafkaTestSetup` (one-line delegation), or delete it and update imports.
   - Acceptance: `./gradlew :position-service:test :position-service:integrationTest`
+  - Blocked: 2026-05-18 — refactor itself is done (commit `d7c89dc7`, 14 test files repointed at `com.kinetix.testsupport.kafka.KafkaTestSetup`), but the acceptance command fails on a pre-existing, unrelated `LimitDefinitionUniqueConstraintIntegrationTest` failure caused by the Exposed + Kotest `shouldThrow` gotcha documented in `CLAUDE.md`:
+    ```
+    com.kinetix.position.persistence.LimitDefinitionUniqueConstraintIntegrationTest > inserting a second row with the same (level, entity_id, limit_type) is rejected by the unique constraint FAILED
+        org.jetbrains.exposed.exceptions.ExposedSQLException at Statement.kt:99
+            Caused by: org.postgresql.util.PSQLException at QueryExecutorImpl.java:2733
+    58 tests completed, 1 failed
+    ```
+    The exception thrown inside `newSuspendedTransaction` is not caught by the outer `shouldThrow`. The simple workaround in CLAUDE.md ("move validation before the transactional.run{}" block) doesn't apply because the test's whole point is asserting DB-level constraint rejection — needs a different test pattern. Unblock options: (a) fix the test in a separate checkbox; (b) narrow this acceptance command to just compilation + the migrated tests; (c) accept the unrelated red test and re-tick this box manually.
 - [ ] **5.9** Refactor `audit-service/src/test/kotlin/.../KafkaTestSetup.kt` the same way.
   - Acceptance: `./gradlew :audit-service:test :audit-service:integrationTest`
 
