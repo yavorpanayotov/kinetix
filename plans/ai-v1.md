@@ -121,7 +121,7 @@ Per CLAUDE.md guardrails, the following are explicitly approved in this plan so 
       Acceptance: `grep -q 'Explain' .claude/skills/demo/SKILL.md && grep -q 'AI Commentary\|AI commentary' .claude/skills/demo/SKILL.md`
 - [x] 4.4 Add a brief "AI features" section to `README.md` (below the hero) describing the two features and linking to `ai-insights-service/README.md` for the host-auth + DEMO_MODE explanation.
       Acceptance: `grep -q 'AI features\|VaR Explainer' README.md && grep -q 'ai-insights-service/README.md' README.md`
-- [ ] 4.5 Final full-stack test sweep: run unit + acceptance tests across all touched modules to confirm green.
+- [x] 4.5 Final full-stack test sweep: run unit + acceptance tests across all touched modules to confirm green.
       Acceptance: `./gradlew :gateway:test :gateway:acceptanceTest && cd ai-insights-service && uv run pytest && cd ../ui && npm run test && npm run lint`
       Blocked: 2026-05-18 — `:gateway:test` fails on two tests, both from a *different* concurrent /work-plan loop (testing-overhaul-follow-up or demo-v2) that ran on the same repo while ai-v1 was executing:
         1. `JwtAuthenticationTest` expects 201 Created, gets 500. Unrelated to insights work.
