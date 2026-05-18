@@ -1,3 +1,21 @@
+<!-- BEGIN: Built with Claude Code hero -->
+# Kinetix — Built with Claude Code
+
+A multi-service institutional risk management platform built almost entirely through AI-assisted development.
+
+- **2032 commits** across **~14 weeks**
+- **12 microservices** (Kotlin/Ktor + Python risk engine + React/TS UI)
+- **24 Allium behavioural specifications**
+- **35 architectural decision records**
+
+### Where to look next
+
+- [How it was built](docs/HOW_IT_WAS_BUILT.md) — the AI-assisted-dev workflow, agents, and skills behind the codebase.
+- [Architectural decision records](docs/adr/README.md) — every architectural choice, indexed.
+- [Allium specifications](specs/README.md) — the behavioural specs that drive code and tests.
+
+<!-- END: Built with Claude Code hero -->
+
 # Kinetix
 
 **Institutional-grade portfolio risk management platform.**
