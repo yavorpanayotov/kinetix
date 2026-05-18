@@ -145,10 +145,12 @@ test.describe('Risk Sorting', () => {
     // Verify initial sort: GOOGL first
     await expect(rows.nth(0)).toContainText('GOOGL')
 
-    // Toggle a column off and back on
+    // Toggle a column off and back on. `quantity` is a Detail column
+    // controlled by the Details toggle (not the column-settings dropdown);
+    // `assetClass` is a customisable column rendered inside the dropdown.
     await page.getByTestId('column-settings-button').click()
-    await page.getByTestId('column-toggle-quantity').click()
-    await page.getByTestId('column-toggle-quantity').click()
+    await page.getByTestId('column-toggle-assetClass').click()
+    await page.getByTestId('column-toggle-assetClass').click()
     // Close settings
     await page.getByTestId('column-settings-button').click()
 
