@@ -12,6 +12,8 @@ import {
   ChevronDown,
   ChevronRight,
   ArrowRight,
+  ArrowUpCircle,
+  CheckSquare,
 } from 'lucide-react'
 import type { AlertRuleDto, AlertEventDto, CreateAlertRuleRequestDto } from '../types'
 import { formatRelativeTime } from '../utils/format'
@@ -57,12 +59,24 @@ interface NotificationCenterProps {
    * Triage action invoked when the user submits the inline Acknowledge form.
    * If omitted, the per-alert Acknowledge button is hidden — useful for
    * read-only embeds.
-   *
-   * Note: Escalate, Resolve, and Snooze are intentionally not exposed yet —
-   * the backend currently only ships an HTTP endpoint for Acknowledge. See
-   * docs/plans/ui-overhaul.md §3.1 follow-ups.
    */
   onAcknowledge?: (alertId: string, notes?: string) => Promise<void> | void
+  /**
+   * Manual escalation action — operator decides an alert needs escalation
+   * before the auto-escalation timer fires. Visible on TRIGGERED and
+   * ACKNOWLEDGED alerts only (per backend transition rules). If omitted,
+   * the Escalate button is hidden.
+   */
+  onEscalate?: (
+    alertId: string,
+    reason: string,
+    assignee?: string,
+  ) => Promise<void> | void
+  /**
+   * Resolve action — closes out an alert with an audit note. Visible on any
+   * non-RESOLVED alert. If omitted, the Resolve button is hidden.
+   */
+  onResolve?: (alertId: string, resolutionText: string) => Promise<void> | void
   /**
    * Cross-tab navigation: jump from an alert row to the Risk tab focused on
    * the alert's affected book. Receives the alert's bookId, or null when the
@@ -110,6 +124,8 @@ export function NotificationCenter({
   onCreateRule,
   onDeleteRule,
   onAcknowledge,
+  onEscalate,
+  onResolve,
   onJumpToRisk,
 }: NotificationCenterProps) {
   const [name, setName] = useState('')
@@ -135,6 +151,20 @@ export function NotificationCenter({
   const [ackOpenId, setAckOpenId] = useState<string | null>(null)
   const [ackNote, setAckNote] = useState('')
   const [ackSubmitting, setAckSubmitting] = useState(false)
+  // Inline escalate form state — single-row at a time keeps the layout calm
+  // and prevents the user from accidentally fanning out parallel form submits.
+  const [escalateOpenId, setEscalateOpenId] = useState<string | null>(null)
+  const [escalateReason, setEscalateReason] = useState('')
+  const [escalateAssignee, setEscalateAssignee] = useState('')
+  const [escalateSubmitting, setEscalateSubmitting] = useState(false)
+  const [escalateReasonError, setEscalateReasonError] = useState<string | null>(
+    null,
+  )
+  // Inline resolve form state — same single-row contract as escalate.
+  const [resolveOpenId, setResolveOpenId] = useState<string | null>(null)
+  const [resolveText, setResolveText] = useState('')
+  const [resolveSubmitting, setResolveSubmitting] = useState(false)
+  const [resolveTextError, setResolveTextError] = useState<string | null>(null)
 
   /**
    * Count of alerts per status — drives the chip badges so the operator can
@@ -276,11 +306,93 @@ export function NotificationCenter({
     }
   }
 
+  function openEscalate(alertId: string) {
+    setEscalateOpenId(alertId)
+    setEscalateReason('')
+    setEscalateAssignee('')
+    setEscalateReasonError(null)
+  }
+
+  function closeEscalate() {
+    setEscalateOpenId(null)
+    setEscalateReason('')
+    setEscalateAssignee('')
+    setEscalateReasonError(null)
+  }
+
+  async function submitEscalate(alertId: string) {
+    if (!onEscalate) return
+    const trimmedReason = escalateReason.trim()
+    if (trimmedReason === '') {
+      // Reason is required by the backend (HTTP 400 on blank). Surface inline
+      // so the user fixes it without ever hitting the API.
+      setEscalateReasonError('Reason is required.')
+      return
+    }
+    setEscalateSubmitting(true)
+    const trimmedAssignee = escalateAssignee.trim()
+    try {
+      await onEscalate(
+        alertId,
+        trimmedReason,
+        trimmedAssignee === '' ? undefined : trimmedAssignee,
+      )
+    } catch {
+      // Parent rolls back; close the form and let the badge/error banner do
+      // the talking.
+    } finally {
+      setEscalateSubmitting(false)
+      closeEscalate()
+    }
+  }
+
+  function openResolve(alertId: string) {
+    setResolveOpenId(alertId)
+    setResolveText('')
+    setResolveTextError(null)
+  }
+
+  function closeResolve() {
+    setResolveOpenId(null)
+    setResolveText('')
+    setResolveTextError(null)
+  }
+
+  async function submitResolve(alertId: string) {
+    if (!onResolve) return
+    const trimmed = resolveText.trim()
+    if (trimmed === '') {
+      // Backend rejects blank resolutionText with HTTP 400.
+      setResolveTextError('Resolution is required.')
+      return
+    }
+    setResolveSubmitting(true)
+    try {
+      await onResolve(alertId, trimmed)
+    } catch {
+      // Parent rolls back optimistic state.
+    } finally {
+      setResolveSubmitting(false)
+      closeResolve()
+    }
+  }
+
   function renderAlertRow(alert: AlertEventDto) {
     const SevIcon = severityIcon[alert.severity] ?? Info
     const canAcknowledge =
       onAcknowledge !== undefined && alert.status === 'TRIGGERED'
+    // Escalate is available while the operator can still escalate manually:
+    // TRIGGERED or ACKNOWLEDGED. Once ESCALATED or RESOLVED, the backend
+    // rejects further escalation, so we hide the button.
+    const canEscalate =
+      onEscalate !== undefined &&
+      (alert.status === 'TRIGGERED' || alert.status === 'ACKNOWLEDGED')
+    // Resolve is available on every non-terminal state.
+    const canResolve = onResolve !== undefined && alert.status !== 'RESOLVED'
     const ackFormOpen = ackOpenId === alert.id
+    const escalateFormOpen = escalateOpenId === alert.id
+    const resolveFormOpen = resolveOpenId === alert.id
+    const anyFormOpen = ackFormOpen || escalateFormOpen || resolveFormOpen
     return (
       <div
         key={alert.id}
@@ -318,28 +430,57 @@ export function NotificationCenter({
                 ESCALATED
               </span>
             )}
-            {canAcknowledge && !ackFormOpen && (
-              <button
-                data-testid={`acknowledge-btn-${alert.id}`}
-                onClick={() => openAcknowledge(alert.id)}
-                className="ml-auto inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100 transition-colors"
-              >
-                <Check className="h-3 w-3" />
-                Acknowledge
-              </button>
-            )}
-            {onJumpToRisk && (
-              <button
-                data-testid={`jump-to-risk-${alert.id}`}
-                onClick={() => onJumpToRisk(alert.bookId ? alert.bookId : null)}
-                className={`${canAcknowledge && !ackFormOpen ? '' : 'ml-auto'} inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded hover:bg-indigo-100 transition-colors`}
-                title="Open the affected book on the Risk tab"
-                aria-label={`Jump to Risk tab for ${alert.bookId || 'unknown book'}`}
-              >
-                <ArrowRight className="h-3 w-3" />
-                Go to Risk
-              </button>
-            )}
+            {/*
+              Action cluster: all triage buttons sit in a single ml-auto group
+              so the row layout stays compact regardless of which combination
+              of callbacks is wired. The "anyFormOpen" gate hides the buttons
+              for the row whose inline form is active to keep focus on the
+              form itself.
+            */}
+            <div className="ml-auto flex items-center gap-1">
+              {canAcknowledge && !anyFormOpen && (
+                <button
+                  data-testid={`acknowledge-btn-${alert.id}`}
+                  onClick={() => openAcknowledge(alert.id)}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100 transition-colors"
+                >
+                  <Check className="h-3 w-3" />
+                  Acknowledge
+                </button>
+              )}
+              {canEscalate && !anyFormOpen && (
+                <button
+                  data-testid={`escalate-btn-${alert.id}`}
+                  onClick={() => openEscalate(alert.id)}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-orange-700 bg-orange-50 border border-orange-200 rounded hover:bg-orange-100 transition-colors"
+                >
+                  <ArrowUpCircle className="h-3 w-3" />
+                  Escalate
+                </button>
+              )}
+              {canResolve && !anyFormOpen && (
+                <button
+                  data-testid={`resolve-btn-${alert.id}`}
+                  onClick={() => openResolve(alert.id)}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded hover:bg-green-100 transition-colors"
+                >
+                  <CheckSquare className="h-3 w-3" />
+                  Resolve
+                </button>
+              )}
+              {onJumpToRisk && (
+                <button
+                  data-testid={`jump-to-risk-${alert.id}`}
+                  onClick={() => onJumpToRisk(alert.bookId ? alert.bookId : null)}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded hover:bg-indigo-100 transition-colors"
+                  title="Open the affected book on the Risk tab"
+                  aria-label={`Jump to Risk tab for ${alert.bookId || 'unknown book'}`}
+                >
+                  <ArrowRight className="h-3 w-3" />
+                  Go to Risk
+                </button>
+              )}
+            </div>
           </div>
           <div className="text-xs text-slate-500">
             Book: {alert.bookId} | {formatRelativeTime(alert.triggeredAt)}
@@ -407,6 +548,135 @@ export function NotificationCenter({
               >
                 Cancel
               </Button>
+            </form>
+          )}
+          {escalateFormOpen && canEscalate && (
+            <form
+              data-testid={`escalate-form-${alert.id}`}
+              onSubmit={(e) => {
+                e.preventDefault()
+                submitEscalate(alert.id)
+              }}
+              noValidate
+              className="mt-2 space-y-1"
+            >
+              <div className="flex items-center gap-2">
+                <Input
+                  data-testid={`escalate-reason-${alert.id}`}
+                  placeholder="Reason (required)"
+                  value={escalateReason}
+                  onChange={(e) => {
+                    setEscalateReason(e.target.value)
+                    if (escalateReasonError !== null && e.target.value.trim() !== '') {
+                      setEscalateReasonError(null)
+                    }
+                  }}
+                  aria-invalid={escalateReasonError !== null ? 'true' : undefined}
+                  aria-describedby={
+                    escalateReasonError !== null
+                      ? `escalate-reason-error-${alert.id}`
+                      : undefined
+                  }
+                  className="flex-1"
+                />
+                <Input
+                  data-testid={`escalate-assignee-${alert.id}`}
+                  placeholder="Assignee (optional)"
+                  value={escalateAssignee}
+                  onChange={(e) => setEscalateAssignee(e.target.value)}
+                  className="flex-1"
+                />
+                <Button
+                  data-testid={`escalate-submit-${alert.id}`}
+                  type="submit"
+                  variant="primary"
+                  size="sm"
+                  disabled={escalateSubmitting}
+                >
+                  Submit
+                </Button>
+                <Button
+                  data-testid={`escalate-cancel-${alert.id}`}
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={closeEscalate}
+                  disabled={escalateSubmitting}
+                >
+                  Cancel
+                </Button>
+              </div>
+              {escalateReasonError !== null && (
+                <p
+                  id={`escalate-reason-error-${alert.id}`}
+                  data-testid={`escalate-reason-error-${alert.id}`}
+                  role="alert"
+                  className="text-xs text-red-600 dark:text-red-400"
+                >
+                  {escalateReasonError}
+                </p>
+              )}
+            </form>
+          )}
+          {resolveFormOpen && canResolve && (
+            <form
+              data-testid={`resolve-form-${alert.id}`}
+              onSubmit={(e) => {
+                e.preventDefault()
+                submitResolve(alert.id)
+              }}
+              noValidate
+              className="mt-2 space-y-1"
+            >
+              <div className="flex items-center gap-2">
+                <Input
+                  data-testid={`resolve-text-${alert.id}`}
+                  placeholder="Resolution (required)"
+                  value={resolveText}
+                  onChange={(e) => {
+                    setResolveText(e.target.value)
+                    if (resolveTextError !== null && e.target.value.trim() !== '') {
+                      setResolveTextError(null)
+                    }
+                  }}
+                  aria-invalid={resolveTextError !== null ? 'true' : undefined}
+                  aria-describedby={
+                    resolveTextError !== null
+                      ? `resolve-text-error-${alert.id}`
+                      : undefined
+                  }
+                  className="flex-1"
+                />
+                <Button
+                  data-testid={`resolve-submit-${alert.id}`}
+                  type="submit"
+                  variant="primary"
+                  size="sm"
+                  disabled={resolveSubmitting}
+                >
+                  Submit
+                </Button>
+                <Button
+                  data-testid={`resolve-cancel-${alert.id}`}
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={closeResolve}
+                  disabled={resolveSubmitting}
+                >
+                  Cancel
+                </Button>
+              </div>
+              {resolveTextError !== null && (
+                <p
+                  id={`resolve-text-error-${alert.id}`}
+                  data-testid={`resolve-text-error-${alert.id}`}
+                  role="alert"
+                  className="text-xs text-red-600 dark:text-red-400"
+                >
+                  {resolveTextError}
+                </p>
+              )}
             </form>
           )}
         </div>

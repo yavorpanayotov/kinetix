@@ -1002,6 +1002,333 @@ describe('NotificationCenter', () => {
     })
   })
 
+  describe('escalate and resolve actions', () => {
+    // §3.1b.2 of docs/plans/ui-overhaul.md — operator-driven escalate + resolve
+    // actions matching the Acknowledge pattern. Visibility follows the backend
+    // transition rules:
+    //   - Escalate: TRIGGERED or ACKNOWLEDGED only
+    //   - Resolve: any non-RESOLVED status
+
+    const triggered: AlertEventDto = {
+      id: 'esc-trig',
+      ruleId: 'rule-1',
+      ruleName: 'VaR Limit',
+      type: 'VAR_BREACH',
+      severity: 'CRITICAL',
+      message: 'VaR exceeded threshold',
+      currentValue: 150000,
+      threshold: 100000,
+      bookId: 'book-1',
+      triggeredAt: '2025-01-15T10:00:00Z',
+      status: 'TRIGGERED',
+    }
+
+    const acknowledged: AlertEventDto = {
+      ...triggered,
+      id: 'esc-ack',
+      status: 'ACKNOWLEDGED',
+    }
+
+    const escalated: AlertEventDto = {
+      ...triggered,
+      id: 'esc-esc',
+      status: 'ESCALATED',
+      escalatedAt: '2025-01-15T10:30:00Z',
+      escalatedTo: 'risk-manager',
+    }
+
+    const resolvedAlert: AlertEventDto = {
+      ...triggered,
+      id: 'esc-res',
+      status: 'RESOLVED',
+      resolvedAt: '2025-01-15T11:00:00Z',
+    }
+
+    it('renders an Escalate button on TRIGGERED and ACKNOWLEDGED alerts only', () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2025-01-15T12:00:00Z'))
+
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[triggered, acknowledged, escalated, resolvedAlert]}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+          onEscalate={async () => {}}
+        />,
+      )
+
+      // Surface RESOLVED so we can inspect that row too.
+      fireEvent.click(screen.getByTestId('status-filter-resolved'))
+
+      expect(screen.getByTestId('escalate-btn-esc-trig')).toBeInTheDocument()
+      expect(screen.getByTestId('escalate-btn-esc-ack')).toBeInTheDocument()
+      expect(screen.queryByTestId('escalate-btn-esc-esc')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('escalate-btn-esc-res')).not.toBeInTheDocument()
+
+      vi.useRealTimers()
+    })
+
+    it('renders a Resolve button on any non-RESOLVED alert', () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2025-01-15T12:00:00Z'))
+
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[triggered, acknowledged, escalated, resolvedAlert]}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+          onResolve={async () => {}}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('status-filter-resolved'))
+
+      expect(screen.getByTestId('resolve-btn-esc-trig')).toBeInTheDocument()
+      expect(screen.getByTestId('resolve-btn-esc-ack')).toBeInTheDocument()
+      expect(screen.getByTestId('resolve-btn-esc-esc')).toBeInTheDocument()
+      expect(screen.queryByTestId('resolve-btn-esc-res')).not.toBeInTheDocument()
+
+      vi.useRealTimers()
+    })
+
+    it('omits Escalate / Resolve buttons when the callbacks are not provided', () => {
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[triggered]}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+        />,
+      )
+
+      expect(screen.queryByTestId('escalate-btn-esc-trig')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('resolve-btn-esc-trig')).not.toBeInTheDocument()
+    })
+
+    it('clicking Escalate opens an inline form with reason + assignee fields', () => {
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[triggered]}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+          onEscalate={async () => {}}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('escalate-btn-esc-trig'))
+
+      expect(screen.getByTestId('escalate-form-esc-trig')).toBeInTheDocument()
+      expect(screen.getByTestId('escalate-reason-esc-trig')).toBeInTheDocument()
+      expect(screen.getByTestId('escalate-assignee-esc-trig')).toBeInTheDocument()
+      expect(screen.getByTestId('escalate-submit-esc-trig')).toBeInTheDocument()
+      expect(screen.getByTestId('escalate-cancel-esc-trig')).toBeInTheDocument()
+    })
+
+    it('submitting Escalate without a reason does not call onEscalate', async () => {
+      const onEscalate = vi.fn().mockResolvedValue(undefined)
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[triggered]}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+          onEscalate={onEscalate}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('escalate-btn-esc-trig'))
+      fireEvent.click(screen.getByTestId('escalate-submit-esc-trig'))
+
+      // Form should still be open and the callback untouched.
+      expect(onEscalate).not.toHaveBeenCalled()
+      expect(screen.getByTestId('escalate-form-esc-trig')).toBeInTheDocument()
+      expect(screen.getByTestId('escalate-reason-error-esc-trig')).toBeInTheDocument()
+    })
+
+    it('submitting Escalate with a reason calls onEscalate with reason + assignee', async () => {
+      const onEscalate = vi.fn().mockResolvedValue(undefined)
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[triggered]}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+          onEscalate={onEscalate}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('escalate-btn-esc-trig'))
+      fireEvent.change(screen.getByTestId('escalate-reason-esc-trig'), {
+        target: { value: 'unack for 30 minutes' },
+      })
+      fireEvent.change(screen.getByTestId('escalate-assignee-esc-trig'), {
+        target: { value: 'risk-manager' },
+      })
+      fireEvent.click(screen.getByTestId('escalate-submit-esc-trig'))
+
+      await waitFor(() => {
+        expect(onEscalate).toHaveBeenCalledWith(
+          'esc-trig',
+          'unack for 30 minutes',
+          'risk-manager',
+        )
+      })
+    })
+
+    it('submitting Escalate without an assignee passes undefined', async () => {
+      const onEscalate = vi.fn().mockResolvedValue(undefined)
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[triggered]}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+          onEscalate={onEscalate}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('escalate-btn-esc-trig'))
+      fireEvent.change(screen.getByTestId('escalate-reason-esc-trig'), {
+        target: { value: 'urgent' },
+      })
+      fireEvent.click(screen.getByTestId('escalate-submit-esc-trig'))
+
+      await waitFor(() => {
+        expect(onEscalate).toHaveBeenCalledTimes(1)
+      })
+      const [, reason, assignee] = onEscalate.mock.calls[0]
+      expect(reason).toBe('urgent')
+      expect(assignee === undefined || assignee === '').toBe(true)
+    })
+
+    it('Cancel closes the Escalate form without calling the callback', () => {
+      const onEscalate = vi.fn()
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[triggered]}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+          onEscalate={onEscalate}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('escalate-btn-esc-trig'))
+      fireEvent.click(screen.getByTestId('escalate-cancel-esc-trig'))
+
+      expect(screen.queryByTestId('escalate-form-esc-trig')).not.toBeInTheDocument()
+      expect(onEscalate).not.toHaveBeenCalled()
+    })
+
+    it('clicking Resolve opens an inline form with a resolution field', () => {
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[triggered]}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+          onResolve={async () => {}}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('resolve-btn-esc-trig'))
+
+      expect(screen.getByTestId('resolve-form-esc-trig')).toBeInTheDocument()
+      expect(screen.getByTestId('resolve-text-esc-trig')).toBeInTheDocument()
+      expect(screen.getByTestId('resolve-submit-esc-trig')).toBeInTheDocument()
+      expect(screen.getByTestId('resolve-cancel-esc-trig')).toBeInTheDocument()
+    })
+
+    it('submitting Resolve without text does not call onResolve', () => {
+      const onResolve = vi.fn().mockResolvedValue(undefined)
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[triggered]}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+          onResolve={onResolve}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('resolve-btn-esc-trig'))
+      fireEvent.click(screen.getByTestId('resolve-submit-esc-trig'))
+
+      expect(onResolve).not.toHaveBeenCalled()
+      expect(screen.getByTestId('resolve-form-esc-trig')).toBeInTheDocument()
+      expect(screen.getByTestId('resolve-text-error-esc-trig')).toBeInTheDocument()
+    })
+
+    it('submitting Resolve with text calls onResolve with the resolutionText', async () => {
+      const onResolve = vi.fn().mockResolvedValue(undefined)
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[triggered]}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+          onResolve={onResolve}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('resolve-btn-esc-trig'))
+      fireEvent.change(screen.getByTestId('resolve-text-esc-trig'), {
+        target: { value: 'positions reduced' },
+      })
+      fireEvent.click(screen.getByTestId('resolve-submit-esc-trig'))
+
+      await waitFor(() => {
+        expect(onResolve).toHaveBeenCalledWith('esc-trig', 'positions reduced')
+      })
+    })
+
+    it('Cancel closes the Resolve form without calling the callback', () => {
+      const onResolve = vi.fn()
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[triggered]}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+          onResolve={onResolve}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('resolve-btn-esc-trig'))
+      fireEvent.click(screen.getByTestId('resolve-cancel-esc-trig'))
+
+      expect(screen.queryByTestId('resolve-form-esc-trig')).not.toBeInTheDocument()
+      expect(onResolve).not.toHaveBeenCalled()
+    })
+  })
+
   describe('cross-tab jump to Risk', () => {
     const triggeredAlert: AlertEventDto = {
       id: 'jump-evt-1',

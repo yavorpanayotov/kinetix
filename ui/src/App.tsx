@@ -877,6 +877,8 @@ function AppContent() {
                     onCreateRule={notifications.createRule}
                     onDeleteRule={notifications.deleteRule}
                     onAcknowledge={notifications.acknowledgeAlert}
+                    onEscalate={notifications.escalateAlert}
+                    onResolve={notifications.resolveAlert}
                     onJumpToRisk={(targetBookId) => {
                       // Cross-tab link (plan §2.4): focus the hierarchy on the
                       // alert's book so RiskTab opens scoped to it, then
