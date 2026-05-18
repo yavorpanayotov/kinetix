@@ -288,7 +288,7 @@ If an item's scope has been partially addressed already (some sub-fixes shipped 
 - [x] 3.2 Alerts as a queue, not a list (scope §3.2) — default sort CRITICAL > WARNING > INFO then by age; filter chips with counts; auto-collapse RESOLVED >24h old.
 - [x] 3.4 Breach banner generalised beyond RiskTab (scope §3.4) — show `RiskAlertBanner` on Positions and P&L when VaR > 80% of limit or any CRITICAL alert active.
 - [x] 4.1 Consolidate banners into a single status bar (scope §4.1) — single horizontal bar that swaps content/severity instead of stacking; demo strip stays as its own dismissible row.
-- [ ] 4.3 Audit & sweep: standardise loading / empty / error states across every component (scope §4.3) — Quick Win covered `ReportsTab` loading only; full audit remains for empty + error states everywhere else.
+- [x] 4.3 Audit & sweep: standardise loading / empty / error states across every component (scope §4.3) — Quick Win covered `ReportsTab` loading only; full audit remains for empty + error states everywhere else.
 - [ ] 8.5 Risk-first PositionGrid default columns (scope §8.5) — default view: Instrument · MV · UPnL · Δ · Γ · Vega · VaR%; quantity / avg cost / market price behind a "Details" toggle.
 - [ ] 2.4 Cross-tab linking (scope §2.4) — Alerts row → affected book on Risk tab; Counterparty row → filtered Trades; Reports output → Risk tab at that valuation date; ScenarioComparisonTable row → ScenarioDetailPanel.
 - [ ] 2.1 Group 11 top-level tabs into 3 clusters (scope §2.1) — visually group `[Trading]` / `[Risk]` / `[Ops]` in the `TABS` constant.
