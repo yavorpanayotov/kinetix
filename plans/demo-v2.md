@@ -126,7 +126,7 @@ and flag (per `/work-plan` guardrails).
 - [x] 2.3 Wire `SimulatedTraderJob` into `Application.kt` behind
       `DEMO_MODE=true`.
       Acceptance: `./gradlew :demo-orchestrator:build`
-- [ ] 2.4 Add `src/acceptanceTest/.../SimulatedTradingAcceptanceTest.kt` —
+- [x] 2.4 Add `src/acceptanceTest/.../SimulatedTradingAcceptanceTest.kt` —
       Testcontainers Postgres + Kafka, a Ktor mock server stubbing
       `position-service` on a random port (per CLAUDE.md: real wire, no
       transport mocks). One scheduler tick on a forced in-hours clock should
