@@ -30,7 +30,8 @@ class GatewayPositionContractAcceptanceTest : FunSpec({
           "side":"BUY",
           "quantity":"100",
           "price":{"amount":"150.00","currency":"USD"},
-          "tradedAt":"2025-01-15T10:00:00Z"
+          "tradedAt":"2025-01-15T10:00:00Z",
+          "instrumentType":"CASH_EQUITY"
         }
     """.trimIndent()
 
@@ -43,7 +44,8 @@ class GatewayPositionContractAcceptanceTest : FunSpec({
           "averageCost":{"amount":"150.00","currency":"USD"},
           "marketPrice":{"amount":"155.00","currency":"USD"},
           "marketValue":{"amount":"15500.00","currency":"USD"},
-          "unrealizedPnl":{"amount":"500.00","currency":"USD"}
+          "unrealizedPnl":{"amount":"500.00","currency":"USD"},
+          "instrumentType":"CASH_EQUITY"
         }
     """.trimIndent()
 
@@ -62,7 +64,7 @@ class GatewayPositionContractAcceptanceTest : FunSpec({
                 application { module(positionClient) }
                 val response = client.post("/api/v1/books/port-1/trades") {
                     contentType(ContentType.Application.Json)
-                    setBody("""{"tradeId":"t-1","instrumentId":"AAPL","assetClass":"EQUITY","side":"BUY","quantity":"100","priceAmount":"150.00","priceCurrency":"USD","tradedAt":"2025-01-15T10:00:00Z"}""")
+                    setBody("""{"tradeId":"t-1","instrumentId":"AAPL","assetClass":"EQUITY","side":"BUY","quantity":"100","priceAmount":"150.00","priceCurrency":"USD","tradedAt":"2025-01-15T10:00:00Z","instrumentType":"CASH_EQUITY"}""")
                 }
                 response.status shouldBe HttpStatusCode.Created
                 val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
@@ -125,6 +127,7 @@ class GatewayPositionContractAcceptanceTest : FunSpec({
               "marketPrice":{"amount":"8.00","currency":"USD"},
               "marketValue":{"amount":"80.00","currency":"USD"},
               "unrealizedPnl":{"amount":"30.00","currency":"USD"},
+              "instrumentType":"EQUITY_OPTION",
               "strategyId":"strat-1",
               "strategyType":"STRADDLE",
               "strategyName":"Sep Straddle"
@@ -167,7 +170,7 @@ class GatewayPositionContractAcceptanceTest : FunSpec({
                 application { module(positionClient) }
                 val response = client.post("/api/v1/books/port-1/trades") {
                     contentType(ContentType.Application.Json)
-                    setBody("""{"tradeId":"t-1","instrumentId":"AAPL","assetClass":"EQUITY","side":"BUY","quantity":"-100","priceAmount":"150.00","priceCurrency":"USD","tradedAt":"2025-01-15T10:00:00Z"}""")
+                    setBody("""{"tradeId":"t-1","instrumentId":"AAPL","assetClass":"EQUITY","side":"BUY","quantity":"-100","priceAmount":"150.00","priceCurrency":"USD","tradedAt":"2025-01-15T10:00:00Z","instrumentType":"CASH_EQUITY"}""")
                 }
                 response.status shouldBe HttpStatusCode.BadRequest
                 val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject

@@ -32,14 +32,15 @@ private val bookTradeResponseJson = """
       "trade":{
         "tradeId":"t-acc-1","bookId":"port-1","instrumentId":"AAPL","assetClass":"EQUITY",
         "side":"BUY","quantity":"100","price":{"amount":"150.00","currency":"USD"},
-        "tradedAt":"2025-01-15T10:00:00Z"
+        "tradedAt":"2025-01-15T10:00:00Z","instrumentType":"CASH_EQUITY"
       },
       "position":{
         "bookId":"port-1","instrumentId":"AAPL","assetClass":"EQUITY","quantity":"100",
         "averageCost":{"amount":"150.00","currency":"USD"},
         "marketPrice":{"amount":"155.00","currency":"USD"},
         "marketValue":{"amount":"15500.00","currency":"USD"},
-        "unrealizedPnl":{"amount":"500.00","currency":"USD"}
+        "unrealizedPnl":{"amount":"500.00","currency":"USD"},
+        "instrumentType":"CASH_EQUITY"
       }
     }
 """.trimIndent()
@@ -61,7 +62,7 @@ class ProductionHardeningAcceptanceTest : FunSpec({
     test("JWT authentication configured with RBAC roles — a TRADER requests to book a trade — authorized — TRADER has WRITE_TRADES permission") {
         val backend = BackendStubServer {
             post("/api/v1/books/port-1/trades") {
-                call.respond(HttpStatusCode.Created, bookTradeResponseJson)
+                call.respondText(bookTradeResponseJson, ContentType.Application.Json, HttpStatusCode.Created)
             }
         }
         val httpClient = HttpClient(CIO) { install(ContentNegotiation) { json() } }
@@ -81,7 +82,7 @@ class ProductionHardeningAcceptanceTest : FunSpec({
                 val response = client.post("/api/v1/books/port-1/trades") {
                     header(HttpHeaders.Authorization, "Bearer $token")
                     contentType(ContentType.Application.Json)
-                    setBody("""{"tradeId":"t-acc-1","instrumentId":"AAPL","assetClass":"EQUITY","side":"BUY","quantity":"100","priceAmount":"150.00","priceCurrency":"USD","tradedAt":"2025-01-15T10:00:00Z"}""")
+                    setBody("""{"tradeId":"t-acc-1","instrumentId":"AAPL","assetClass":"EQUITY","side":"BUY","quantity":"100","priceAmount":"150.00","priceCurrency":"USD","tradedAt":"2025-01-15T10:00:00Z","instrumentType":"CASH_EQUITY"}""")
                 }
                 response.status shouldBe HttpStatusCode.Created
             }
@@ -103,7 +104,7 @@ class ProductionHardeningAcceptanceTest : FunSpec({
                 val response = client.post("/api/v1/books/port-1/trades") {
                     header(HttpHeaders.Authorization, "Bearer $token")
                     contentType(ContentType.Application.Json)
-                    setBody("""{"tradeId":"t-acc-2","instrumentId":"AAPL","assetClass":"EQUITY","side":"BUY","quantity":"100","priceAmount":"150.00","priceCurrency":"USD","tradedAt":"2025-01-15T10:00:00Z"}""")
+                    setBody("""{"tradeId":"t-acc-2","instrumentId":"AAPL","assetClass":"EQUITY","side":"BUY","quantity":"100","priceAmount":"150.00","priceCurrency":"USD","tradedAt":"2025-01-15T10:00:00Z","instrumentType":"CASH_EQUITY"}""")
                 }
                 response.status shouldBe HttpStatusCode.Forbidden
             }
@@ -116,7 +117,7 @@ class ProductionHardeningAcceptanceTest : FunSpec({
     test("JWT authentication configured with RBAC roles — a COMPLIANCE user requests regulatory reports — authorized — COMPLIANCE has GENERATE_REPORTS permission") {
         val backend = BackendStubServer {
             post("/api/v1/regulatory/frtb/port-1") {
-                call.respond(HttpStatusCode.OK, frtbResultJson)
+                call.respondText(frtbResultJson, ContentType.Application.Json, HttpStatusCode.OK)
             }
         }
         val httpClient = HttpClient(CIO) { install(ContentNegotiation) { json() } }

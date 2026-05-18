@@ -15,7 +15,7 @@ import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.request.receiveText
-import io.ktor.server.response.respond
+import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.patch
 import io.ktor.server.routing.post
@@ -117,7 +117,7 @@ class SecurityEnforcementAcceptanceTest : FunSpec({
         val backend = BackendStubServer {
             post("/api/v1/stress-scenarios") {
                 capturedBody.set(call.receiveText())
-                call.respond(HttpStatusCode.Created, scenarioJson)
+                call.respondText(scenarioJson, ContentType.Application.Json, HttpStatusCode.Created)
             }
         }
         val httpClient = HttpClient(CIO) { install(ContentNegotiation) { json() } }
@@ -149,7 +149,7 @@ class SecurityEnforcementAcceptanceTest : FunSpec({
         val backend = BackendStubServer {
             patch("/api/v1/stress-scenarios/sc-1/approve") {
                 capturedBody.set(call.receiveText())
-                call.respond(HttpStatusCode.OK, approvedScenarioJson)
+                call.respondText(approvedScenarioJson, ContentType.Application.Json, HttpStatusCode.OK)
             }
         }
         val httpClient = HttpClient(CIO) { install(ContentNegotiation) { json() } }
@@ -188,7 +188,7 @@ class SecurityEnforcementAcceptanceTest : FunSpec({
         val backend = BackendStubServer {
             post("/api/v1/stress-scenarios") {
                 capturedBody.set(call.receiveText())
-                call.respond(HttpStatusCode.Created, spoofedScenarioJson)
+                call.respondText(spoofedScenarioJson, ContentType.Application.Json, HttpStatusCode.Created)
             }
         }
         val httpClient = HttpClient(CIO) { install(ContentNegotiation) { json() } }

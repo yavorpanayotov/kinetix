@@ -24,7 +24,6 @@ import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.install
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation as ServerContentNegotiation
-import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
@@ -51,10 +50,10 @@ class PartialFailureAcceptanceTest : FunSpec({
     test("GET positions succeeds when risk-orchestrator is unavailable") {
         val positionBackend = BackendStubServer {
             get("/api/v1/books/port-1/positions") {
-                call.respond(HttpStatusCode.OK, "[]")
+                call.respondText("[]", ContentType.Application.Json, HttpStatusCode.OK)
             }
             get("/api/v1/books") {
-                call.respond(HttpStatusCode.OK, "[]")
+                call.respondText("[]", ContentType.Application.Json, HttpStatusCode.OK)
             }
         }
         val httpClient = HttpClient(CIO) {
@@ -79,9 +78,10 @@ class PartialFailureAcceptanceTest : FunSpec({
         val riskBackend = BackendStubServer {
             post("/api/v1/risk/var/port-1") {
                 call.response.headers.append(HttpHeaders.RetryAfter, "30")
-                call.respond(
-                    HttpStatusCode.ServiceUnavailable,
+                call.respondText(
                     """{"code":"service_unavailable","message":"Risk engine temporarily unavailable"}""",
+                    ContentType.Application.Json,
+                    HttpStatusCode.ServiceUnavailable,
                 )
             }
         }
@@ -112,10 +112,10 @@ class PartialFailureAcceptanceTest : FunSpec({
     test("risk-orchestrator 503 does not affect position service endpoints") {
         val positionBackend = BackendStubServer {
             get("/api/v1/books/port-1/positions") {
-                call.respond(HttpStatusCode.OK, "[]")
+                call.respondText("[]", ContentType.Application.Json, HttpStatusCode.OK)
             }
             get("/api/v1/books") {
-                call.respond(HttpStatusCode.OK, "[]")
+                call.respondText("[]", ContentType.Application.Json, HttpStatusCode.OK)
             }
         }
         val httpClient = HttpClient(CIO) {

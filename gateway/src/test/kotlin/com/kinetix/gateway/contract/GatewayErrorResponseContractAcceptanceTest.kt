@@ -27,7 +27,7 @@ class GatewayErrorResponseContractAcceptanceTest : FunSpec({
                 application { module(positionClient) }
                 val response = client.post("/api/v1/books/port-1/trades") {
                     contentType(ContentType.Application.Json)
-                    setBody("""{"tradeId":"t-1","instrumentId":"AAPL","assetClass":"EQUITY","side":"BUY","quantity":"-1","priceAmount":"150","priceCurrency":"USD","tradedAt":"2025-01-15T10:00:00Z"}""")
+                    setBody("""{"tradeId":"t-1","instrumentId":"AAPL","assetClass":"EQUITY","side":"BUY","quantity":"-1","priceAmount":"150","priceCurrency":"USD","tradedAt":"2025-01-15T10:00:00Z","instrumentType":"CASH_EQUITY"}""")
                 }
                 response.status shouldBe HttpStatusCode.BadRequest
                 val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject

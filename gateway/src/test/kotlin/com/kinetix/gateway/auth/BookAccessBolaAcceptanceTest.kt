@@ -14,7 +14,7 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.json
-import io.ktor.server.response.respond
+import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.testing.*
@@ -70,7 +70,7 @@ class BookAccessBolaAcceptanceTest : FunSpec({
         )
         val backend = BackendStubServer {
             post("/api/v1/risk/var/book-A") {
-                call.respond(HttpStatusCode.OK, varResultJson)
+                call.respondText(varResultJson, ContentType.Application.Json, HttpStatusCode.OK)
             }
         }
         val httpClient = HttpClient(CIO) { install(ContentNegotiation) { json() } }
@@ -96,7 +96,7 @@ class BookAccessBolaAcceptanceTest : FunSpec({
     test("RISK_MANAGER can access any book via VaR route (unrestricted role)") {
         val backend = BackendStubServer {
             post("/api/v1/risk/var/any-book") {
-                call.respond(HttpStatusCode.OK, varResultJson.replace("\"book-A\"", "\"any-book\""))
+                call.respondText(varResultJson.replace("\"book-A\"", "\"any-book\""), ContentType.Application.Json, HttpStatusCode.OK)
             }
         }
         val httpClient = HttpClient(CIO) { install(ContentNegotiation) { json() } }
@@ -124,7 +124,7 @@ class BookAccessBolaAcceptanceTest : FunSpec({
     test("TRADER accessing own book via stress test route receives response") {
         val backend = BackendStubServer {
             post("/api/v1/risk/stress/book-A") {
-                call.respond(HttpStatusCode.OK, stressResultJson)
+                call.respondText(stressResultJson, ContentType.Application.Json, HttpStatusCode.OK)
             }
         }
         val httpClient = HttpClient(CIO) { install(ContentNegotiation) { json() } }
@@ -174,7 +174,7 @@ class BookAccessBolaAcceptanceTest : FunSpec({
     test("RISK_MANAGER with access to all listed books can run cross-book VaR") {
         val backend = BackendStubServer {
             post("/api/v1/risk/var/cross-book") {
-                call.respond(HttpStatusCode.OK, crossBookVarJson)
+                call.respondText(crossBookVarJson, ContentType.Application.Json, HttpStatusCode.OK)
             }
         }
         val httpClient = HttpClient(CIO) { install(ContentNegotiation) { json() } }
