@@ -4,6 +4,7 @@ import { usePnlAttribution } from '../hooks/usePnlAttribution'
 import { useSodBaseline } from '../hooks/useSodBaseline'
 import { useIntradayPnlStream } from '../hooks/useIntradayPnlStream'
 import { useIntradayPnlSeries } from '../hooks/useIntradayPnlSeries'
+import { useIntradayVaRTimeline } from '../hooks/useIntradayVaRTimeline'
 import { IntradayPnlChart } from './IntradayPnlChart'
 import { PnlWaterfallChart } from './PnlWaterfallChart'
 import { PnlAttributionTable } from './PnlAttributionTable'
@@ -43,6 +44,14 @@ export function PnlTab({ bookId }: PnlTabProps) {
 
   const { snapshots: historicalSnapshots } = useIntradayPnlSeries(bookId, intradayFrom, intradayTo)
   const { snapshots: liveSnapshots } = useIntradayPnlStream(bookId)
+  // Plan §8.4 — trade markers on the intraday P&L chart. We reuse the
+  // intraday VaR timeline as the trade source so a user can answer
+  // "why did P&L move at 2:47pm?" inline with the chart.
+  const { tradeAnnotations: intradayTradeAnnotations } = useIntradayVaRTimeline(
+    bookId,
+    intradayFrom,
+    intradayTo,
+  )
 
   const intradaySnapshots = liveSnapshots.length > 0 ? liveSnapshots : historicalSnapshots
 
@@ -77,7 +86,7 @@ export function PnlTab({ bookId }: PnlTabProps) {
   return (
     <div className="space-y-4">
       <Card header="Intraday P&L" data-testid="intraday-pnl-card">
-        <IntradayPnlChart snapshots={intradaySnapshots} />
+        <IntradayPnlChart snapshots={intradaySnapshots} tradeAnnotations={intradayTradeAnnotations} />
       </Card>
 
       <SodBaselineIndicator

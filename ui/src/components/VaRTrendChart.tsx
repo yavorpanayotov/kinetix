@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { RotateCcw } from 'lucide-react'
 import type { VaRHistoryEntry } from '../hooks/useVaR'
 import type { StressWindowDto } from '../api/stressWindows'
-import type { TimeRange } from '../types'
+import type { TimeRange, TradeAnnotationDto } from '../types'
 import { formatTimeOnly, formatChartTime, formatCurrency } from '../utils/format'
 import { formatCompactCurrency } from '../utils/formatCompactCurrency'
 import { clampTooltipLeft } from '../utils/clampTooltipLeft'
@@ -17,11 +17,13 @@ interface VaRTrendChartProps {
   zoomDepth?: number
   onResetZoom?: () => void
   stressWindows?: StressWindowDto[]
+  tradeAnnotations?: TradeAnnotationDto[]
 }
 
 const PADDING = { top: 32, right: 16, bottom: 32, left: 56 }
 const CHART_HEIGHT = 220
 const DEFAULT_WIDTH = 600
+const MARKER_SIZE = 6
 
 function computeNiceGridLines(min: number, max: number, count: number): number[] {
   const range = max - min
@@ -55,7 +57,7 @@ function computeNiceGridLines(min: number, max: number, count: number): number[]
   return lines
 }
 
-export function VaRTrendChart({ history, isLoading, timeRange, onZoom, zoomDepth = 0, onResetZoom, stressWindows = [] }: VaRTrendChartProps) {
+export function VaRTrendChart({ history, isLoading, timeRange, onZoom, zoomDepth = 0, onResetZoom, stressWindows = [], tradeAnnotations = [] }: VaRTrendChartProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
   const [containerWidth, setContainerWidth] = useState(DEFAULT_WIDTH)
@@ -258,6 +260,18 @@ export function VaRTrendChart({ history, isLoading, timeRange, onZoom, zoomDepth
       }]
     })
   }, [stressWindows, timeExtent, toX])
+
+  // Trade annotation positions (only those within time extent)
+  const annotationPositions = useMemo(() => {
+    if (!timeExtent || tradeAnnotations.length === 0) return []
+    return tradeAnnotations
+      .map((ann) => {
+        const t = new Date(ann.timestamp).getTime()
+        if (t < timeExtent.fromMs || t > timeExtent.toMs) return null
+        return { x: toX(t), annotation: ann }
+      })
+      .filter((a): a is { x: number; annotation: TradeAnnotationDto } => a !== null)
+  }, [tradeAnnotations, timeExtent, toX])
 
   const polylinePoints = points.map((p) => `${p.x},${p.y}`).join(' ')
 
@@ -589,6 +603,17 @@ export function VaRTrendChart({ history, isLoading, timeRange, onZoom, zoomDepth
           opacity={varVisible ? 1 : 0.35}
           style={{ transition: 'opacity 150ms' }}
         />
+
+        {/* Trade annotation markers (triangles pointing up from the X-axis) */}
+        {annotationPositions.map(({ x, annotation }) => (
+          <polygon
+            key={annotation.tradeId}
+            data-testid="trade-marker"
+            points={`${x},${PADDING.top + plotHeight - MARKER_SIZE} ${x - MARKER_SIZE / 2},${PADDING.top + plotHeight} ${x + MARKER_SIZE / 2},${PADDING.top + plotHeight}`}
+            fill={annotation.side === 'BUY' ? '#22c55e' : '#f43f5e'}
+            opacity={0.9}
+          />
+        ))}
 
         {/* Hover crosshair + dot */}
         {hoveredIndex !== null && points[hoveredIndex] && (

@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { IntradayPnlSnapshotDto } from '../types'
+import type { IntradayPnlSnapshotDto, TradeAnnotationDto } from '../types'
 import { formatNum, formatTimeOnly, pnlColorClass } from '../utils/format'
 import { formatCompactCurrency } from '../utils/formatCompactCurrency'
 import { clampTooltipLeft } from '../utils/clampTooltipLeft'
 
 interface IntradayPnlChartProps {
   snapshots: IntradayPnlSnapshotDto[]
+  tradeAnnotations?: TradeAnnotationDto[]
 }
 
 const PADDING = { top: 28, right: 16, bottom: 28, left: 56 }
 const CHART_HEIGHT = 200
 const DEFAULT_WIDTH = 600
+const MARKER_SIZE = 6
 
 function buildPath(points: Array<{ x: number; y: number } | null>): string {
   let path = ''
@@ -21,7 +23,7 @@ function buildPath(points: Array<{ x: number; y: number } | null>): string {
   return path
 }
 
-export function IntradayPnlChart({ snapshots }: IntradayPnlChartProps) {
+export function IntradayPnlChart({ snapshots, tradeAnnotations = [] }: IntradayPnlChartProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
   const [containerWidth, setContainerWidth] = useState(DEFAULT_WIDTH)
@@ -94,6 +96,37 @@ export function IntradayPnlChart({ snapshots }: IntradayPnlChartProps) {
   const unrealisedPath = useMemo(() => buildPath(unrealisedPoints), [unrealisedPoints])
 
   const zeroY = useMemo(() => toY(0), [toY])
+
+  // Map each trade annotation's timestamp to an X coordinate by linear
+  // interpolation between adjacent snapshot timestamps. Annotations whose
+  // timestamps lie outside the snapshot window are skipped.
+  const annotationPositions = useMemo(() => {
+    if (snapshots.length < 2 || tradeAnnotations.length === 0) return []
+    const snapshotMs = snapshots.map((s) => new Date(s.snapshotAt).getTime())
+    const firstMs = snapshotMs[0]
+    const lastMs = snapshotMs[snapshotMs.length - 1]
+    return tradeAnnotations
+      .map((ann) => {
+        const t = new Date(ann.timestamp).getTime()
+        if (t < firstMs || t > lastMs) return null
+        // Find the segment [i, i+1] containing t.
+        let i = 0
+        for (let k = 0; k < snapshotMs.length - 1; k++) {
+          if (snapshotMs[k] <= t && t <= snapshotMs[k + 1]) {
+            i = k
+            break
+          }
+        }
+        const segStart = snapshotMs[i]
+        const segEnd = snapshotMs[i + 1]
+        const segSpan = segEnd - segStart
+        const frac = segSpan > 0 ? (t - segStart) / segSpan : 0
+        const fracIndex = i + frac
+        const x = PADDING.left + (fracIndex / (snapshots.length - 1)) * plotWidth
+        return { x, annotation: ann }
+      })
+      .filter((a): a is { x: number; annotation: TradeAnnotationDto } => a !== null)
+  }, [tradeAnnotations, snapshots, plotWidth])
 
   // Up to 5 evenly spaced x-axis time labels
   const xLabels = useMemo(() => {
@@ -306,6 +339,17 @@ export function IntradayPnlChart({ snapshots }: IntradayPnlChartProps) {
             strokeLinejoin="round"
           />
         )}
+
+        {/* Trade annotation markers (triangles pointing up from the X-axis) */}
+        {annotationPositions.map(({ x, annotation }) => (
+          <polygon
+            key={annotation.tradeId}
+            data-testid="trade-marker"
+            points={`${x},${PADDING.top + plotHeight - MARKER_SIZE} ${x - MARKER_SIZE / 2},${PADDING.top + plotHeight} ${x + MARKER_SIZE / 2},${PADDING.top + plotHeight}`}
+            fill={annotation.side === 'BUY' ? '#22c55e' : '#f43f5e'}
+            opacity={0.9}
+          />
+        ))}
 
         {/* Hover crosshair */}
         {hoveredIndex !== null && totalPoints[hoveredIndex] && (

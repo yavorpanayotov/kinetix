@@ -67,7 +67,7 @@ That brings in `org.testcontainers.kafka.KafkaContainer` transitively, plus the 
 
 **Status:** Two properties landed (`labelsHash` permutation-invariance, `volAt` knot-bounds). The mathematically heaviest ones — VaR monotonicity, P&L additivity, position aggregation associativity — are not done. Read the existing `VaRCalculationService` and `PositionAggregationService` first; use Kotest's `Arb` for trade/position generators; cap `iterations` at 50–100 because each VaR run involves the Python sidecar.
 
-- [ ] **3.1** Create `risk-orchestrator/src/test/kotlin/com/kinetix/orchestrator/property/VaRCalculationPropertyTest.kt`:
+- [x] **3.1** Create `risk-orchestrator/src/test/kotlin/com/kinetix/orchestrator/property/VaRCalculationPropertyTest.kt`:
   - VaR result monotone in confidence level on a random portfolio.
   - VaR additivity does **not** hold (sub-additivity invariant: `VaR(A∪B) ≤ VaR(A) + VaR(B)` for coherent risk measures — verify this holds for the historical method and document it as a property).
   - Empty portfolio returns zero VaR.

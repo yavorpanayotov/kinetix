@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Calendar, FlaskRound, Info, RefreshCw, X } from 'lucide-react'
-import type { VaRResultDto, GreeksResultDto, MarketRegime, TimeRange } from '../types'
+import type { VaRResultDto, GreeksResultDto, MarketRegime, TimeRange, TradeAnnotationDto } from '../types'
 import type { VaRHistoryEntry } from '../hooks/useVaR'
 import { useClickOutside } from '../hooks/useClickOutside'
 import { VaRGauge } from './VaRGauge'
@@ -52,9 +52,14 @@ interface VaRDashboardProps {
    * Expected Shortfall numbers carry a regime-adjusted badge accordingly.
    */
   marketRegime?: MarketRegime | null
+  /**
+   * Plan §8.4 — trade markers on the VaR trend chart so a user can answer
+   * "why did VaR move at 2:47pm?". Sourced from the intraday timeline hook.
+   */
+  tradeAnnotations?: TradeAnnotationDto[]
 }
 
-export function VaRDashboard({ varResult, filteredHistory, loading, historyLoading, refreshing = false, error, onRefresh, timeRange, setTimeRange, zoomIn, resetZoom, zoomDepth, greeksResult, varLimit, onWhatIf, selectedConfidenceLevel, onConfidenceLevelChange, isLive = true, valuationDate, totalStandaloneVar, diversificationBenefit, activeScenario = null, marketRegime = null }: VaRDashboardProps) {
+export function VaRDashboard({ varResult, filteredHistory, loading, historyLoading, refreshing = false, error, onRefresh, timeRange, setTimeRange, zoomIn, resetZoom, zoomDepth, greeksResult, varLimit, onWhatIf, selectedConfidenceLevel, onConfidenceLevelChange, isLive = true, valuationDate, totalStandaloneVar, diversificationBenefit, activeScenario = null, marketRegime = null, tradeAnnotations = [] }: VaRDashboardProps) {
   const [tooltipOpen, setTooltipOpen] = useState(false)
   const [chartView, setChartView] = useState<'var' | 'greeks'>('var')
   const calcTypeRef = useRef<HTMLSpanElement>(null)
@@ -185,6 +190,7 @@ export function VaRDashboard({ varResult, filteredHistory, loading, historyLoadi
             zoomDepth={zoomDepth}
             onResetZoom={resetZoom}
             stressWindows={stressWindows}
+            tradeAnnotations={tradeAnnotations}
           />
         ) : (
           <GreeksTrendChart

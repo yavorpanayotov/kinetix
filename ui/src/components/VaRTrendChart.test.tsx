@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import type { VaRHistoryEntry } from '../hooks/useVaR'
-import type { TimeRange } from '../types'
+import type { TimeRange, TradeAnnotationDto } from '../types'
 import { VaRTrendChart } from './VaRTrendChart'
 
 const CONTAINER_WIDTH = 800
@@ -636,6 +636,70 @@ describe('VaRTrendChart', () => {
       fireEvent.mouseMove(svg, { clientX: 10, clientY: 100 })
 
       expect(screen.queryByTestId('var-trend-tooltip')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('trade annotations', () => {
+    const makeAnnotation = (
+      timestamp: string,
+      overrides: Partial<TradeAnnotationDto> = {},
+    ): TradeAnnotationDto => ({
+      timestamp,
+      instrumentId: 'AAPL',
+      side: 'BUY',
+      quantity: '100',
+      tradeId: 'T001',
+      ...overrides,
+    })
+
+    it('renders a trade marker for each annotation inside the visible time range', () => {
+      const annotations = [
+        makeAnnotation('2025-01-15T10:30:00Z', { tradeId: 'T001' }),
+        makeAnnotation('2025-01-15T11:00:00Z', { tradeId: 'T002', side: 'SELL' }),
+      ]
+
+      const { container } = render(
+        <VaRTrendChart history={history} tradeAnnotations={annotations} />,
+      )
+
+      const markers = container.querySelectorAll('[data-testid="trade-marker"]')
+      expect(markers.length).toBe(2)
+    })
+
+    it('renders no trade markers when tradeAnnotations is empty', () => {
+      const { container } = render(
+        <VaRTrendChart history={history} tradeAnnotations={[]} />,
+      )
+
+      const markers = container.querySelectorAll('[data-testid="trade-marker"]')
+      expect(markers.length).toBe(0)
+    })
+
+    it('renders no trade markers when tradeAnnotations prop is omitted', () => {
+      const { container } = render(<VaRTrendChart history={history} />)
+
+      const markers = container.querySelectorAll('[data-testid="trade-marker"]')
+      expect(markers.length).toBe(0)
+    })
+
+    it('skips trade annotations outside the visible time extent', () => {
+      const timeRange: TimeRange = {
+        from: '2025-01-15T10:00:00Z',
+        to: '2025-01-15T12:00:00Z',
+        label: 'Custom',
+      }
+      const annotations = [
+        makeAnnotation('2025-01-15T11:00:00Z', { tradeId: 'in-range' }),
+        makeAnnotation('2025-01-14T00:00:00Z', { tradeId: 'before' }),
+        makeAnnotation('2025-01-16T00:00:00Z', { tradeId: 'after' }),
+      ]
+
+      const { container } = render(
+        <VaRTrendChart history={history} timeRange={timeRange} tradeAnnotations={annotations} />,
+      )
+
+      const markers = container.querySelectorAll('[data-testid="trade-marker"]')
+      expect(markers.length).toBe(1)
     })
   })
 

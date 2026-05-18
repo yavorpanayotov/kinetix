@@ -135,8 +135,13 @@ export function RiskTab({
     return d.toISOString()
   }, [])
   const todayTo = useMemo(() => new Date().toISOString(), [])
+  // Trade annotations are reused on the dashboard's VaR trend chart (§8.4),
+  // so we load the timeline whenever the dashboard or intraday subtab is
+  // active. The hook polls server-side; gating to the relevant tabs keeps
+  // background work proportional to user attention.
+  const intradayActive = subTab === 'intraday' || subTab === 'dashboard'
   const { varPoints: intradayVarPoints, tradeAnnotations: intradayTradeAnnotations, loading: intradayVarLoading, error: intradayVarError } = useIntradayVaRTimeline(
-    subTab === 'intraday' ? bookId : null,
+    intradayActive ? bookId : null,
     todayFrom,
     todayTo,
   )
@@ -343,6 +348,7 @@ export function RiskTab({
                   diversificationBenefit={crossBookResult ? Number(crossBookResult.diversificationBenefit) : undefined}
                   activeScenario={activeScenario}
                   marketRegime={marketRegime}
+                  tradeAnnotations={intradayTradeAnnotations}
                 />
               </ErrorBoundary>
               {aggregatedView && crossBookResult && (

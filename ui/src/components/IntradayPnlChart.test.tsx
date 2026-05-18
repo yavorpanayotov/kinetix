@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import type { IntradayPnlSnapshotDto } from '../types'
+import type { IntradayPnlSnapshotDto, TradeAnnotationDto } from '../types'
 import { IntradayPnlChart } from './IntradayPnlChart'
 
 const makeSnapshot = (
@@ -20,6 +20,18 @@ const makeSnapshot = (
   rhoPnl: '7.00',
   unexplainedPnl: '188.00',
   highWaterMark: '1800.00',
+  ...overrides,
+})
+
+const makeAnnotation = (
+  timestamp: string,
+  overrides: Partial<TradeAnnotationDto> = {},
+): TradeAnnotationDto => ({
+  timestamp,
+  instrumentId: 'AAPL',
+  side: 'BUY',
+  quantity: '100',
+  tradeId: 'T001',
   ...overrides,
 })
 
@@ -89,5 +101,34 @@ describe('IntradayPnlChart', () => {
     render(<IntradayPnlChart snapshots={twoSnapshots} />)
 
     expect(screen.getByTestId('intraday-pnl-chart')).toBeInTheDocument()
+  })
+
+  it('renders trade annotation markers for each annotation', () => {
+    const annotations = [
+      makeAnnotation('2026-03-24T09:30:15Z', { tradeId: 'T001' }),
+      makeAnnotation('2026-03-24T09:30:45Z', { tradeId: 'T002', side: 'SELL' }),
+    ]
+    const { container } = render(
+      <IntradayPnlChart snapshots={twoSnapshots} tradeAnnotations={annotations} />,
+    )
+
+    const markers = container.querySelectorAll('[data-testid="trade-marker"]')
+    expect(markers.length).toBe(2)
+  })
+
+  it('renders no trade markers when tradeAnnotations is empty', () => {
+    const { container } = render(
+      <IntradayPnlChart snapshots={twoSnapshots} tradeAnnotations={[]} />,
+    )
+
+    const markers = container.querySelectorAll('[data-testid="trade-marker"]')
+    expect(markers.length).toBe(0)
+  })
+
+  it('renders no trade markers when tradeAnnotations prop is omitted', () => {
+    const { container } = render(<IntradayPnlChart snapshots={twoSnapshots} />)
+
+    const markers = container.querySelectorAll('[data-testid="trade-marker"]')
+    expect(markers.length).toBe(0)
   })
 })
