@@ -1,0 +1,154 @@
+package com.kinetix.demo.client
+
+import io.kotest.assertions.throwables.shouldThrow
+import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.MockRequestHandleScope
+import io.ktor.client.engine.mock.respond
+import io.ktor.client.engine.mock.toByteArray
+import io.ktor.client.request.HttpRequestData
+import io.ktor.client.request.HttpResponseData
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpMethod
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
+import kotlinx.coroutines.test.runTest
+import java.math.BigDecimal
+
+class RiskOrchestratorClientTest : FunSpec({
+
+    fun mockHttpClient(
+        handler: suspend MockRequestHandleScope.(HttpRequestData) -> HttpResponseData,
+    ): HttpClient = HttpClient(MockEngine { request -> handler(request) })
+
+    test("readBookExposure parses varValue and bookId from the hierarchy response") {
+        val client = RiskOrchestratorHttpClient(
+            httpClient = mockHttpClient { request ->
+                request.method shouldBe HttpMethod.Get
+                request.url.toString() shouldBe "http://orchestrator/api/v1/risk/hierarchy/BOOK/BOOK-EQ-01"
+                respond(
+                    content = """
+                        {
+                          "level":"BOOK",
+                          "entityId":"BOOK-EQ-01",
+                          "entityName":"Equity Book 01",
+                          "parentId":"DESK-EQ",
+                          "varValue":"1234567.89",
+                          "expectedShortfall":"1500000.00",
+                          "pnlToday":null,
+                          "limitUtilisation":null,
+                          "marginalVar":null,
+                          "incrementalVar":null,
+                          "childCount":0,
+                          "isPartial":false,
+                          "generatedAt":"2026-05-18T06:05:00Z"
+                        }
+                    """.trimIndent(),
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+            },
+            baseUrl = "http://orchestrator",
+        )
+
+        runTest {
+            val snapshot = client.readBookExposure("BOOK-EQ-01")
+            snapshot.bookId shouldBe "BOOK-EQ-01"
+            snapshot.varValue.compareTo(BigDecimal("1234567.89")) shouldBe 0
+            snapshot.absoluteDelta shouldBe null
+        }
+    }
+
+    test("readBookExposure throws IllegalStateException on 5xx") {
+        val client = RiskOrchestratorHttpClient(
+            httpClient = mockHttpClient {
+                respond(content = "boom", status = HttpStatusCode.InternalServerError)
+            },
+            baseUrl = "http://orchestrator",
+        )
+
+        runTest {
+            val thrown = shouldThrow<IllegalStateException> {
+                client.readBookExposure("BOOK-EQ-01")
+            }
+            thrown.message!! shouldContain "500"
+            thrown.message!! shouldContain "GET"
+            thrown.message!! shouldContain "boom"
+        }
+    }
+
+    test("seedLimit(VAR_95) POSTs the expected URL and body shape") {
+        var capturedUrl: String? = null
+        var capturedMethod: HttpMethod? = null
+        var capturedBody: String? = null
+        var capturedContentType: String? = null
+
+        val client = RiskOrchestratorHttpClient(
+            httpClient = mockHttpClient { request ->
+                capturedUrl = request.url.toString()
+                capturedMethod = request.method
+                capturedContentType = request.body.contentType?.toString()
+                capturedBody = String(request.body.toByteArray())
+                respond(content = "{\"id\":\"any\"}", status = HttpStatusCode.Created)
+            },
+            baseUrl = "http://orchestrator",
+        )
+
+        runTest {
+            client.seedLimit("BOOK-EQ-01", LimitType.VAR_95, BigDecimal("987654.32"))
+        }
+
+        capturedUrl shouldBe "http://orchestrator/api/v1/risk/budgets"
+        capturedMethod shouldBe HttpMethod.Post
+        capturedContentType!! shouldContain "application/json"
+        val body = capturedBody!!
+        body shouldContain "\"budgetType\":\"VAR_95\""
+        body shouldContain "\"entityId\":\"BOOK-EQ-01\""
+        body shouldContain "\"entityLevel\":\"BOOK\""
+        body shouldContain "\"budgetPeriod\":\"DAILY\""
+        body shouldContain "\"budgetAmount\":\"987654.32\""
+        body shouldContain "\"allocatedBy\":\"demo-orchestrator\""
+    }
+
+    test("seedLimit(DELTA_ABS) maps to budgetType=DELTA_ABS") {
+        var capturedBody: String? = null
+        val client = RiskOrchestratorHttpClient(
+            httpClient = mockHttpClient { request ->
+                capturedBody = String(request.body.toByteArray())
+                respond(content = "{}", status = HttpStatusCode.Created)
+            },
+            baseUrl = "http://orchestrator",
+        )
+
+        runTest {
+            client.seedLimit("BOOK-FX-02", LimitType.DELTA_ABS, BigDecimal("250000"))
+        }
+
+        capturedBody!! shouldContain "\"budgetType\":\"DELTA_ABS\""
+        capturedBody!! shouldContain "\"entityId\":\"BOOK-FX-02\""
+        capturedBody!! shouldContain "\"budgetAmount\":\"250000\""
+    }
+
+    test("seedLimit throws IllegalStateException on 4xx") {
+        val client = RiskOrchestratorHttpClient(
+            httpClient = mockHttpClient {
+                respond(
+                    content = "Invalid hierarchy level",
+                    status = HttpStatusCode.BadRequest,
+                )
+            },
+            baseUrl = "http://orchestrator",
+        )
+
+        runTest {
+            val thrown = shouldThrow<IllegalStateException> {
+                client.seedLimit("BAD-BOOK", LimitType.VAR_95, BigDecimal("1.00"))
+            }
+            thrown.message!! shouldContain "400"
+            thrown.message!! shouldContain "POST"
+            thrown.message!! shouldContain "Invalid hierarchy level"
+        }
+    }
+})
