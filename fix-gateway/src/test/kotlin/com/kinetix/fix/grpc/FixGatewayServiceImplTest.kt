@@ -181,13 +181,18 @@ class FixGatewayServiceImplTest : FunSpec({
         val correlator = PendingNewCorrelator(meterRegistry = SimpleMeterRegistry())
         val svc = service(sessionSender = sender, correlator = correlator)
 
+        // Use a generous explicit timeout: this test asserts the correlation/status
+        // wiring, not the per-venue default timeout. The NYSE 200ms default plus a
+        // 20ms async delay leaves only ~180ms of budget for Dispatchers.Default
+        // worker scheduling — flaky under CI load. The per-venue default-timeout
+        // assertion lives in its own test below.
         runBlocking {
             coroutineScope {
                 val ackJob = async(Dispatchers.Default) {
                     delay(20)
                     correlator.completePendingNew("NYSE", "ord-place-1", venueOrderId = "VEN-PN-1")
                 }
-                val response = svc.handlePlaceOrder(limitBuyAaplDay())
+                val response = svc.handlePlaceOrder(limitBuyAaplDay(timeoutMs = 5_000))
                 ackJob.await()
                 response.status shouldBe PlaceOrderResponse.Status.PENDING_NEW
                 response.venueOrderId shouldBe "VEN-PN-1"
