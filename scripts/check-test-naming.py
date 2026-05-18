@@ -36,7 +36,14 @@ VAGUE_NAMES = {
 # Pattern of test names that look implementation-flavoured
 # - testFooBar, test_foo_bar (camelCase or snake_case without spaces)
 # - Names <= 2 words probably can't read as a specification
-IMPL_STYLE_KOTEST = re.compile(r'test\(\s*"([^"]{1,40})"\s*\)')
+#
+# IMPL_STYLE_KOTEST matches *only* the Kotest test-description form:
+#     test("description") {
+# (with optional whitespace before the opening brace). Requiring the
+# block body excludes ordinary function calls like `findLatest("USD")`
+# or `test("USD")` used as parameterised data values, which are not
+# Kotest test declarations and were tripping false positives.
+IMPL_STYLE_KOTEST = re.compile(r'\btest\(\s*"([^"]{1,40})"\s*\)\s*\{')
 IMPL_STYLE_KOTLIN_JUNIT = re.compile(r'@Test\s+fun\s+`([^`]+)`')
 IMPL_STYLE_KOTLIN_JUNIT_BARE = re.compile(r'@Test\s+fun\s+([a-zA-Z][A-Za-z_0-9]*)\s*\(')
 IMPL_STYLE_PYTHON = re.compile(r'^\s*(?:async\s+)?def\s+(test_[a-zA-Z_0-9]+)\s*\(')
@@ -114,7 +121,81 @@ def scan_typescript(file: Path) -> list[tuple[int, str]]:
     return findings
 
 
+def run_self_test() -> int:
+    """Exercise IMPL_STYLE_KOTEST against in-memory fixtures.
+
+    Returns 0 if the regex behaves as expected, non-zero otherwise.
+    The fixture deliberately contains:
+      - one impl-style declaration: ``test("foo") {}``
+      - one descriptive declaration: ``test("rejects a trade ...") {}``
+      - one parameterised data value: ``findLatest("USD")``  (must NOT match)
+      - one shorthand call: ``test("USD")`` with no block body (must NOT match)
+    """
+    impl_style_src = 'test("foo") {}\n'
+    # Kept within IMPL_STYLE_KOTEST's 40-char description ceiling so the
+    # regex still captures it; the downstream classifier should then
+    # decide that a 4-word description is NOT impl-flavoured.
+    descriptive_name = "rejects a trade when limit exceeded"
+    descriptive_src = f'test("{descriptive_name}") {{}}\n'
+    non_decl_src = '''val found = repository.findLatest("USD")\ntest("USD")\n'''
+
+    impl_matches = [m.group(1) for m in IMPL_STYLE_KOTEST.finditer(impl_style_src)]
+    desc_matches = [m.group(1) for m in IMPL_STYLE_KOTEST.finditer(descriptive_src)]
+    non_decl_matches = [m.group(1) for m in IMPL_STYLE_KOTEST.finditer(non_decl_src)]
+
+    failures: list[str] = []
+    if impl_matches != ["foo"]:
+        failures.append(f"expected ['foo'] from impl-style fixture, got {impl_matches!r}")
+    if desc_matches != [descriptive_name]:
+        failures.append(f"expected descriptive match, got {desc_matches!r}")
+    if non_decl_matches:
+        failures.append(
+            f"expected zero matches in parameterised/non-declaration fixture, got {non_decl_matches!r}"
+        )
+
+    # The impl-style match should still be classified as flagged downstream;
+    # the descriptive one should not be.
+    if not looks_implementation_flavoured("foo"):
+        failures.append("expected 'foo' to be classified as implementation-flavoured")
+    if looks_implementation_flavoured(descriptive_name):
+        failures.append("expected descriptive name to NOT be flagged")
+
+    # End-to-end check: drive scan_kotlin against temp files. The impl-style
+    # fixture must produce findings; the descriptive + parameterised fixture
+    # must produce none.
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        impl_file = Path(tmp) / "ImplStyleTest.kt"
+        impl_file.write_text(impl_style_src)
+        good_file = Path(tmp) / "DescriptiveTest.kt"
+        good_file.write_text(descriptive_src + non_decl_src)
+
+        impl_findings = scan_kotlin(impl_file)
+        good_findings = scan_kotlin(good_file)
+
+        if not impl_findings:
+            failures.append(
+                f"scan_kotlin produced no findings for impl-style fixture {impl_file.name}"
+            )
+        if good_findings:
+            failures.append(
+                f"scan_kotlin produced unexpected findings for descriptive fixture: {good_findings!r}"
+            )
+
+    if failures:
+        print("self-test FAILED:")
+        for f in failures:
+            print(f"  - {f}")
+        return 1
+    print("self-test OK")
+    return 0
+
+
 def main() -> int:
+    if "--self-test" in sys.argv[1:]:
+        return run_self_test()
+
     skipped = ("build/", "node_modules/", ".gradle/", ".claude/", "dist/")
 
     total = 0
