@@ -91,7 +91,7 @@ Per CLAUDE.md guardrails, the following are explicitly approved in this plan so 
       Acceptance: `cd ui && npm run test -- AIInsightPanel`
 - [x] 2.5 Wire an "Explain" button into `ui/src/components/VaRDashboard.tsx`'s VaR-gauge header. Click ⇒ fetch via `insights.ts` ⇒ render `AIInsightPanel`. Vitest unit test asserts button visible, click opens panel, loading state shown, narrative renders after resolve.
       Acceptance: `cd ui && npm run test -- VaRDashboard`
-- [ ] 2.6 Add `ui/e2e/var-explainer.spec.ts` Playwright test that mocks `/api/v1/insights/explain/var` per `ui/e2e/fixtures.ts` patterns, navigates to Risk tab, clicks "Explain", asserts panel renders with narrative + bullets + "Demo mode" badge. Extend `ui/e2e/fixtures.ts` with an `insightsMock` helper.
+- [x] 2.6 Add `ui/e2e/var-explainer.spec.ts` Playwright test that mocks `/api/v1/insights/explain/var` per `ui/e2e/fixtures.ts` patterns, navigates to Risk tab, clicks "Explain", asserts panel renders with narrative + bullets + "Demo mode" badge. Extend `ui/e2e/fixtures.ts` with an `insightsMock` helper.
       Acceptance: `cd ui && npx playwright test var-explainer`
 - [ ] 2.7 Run `cd ui && npm run lint` to catch ESLint issues (per CLAUDE.md Testing Philosophy). Fix any reported errors.
       Acceptance: `cd ui && npm run lint`
