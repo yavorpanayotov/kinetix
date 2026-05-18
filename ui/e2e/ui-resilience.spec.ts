@@ -42,13 +42,17 @@ async function injectConnectThenDropWebSocket(page: import('@playwright/test').P
           this.dispatchEvent(openEvent)
         }, 50)
 
-        // Then: drop after a further delay to trigger the disconnected state
+        // Then: drop after a long enough delay that Playwright reliably observes
+        // the intermediate "Live" state before the disconnect transition. The
+        // socket is constructed during initial mount, so by the time the test
+        // navigates and selects `connection-status` we still need to leave a
+        // window where the status reads "Live".
         setTimeout(() => {
           this.readyState = 3
           const closeEvent = new CloseEvent('close', { code: 1006, reason: 'Simulated drop' })
           if (this.onclose) this.onclose.call(this as unknown as WebSocket, closeEvent)
           this.dispatchEvent(closeEvent)
-        }, 200)
+        }, 1500)
       }
 
       send(_data: string | ArrayBuffer | Blob | ArrayBufferView): void {}
@@ -266,11 +270,31 @@ test.describe('UI Resilience', () => {
 
     // After a further wait the elapsed-time counter appears as "(Xs)" inside its
     // own aria-live="off" sibling. The counter ticks via setInterval(1000ms);
-    // under heavy parallel test load Chromium can throttle background timers, so
-    // allow a generous timeout.
+    // under heavy parallel test load Chromium can throttle background timers in
+    // backgrounded tabs. Force the page to the foreground and nudge the mouse
+    // every second so the page is treated as active.
+    await page.bringToFront()
     const elapsed = banner.getByTestId('reconnecting-banner-elapsed')
     await expect(elapsed).toHaveAttribute('aria-live', 'off')
-    await expect(elapsed).toContainText(/\(\d+s\)/, { timeout: 15000 })
+
+    // Race the assertion against a heartbeat that keeps the page foregrounded.
+    // Mouse moves count as user input and prevent setInterval throttling.
+    const stopHeartbeat = { value: false }
+    const heartbeat = (async () => {
+      let x = 100
+      while (!stopHeartbeat.value) {
+        await page.mouse.move(x, 100)
+        x = x === 100 ? 200 : 100
+        await page.waitForTimeout(500)
+      }
+    })()
+
+    try {
+      await expect(elapsed).toContainText(/\(\d+s\)/, { timeout: 20000 })
+    } finally {
+      stopHeartbeat.value = true
+      await heartbeat
+    }
   })
 
   // ---------------------------------------------------------------------------
