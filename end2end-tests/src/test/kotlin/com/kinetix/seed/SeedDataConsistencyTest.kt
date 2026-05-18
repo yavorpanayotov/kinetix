@@ -44,7 +44,14 @@ class SeedDataConsistencyTest : FunSpec({
     }
 
     test("audit event trade IDs match position-service trade IDs") {
-        val tradeIds = PositionSeeder.TRADES.map { it.tradeId.value }.toSet()
+        // Each AMEND lifecycle event in position-service emits a brand-new
+        // trade row (with `newTradeId`) — these IDs appear in audit but live
+        // on AmendTradeCommand, not in the BookTradeCommand-only TRADES list.
+        // Cancels reuse the original tradeId, so they contribute no new IDs.
+        val tradeIds = (
+            PositionSeeder.TRADES.map { it.tradeId.value } +
+                PositionSeeder.AMEND_TRIPLETS.map { it.amend.newTradeId.value }
+        ).toSet()
         val auditTradeIds = AuditSeeder.EVENTS.mapNotNull { it.tradeId }.toSet()
 
         tradeIds shouldBe auditTradeIds
@@ -81,7 +88,17 @@ class SeedDataConsistencyTest : FunSpec({
     }
 
     test("audit event count matches trade count") {
-        val tradeCount = PositionSeeder.TRADES.size
+        // Every TradeEvent published by position-service produces exactly one
+        // audit event (see TradeEvent.auditEventType). The seed feeds three
+        // command kinds into the booking + lifecycle services:
+        //   - BookTradeCommand            → TRADE_BOOKED
+        //   - AmendTradeCommand           → TRADE_AMENDED  (new tradeId)
+        //   - CancelTradeCommand          → TRADE_CANCELLED (same tradeId)
+        // TRADES holds only BookTradeCommands, so the lifecycle commands must
+        // be added explicitly to match the audit event count.
+        val tradeCount = PositionSeeder.TRADES.size +
+            PositionSeeder.AMEND_TRIPLETS.size +
+            PositionSeeder.CANCEL_TRIPLETS.size
         val auditCount = AuditSeeder.EVENTS.size
 
         auditCount shouldBe tradeCount
