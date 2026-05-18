@@ -105,7 +105,7 @@ That brings in `org.testcontainers.kafka.KafkaContainer` transitively, plus the 
   - Acceptance: `./gradlew :test-support:build :test-support:test`
 - [x] **5.2** Add `test-support/src/main/kotlin/com/kinetix/testsupport/grpc/InProcessGrpcServer.kt` — wraps `NettyServerBuilder.forPort(0)` + `ManagedChannelBuilder.usePlaintext()` per the convention in CLAUDE.md ("Acceptance tests use real infrastructure"). Provides `register(serviceImpl)` and `channel()`.
   - Acceptance: `./gradlew :test-support:build :test-support:test`
-- [ ] **5.3** Add `test-support/src/main/kotlin/com/kinetix/testsupport/builders/TestTrade.kt` — chainable builder with sensible defaults: `TestTrade.aTrade().withSymbol("AAPL").withQuantity(100).build()`.
+- [x] **5.3** Add `test-support/src/main/kotlin/com/kinetix/testsupport/builders/TestTrade.kt` — chainable builder with sensible defaults: `TestTrade.aTrade().withSymbol("AAPL").withQuantity(100).build()`.
   - Acceptance: `./gradlew :test-support:build :test-support:test`
 - [ ] **5.4** Add `test-support/src/main/kotlin/com/kinetix/testsupport/builders/TestPosition.kt`.
   - Acceptance: `./gradlew :test-support:build :test-support:test`
