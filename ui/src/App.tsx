@@ -123,21 +123,8 @@ function AppContent() {
     (workspace.preferences.defaultTab as Tab) || 'positions',
   )
 
-  // Plan §2.3 — When the user switches saved views, swap `activeTab` to the
-  // newly-active view's `defaultTab`. Local UI state is otherwise authoritative
-  // (so manual tab clicks aren't squashed by re-renders); state is reset only
-  // when `activeViewId` transitions.
-  //
-  // Uses the official React "adjust state during render" pattern (see
-  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes)
-  // rather than an effect, to avoid the cascading-renders lint and the extra
-  // commit it would cost.
-  const [lastViewId, setLastViewId] = useState<string | null>(workspace.activeViewId)
-  if (workspace.activeViewId !== lastViewId) {
-    setLastViewId(workspace.activeViewId)
-    const nextTab = workspace.preferences.defaultTab as Tab
-    if (nextTab) setActiveTab(nextTab)
-  }
+  // View-switch state is pushed into the downstream hooks below the hook
+  // declarations — see the FU2 block right after `hierarchy` / `bookSelector`.
   const [whatIfOpen, setWhatIfOpen] = useState(false)
   // Plan §8.2 — Hedge Recommendation panel is owned at the App level so the
   // breach surfacing (ticker-strip CTA, breach-banner CTA, RiskTab's own
@@ -292,6 +279,52 @@ function AppContent() {
     }
   }
   void handleBookChange // used indirectly via hierarchy selection changes
+
+  // Plan §2.3 FU2 — When the active saved view changes at runtime, push the
+  // view's captured prefs into the hooks that own that state. This is a
+  // one-shot push on `activeViewId` transition: once switched, the user can
+  // freely re-configure, and saving the view will update the prefs.
+  //
+  // Uses the React "adjust state during render" pattern (see
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes)
+  // rather than an effect, to avoid an extra commit. The pattern is to
+  // compare the latest `activeViewId` against a `useState`-held "last seen"
+  // value, and dispatch the push inside the comparison branch. The branch
+  // runs at most once per view transition (React bails out when state is
+  // unchanged), so it's safe to invoke setters on other hooks.
+  //
+  // Prefs that already auto-apply because their owners read straight from
+  // `workspace.preferences` (so they re-render when the active view changes):
+  //   - riskDashboardSections (RiskTab)
+  //   - showPositionDetails (PositionGrid)
+  //
+  // Prefs we explicitly push here because no consumer reads them otherwise:
+  //   - defaultTab (→ local `activeTab`)
+  //   - defaultBook (→ hierarchy.setSelection + bookSelector.selectBook)
+  //
+  // `timeRange` is stored as a vestigial string code (`'1d'`) with no
+  // runtime consumer; `useVaR`'s timeRange is a `{from,to,label}` object
+  // owned by that hook. There's nowhere to push the string code without
+  // adding pref fields, which the plan explicitly disallows in this step.
+  const [lastViewId, setLastViewId] = useState<string | null>(workspace.activeViewId)
+  if (workspace.activeViewId !== lastViewId) {
+    setLastViewId(workspace.activeViewId)
+    const nextTab = workspace.preferences.defaultTab as Tab
+    if (nextTab) setActiveTab(nextTab)
+    const nextBook = workspace.preferences.defaultBook
+    if (nextBook) {
+      hierarchy.setSelection({
+        level: 'book',
+        divisionId: hierarchy.selection.divisionId,
+        deskId: hierarchy.selection.deskId,
+        bookId: nextBook,
+      })
+      if (nextBook !== ALL_BOOKS) {
+        rawSelectBook(nextBook)
+      }
+      bookSelector.selectBook(nextBook)
+    }
+  }
 
   const bookId = hierarchy.effectiveBookId ?? (isAllSelected ? ALL_BOOKS : rawBookId)
   // Plan §7.3.3 — per-instrument notes only meaningful when a concrete book is

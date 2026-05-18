@@ -1603,6 +1603,159 @@ describe('App', () => {
       // After the view switch, the Risk tab is now the active tab.
       expect(screen.getByTestId('tab-risk')).toHaveAttribute('aria-selected', 'true')
     })
+
+    it('switching the active view pushes the view\'s defaultBook into the hierarchy selector', () => {
+      // Plan §2.3 FU2 — when the active view changes at runtime, the view's
+      // hierarchy selection (currently captured as `defaultBook`) must be
+      // pushed into the hierarchy hook so downstream consumers re-scope.
+      const setSelection = vi.fn()
+      const bookSelectorSelect = vi.fn()
+      mockUseHierarchySelector.mockReturnValue({
+        selection: { level: 'book', divisionId: null, deskId: null, bookId: 'book-1' },
+        setSelection,
+        breadcrumb: [{ level: 'book', id: 'book-1', label: 'book-1' }],
+        effectiveBookId: 'book-1',
+        effectiveBookIds: ['book-1'],
+        divisions: [],
+        desks: [],
+        books: [{ bookId: 'book-1' }, { bookId: 'book-2' }],
+        loading: false,
+        error: null,
+      })
+      mockUseBookSelector.mockReturnValue({
+        bookOptions: [
+          { value: '__ALL__', label: 'All Books' },
+          { value: 'book-1', label: 'book-1' },
+          { value: 'book-2', label: 'book-2' },
+        ],
+        selectedBookId: 'book-1',
+        isAllSelected: false,
+        allBookIds: ['book-1', 'book-2'],
+        positions: [position],
+        aggregatedPositions: [],
+        selectBook: bookSelectorSelect,
+        loading: false,
+        error: null,
+      })
+
+      mockUseWorkspace.mockReturnValue({
+        preferences: { ...DEFAULT_PREFERENCES, defaultTab: 'positions', defaultBook: 'book-1' },
+        updatePreference: vi.fn(),
+        resetPreferences: vi.fn(),
+        views: [
+          { id: 'view-a', name: 'A', prefs: { ...DEFAULT_PREFERENCES, defaultTab: 'positions', defaultBook: 'book-1' } },
+          { id: 'view-b', name: 'B', prefs: { ...DEFAULT_PREFERENCES, defaultTab: 'positions', defaultBook: 'book-2' } },
+        ],
+        activeViewId: 'view-a',
+        switchView: vi.fn(),
+        saveAsNewView: vi.fn(() => 'view-new'),
+        updateActiveView: vi.fn(),
+        deleteView: vi.fn(),
+        renameView: vi.fn(),
+      })
+
+      const { rerender } = render(<App />)
+      // Initial mount must not push the active view's book — that's
+      // the hierarchy hook's default; the push is one-shot on transition.
+      setSelection.mockClear()
+      bookSelectorSelect.mockClear()
+
+      mockUseWorkspace.mockReturnValue({
+        preferences: { ...DEFAULT_PREFERENCES, defaultTab: 'positions', defaultBook: 'book-2' },
+        updatePreference: vi.fn(),
+        resetPreferences: vi.fn(),
+        views: [
+          { id: 'view-a', name: 'A', prefs: { ...DEFAULT_PREFERENCES, defaultTab: 'positions', defaultBook: 'book-1' } },
+          { id: 'view-b', name: 'B', prefs: { ...DEFAULT_PREFERENCES, defaultTab: 'positions', defaultBook: 'book-2' } },
+        ],
+        activeViewId: 'view-b',
+        switchView: vi.fn(),
+        saveAsNewView: vi.fn(() => 'view-new'),
+        updateActiveView: vi.fn(),
+        deleteView: vi.fn(),
+        renameView: vi.fn(),
+      })
+      rerender(<App />)
+
+      // The hierarchy hook receives the new view's book as a fresh selection.
+      expect(setSelection).toHaveBeenCalledWith(
+        expect.objectContaining({ level: 'book', bookId: 'book-2' }),
+      )
+      // The legacy book selector is kept in sync so position fetches use the
+      // new book.
+      expect(bookSelectorSelect).toHaveBeenCalledWith('book-2')
+    })
+
+    it('does not push hierarchy when the new view\'s defaultBook is null', () => {
+      // Plan §2.3 FU2 — a `null` defaultBook means "no specific book" (e.g.
+      // the firm-wide view); we shouldn't synthesise a book-level selection.
+      const setSelection = vi.fn()
+      const bookSelectorSelect = vi.fn()
+      mockUseHierarchySelector.mockReturnValue({
+        selection: { level: 'book', divisionId: null, deskId: null, bookId: 'book-1' },
+        setSelection,
+        breadcrumb: [{ level: 'book', id: 'book-1', label: 'book-1' }],
+        effectiveBookId: 'book-1',
+        effectiveBookIds: ['book-1'],
+        divisions: [],
+        desks: [],
+        books: [{ bookId: 'book-1' }, { bookId: 'book-2' }],
+        loading: false,
+        error: null,
+      })
+      mockUseBookSelector.mockReturnValue({
+        bookOptions: [{ value: 'book-1', label: 'book-1' }],
+        selectedBookId: 'book-1',
+        isAllSelected: false,
+        allBookIds: ['book-1'],
+        positions: [position],
+        aggregatedPositions: [],
+        selectBook: bookSelectorSelect,
+        loading: false,
+        error: null,
+      })
+
+      mockUseWorkspace.mockReturnValue({
+        preferences: { ...DEFAULT_PREFERENCES, defaultTab: 'positions', defaultBook: 'book-1' },
+        updatePreference: vi.fn(),
+        resetPreferences: vi.fn(),
+        views: [
+          { id: 'view-a', name: 'A', prefs: { ...DEFAULT_PREFERENCES, defaultTab: 'positions', defaultBook: 'book-1' } },
+          { id: 'view-firm', name: 'Firm', prefs: { ...DEFAULT_PREFERENCES, defaultTab: 'positions', defaultBook: null } },
+        ],
+        activeViewId: 'view-a',
+        switchView: vi.fn(),
+        saveAsNewView: vi.fn(() => 'view-new'),
+        updateActiveView: vi.fn(),
+        deleteView: vi.fn(),
+        renameView: vi.fn(),
+      })
+
+      const { rerender } = render(<App />)
+      setSelection.mockClear()
+      bookSelectorSelect.mockClear()
+
+      mockUseWorkspace.mockReturnValue({
+        preferences: { ...DEFAULT_PREFERENCES, defaultTab: 'positions', defaultBook: null },
+        updatePreference: vi.fn(),
+        resetPreferences: vi.fn(),
+        views: [
+          { id: 'view-a', name: 'A', prefs: { ...DEFAULT_PREFERENCES, defaultTab: 'positions', defaultBook: 'book-1' } },
+          { id: 'view-firm', name: 'Firm', prefs: { ...DEFAULT_PREFERENCES, defaultTab: 'positions', defaultBook: null } },
+        ],
+        activeViewId: 'view-firm',
+        switchView: vi.fn(),
+        saveAsNewView: vi.fn(() => 'view-new'),
+        updateActiveView: vi.fn(),
+        deleteView: vi.fn(),
+        renameView: vi.fn(),
+      })
+      rerender(<App />)
+
+      // No book-level setSelection call when the view doesn't pin a book.
+      expect(setSelection).not.toHaveBeenCalled()
+      expect(bookSelectorSelect).not.toHaveBeenCalled()
+    })
   })
 
   // Plan §9 — Desktop-only floor enforced via a small-viewport warning page.
