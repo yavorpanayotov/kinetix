@@ -1,13 +1,27 @@
 """FastAPI application entrypoint for the Kinetix AI Insights service.
 
 This module exposes the bare scaffold of the service: an application
-instance with health and readiness probes. Business logic lives in
-sibling modules added in subsequent scaffolding steps.
+instance with health and readiness probes. The startup lifespan wires
+an :class:`InsightClient` (live Claude Agent SDK or canned fallback) onto
+``app.state`` so request handlers added in subsequent steps can use it.
 """
+
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-app = FastAPI(title="Kinetix Insights")
+from .factory import build_client
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Build the insight client at startup and attach it to ``app.state``."""
+    app.state.insight_client = build_client()
+    yield
+
+
+app = FastAPI(title="Kinetix Insights", lifespan=lifespan)
 
 
 @app.get("/health")
