@@ -22,6 +22,7 @@ data class AlertEventDto(
     val escalatedTo: String? = null,
     val correlationId: String? = null,
     val suggestedAction: String? = null,
+    val snoozedUntil: String? = null,
 )
 
 fun AlertEventItem.toDto(): AlertEventDto = AlertEventDto(
@@ -42,4 +43,5 @@ fun AlertEventItem.toDto(): AlertEventDto = AlertEventDto(
     escalatedTo = escalatedTo,
     correlationId = correlationId,
     suggestedAction = suggestedAction,
+    snoozedUntil = snoozedUntil?.toString(),
 )

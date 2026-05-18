@@ -351,6 +351,7 @@ data class AlertEventDto(
     val escalatedTo: String? = null,
     val correlationId: String? = null,
     val suggestedAction: String? = null,
+    val snoozedUntil: String? = null,
 )
 
 @Serializable
@@ -368,6 +369,11 @@ data class EscalateAlertRequestDto(
 @Serializable
 data class ResolveAlertRequestDto(
     val resolutionText: String,
+)
+
+@Serializable
+data class SnoozeAlertRequestDto(
+    val snoozedUntil: String,
 )
 
 @Serializable
@@ -744,6 +750,7 @@ fun AlertEventDto.toDomain() = AlertEventItem(
     escalatedTo = escalatedTo,
     correlationId = correlationId,
     suggestedAction = suggestedAction,
+    snoozedUntil = snoozedUntil?.let { Instant.parse(it) },
 )
 
 fun JobPhaseClientDto.toDomain() = JobPhaseItem(

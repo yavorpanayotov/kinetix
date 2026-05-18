@@ -31,6 +31,7 @@ data class AlertEventItem(
     val escalatedTo: String? = null,
     val correlationId: String? = null,
     val suggestedAction: String? = null,
+    val snoozedUntil: Instant? = null,
 )
 
 data class CreateAlertRuleParams(
@@ -56,6 +57,10 @@ data class ResolveAlertParams(
     val resolutionText: String,
 )
 
+data class SnoozeAlertParams(
+    val snoozedUntil: Instant,
+)
+
 sealed class AlertActionResult {
     data class Ok(val alert: AlertEventItem) : AlertActionResult()
     data object NotFound : AlertActionResult()
@@ -72,5 +77,6 @@ interface NotificationServiceClient {
     suspend fun acknowledgeAlert(alertId: String, params: AcknowledgeAlertParams): AlertEventItem?
     suspend fun escalateAlert(alertId: String, params: EscalateAlertParams): AlertActionResult
     suspend fun resolveAlert(alertId: String, params: ResolveAlertParams): AlertActionResult
+    suspend fun snoozeAlert(alertId: String, params: SnoozeAlertParams): AlertActionResult
     suspend fun getAlertContributors(alertId: String): String?
 }

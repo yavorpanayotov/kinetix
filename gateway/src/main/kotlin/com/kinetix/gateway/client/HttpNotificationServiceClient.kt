@@ -103,6 +103,18 @@ class HttpNotificationServiceClient(
         return mapAlertActionResponse(response)
     }
 
+    override suspend fun snoozeAlert(alertId: String, params: SnoozeAlertParams): AlertActionResult {
+        val response = httpClient.post("$baseUrl/api/v1/notifications/alerts/$alertId/snooze") {
+            contentType(ContentType.Application.Json)
+            setBody(
+                SnoozeAlertRequestDto(
+                    snoozedUntil = params.snoozedUntil.toString(),
+                ),
+            )
+        }
+        return mapAlertActionResponse(response)
+    }
+
     private suspend fun mapAlertActionResponse(response: io.ktor.client.statement.HttpResponse): AlertActionResult =
         when (response.status) {
             HttpStatusCode.OK -> AlertActionResult.Ok(response.body<AlertEventDto>().toDomain())

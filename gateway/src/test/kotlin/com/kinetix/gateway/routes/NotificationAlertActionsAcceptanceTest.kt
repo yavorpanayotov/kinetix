@@ -32,13 +32,20 @@ import kotlinx.serialization.json.jsonPrimitive
  */
 class NotificationAlertActionsAcceptanceTest : FunSpec({
 
-    fun alertJson(id: String, status: String, escalatedTo: String? = null, resolvedReason: String? = null): String =
+    fun alertJson(
+        id: String,
+        status: String,
+        escalatedTo: String? = null,
+        resolvedReason: String? = null,
+        snoozedUntil: String? = null,
+    ): String =
         buildString {
             append("""{"id":"$id","ruleId":"r1","ruleName":"VaR","type":"VAR_BREACH","severity":"CRITICAL",""")
             append(""""message":"breach","currentValue":150000.0,"threshold":100000.0,"bookId":"book-1",""")
             append(""""triggeredAt":"2025-01-15T10:00:00Z","status":"$status"""")
             if (escalatedTo != null) append(""","escalatedTo":"$escalatedTo","escalatedAt":"2025-01-15T10:05:00Z"""")
             if (resolvedReason != null) append(""","resolvedReason":"$resolvedReason","resolvedAt":"2025-01-15T10:10:00Z"""")
+            if (snoozedUntil != null) append(""","snoozedUntil":"$snoozedUntil"""")
             append("}")
         }
 
@@ -148,6 +155,110 @@ class NotificationAlertActionsAcceptanceTest : FunSpec({
                     setBody("""{"reason":"again"}""")
                 }
                 response.status shouldBe HttpStatusCode.Conflict
+            }
+        } finally {
+            httpClient.close()
+            backend.close()
+        }
+    }
+
+    test("POST /api/v1/notifications/alerts/{id}/snooze forwards body to notification-service and returns 200 with snoozedUntil populated") {
+        val snoozedUntil = "2099-01-15T11:00:00Z"
+        val backend = BackendStubServer {
+            post("/api/v1/notifications/alerts/alert-3/snooze") {
+                val body = call.receiveText()
+                val parsed = Json.parseToJsonElement(body).jsonObject
+                parsed["snoozedUntil"]?.jsonPrimitive?.content shouldBe snoozedUntil
+                call.respondText(
+                    alertJson("alert-3", "TRIGGERED", snoozedUntil = snoozedUntil),
+                    ContentType.Application.Json,
+                )
+            }
+        }
+        val httpClient = HttpClient(CIO) { install(ContentNegotiation) { json() } }
+        try {
+            val notificationClient = HttpNotificationServiceClient(httpClient, backend.baseUrl)
+            testApplication {
+                application { module(notificationClient) }
+                val response = client.post("/api/v1/notifications/alerts/alert-3/snooze") {
+                    contentType(ContentType.Application.Json)
+                    setBody("""{"snoozedUntil":"$snoozedUntil"}""")
+                }
+                response.status shouldBe HttpStatusCode.OK
+                val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+                body["id"]?.jsonPrimitive?.content shouldBe "alert-3"
+                body["status"]?.jsonPrimitive?.content shouldBe "TRIGGERED"
+                body["snoozedUntil"]?.jsonPrimitive?.content shouldBe snoozedUntil
+            }
+        } finally {
+            httpClient.close()
+            backend.close()
+        }
+    }
+
+    test("POST /alerts/{id}/snooze propagates 409 when notification-service returns Conflict (RESOLVED alert)") {
+        val backend = BackendStubServer {
+            post("/api/v1/notifications/alerts/already-resolved/snooze") {
+                call.respond(HttpStatusCode.Conflict, "Cannot snooze a RESOLVED alert")
+            }
+        }
+        val httpClient = HttpClient(CIO) { install(ContentNegotiation) { json() } }
+        try {
+            val notificationClient = HttpNotificationServiceClient(httpClient, backend.baseUrl)
+            testApplication {
+                application { module(notificationClient) }
+                val response = client.post("/api/v1/notifications/alerts/already-resolved/snooze") {
+                    contentType(ContentType.Application.Json)
+                    setBody("""{"snoozedUntil":"2099-01-15T11:00:00Z"}""")
+                }
+                response.status shouldBe HttpStatusCode.Conflict
+            }
+        } finally {
+            httpClient.close()
+            backend.close()
+        }
+    }
+
+    test("POST /alerts/{id}/snooze propagates 404 when notification-service returns NotFound") {
+        val backend = BackendStubServer {
+            post("/api/v1/notifications/alerts/missing/snooze") {
+                call.respond(HttpStatusCode.NotFound)
+            }
+        }
+        val httpClient = HttpClient(CIO) { install(ContentNegotiation) { json() } }
+        try {
+            val notificationClient = HttpNotificationServiceClient(httpClient, backend.baseUrl)
+            testApplication {
+                application { module(notificationClient) }
+                val response = client.post("/api/v1/notifications/alerts/missing/snooze") {
+                    contentType(ContentType.Application.Json)
+                    setBody("""{"snoozedUntil":"2099-01-15T11:00:00Z"}""")
+                }
+                response.status shouldBe HttpStatusCode.NotFound
+            }
+        } finally {
+            httpClient.close()
+            backend.close()
+        }
+    }
+
+    test("POST /alerts/{id}/snooze with unparseable timestamp returns 400 at the gateway without calling upstream") {
+        val backend = BackendStubServer {
+            post("/api/v1/notifications/alerts/anything/snooze") {
+                // The gateway should reject before reaching here.
+                call.respond(HttpStatusCode.OK, "should-not-be-called")
+            }
+        }
+        val httpClient = HttpClient(CIO) { install(ContentNegotiation) { json() } }
+        try {
+            val notificationClient = HttpNotificationServiceClient(httpClient, backend.baseUrl)
+            testApplication {
+                application { module(notificationClient) }
+                val response = client.post("/api/v1/notifications/alerts/anything/snooze") {
+                    contentType(ContentType.Application.Json)
+                    setBody("""{"snoozedUntil":"definitely-not-a-timestamp"}""")
+                }
+                response.status shouldBe HttpStatusCode.BadRequest
             }
         } finally {
             httpClient.close()

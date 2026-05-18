@@ -5,10 +5,12 @@ import com.kinetix.gateway.client.AlertActionResult
 import com.kinetix.gateway.client.EscalateAlertParams
 import com.kinetix.gateway.client.NotificationServiceClient
 import com.kinetix.gateway.client.ResolveAlertParams
+import com.kinetix.gateway.client.SnoozeAlertParams
 import com.kinetix.gateway.dtos.AcknowledgeAlertRequest
 import com.kinetix.gateway.dtos.CreateAlertRuleRequest
 import com.kinetix.gateway.dtos.EscalateAlertRequest
 import com.kinetix.gateway.dtos.ResolveAlertRequest
+import com.kinetix.gateway.dtos.SnoozeAlertRequest
 import com.kinetix.gateway.dtos.toDto
 import com.kinetix.gateway.dtos.toParams
 import io.github.smiley4.ktoropenapi.delete
@@ -152,6 +154,29 @@ fun Route.notificationRoutes(client: NotificationServiceClient) {
             val result = client.resolveAlert(
                 alertId,
                 ResolveAlertParams(resolutionText = request.resolutionText),
+            )
+            call.respondToAlertAction(result)
+        }
+
+        post("/alerts/{alertId}/snooze", {
+            summary = "Snooze an alert until a future timestamp"
+            tags = listOf("Notifications")
+            request {
+                pathParameter<String>("alertId") { description = "Alert event identifier" }
+                body<SnoozeAlertRequest>()
+            }
+        }) {
+            val alertId = call.requirePathParam("alertId")
+            val request = call.receive<SnoozeAlertRequest>()
+            val snoozedUntil = try {
+                java.time.Instant.parse(request.snoozedUntil)
+            } catch (_: java.time.format.DateTimeParseException) {
+                call.respond(HttpStatusCode.BadRequest, "snoozedUntil must be a valid ISO-8601 timestamp")
+                return@post
+            }
+            val result = client.snoozeAlert(
+                alertId,
+                SnoozeAlertParams(snoozedUntil = snoozedUntil),
             )
             call.respondToAlertAction(result)
         }
