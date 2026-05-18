@@ -33,6 +33,19 @@ VAGUE_NAMES = {
     "smoke", "simple", "test", "does_thing", "succeeds", "passes",
 }
 
+# Short tokens that legitimately appear at the start of a test description —
+# ISO-4217 currency majors and common instrument types. A description that
+# opens with one of these (e.g. "USD-TREASURY redemption", "BOND coupon
+# accrual", "FX swap settlement") should not be flagged as
+# implementation-flavoured just because the first token is short.
+ALLOW_LIST_PREFIXES = {
+    # ISO-4217 majors
+    "USD", "EUR", "GBP", "JPY", "CHF", "AUD", "NZD", "CAD", "CNY", "HKD",
+    "SGD", "SEK", "NOK", "DKK",
+    # Common instrument types
+    "BOND", "EQUITY", "FX", "IRS", "OIS", "CDS", "FRA", "ETF", "FUTURE",
+}
+
 # Pattern of test names that look implementation-flavoured
 # - testFooBar, test_foo_bar (camelCase or snake_case without spaces)
 # - Names <= 2 words probably can't read as a specification
@@ -56,8 +69,19 @@ def is_vague(name: str) -> bool:
 
 
 def looks_implementation_flavoured(name: str) -> bool:
-    """Heuristic: a spec-style name has at least 3 words separated by spaces."""
+    """Heuristic: a spec-style name has at least 3 words separated by spaces.
+
+    Descriptions that open with an allow-listed short identifier (currency
+    code, instrument type) are exempt — the first token is treated as
+    domain shorthand rather than counted toward the impl-style score.
+    """
     stripped = name.strip()
+    first_token = stripped.split(maxsplit=1)[0] if stripped else ""
+    # Treat the leading dash-segment as the candidate token so e.g.
+    # "USD-TREASURY ..." matches "USD" against the allow-list.
+    leading_segment = first_token.split("-")[0].upper()
+    if leading_segment in ALLOW_LIST_PREFIXES:
+        return False
     word_count = len(stripped.split())
     if word_count >= 4:
         return False
