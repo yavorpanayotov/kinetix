@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Wifi, WifiOff, Inbox, Settings, Download } from 'lucide-react'
+import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Wifi, WifiOff, Inbox, Settings, Download, Eye, EyeOff } from 'lucide-react'
 import type { PositionDto, PositionRiskDto } from '../types'
 import { formatMoney, formatSignedMoney, formatNum, formatQuantity, pnlColorClass } from '../utils/format'
 import { formatCompactCurrency } from '../utils/formatCompactCurrency'
 import { exportToCsv } from '../utils/exportCsv'
+import { useWorkspace } from '../hooks/useWorkspace'
 import { Card, EmptyState } from './ui'
 import { InstrumentTypeBadge } from './InstrumentTypeBadge'
 import { INSTRUMENT_TYPE_OPTIONS, formatInstrumentTypeLabel } from '../utils/instrumentTypes'
@@ -42,6 +43,13 @@ interface ColumnDef {
   align: 'left' | 'right'
 }
 
+// Detail columns (Quantity / Avg Cost / Market Price) are hidden by default and
+// revealed by the "Details" toggle — a risk-first system should not be
+// quantity-first. They remain in the column ordering so that, when shown, they
+// slot in between the identifying metadata and the risk numbers as the "story
+// behind the size".
+const DETAIL_COLUMN_KEYS = new Set(['quantity', 'avgCost', 'marketPrice'])
+
 const POSITION_COLUMNS: ColumnDef[] = [
   { key: 'instrument', label: 'Instrument', align: 'left' },
   { key: 'displayName', label: 'Name', align: 'left' },
@@ -64,6 +72,8 @@ function loadColumnVisibility(): Record<string, boolean> {
 }
 
 export function PositionGrid({ positions, connected, reconnecting, lastConnectedAt, positionRisk, showBookColumn = false }: PositionGridProps) {
+  const { preferences, updatePreference } = useWorkspace()
+  const showPositionDetails = preferences.showPositionDetails
   const [sortField, setSortField] = useState<SortField | null>(null)
   const [sortDir, setSortDir] = useState<SortDirection>('desc')
   const [currentPage, setCurrentPage] = useState(1)
@@ -73,6 +83,10 @@ export function PositionGrid({ positions, connected, reconnecting, lastConnected
   const [instrumentSearch, setInstrumentSearch] = useState('')
   const [filterResetNotice, setFilterResetNotice] = useState<string | null>(null)
   const settingsRef = useRef<HTMLDivElement>(null)
+
+  const toggleDetails = () => {
+    updatePreference('showPositionDetails', !showPositionDetails)
+  }
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -233,7 +247,17 @@ export function PositionGrid({ positions, connected, reconnecting, lastConnected
   const allPositionCols = showBookColumn
     ? [BOOK_COLUMN, ...POSITION_COLUMNS]
     : POSITION_COLUMNS
-  const visiblePositionCols = allPositionCols.filter((c) => isColumnVisible(c.key))
+  // Detail columns are controlled by the Details toggle; non-detail columns by
+  // the per-column visibility dropdown.
+  const visiblePositionCols = allPositionCols.filter((c) => {
+    if (DETAIL_COLUMN_KEYS.has(c.key)) return showPositionDetails
+    return isColumnVisible(c.key)
+  })
+  // Columns that may be customised through the per-column settings dropdown —
+  // excludes Detail columns (controlled by the Details toggle).
+  const customisablePositionCols = POSITION_COLUMNS.filter(
+    (c) => !DETAIL_COLUMN_KEYS.has(c.key),
+  )
   const positionColCount = visiblePositionCols.length
   const riskColCount = 4
 
@@ -383,6 +407,20 @@ export function PositionGrid({ positions, connected, reconnecting, lastConnected
 
       <div className="flex justify-end gap-2 mb-2">
         <button
+          data-testid="position-details-toggle"
+          onClick={toggleDetails}
+          aria-pressed={showPositionDetails}
+          title={showPositionDetails ? 'Hide quantity, cost, and price columns' : 'Show quantity, cost, and price columns'}
+          className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium border rounded-md transition-colors ${
+            showPositionDetails
+              ? 'bg-primary-50 dark:bg-primary-950/30 border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-300'
+              : 'text-slate-600 dark:text-slate-400 border-slate-300 dark:border-surface-600 hover:bg-slate-50 dark:hover:bg-surface-700'
+          }`}
+        >
+          {showPositionDetails ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          Details
+        </button>
+        <button
           data-testid="csv-export-button"
           onClick={handleExportCsv}
           className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-surface-600 rounded-md hover:bg-slate-50 dark:hover:bg-surface-700 transition-colors"
@@ -401,7 +439,7 @@ export function PositionGrid({ positions, connected, reconnecting, lastConnected
           </button>
           {settingsOpen && (
             <div data-testid="column-settings-dropdown" className="absolute right-0 mt-1 w-48 bg-white dark:bg-surface-800 border border-slate-200 dark:border-surface-700 rounded-lg shadow-lg z-10 py-1">
-              {POSITION_COLUMNS.map((col) => (
+              {customisablePositionCols.map((col) => (
                 <label
                   key={col.key}
                   className="flex items-center gap-2 px-3 py-1.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-surface-700 cursor-pointer"

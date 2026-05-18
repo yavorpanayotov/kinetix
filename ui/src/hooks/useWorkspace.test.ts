@@ -121,4 +121,21 @@ describe('useWorkspace', () => {
     expect(result.current.preferences.riskDashboardSections.pnlStressLiquidity).toBe(true)
     expect(result.current.preferences.riskDashboardSections.limitsJobs).toBe(true)
   })
+
+  it('defaults showPositionDetails to false (risk-first PositionGrid)', () => {
+    const { result } = renderHook(() => useWorkspace())
+
+    expect(result.current.preferences.showPositionDetails).toBe(false)
+  })
+
+  it('persists showPositionDetails to localStorage', () => {
+    const { result } = renderHook(() => useWorkspace())
+
+    act(() => {
+      result.current.updatePreference('showPositionDetails', true)
+    })
+
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY)!)
+    expect(saved.showPositionDetails).toBe(true)
+  })
 })

@@ -1,6 +1,20 @@
 import { test, expect } from '@playwright/test'
 import { mockAllApiRoutes } from './fixtures'
 
+const WORKSPACE_KEY = 'kinetix:workspace'
+
+// Reveal the PositionGrid "Details" columns (Quantity / Avg Cost / Market Price)
+// before navigation so the tests below that assert detail values do not have
+// to click the toggle every time. Risk-first defaults hide them.
+async function preEnablePositionDetails(page: import('@playwright/test').Page) {
+  await page.addInitScript(
+    (key) => {
+      localStorage.setItem(key, JSON.stringify({ showPositionDetails: true }))
+    },
+    WORKSPACE_KEY,
+  )
+}
+
 test.describe('Position Data Rendering', () => {
   test.beforeEach(async ({ page }) => {
     await mockAllApiRoutes(page)
@@ -40,6 +54,7 @@ test.describe('Position Data Rendering', () => {
   })
 
   test('formats quantity without trailing zeros', async ({ page }) => {
+    await preEnablePositionDetails(page)
     await page.goto('/')
     await page.waitForSelector('[data-testid="position-row-AAPL"]')
 
@@ -54,6 +69,7 @@ test.describe('Position Data Rendering', () => {
   })
 
   test('formats monetary values with currency symbols', async ({ page }) => {
+    await preEnablePositionDetails(page)
     await page.goto('/')
     await page.waitForSelector('[data-testid="position-row-AAPL"]')
 
@@ -78,10 +94,15 @@ test.describe('Position Data Rendering', () => {
     await expect(page.getByTestId('pnl-EUR_USD')).toHaveText('$50.00')
   })
 
-  test('shows all nine column headers when no columns hidden', async ({ page }) => {
-    // Clear any stored column visibility preferences
+  test('shows all column headers when no columns hidden and Details revealed', async ({ page }) => {
+    // Clear any stored column visibility preferences and enable Details so all
+    // PositionGrid columns are visible at once.
     await page.addInitScript(() => {
       localStorage.removeItem('kinetix:column-visibility')
+      localStorage.setItem(
+        'kinetix:workspace',
+        JSON.stringify({ showPositionDetails: true }),
+      )
     })
 
     await page.goto('/')

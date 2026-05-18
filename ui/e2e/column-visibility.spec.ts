@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test'
 import { mockAllApiRoutes } from './fixtures'
 
 const STORAGE_KEY = 'kinetix:column-visibility'
+const WORKSPACE_KEY = 'kinetix:workspace'
 
 test.describe('Column Visibility - Persistence and Layout', () => {
   test.beforeEach(async ({ page }) => {
@@ -41,7 +42,6 @@ test.describe('Column Visibility - Persistence and Layout', () => {
     expect(headerTexts).not.toContain('Asset Class')
     // Other columns should still be present
     expect(headerTexts).toContain('Instrument')
-    expect(headerTexts).toContain('Quantity')
   })
 
   test('table layout reflows without horizontal overflow after hiding columns', async ({
@@ -50,10 +50,11 @@ test.describe('Column Visibility - Persistence and Layout', () => {
     await page.goto('/')
     await page.waitForSelector('[data-testid="column-settings-button"]')
 
-    // Hide two columns to trigger a reflow
+    // Hide a customisable column to trigger a reflow (detail columns are
+    // hidden by default under the risk-first layout).
     await page.getByTestId('column-settings-button').click()
     await page.getByTestId('column-toggle-assetClass').click()
-    await page.getByTestId('column-toggle-avgCost').click()
+    await page.getByTestId('column-toggle-realizedPnl').click()
 
     // Close the dropdown
     await page.locator('header').click()
@@ -74,15 +75,22 @@ test.describe('Column Visibility - Persistence and Layout', () => {
   test('settings dropdown shows correct checked/unchecked state after reload', async ({
     page,
   }) => {
-    // Pre-set column visibility in localStorage: hide "Quantity" and "Market Value"
+    // Pre-set column visibility in localStorage: hide "Asset Class" and
+    // "Realized P&L". (Detail columns — Quantity / Avg Cost / Market Price —
+    // are controlled by the separate Details toggle, not this dropdown.)
     await page.addInitScript(
-      (key) => {
+      ({ key, workspaceKey }) => {
         localStorage.setItem(
           key,
-          JSON.stringify({ quantity: false, marketValue: false }),
+          JSON.stringify({ assetClass: false, realizedPnl: false }),
+        )
+        // Reveal Details columns so we can assert against the full column set.
+        localStorage.setItem(
+          workspaceKey,
+          JSON.stringify({ showPositionDetails: true }),
         )
       },
-      STORAGE_KEY,
+      { key: STORAGE_KEY, workspaceKey: WORKSPACE_KEY },
     )
 
     await page.goto('/')
@@ -92,19 +100,18 @@ test.describe('Column Visibility - Persistence and Layout', () => {
     await page.getByTestId('column-settings-button').click()
     await page.waitForSelector('[data-testid="column-settings-dropdown"]')
 
-    // "Quantity" and "Market Value" should be unchecked
-    await expect(page.getByTestId('column-toggle-quantity')).not.toBeChecked()
-    await expect(
-      page.getByTestId('column-toggle-marketValue'),
-    ).not.toBeChecked()
+    // "Asset Class" and "Realized P&L" should be unchecked
+    await expect(page.getByTestId('column-toggle-assetClass')).not.toBeChecked()
+    await expect(page.getByTestId('column-toggle-realizedPnl')).not.toBeChecked()
 
-    // Other columns should be checked
+    // Other customisable columns should be checked
     await expect(page.getByTestId('column-toggle-instrument')).toBeChecked()
-    await expect(page.getByTestId('column-toggle-assetClass')).toBeChecked()
-    await expect(page.getByTestId('column-toggle-avgCost')).toBeChecked()
-    await expect(page.getByTestId('column-toggle-marketPrice')).toBeChecked()
-    await expect(
-      page.getByTestId('column-toggle-unrealizedPnl'),
-    ).toBeChecked()
+    await expect(page.getByTestId('column-toggle-marketValue')).toBeChecked()
+    await expect(page.getByTestId('column-toggle-unrealizedPnl')).toBeChecked()
+
+    // Detail columns are NOT in this dropdown (Details toggle owns them)
+    await expect(page.getByTestId('column-toggle-quantity')).toHaveCount(0)
+    await expect(page.getByTestId('column-toggle-avgCost')).toHaveCount(0)
+    await expect(page.getByTestId('column-toggle-marketPrice')).toHaveCount(0)
   })
 })

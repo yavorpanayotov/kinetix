@@ -23,6 +23,12 @@ export interface WorkspacePreferences {
   }
   /** Per-section open/closed state for the Risk-tab Dashboard. */
   riskDashboardSections: RiskDashboardSectionsState
+  /**
+   * Whether the PositionGrid reveals the Details columns (Quantity / Avg Cost /
+   * Market Price). A risk-first system defaults this to `false` so the trader's
+   * eye lands on risk numbers first.
+   */
+  showPositionDetails: boolean
 }
 
 export const DEFAULT_RISK_DASHBOARD_SECTIONS: RiskDashboardSectionsState = {
@@ -41,6 +47,7 @@ export const DEFAULT_PREFERENCES: WorkspacePreferences = {
     showLegend: true,
   },
   riskDashboardSections: DEFAULT_RISK_DASHBOARD_SECTIONS,
+  showPositionDetails: false,
 }
 
 function loadPreferences(): WorkspacePreferences {

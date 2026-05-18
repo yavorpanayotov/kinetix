@@ -17,22 +17,28 @@ const makePosition = (overrides: Partial<PositionDto> = {}): PositionDto => ({
 })
 
 describe('PositionGrid', () => {
-  it('renders table headers', () => {
+  it('renders risk-first default headers (no quantity/avg cost/market price by default)', () => {
     render(<PositionGrid positions={[makePosition()]} />)
 
-    const headers = [
+    // Default risk-first columns
+    const visibleHeaders = [
       'Instrument',
       'Asset Class',
-      'Quantity',
-      'Avg Cost',
-      'Market Price',
       'Market Value',
       'Unrealized P&L',
     ]
-    headers.forEach((header) => {
+    visibleHeaders.forEach((header) => {
       expect(
         screen.getByRole('columnheader', { name: header }),
       ).toBeInTheDocument()
+    })
+
+    // Detail columns are hidden by default
+    const hiddenHeaders = ['Quantity', 'Avg Cost', 'Market Price']
+    hiddenHeaders.forEach((header) => {
+      expect(
+        screen.queryByRole('columnheader', { name: header }),
+      ).not.toBeInTheDocument()
     })
   })
 
@@ -42,15 +48,13 @@ describe('PositionGrid', () => {
     const row = screen.getByTestId('position-row-AAPL')
     expect(within(row).getByText('AAPL')).toBeInTheDocument()
     expect(within(row).getByText('EQUITY')).toBeInTheDocument()
-    expect(within(row).getByText('100')).toBeInTheDocument()
   })
 
   it('formats money values correctly', () => {
     render(<PositionGrid positions={[makePosition()]} />)
 
     const row = screen.getByTestId('position-row-AAPL')
-    expect(within(row).getByText('$150.00')).toBeInTheDocument()
-    expect(within(row).getByText('$155.00')).toBeInTheDocument()
+    // Market Value and Unrealized P&L are visible by default
     expect(within(row).getByText('$15,500.00')).toBeInTheDocument()
     expect(within(row).getByText('+$500.00')).toBeInTheDocument()
   })
@@ -139,12 +143,16 @@ describe('PositionGrid', () => {
     expect(within(summary).getByText('$300')).toBeInTheDocument()
   })
 
-  it('formats quantity values cleanly', () => {
+  it('formats quantity values cleanly when Details toggle is on', async () => {
+    const user = userEvent.setup()
     render(
       <PositionGrid
         positions={[makePosition({ quantity: '150.000000000000' })]}
       />,
     )
+
+    // Reveal Details columns first
+    await user.click(screen.getByTestId('position-details-toggle'))
 
     const row = screen.getByTestId('position-row-AAPL')
     expect(within(row).getByText('150')).toBeInTheDocument()
@@ -444,18 +452,17 @@ describe('PositionGrid', () => {
       expect(screen.queryByRole('columnheader', { name: 'Asset Class' })).not.toBeInTheDocument()
     })
 
-    it('should hide column when unchecked', async () => {
+    it('should not expose per-column toggles for Details-only columns', async () => {
+      // Quantity, Avg Cost, and Market Price are controlled by the Details toggle —
+      // they should NOT appear in the per-column settings dropdown.
       const user = userEvent.setup()
       render(<PositionGrid positions={[makePosition()]} />)
 
       await user.click(screen.getByTestId('column-settings-button'))
-      await user.click(screen.getByTestId('column-toggle-quantity'))
 
-      // Quantity header should be gone
-      expect(screen.queryByRole('columnheader', { name: 'Quantity' })).not.toBeInTheDocument()
-      // Quantity value should not be visible in the row
-      const row = screen.getByTestId('position-row-AAPL')
-      expect(within(row).queryByText('100')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('column-toggle-quantity')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('column-toggle-avgCost')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('column-toggle-marketPrice')).not.toBeInTheDocument()
     })
 
     it('should persist preferences in localStorage', async () => {
@@ -475,6 +482,119 @@ describe('PositionGrid', () => {
       render(<PositionGrid positions={[makePosition()]} />)
 
       expect(screen.queryByRole('columnheader', { name: 'Asset Class' })).not.toBeInTheDocument()
+    })
+  })
+
+  describe('risk-first default columns with Details toggle', () => {
+    beforeEach(() => {
+      localStorage.clear()
+    })
+
+    afterEach(() => {
+      localStorage.clear()
+    })
+
+    it('default view shows risk-first columns in order: Instrument, MV, UPnL, Δ, Γ, Vega, VaR%', () => {
+      const risk: PositionRiskDto = {
+        instrumentId: 'AAPL',
+        assetClass: 'EQUITY',
+        marketValue: '15500.00',
+        delta: '1234.56',
+        gamma: '45.67',
+        vega: '89.01',
+        theta: null,
+        rho: null,
+        varContribution: '800.00',
+        esContribution: '1000.00',
+        percentageOfTotal: '64.85',
+      }
+      render(
+        <PositionGrid positions={[makePosition()]} positionRisk={[risk]} />,
+      )
+
+      // The data-row header (second thead row) should expose these in this order.
+      const headerCells = screen.getAllByRole('columnheader')
+      const headerNames = headerCells
+        .map((h) => h.textContent?.trim() ?? '')
+        // Filter out the grouped 'Position Details' / 'Risk Metrics' banner row
+        .filter((name) => name !== 'Position Details' && name !== 'Risk Metrics')
+
+      // Locate each expected column relative to the others
+      const idx = (label: string) => headerNames.findIndex((h) => h.startsWith(label))
+      expect(idx('Instrument')).toBeGreaterThanOrEqual(0)
+      expect(idx('Market Value')).toBeGreaterThan(idx('Instrument'))
+      expect(idx('Unrealized P&L')).toBeGreaterThan(idx('Market Value'))
+      expect(idx('Delta')).toBeGreaterThan(idx('Unrealized P&L'))
+      expect(idx('Gamma')).toBeGreaterThan(idx('Delta'))
+      expect(idx('Vega')).toBeGreaterThan(idx('Gamma'))
+      expect(idx('VaR Contrib')).toBeGreaterThan(idx('Vega'))
+    })
+
+    it('default view hides Quantity, Avg Cost, and Market Price', () => {
+      render(<PositionGrid positions={[makePosition()]} />)
+
+      expect(screen.queryByRole('columnheader', { name: 'Quantity' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('columnheader', { name: 'Avg Cost' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('columnheader', { name: 'Market Price' })).not.toBeInTheDocument()
+    })
+
+    it('renders a Details toggle button', () => {
+      render(<PositionGrid positions={[makePosition()]} />)
+
+      expect(screen.getByTestId('position-details-toggle')).toBeInTheDocument()
+    })
+
+    it('clicking Details reveals Quantity, Avg Cost, and Market Price', async () => {
+      const user = userEvent.setup()
+      render(<PositionGrid positions={[makePosition()]} />)
+
+      await user.click(screen.getByTestId('position-details-toggle'))
+
+      expect(screen.getByRole('columnheader', { name: 'Quantity' })).toBeInTheDocument()
+      expect(screen.getByRole('columnheader', { name: 'Avg Cost' })).toBeInTheDocument()
+      expect(screen.getByRole('columnheader', { name: 'Market Price' })).toBeInTheDocument()
+
+      const row = screen.getByTestId('position-row-AAPL')
+      expect(within(row).getByText('100')).toBeInTheDocument()
+      expect(within(row).getByText('$150.00')).toBeInTheDocument()
+      expect(within(row).getByText('$155.00')).toBeInTheDocument()
+    })
+
+    it('clicking Details twice toggles columns back off', async () => {
+      const user = userEvent.setup()
+      render(<PositionGrid positions={[makePosition()]} />)
+
+      const toggle = screen.getByTestId('position-details-toggle')
+      await user.click(toggle)
+      expect(screen.getByRole('columnheader', { name: 'Quantity' })).toBeInTheDocument()
+
+      await user.click(toggle)
+      expect(screen.queryByRole('columnheader', { name: 'Quantity' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('columnheader', { name: 'Avg Cost' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('columnheader', { name: 'Market Price' })).not.toBeInTheDocument()
+    })
+
+    it('persists Details toggle state via the workspace preference', async () => {
+      const user = userEvent.setup()
+      render(<PositionGrid positions={[makePosition()]} />)
+
+      await user.click(screen.getByTestId('position-details-toggle'))
+
+      const saved = JSON.parse(localStorage.getItem('kinetix:workspace') ?? '{}')
+      expect(saved.showPositionDetails).toBe(true)
+    })
+
+    it('hydrates Details toggle from workspace preference on mount', () => {
+      localStorage.setItem(
+        'kinetix:workspace',
+        JSON.stringify({ showPositionDetails: true }),
+      )
+
+      render(<PositionGrid positions={[makePosition()]} />)
+
+      expect(screen.getByRole('columnheader', { name: 'Quantity' })).toBeInTheDocument()
+      expect(screen.getByRole('columnheader', { name: 'Avg Cost' })).toBeInTheDocument()
+      expect(screen.getByRole('columnheader', { name: 'Market Price' })).toBeInTheDocument()
     })
   })
 

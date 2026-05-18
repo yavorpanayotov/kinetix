@@ -23,6 +23,15 @@ test.describe('CSV Export - File Download and Content Validity', () => {
     test('downloaded positions CSV contains correct headers and all position rows', async ({
       page,
     }) => {
+      // Reveal Details columns so the export captures the full position view —
+      // by default the risk-first PositionGrid hides Quantity / Avg Cost /
+      // Market Price.
+      await page.addInitScript(() => {
+        localStorage.setItem(
+          'kinetix:workspace',
+          JSON.stringify({ showPositionDetails: true }),
+        )
+      })
       await page.goto('/')
       await page.waitForSelector('[data-testid="csv-export-button"]')
 
@@ -37,7 +46,7 @@ test.describe('CSV Export - File Download and Content Validity', () => {
       const content = await readFile(filePath!, 'utf-8')
       const lines = content.trim().split('\n')
 
-      // Header row should contain the default visible column labels
+      // Header row should contain all visible column labels (with Details on)
       const headerRow = lines[0]
       expect(headerRow).toContain('Instrument')
       expect(headerRow).toContain('Asset Class')
@@ -55,6 +64,31 @@ test.describe('CSV Export - File Download and Content Validity', () => {
       for (const pos of TEST_POSITIONS) {
         expect(dataContent).toContain(pos.instrumentId)
       }
+    })
+
+    test('default risk-first CSV export omits Detail columns', async ({
+      page,
+    }) => {
+      // With Details toggle OFF (the default), the CSV should NOT include
+      // Quantity, Avg Cost, or Market Price.
+      await page.goto('/')
+      await page.waitForSelector('[data-testid="csv-export-button"]')
+
+      const downloadPromise = page.waitForEvent('download')
+      await page.getByTestId('csv-export-button').click()
+      const download = await downloadPromise
+
+      const filePath = await download.path()
+      const { readFile } = await import('fs/promises')
+      const content = await readFile(filePath!, 'utf-8')
+      const headerRow = content.trim().split('\n')[0]
+
+      expect(headerRow).toContain('Instrument')
+      expect(headerRow).toContain('Market Value')
+      expect(headerRow).toContain('Unrealized P&L')
+      expect(headerRow).not.toContain('Quantity')
+      expect(headerRow).not.toContain('Avg Cost')
+      expect(headerRow).not.toContain('Market Price')
     })
 
     test('position CSV contains raw numeric values without currency symbols', async ({
@@ -82,6 +116,14 @@ test.describe('CSV Export - File Download and Content Validity', () => {
     test('CSV export respects column visibility settings', async ({
       page,
     }) => {
+      // Reveal Details so we can verify Quantity is included by default once
+      // toggled on, then hide Asset Class via the per-column settings dropdown.
+      await page.addInitScript(() => {
+        localStorage.setItem(
+          'kinetix:workspace',
+          JSON.stringify({ showPositionDetails: true }),
+        )
+      })
       await page.goto('/')
       await page.waitForSelector('[data-testid="csv-export-button"]')
 
