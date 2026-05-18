@@ -149,7 +149,7 @@ and flag (per `/work-plan` guardrails).
       `notification-service`'s `RiskResultConsumer`. Unit test drives the
       consumer with a fake event and asserts both regulatory calls happen.
       Acceptance: `./gradlew :demo-orchestrator:test --tests "*EodCycleObserverJobTest"`
-- [ ] 3.3 Wire `EodCycleObserverJob` into `Application.kt` behind
+- [x] 3.3 Wire `EodCycleObserverJob` into `Application.kt` behind
       `DEMO_MODE=true`.
       Acceptance: `./gradlew :demo-orchestrator:build`
 
