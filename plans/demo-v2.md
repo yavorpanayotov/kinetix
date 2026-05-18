@@ -155,12 +155,12 @@ and flag (per `/work-plan` guardrails).
 
 ### PR 4 — Deployment
 
-- [ ] 4.1 Add a `demo-orchestrator` block to
-      `deploy/docker-compose.services.yml`, mirroring the `risk-orchestrator`
-      entry: `DEMO_MODE=true`, the three service URLs, trading-hours envs,
-      `depends_on` `position-service` / `risk-orchestrator` /
-      `regulatory-service`.
-      Acceptance: `grep -q '^[[:space:]]*demo-orchestrator:' deploy/docker-compose.services.yml`
+- [x] 4.1 Add a `demo-orchestrator` block to
+      `docker-compose.services.yml` (canonical path at repo root, not under
+      `deploy/`), mirroring the `risk-orchestrator` entry: `DEMO_MODE=true`,
+      the three service URLs, trading-hours envs, `depends_on`
+      `position-service` / `risk-orchestrator` / `regulatory-service`.
+      Acceptance: `grep -q '^[[:space:]]*demo-orchestrator:' docker-compose.services.yml`
 - [ ] 4.2 Copy `deploy/helm/kinetix/charts/risk-orchestrator/` to
       `deploy/helm/kinetix/charts/demo-orchestrator/`, updating `Chart.yaml`
       `name` and `values.yaml` `image` + `port`. Demo-only — enabled in the
