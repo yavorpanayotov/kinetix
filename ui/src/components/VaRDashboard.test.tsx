@@ -1,8 +1,20 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { act, render, screen, fireEvent } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import type { VaRResultDto, GreeksResultDto, TimeRange } from '../types'
 import type { VaRHistoryEntry } from '../hooks/useVaR'
+import type { InsightResponse } from '../api/insights'
+import { explainVar } from '../api/insights'
 import { VaRDashboard } from './VaRDashboard'
+
+vi.mock('../api/insights', async () => {
+  const actual = await vi.importActual<typeof import('../api/insights')>('../api/insights')
+  return {
+    ...actual,
+    explainVar: vi.fn(),
+  }
+})
+
+const mockedExplainVar = vi.mocked(explainVar)
 
 const CONTAINER_WIDTH = 800
 
@@ -879,6 +891,99 @@ describe('VaRDashboard', () => {
 
       expect(greeksToggle.className).toContain('bg-primary-100')
       expect(varToggle.className).not.toContain('bg-primary-100')
+    })
+  })
+
+  describe('Explain (AI insight)', () => {
+    beforeEach(() => {
+      mockedExplainVar.mockReset()
+      // Default: never-resolving promise so state updates from a stray click
+      // never run after the test finishes. Tests that need a real result
+      // override this with mockResolvedValueOnce.
+      mockedExplainVar.mockReturnValue(new Promise(() => {}))
+    })
+
+    it('renders the Explain button in the gauge header', () => {
+      render(
+        <VaRDashboard
+          varResult={varResult}
+          loading={false}
+          error={null}
+          onRefresh={() => {}}
+          {...defaultZoomProps}
+        />,
+      )
+
+      const btn = screen.getByTestId('explain-var-button')
+      expect(btn).toBeInTheDocument()
+      expect(btn).toHaveTextContent(/explain/i)
+    })
+
+    it('shows the loading state immediately after clicking Explain', async () => {
+      // The default never-resolving promise from beforeEach keeps the panel
+      // in the loading state so we can observe it synchronously.
+      render(
+        <VaRDashboard
+          varResult={varResult}
+          loading={false}
+          error={null}
+          onRefresh={() => {}}
+          {...defaultZoomProps}
+        />,
+      )
+
+      // Panel not yet visible.
+      expect(screen.queryByTestId('ai-insight-panel')).not.toBeInTheDocument()
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('explain-var-button'))
+      })
+
+      // Panel opens in loading state.
+      expect(screen.getByTestId('ai-insight-panel')).toBeInTheDocument()
+      expect(screen.getByTestId('ai-insight-loading')).toBeInTheDocument()
+    })
+
+    it('renders the narrative and bullets once explainVar resolves', async () => {
+      const insight: InsightResponse = {
+        narrative: 'VaR is concentrated in equity exposure.',
+        bullets: [
+          'EQUITY contributes 64.85% of total VaR',
+          'Diversification across asset classes is moderate',
+        ],
+        model: 'claude-canned',
+        mode: 'canned',
+      }
+      mockedExplainVar.mockReset()
+      mockedExplainVar.mockResolvedValueOnce(insight)
+
+      render(
+        <VaRDashboard
+          varResult={varResult}
+          loading={false}
+          error={null}
+          onRefresh={() => {}}
+          {...defaultZoomProps}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('explain-var-button'))
+
+      expect(
+        await screen.findByText('VaR is concentrated in equity exposure.'),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByText('EQUITY contributes 64.85% of total VaR'),
+      ).toBeInTheDocument()
+      expect(screen.queryByTestId('ai-insight-loading')).not.toBeInTheDocument()
+      expect(mockedExplainVar).toHaveBeenCalledTimes(1)
+
+      // Sanity-check the payload built from VaR state.
+      const payload = mockedExplainVar.mock.calls[0][0]
+      expect(payload.method).toBe('HISTORICAL')
+      expect(payload.confidence).toBe(0.95)
+      expect(payload.value_usd).toBeCloseTo(1234567.89, 2)
+      expect(payload.top_contributors.length).toBeGreaterThan(0)
     })
   })
 

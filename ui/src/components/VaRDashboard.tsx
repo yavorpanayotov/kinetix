@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Calendar, FlaskRound, Info, RefreshCw, X } from 'lucide-react'
+import { Calendar, FlaskRound, Info, RefreshCw, Sparkles, X } from 'lucide-react'
 import type { VaRResultDto, GreeksResultDto, MarketRegime, TimeRange, TradeAnnotationDto } from '../types'
 import type { VaRHistoryEntry } from '../hooks/useVaR'
 import { useClickOutside } from '../hooks/useClickOutside'
@@ -12,6 +12,14 @@ import { VaRTrendChart } from './VaRTrendChart'
 import { GreeksTrendChart } from './GreeksTrendChart'
 import { TimeRangeSelector } from './TimeRangeSelector'
 import { Card, Button, Spinner, EmptyState } from './ui'
+import { AIInsightPanel } from './AIInsightPanel'
+import { explainVar, type ExplainVarRequest, type InsightResponse } from '../api/insights'
+
+function confidenceLevelToNumber(level: string): number {
+  if (level === 'CL_99') return 0.99
+  if (level === 'CL_975') return 0.975
+  return 0.95
+}
 
 const calculationTypeDescriptions: Record<string, string> = {
   PARAMETRIC: 'Variance-covariance method — assumes returns are normally distributed and estimates VaR from the portfolio\'s mean and standard deviation.',
@@ -74,6 +82,10 @@ interface VaRDashboardProps {
 export function VaRDashboard({ varResult, filteredHistory, loading, historyLoading, refreshing = false, error, onRefresh, timeRange, setTimeRange, zoomIn, resetZoom, zoomDepth, greeksResult, varLimit, onWhatIf, selectedConfidenceLevel, onConfidenceLevelChange, isLive = true, valuationDate, totalStandaloneVar, diversificationBenefit, activeScenario = null, marketRegime = null, tradeAnnotations = [], snapshotVaR = null, snapshotLabel = null }: VaRDashboardProps) {
   const [tooltipOpen, setTooltipOpen] = useState(false)
   const [chartView, setChartView] = useState<'var' | 'greeks'>('var')
+  const [insightOpen, setInsightOpen] = useState(false)
+  const [insightLoading, setInsightLoading] = useState(false)
+  const [insightError, setInsightError] = useState<string | null>(null)
+  const [insight, setInsight] = useState<InsightResponse | null>(null)
   const calcTypeRef = useRef<HTMLSpanElement>(null)
   const { windows: stressWindows } = useStressWindows()
 
@@ -137,6 +149,32 @@ export function VaRDashboard({ varResult, filteredHistory, loading, historyLoadi
   const expectedShortfall = Number(varResult.expectedShortfall)
   const previousVaR = filteredHistory.length >= 2 ? filteredHistory[filteredHistory.length - 2].varValue : null
 
+  const handleExplain = async () => {
+    setInsightOpen(true)
+    setInsightLoading(true)
+    setInsightError(null)
+    setInsight(null)
+    const payload: ExplainVarRequest = {
+      method: varResult.calculationType,
+      confidence: confidenceLevelToNumber(selectedConfidenceLevel ?? varResult.confidenceLevel),
+      horizon_days: 1,
+      value_usd: varValue,
+      top_contributors: varResult.componentBreakdown.map(c => ({
+        instrument: c.assetClass,
+        contribution_pct: Number(c.percentageOfTotal),
+      })),
+      regime: marketRegime ?? 'NORMAL',
+    }
+    try {
+      const result = await explainVar(payload)
+      setInsight(result)
+    } catch (err) {
+      setInsightError(err instanceof Error ? err.message : 'Failed to generate insight')
+    } finally {
+      setInsightLoading(false)
+    }
+  }
+
   return (
     <Card data-testid="var-dashboard" className={`mb-4${!isLive ? ' bg-amber-50/30 dark:bg-amber-950/20' : ''}`}>
       {!isLive && (
@@ -145,6 +183,17 @@ export function VaRDashboard({ varResult, filteredHistory, loading, historyLoadi
           Historical — {valuationDate}
         </div>
       )}
+      <div className="flex items-center justify-end mb-2">
+        <button
+          type="button"
+          data-testid="explain-var-button"
+          onClick={handleExplain}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-indigo-600 border border-indigo-300 rounded-md hover:bg-indigo-50 transition-colors"
+        >
+          <Sparkles className="h-4 w-4" />
+          Explain
+        </button>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <VaRGauge
           varValue={varValue}
@@ -172,6 +221,18 @@ export function VaRDashboard({ varResult, filteredHistory, loading, historyLoadi
           <ComponentBreakdown breakdown={varResult.componentBreakdown} bookVaR={varResult.varValue} />
         </div>
       </div>
+
+      {insightOpen && (
+        <div className="mt-4">
+          <AIInsightPanel
+            loading={insightLoading}
+            error={insightError}
+            insight={insight}
+            title="VaR Explanation"
+            onClose={() => setInsightOpen(false)}
+          />
+        </div>
+      )}
 
       {snapshotVaR != null && snapshotLabel && (() => {
         // Plan §8.6 — ad-hoc snapshot delta. Render the change vs the
