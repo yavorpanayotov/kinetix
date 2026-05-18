@@ -111,4 +111,41 @@ describe('DataQualityIndicator', () => {
     fireEvent.click(indicator)
     expect(screen.getByText('Monitoring unavailable')).toBeDefined()
   })
+
+  it('exposes the open dropdown as a labelled dialog', () => {
+    render(<DataQualityIndicator status={allOkStatus} loading={false} />)
+
+    const trigger = screen.getByTestId('data-quality-indicator')
+    fireEvent.click(trigger)
+
+    const dropdown = screen.getByTestId('data-quality-dropdown')
+    expect(dropdown.getAttribute('role')).toBe('dialog')
+    expect(dropdown.getAttribute('aria-label')).toBeTruthy()
+  })
+
+  it('moves focus into the dropdown when it opens', () => {
+    render(<DataQualityIndicator status={allOkStatus} loading={false} />)
+
+    const trigger = screen.getByTestId('data-quality-indicator')
+    fireEvent.click(trigger)
+
+    const dropdown = screen.getByTestId('data-quality-dropdown')
+    const focused = document.activeElement
+    expect(focused).not.toBeNull()
+    expect(dropdown === focused || dropdown.contains(focused)).toBe(true)
+  })
+
+  it('returns focus to the trigger when the dropdown closes via Escape', () => {
+    render(<DataQualityIndicator status={allOkStatus} loading={false} />)
+
+    const trigger = screen.getByLabelText('Data quality status')
+    fireEvent.click(trigger)
+
+    expect(screen.getByTestId('data-quality-dropdown')).toBeDefined()
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    expect(screen.queryByTestId('data-quality-dropdown')).toBeNull()
+    expect(document.activeElement).toBe(trigger)
+  })
 })

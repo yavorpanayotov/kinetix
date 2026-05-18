@@ -11,6 +11,8 @@ interface DataQualityIndicatorProps {
 export function DataQualityIndicator({ status, loading }: DataQualityIndicatorProps) {
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
   const closeDropdown = useCallback(() => setOpen(false), [])
   useClickOutside(containerRef, closeDropdown)
 
@@ -21,6 +23,18 @@ export function DataQualityIndicator({ status, loading }: DataQualityIndicatorPr
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [open])
+
+  const wasOpenRef = useRef(false)
+  useEffect(() => {
+    if (open) {
+      dropdownRef.current?.focus()
+      wasOpenRef.current = true
+    } else if (wasOpenRef.current) {
+      // Dropdown just closed — return focus to the trigger.
+      triggerRef.current?.focus()
+      wasOpenRef.current = false
+    }
   }, [open])
 
   if (loading) {
@@ -50,8 +64,11 @@ export function DataQualityIndicator({ status, loading }: DataQualityIndicatorPr
   return (
     <div ref={containerRef} className="relative" data-testid="data-quality-indicator" onClick={() => setOpen((prev) => !prev)}>
       <button
+        ref={triggerRef}
         className={`p-1.5 rounded-md hover:bg-surface-800 transition-colors ${colorClass}`}
         aria-label="Data quality status"
+        aria-haspopup="dialog"
+        aria-expanded={open}
       >
         {status.overall === 'CRITICAL' ? (
           <AlertCircle data-testid={statusTestId} className="h-4 w-4" />
@@ -64,7 +81,11 @@ export function DataQualityIndicator({ status, loading }: DataQualityIndicatorPr
 
       {open && (
         <div
-          className="absolute right-0 top-full mt-2 w-80 bg-surface-800 border border-surface-700 rounded-lg shadow-xl z-50 p-3"
+          ref={dropdownRef}
+          role="dialog"
+          aria-label="Data quality details"
+          tabIndex={-1}
+          className="absolute right-0 top-full mt-2 w-80 bg-surface-800 border border-surface-700 rounded-lg shadow-xl z-50 p-3 focus:outline-none"
           data-testid="data-quality-dropdown"
         >
           <div className="text-sm font-medium text-white mb-2">Data Quality</div>
