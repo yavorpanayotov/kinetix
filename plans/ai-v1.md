@@ -119,7 +119,7 @@ Per CLAUDE.md guardrails, the following are explicitly approved in this plan so 
       Acceptance: `helm lint deploy/helm/kinetix/charts/ai-insights-service && helm template deploy/helm/kinetix > /dev/null`
 - [x] 4.3 Update `.claude/skills/demo/SKILL.md` to mention the VaR Explainer and Report Commentary features in the demo walkthrough — what to click, what to expect to see in demo mode vs live mode.
       Acceptance: `grep -q 'Explain' .claude/skills/demo/SKILL.md && grep -q 'AI Commentary\|AI commentary' .claude/skills/demo/SKILL.md`
-- [ ] 4.4 Add a brief "AI features" section to `README.md` (below the hero) describing the two features and linking to `ai-insights-service/README.md` for the host-auth + DEMO_MODE explanation.
+- [x] 4.4 Add a brief "AI features" section to `README.md` (below the hero) describing the two features and linking to `ai-insights-service/README.md` for the host-auth + DEMO_MODE explanation.
       Acceptance: `grep -q 'AI features\|VaR Explainer' README.md && grep -q 'ai-insights-service/README.md' README.md`
 - [ ] 4.5 Final full-stack test sweep: run unit + acceptance tests across all touched modules to confirm green.
       Acceptance: `./gradlew :gateway:test :gateway:acceptanceTest && cd ai-insights-service && uv run pytest && cd ../ui && npm run test && npm run lint`

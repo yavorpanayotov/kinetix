@@ -16,6 +16,15 @@ A multi-service institutional risk management platform built almost entirely thr
 
 <!-- END: Built with Claude Code hero -->
 
+## AI features
+
+Two LLM-powered features ship in v1, routed through the host's Claude Code subscription via the [Claude Agent SDK](https://docs.anthropic.com/en/docs/claude-code/sdk) — no per-token API spend.
+
+- **VaR Explainer** — on the Risk tab's VaR gauge, click **Explain** for a narrative + bullets that walk through the result and call out top contributors.
+- **AI Commentary** — on the Reports tab, every generated report renders an AI Commentary card below it summarising drivers and any limit breaches.
+
+Both features run through a Python `ai-insights-service` with a deterministic canned-mode fallback (`DEMO_MODE=true`). See [`ai-insights-service/README.md`](ai-insights-service/README.md) for the host-auth model, `DEMO_MODE` flag, and the response-shape contract.
+
 # Kinetix
 
 **Institutional-grade portfolio risk management platform.**
