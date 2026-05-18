@@ -1204,3 +1204,17 @@ export interface SaCcrResultDto {
   ead: number
   alpha: number
 }
+
+export interface PositionNoteDto {
+  id: string
+  bookId: string
+  instrumentId: string
+  note: string
+  author: string
+  createdAt: string
+}
+
+export interface CreatePositionNoteRequest {
+  instrumentId: string
+  note: string
+}
