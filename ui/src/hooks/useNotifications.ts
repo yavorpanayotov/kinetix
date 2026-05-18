@@ -4,6 +4,7 @@ import {
   createRule as apiCreateRule,
   deleteRule as apiDeleteRule,
   fetchAlerts,
+  acknowledgeAlert as apiAcknowledgeAlert,
 } from '../api/notifications'
 import type { AlertRuleDto, AlertEventDto, CreateAlertRuleRequestDto } from '../types'
 
@@ -14,9 +15,17 @@ export interface UseNotificationsResult {
   error: string | null
   createRule: (request: CreateAlertRuleRequestDto) => void
   deleteRule: (ruleId: string) => void
+  acknowledgeAlert: (alertId: string, notes?: string) => Promise<void>
 }
 
-export function useNotifications(): UseNotificationsResult {
+/**
+ * Default acknowledger identity when no auth context is available (e.g. unit
+ * tests that render the hook in isolation). Production callers should pass the
+ * authenticated username from `useAuth()`.
+ */
+const DEFAULT_USER = 'unknown'
+
+export function useNotifications(username: string | null = null): UseNotificationsResult {
   const [rules, setRules] = useState<AlertRuleDto[]>([])
   const [alerts, setAlerts] = useState<AlertEventDto[]>([])
   const [loading, setLoading] = useState(true)
@@ -62,5 +71,51 @@ export function useNotifications(): UseNotificationsResult {
     }
   }, [])
 
-  return { rules, alerts, loading, error, createRule, deleteRule }
+  /**
+   * Acknowledge an alert with optimistic update and rollback on error.
+   *
+   * - Immediately flips the alert's status to ACKNOWLEDGED in local state so
+   *   the UI feels responsive.
+   * - On API failure, reverts to the previous status and surfaces the error.
+   */
+  const acknowledgeAlert = useCallback(
+    async (alertId: string, notes?: string) => {
+      const previous = alerts
+      // Optimistic update — flip the matching alert to ACKNOWLEDGED.
+      setAlerts((current) =>
+        current.map((a) =>
+          a.id === alertId ? { ...a, status: 'ACKNOWLEDGED' } : a,
+        ),
+      )
+      setError(null)
+      try {
+        const updated = await apiAcknowledgeAlert(
+          alertId,
+          username ?? DEFAULT_USER,
+          notes,
+        )
+        // Reconcile with the server response (e.g. server-side timestamps).
+        setAlerts((current) =>
+          current.map((a) => (a.id === alertId ? updated : a)),
+        )
+      } catch (err) {
+        // Rollback.
+        setAlerts(previous)
+        const message = err instanceof Error ? err.message : String(err)
+        setError(message)
+        throw err
+      }
+    },
+    [alerts, username],
+  )
+
+  return {
+    rules,
+    alerts,
+    loading,
+    error,
+    createRule,
+    deleteRule,
+    acknowledgeAlert,
+  }
 }

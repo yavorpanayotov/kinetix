@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fetchRules, createRule, deleteRule, fetchAlerts, fetchEscalatedAlerts } from './notifications'
+import {
+  fetchRules,
+  createRule,
+  deleteRule,
+  fetchAlerts,
+  fetchEscalatedAlerts,
+  acknowledgeAlert,
+} from './notifications'
 
 describe('notifications API', () => {
   const mockFetch = vi.fn()
@@ -174,6 +181,75 @@ describe('notifications API', () => {
 
       await expect(fetchAlerts()).rejects.toThrow(
         'Failed to fetch alerts: 500 Internal Server Error',
+      )
+    })
+  })
+
+  describe('acknowledgeAlert', () => {
+    it('sends POST to the acknowledge endpoint with acknowledgedBy and notes', async () => {
+      const acknowledgedAlert = { ...sampleAlert, status: 'ACKNOWLEDGED' }
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(acknowledgedAlert),
+      })
+
+      const result = await acknowledgeAlert('evt-1', 'alice', 'investigating')
+
+      expect(result).toEqual(acknowledgedAlert)
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/v1/notifications/alerts/evt-1/acknowledge',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ acknowledgedBy: 'alice', notes: 'investigating' }),
+        },
+      )
+    })
+
+    it('omits notes when not provided', async () => {
+      const acknowledgedAlert = { ...sampleAlert, status: 'ACKNOWLEDGED' }
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(acknowledgedAlert),
+      })
+
+      await acknowledgeAlert('evt-1', 'alice')
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/v1/notifications/alerts/evt-1/acknowledge',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ acknowledgedBy: 'alice', notes: undefined }),
+        }),
+      )
+    })
+
+    it('url-encodes the alert id', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(sampleAlert),
+      })
+
+      await acknowledgeAlert('alert with space', 'alice')
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/v1/notifications/alerts/alert%20with%20space/acknowledge',
+        expect.anything(),
+      )
+    })
+
+    it('throws on non-2xx', async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 409,
+        statusText: 'Conflict',
+      })
+
+      await expect(acknowledgeAlert('evt-1', 'alice')).rejects.toThrow(
+        'Failed to acknowledge alert: 409 Conflict',
       )
     })
   })

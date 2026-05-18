@@ -4,13 +4,20 @@ import type { AlertRuleDto, AlertEventDto } from '../types'
 
 vi.mock('../api/notifications')
 
-import { fetchRules, createRule, deleteRule, fetchAlerts } from '../api/notifications'
+import {
+  fetchRules,
+  createRule,
+  deleteRule,
+  fetchAlerts,
+  acknowledgeAlert,
+} from '../api/notifications'
 import { useNotifications } from './useNotifications'
 
 const mockFetchRules = vi.mocked(fetchRules)
 const mockCreateRule = vi.mocked(createRule)
 const mockDeleteRule = vi.mocked(deleteRule)
 const mockFetchAlerts = vi.mocked(fetchAlerts)
+const mockAcknowledgeAlert = vi.mocked(acknowledgeAlert)
 
 const rule: AlertRuleDto = {
   id: 'rule-1',
@@ -99,6 +106,59 @@ describe('useNotifications', () => {
     })
 
     expect(mockCreateRule).toHaveBeenCalled()
+  })
+
+  it('acknowledges an alert optimistically and uses the server response', async () => {
+    mockFetchRules.mockResolvedValue([])
+    mockFetchAlerts.mockResolvedValue([alert])
+    const acknowledged: AlertEventDto = {
+      ...alert,
+      status: 'ACKNOWLEDGED',
+    }
+    mockAcknowledgeAlert.mockResolvedValue(acknowledged)
+
+    const { result } = renderHook(() => useNotifications('alice'))
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+
+    expect(result.current.alerts[0].status).toBe('TRIGGERED')
+
+    await act(async () => {
+      await result.current.acknowledgeAlert('alert-1', 'investigating')
+    })
+
+    expect(mockAcknowledgeAlert).toHaveBeenCalledWith(
+      'alert-1',
+      'alice',
+      'investigating',
+    )
+    expect(result.current.alerts[0].status).toBe('ACKNOWLEDGED')
+    expect(result.current.error).toBeNull()
+  })
+
+  it('reverts the alert status on acknowledge failure and surfaces an error', async () => {
+    mockFetchRules.mockResolvedValue([])
+    mockFetchAlerts.mockResolvedValue([alert])
+    mockAcknowledgeAlert.mockRejectedValue(new Error('Conflict'))
+
+    const { result } = renderHook(() => useNotifications('alice'))
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+
+    await act(async () => {
+      try {
+        await result.current.acknowledgeAlert('alert-1')
+      } catch {
+        // expected
+      }
+    })
+
+    expect(result.current.alerts[0].status).toBe('TRIGGERED')
+    expect(result.current.error).toContain('Conflict')
   })
 
   it('deletes a rule and refreshes rules list', async () => {
