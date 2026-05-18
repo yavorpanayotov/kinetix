@@ -39,7 +39,7 @@ That brings in `org.testcontainers.kafka.KafkaContainer` transitively, plus the 
   - Acceptance: `./gradlew :notification-service:integrationTest --tests "*RiskResultConsumerIntegrationTest"`
 - [x] **1.3** Create `notification-service/src/test/kotlin/com/kinetix/notification/kafka/NotificationConsumerDlqIntegrationTest.kt` — produce a permanently-failing payload, verify the DLQ topic (`<topic>.dlq`) receives the message via a real `KafkaConsumer` subscribed to the DLQ.
   - Acceptance: `./gradlew :notification-service:integrationTest --tests "*NotificationConsumerDlqIntegrationTest"`
-- [ ] **1.4** Create `notification-service/src/test/kotlin/com/kinetix/notification/kafka/RetryableConsumerNotificationIntegrationTest.kt` — exercise `RetryableConsumer` wiring (retry → eventual success on transient errors; retry → DLQ on permanent errors) under real broker rebalance conditions. The canonical template is `position-service/src/test/kotlin/com/kinetix/position/kafka/RetryableConsumerKafkaIntegrationTest.kt`.
+- [x] **1.4** Create `notification-service/src/test/kotlin/com/kinetix/notification/kafka/RetryableConsumerNotificationIntegrationTest.kt` — exercise `RetryableConsumer` wiring (retry → eventual success on transient errors; retry → DLQ on permanent errors) under real broker rebalance conditions. The canonical template is `position-service/src/test/kotlin/com/kinetix/position/kafka/RetryableConsumerKafkaIntegrationTest.kt`.
   - Acceptance: `./gradlew :notification-service:integrationTest --tests "*RetryableConsumerNotificationIntegrationTest"`
 
 ---
