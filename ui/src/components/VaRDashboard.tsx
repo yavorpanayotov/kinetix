@@ -10,7 +10,7 @@ import { useStressWindows } from '../hooks/useStressWindows'
 import { VaRTrendChart } from './VaRTrendChart'
 import { GreeksTrendChart } from './GreeksTrendChart'
 import { TimeRangeSelector } from './TimeRangeSelector'
-import { Card, Button, Spinner } from './ui'
+import { Card, Button, Spinner, EmptyState } from './ui'
 
 const calculationTypeDescriptions: Record<string, string> = {
   PARAMETRIC: 'Variance-covariance method — assumes returns are normally distributed and estimates VaR from the portfolio\'s mean and standard deviation.',
@@ -105,7 +105,10 @@ export function VaRDashboard({ varResult, filteredHistory, loading, historyLoadi
   if (!varResult) {
     return (
       <Card data-testid="var-empty" className="mb-4">
-        <p className="text-slate-500">No VaR results yet. Run a calculation to see risk metrics.</p>
+        <EmptyState
+          title="No VaR results yet"
+          description="Run a calculation to see risk metrics."
+        />
       </Card>
     )
   }

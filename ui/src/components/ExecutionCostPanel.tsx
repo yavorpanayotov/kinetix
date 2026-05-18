@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Inbox, AlertTriangle } from 'lucide-react'
 import { fetchExecutionCosts } from '../api/execution'
 import type { ExecutionCostDto } from '../types'
-import { Card, EmptyState } from './ui'
+import { Card, EmptyState, ErrorCard, Spinner } from './ui'
 
 function SimulationModeBanner() {
   return (
@@ -64,7 +64,10 @@ export function ExecutionCostPanel({ bookId }: ExecutionCostPanelProps) {
     return (
       <>
         <SimulationModeBanner />
-        <p className="text-slate-500">Loading execution costs...</p>
+        <div className="flex items-center gap-2 text-sm text-slate-500">
+          <Spinner size="sm" />
+          Loading execution costs...
+        </div>
       </>
     )
   }
@@ -73,7 +76,7 @@ export function ExecutionCostPanel({ bookId }: ExecutionCostPanelProps) {
     return (
       <>
         <SimulationModeBanner />
-        <p className="text-red-600">{error}</p>
+        <ErrorCard message={error} />
       </>
     )
   }

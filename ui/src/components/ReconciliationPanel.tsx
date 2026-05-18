@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Inbox, AlertTriangle } from 'lucide-react'
 import { fetchReconciliations } from '../api/execution'
 import type { ReconciliationDto } from '../types'
-import { Card, EmptyState } from './ui'
+import { Card, EmptyState, ErrorCard, Spinner } from './ui'
 
 function SimulationModeBanner() {
   return (
@@ -64,7 +64,10 @@ export function ReconciliationPanel({ bookId }: ReconciliationPanelProps) {
     return (
       <>
         <SimulationModeBanner />
-        <p className="text-slate-500">Loading reconciliation data...</p>
+        <div className="flex items-center gap-2 text-sm text-slate-500">
+          <Spinner size="sm" />
+          Loading reconciliation data...
+        </div>
       </>
     )
   }
@@ -73,7 +76,7 @@ export function ReconciliationPanel({ bookId }: ReconciliationPanelProps) {
     return (
       <>
         <SimulationModeBanner />
-        <p className="text-red-600">{error}</p>
+        <ErrorCard message={error} />
       </>
     )
   }

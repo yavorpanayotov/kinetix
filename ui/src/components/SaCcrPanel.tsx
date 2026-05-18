@@ -1,5 +1,6 @@
 import type { SaCcrResultDto } from '../types'
 import { formatCurrency } from '../utils/format'
+import { EmptyState, ErrorCard, Spinner } from './ui'
 
 interface SaCcrPanelProps {
   result: SaCcrResultDto | null
@@ -8,9 +9,22 @@ interface SaCcrPanelProps {
 }
 
 export function SaCcrPanel({ result, loading, error }: SaCcrPanelProps) {
-  if (loading) return <p className="text-sm text-slate-500" data-testid="sa-ccr-loading">Loading SA-CCR...</p>
-  if (error) return <p className="text-sm text-red-600" data-testid="sa-ccr-error">{error}</p>
-  if (!result) return <p className="text-sm text-slate-500" data-testid="sa-ccr-empty">No SA-CCR data available.</p>
+  if (loading) {
+    return (
+      <div data-testid="sa-ccr-loading" className="flex items-center gap-2 text-sm text-slate-500">
+        <Spinner size="sm" />
+        Loading SA-CCR...
+      </div>
+    )
+  }
+  if (error) return <ErrorCard message={error} data-testid="sa-ccr-error" />
+  if (!result) {
+    return (
+      <div data-testid="sa-ccr-empty">
+        <EmptyState title="No SA-CCR data available." />
+      </div>
+    )
+  }
 
   return (
     <div data-testid="sa-ccr-panel" className="bg-white dark:bg-surface-800 border border-slate-200 dark:border-surface-700 rounded-lg p-4">

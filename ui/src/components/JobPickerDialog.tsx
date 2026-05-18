@@ -2,6 +2,8 @@ import { useEffect, useCallback, useRef } from 'react'
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search } from 'lucide-react'
 import { Button } from './ui/Button'
 import { Spinner } from './ui/Spinner'
+import { EmptyState } from './ui/EmptyState'
+import { ErrorCard } from './ui/ErrorCard'
 import { TimeRangeSelector } from './TimeRangeSelector'
 import { useJobPicker } from '../hooks/useJobPicker'
 import { formatTimestamp } from '../utils/format'
@@ -114,17 +116,21 @@ export function JobPickerDialog({
           )}
 
           {error && (
-            <p data-testid="job-picker-error" className="text-red-600 text-sm text-center py-4">
-              {error}
-            </p>
+            <div className="py-4">
+              <ErrorCard message={error} data-testid="job-picker-error" />
+            </div>
           )}
 
           {!loading && !error && jobs.length === 0 && (
-            <p data-testid="job-picker-empty" className="text-slate-500 dark:text-slate-400 text-sm text-center py-8">
-              {hasActiveFilters
-                ? 'No completed calculations match your search.'
-                : 'No completed VaR calculations found.'}
-            </p>
+            <div data-testid="job-picker-empty">
+              <EmptyState
+                title={
+                  hasActiveFilters
+                    ? 'No completed calculations match your search.'
+                    : 'No completed VaR calculations found.'
+                }
+              />
+            </div>
           )}
 
           {!loading && !error && jobs.length > 0 && (

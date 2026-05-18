@@ -40,6 +40,7 @@ import { YieldCurvePanel } from './YieldCurvePanel'
 import { IntradayVaRChart } from './IntradayVaRChart'
 import { KrdPanel } from './KrdPanel'
 import { Spinner } from './ui/Spinner'
+import { ErrorCard } from './ui/ErrorCard'
 import { SectionBlock } from './ui/SectionBlock'
 import { useWorkspace, type RiskDashboardSectionsState } from '../hooks/useWorkspace'
 
@@ -464,7 +465,7 @@ export function RiskTab({
       {subTab === 'intraday' && (
         <div data-testid="intraday-var-panel" className="space-y-4">
           {intradayVarLoading && <Spinner size="sm" />}
-          {intradayVarError && <p className="text-sm text-red-600">{intradayVarError}</p>}
+          {intradayVarError && <ErrorCard message={intradayVarError} />}
           {!intradayVarLoading && !intradayVarError && (
             <IntradayVaRChart varPoints={intradayVarPoints} tradeAnnotations={intradayTradeAnnotations} />
           )}
