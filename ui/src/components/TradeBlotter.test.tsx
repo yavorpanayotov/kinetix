@@ -178,6 +178,40 @@ describe('TradeBlotter', () => {
     expect(screen.getByTestId('csv-export-button')).toBeInTheDocument()
   })
 
+  describe('initialCounterpartyFilter prop (cross-tab jump from Counterparty Risk)', () => {
+    it('pre-populates the counterparty filter input from the prop', () => {
+      setupDefaults()
+      render(
+        <TradeBlotter bookId="book-1" initialCounterpartyFilter="CP-GS" />,
+      )
+
+      const input = screen.getByTestId('filter-counterparty') as HTMLInputElement
+      expect(input.value).toBe('CP-GS')
+    })
+
+    it('forwards the initial counterparty filter to useTradeHistory', () => {
+      setupDefaults()
+      render(
+        <TradeBlotter bookId="book-1" initialCounterpartyFilter="CP-JPM" />,
+      )
+
+      // The hook is called with the counterparty id so the server filters
+      // the result set — verifying call arguments asserts the wiring.
+      expect(mockUseTradeHistory).toHaveBeenCalledWith(
+        'book-1',
+        expect.objectContaining({ counterpartyId: 'CP-JPM' }),
+      )
+    })
+
+    it('leaves the counterparty filter empty when the prop is omitted', () => {
+      setupDefaults()
+      render(<TradeBlotter bookId="book-1" />)
+
+      const input = screen.getByTestId('filter-counterparty') as HTMLInputElement
+      expect(input.value).toBe('')
+    })
+  })
+
   it('shows the actual trade status in the status cell, not a hardcoded FILLED', () => {
     setupDefaults()
     render(<TradeBlotter bookId="book-1" />)

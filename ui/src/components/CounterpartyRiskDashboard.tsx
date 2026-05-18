@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Users, AlertTriangle, RefreshCw, Activity, ArrowUp, ArrowDown, Search } from 'lucide-react'
+import { Users, AlertTriangle, RefreshCw, Activity, ArrowUp, ArrowDown, ArrowRight, Search } from 'lucide-react'
 import { useCounterpartyRisk } from '../hooks/useCounterpartyRisk'
 import type { CounterpartyExposureDto, ExposureAtTenorDto } from '../api/counterpartyRisk'
 import { fetchSaCcr } from '../api/saCcr'
@@ -173,9 +173,11 @@ interface CounterpartyRowProps {
   isSelected: boolean
   highThreshold: number | null
   onSelect: () => void
+  /** Optional cross-tab jump to the Trades blotter filtered to this counterparty (plan §2.4). */
+  onJumpToTrades?: (counterpartyId: string) => void
 }
 
-function CounterpartyRow({ exposure, isSelected, highThreshold, onSelect }: CounterpartyRowProps) {
+function CounterpartyRow({ exposure, isSelected, highThreshold, onSelect, onJumpToTrades }: CounterpartyRowProps) {
   const hasHighExposure = highThreshold !== null && exposure.currentNetExposure >= highThreshold
   const hasCva = exposure.cva !== null
   const isAgreementExpired = exposure.agreementStatus === 'EXPIRED'
@@ -230,17 +232,35 @@ function CounterpartyRow({ exposure, isSelected, highThreshold, onSelect }: Coun
         )}
       </td>
       <td className="px-4 py-2.5 text-sm text-center">
-        {hasHighExposure ? (
-          <span
-            data-testid={`wwf-badge-${exposure.counterpartyId}`}
-            className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-900/40 text-amber-400 text-xs rounded"
-          >
-            <AlertTriangle className="h-3 w-3" />
-            High
-          </span>
-        ) : (
-          <span className="text-slate-400 dark:text-slate-500 text-xs">Normal</span>
-        )}
+        <div className="flex items-center justify-center gap-2">
+          {hasHighExposure ? (
+            <span
+              data-testid={`wwf-badge-${exposure.counterpartyId}`}
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-900/40 text-amber-400 text-xs rounded"
+            >
+              <AlertTriangle className="h-3 w-3" />
+              High
+            </span>
+          ) : (
+            <span className="text-slate-400 dark:text-slate-500 text-xs">Normal</span>
+          )}
+          {onJumpToTrades && (
+            <button
+              type="button"
+              data-testid={`jump-to-trades-${exposure.counterpartyId}`}
+              onClick={(e) => {
+                e.stopPropagation()
+                onJumpToTrades(exposure.counterpartyId)
+              }}
+              title={`View trades for ${exposure.counterpartyId}`}
+              aria-label={`View trades for ${exposure.counterpartyId}`}
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs font-medium text-indigo-300 hover:text-indigo-200 hover:bg-indigo-900/30 rounded transition-colors"
+            >
+              <ArrowRight className="h-3 w-3" />
+              Trades
+            </button>
+          )}
+        </div>
       </td>
     </tr>
   )
@@ -352,7 +372,16 @@ function DetailPanel({ exposure, computing, onComputePFE, onComputeCVA }: Detail
 // Main dashboard
 // ---------------------------------------------------------------------------
 
-export function CounterpartyRiskDashboard() {
+interface CounterpartyRiskDashboardProps {
+  /**
+   * Cross-tab jump (plan §2.4): switch to the Trades tab with the blotter
+   * pre-filtered to the chosen counterparty. Optional — omit for read-only
+   * embeds.
+   */
+  onJumpToTrades?: (counterpartyId: string) => void
+}
+
+export function CounterpartyRiskDashboard({ onJumpToTrades }: CounterpartyRiskDashboardProps = {}) {
   const {
     exposures,
     selected,
@@ -582,6 +611,7 @@ export function CounterpartyRiskDashboard() {
                       isSelected={selectedId === e.counterpartyId}
                       highThreshold={highThreshold}
                       onSelect={() => handleSelect(e.counterpartyId)}
+                      onJumpToTrades={onJumpToTrades}
                     />
                   ))}
                 </tbody>

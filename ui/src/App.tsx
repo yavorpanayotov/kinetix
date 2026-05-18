@@ -79,6 +79,10 @@ function App() {
   )
   const [whatIfOpen, setWhatIfOpen] = useState(false)
   const [tradesSubTab, setTradesSubTab] = useState<'blotter' | 'place' | 'cost' | 'reconciliation'>('blotter')
+  // Cross-tab link (plan §2.4): when the user jumps from a counterparty row
+  // to the Trades blotter, the chosen counterparty id flows in here so the
+  // TradeBlotter opens already filtered to that counterparty.
+  const [tradesCounterpartyFilter, setTradesCounterpartyFilter] = useState<string>('')
   const [shortcutsOverlayOpen, setShortcutsOverlayOpen] = useState(false)
   const focusBeforeOverlayRef = useRef<HTMLElement | null>(null)
   const tabRefs = useRef<Map<Tab, HTMLButtonElement>>(new Map())
@@ -492,7 +496,12 @@ function App() {
                         </button>
                       ))}
                     </div>
-                    {tradesSubTab === 'blotter' && <TradeBlotter bookId={bookId} />}
+                    {tradesSubTab === 'blotter' && (
+                      <TradeBlotter
+                        bookId={bookId}
+                        initialCounterpartyFilter={tradesCounterpartyFilter}
+                      />
+                    )}
                     {tradesSubTab === 'place' && <PlaceOrderPanel bookId={bookId ?? ''} />}
                     {tradesSubTab === 'cost' && <ExecutionCostPanel bookId={bookId} />}
                     {tradesSubTab === 'reconciliation' && <ReconciliationPanel bookId={bookId} />}
@@ -553,7 +562,17 @@ function App() {
                 )}
 
                 {activeTab === 'counterparty-risk' && (
-                  <CounterpartyRiskDashboard />
+                  <CounterpartyRiskDashboard
+                    onJumpToTrades={(counterpartyId) => {
+                      // Cross-tab link (plan §2.4): focus the Trades blotter
+                      // on the chosen counterparty, then switch tabs. The
+                      // blotter sub-tab is reset to 'blotter' so the filter
+                      // is actually visible.
+                      setTradesCounterpartyFilter(counterpartyId)
+                      setTradesSubTab('blotter')
+                      setActiveTab('trades')
+                    }}
+                  />
                 )}
 
                 {activeTab === 'reports' && (

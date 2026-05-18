@@ -235,6 +235,49 @@ describe('CounterpartyRiskDashboard', () => {
     })
   })
 
+  describe('cross-tab jump to filtered Trades', () => {
+    it('renders a "View trades" link on each row when onJumpToTrades is provided', () => {
+      mockUseCounterpartyRisk.mockReturnValue({
+        ...defaultHook,
+        exposures: [SAMPLE_EXPOSURE],
+      })
+
+      render(<CounterpartyRiskDashboard onJumpToTrades={() => {}} />)
+
+      expect(screen.getByTestId('jump-to-trades-CP-GS')).toBeInTheDocument()
+    })
+
+    it('does not render the "View trades" link when onJumpToTrades is omitted', () => {
+      mockUseCounterpartyRisk.mockReturnValue({
+        ...defaultHook,
+        exposures: [SAMPLE_EXPOSURE],
+      })
+
+      render(<CounterpartyRiskDashboard />)
+
+      expect(screen.queryByTestId('jump-to-trades-CP-GS')).not.toBeInTheDocument()
+    })
+
+    it('clicking "View trades" calls onJumpToTrades with the counterparty id', () => {
+      const onJumpToTrades = vi.fn()
+      const selectCounterparty = vi.fn()
+      mockUseCounterpartyRisk.mockReturnValue({
+        ...defaultHook,
+        exposures: [SAMPLE_EXPOSURE],
+        selectCounterparty,
+      })
+
+      render(<CounterpartyRiskDashboard onJumpToTrades={onJumpToTrades} />)
+
+      fireEvent.click(screen.getByTestId('jump-to-trades-CP-GS'))
+
+      expect(onJumpToTrades).toHaveBeenCalledWith('CP-GS')
+      // The row-click select should NOT fire — the jump button is a separate
+      // action and must stop propagation.
+      expect(selectCounterparty).not.toHaveBeenCalled()
+    })
+  })
+
   it('shows detail panel with metrics when counterparty is selected', () => {
     mockUseCounterpartyRisk.mockReturnValue({
       ...defaultHook,

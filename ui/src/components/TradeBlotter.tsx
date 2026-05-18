@@ -14,6 +14,12 @@ const TERMINAL_STATUSES = new Set(['EXPIRED', 'CANCELLED', 'REJECTED'])
 
 interface TradeBlotterProps {
   bookId: string | null
+  /**
+   * Initial value for the counterparty filter — used by cross-tab jumps
+   * from the Counterparty Risk dashboard (plan §2.4). The user can still
+   * edit or clear the field after it's been pre-populated.
+   */
+  initialCounterpartyFilter?: string
 }
 
 function notional(trade: TradeHistoryDto): number {
@@ -64,8 +70,15 @@ async function copyVenueOrderId(value: string | undefined): Promise<void> {
 
 const PAGE_SIZE = 50
 
-export function TradeBlotter({ bookId }: TradeBlotterProps) {
-  const [counterpartyFilter, setCounterpartyFilter] = useState<string>('')
+export function TradeBlotter({ bookId, initialCounterpartyFilter = '' }: TradeBlotterProps) {
+  const [counterpartyFilter, setCounterpartyFilter] = useState<string>(initialCounterpartyFilter)
+  // When the parent supplies a new initial filter (e.g. the user clicks a
+  // different counterparty's "View trades" link), reflect that in the input.
+  const [lastInitialFilter, setLastInitialFilter] = useState(initialCounterpartyFilter)
+  if (initialCounterpartyFilter !== lastInitialFilter) {
+    setLastInitialFilter(initialCounterpartyFilter)
+    setCounterpartyFilter(initialCounterpartyFilter)
+  }
   const {
     trades,
     loading,

@@ -18,7 +18,12 @@ vi.mock('./hooks/useVarLimit')
 vi.mock('./hooks/useIntradayPnlStream')
 vi.mock('./auth/useAuth')
 vi.mock('./components/TradeBlotter', () => ({
-  TradeBlotter: () => <div data-testid="trade-blotter-wrapper" />,
+  TradeBlotter: ({ initialCounterpartyFilter }: { initialCounterpartyFilter?: string }) => (
+    <div
+      data-testid="trade-blotter-wrapper"
+      data-counterparty-filter={initialCounterpartyFilter ?? ''}
+    />
+  ),
 }))
 vi.mock('./components/RiskTab', () => ({
   RiskTab: () => <div data-testid="risk-tab-wrapper" />,
@@ -28,6 +33,18 @@ vi.mock('./components/ScenariosTab', () => ({
 }))
 vi.mock('./components/RegulatoryTab', () => ({
   RegulatoryTab: () => <div data-testid="regulatory-tab-wrapper" />,
+}))
+vi.mock('./components/CounterpartyRiskDashboard', () => ({
+  CounterpartyRiskDashboard: ({ onJumpToTrades }: { onJumpToTrades?: (id: string) => void }) => (
+    <div data-testid="counterparty-risk-dashboard">
+      <button
+        data-testid="mock-jump-to-trades"
+        onClick={() => onJumpToTrades?.('CP-MOCK')}
+      >
+        Jump
+      </button>
+    </div>
+  ),
 }))
 
 import App from './App'
@@ -599,6 +616,16 @@ describe('App', () => {
       })
       expect(screen.getByTestId('risk-tab-wrapper')).toBeInTheDocument()
       expect(screen.queryByTestId('notification-center')).not.toBeInTheDocument()
+    })
+
+    it('jump from a counterparty row switches to Trades tab with the blotter filtered', () => {
+      render(<App />)
+      fireEvent.click(screen.getByTestId('tab-counterparty-risk'))
+      fireEvent.click(screen.getByTestId('mock-jump-to-trades'))
+
+      const blotter = screen.getByTestId('trade-blotter-wrapper')
+      expect(blotter).toBeInTheDocument()
+      expect(blotter.getAttribute('data-counterparty-filter')).toBe('CP-MOCK')
     })
   })
 
