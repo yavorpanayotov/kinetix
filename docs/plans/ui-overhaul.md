@@ -269,6 +269,54 @@ S = ~1 day. M = ~3 days. L = ~1 week.
 
 ---
 
+## Workstream Implementation Tracker
+
+Quick Wins are done. The items below are the larger Workstream changes broken into checkboxes for autonomous /work-plan execution. Order follows the "How to Use This Plan" guidance (Workstream 1 first → 2/3 → 5 → 7) with the Top 10 priority breaking ties within bands. Each checkbox references the scope section by number; the subagent reads that section for the full brief.
+
+If an item's scope has been partially addressed already (some sub-fixes shipped as Quick Wins), the subagent should re-read the scope, check the current code, and do only what remains.
+
+### Phase 1 — Always-On Risk State (Workstream 1 first per plan recommendation)
+
+- [ ] 1.1 Persistent P&L + VaR ticker strip (scope §1.1) — promote `PnlTickerStrip` to a global slot below the tab bar; XL impact, ~3d effort.
+- [ ] 1.2 Active scenario / regime annotation on affected risk panels (scope §1.2) — pass `activeScenario` / `marketRegime` context through `RiskTab` and `VaRDashboard`, annotate per-number not just header.
+- [ ] 1.3 Limits-and-utilisation header atop Risk Dashboard (scope §1.3) — promote `LimitsPanel` summary to a sticky band above the Dashboard scroll.
+
+### Phase 2 — IA, Alerts, and Polish (Workstreams 2, 3, 4 — sequential here for the loop)
+
+- [ ] 2.2 Group Risk tab Dashboard into 4 collapsible `<SectionBlock>` sections (scope §2.2) — Market Risk / Position & Factor / P&L Stress Liquidity / Limits & Jobs; persist collapse state to workspace prefs.
+- [ ] 3.1 Per-alert actions: Acknowledge / Escalate / Resolve / Snooze (scope §3.1) — backend endpoints already exist per plan; wire them up in `NotificationCenter` and `AlertDrillDownPanel`.
+- [ ] 3.2 Alerts as a queue, not a list (scope §3.2) — default sort CRITICAL > WARNING > INFO then by age; filter chips with counts; auto-collapse RESOLVED >24h old.
+- [ ] 3.4 Breach banner generalised beyond RiskTab (scope §3.4) — show `RiskAlertBanner` on Positions and P&L when VaR > 80% of limit or any CRITICAL alert active.
+- [ ] 4.1 Consolidate banners into a single status bar (scope §4.1) — single horizontal bar that swaps content/severity instead of stacking; demo strip stays as its own dismissible row.
+- [ ] 4.3 Audit & sweep: standardise loading / empty / error states across every component (scope §4.3) — Quick Win covered `ReportsTab` loading only; full audit remains for empty + error states everywhere else.
+- [ ] 8.5 Risk-first PositionGrid default columns (scope §8.5) — default view: Instrument · MV · UPnL · Δ · Γ · Vega · VaR%; quantity / avg cost / market price behind a "Details" toggle.
+- [ ] 2.4 Cross-tab linking (scope §2.4) — Alerts row → affected book on Risk tab; Counterparty row → filtered Trades; Reports output → Risk tab at that valuation date; ScenarioComparisonTable row → ScenarioDetailPanel.
+- [ ] 2.1 Group 11 top-level tabs into 3 clusters (scope §2.1) — visually group `[Trading]` / `[Risk]` / `[Ops]` in the `TABS` constant.
+- [ ] 2.3 Saved views: named multi-workspace (scope §2.3) — promote single workspace to named views capturing tab + sub-tab + hierarchy + columns + time range + collapse state. Backend persistence exists per plan; extend to multi-row.
+
+### Phase 3 — Design System & Accessibility (sweeping between feature PRs)
+
+- [ ] 5.1 Extract `<SectionHeading>` with one canonical size (scope §5.1) — replace three different `text-sm/base/lg font-semibold` patterns across BookSummaryCard, CounterpartyRiskDashboard, ReportsTab, SystemDashboard.
+- [ ] 5.2 Extract `<SubTabBar>` and consolidate the two inline implementations (scope §5.2) — App.tsx Trades tab + RiskTab.tsx. Quick Win patched the Trades dark-mode class; full extraction remains.
+- [ ] 5.4 Reserve colour for semantic, not decorative (scope §5.4) — drop CounterpartyRiskDashboard amber / indigo column tints; replace with weight / borders / spacing.
+- [ ] 6.1 Focus trap in WhatIfPanel (scope §6.1) — hand-roll a keydown-cycling trap; the panel claims `role="dialog" aria-modal="true"` but doesn't behave like one for keyboard users.
+- [ ] 6.4 Form error descriptions in NotificationCenter create-rule form (scope §6.4) — `aria-invalid` + `aria-describedby` linked to inline error messages.
+
+### Phase 4 — Power-User & Trader Polish (last per plan)
+
+- [ ] 7.1 Cmd+K command palette (scope §7.1) — new `CommandPalette.tsx`, global keydown in `App.tsx`, fuzzy filter over tabs / sub-tabs / books / instruments / counterparties / scenarios.
+- [ ] 7.3 Position-level annotations (scope §7.3) — **requires new backend endpoint per scope; subagent must flag the architectural decision and stop before adding any contract.**
+- [ ] 8.2 Hedge engine surfacing on breach (scope §8.2) — "Need a hedge?" CTA when VaR utilisation > 80% or any CRITICAL alert is active; reachable from the ticker strip's VaR indicator.
+- [ ] 8.3 Stale data visual unambiguity (scope §8.3) — STALE pill replaced with desaturated overlay / yellow tint over the whole panel + explicit "computed at X, source as of Y" line.
+- [ ] 8.4 Trade markers on intraday P&L and VaR trend charts (scope §8.4) — extend `tradeAnnotations` pattern from `IntradayVaRChart` to `IntradayPnlChart` and the VaR trend chart.
+- [ ] 8.6 "Compare with snapshot" — ad-hoc time-shifted compare (scope §8.6) — button on Risk tab → pick -15m / -1h / -EOD yesterday → diff overlay on the same panels.
+
+### Phase 5 — Responsive Strategy
+
+- [ ] 9. Adopt desktop-only floor (scope §9) — `min-width: 1280px` on `<body>` or a small-viewport warning page; strip partial `md:` / `lg:` / `hidden sm:` accommodations and the maintenance burden they imply.
+
+---
+
 ## What This Plan Deliberately Does Not Cover
 
 - **New asset class support** — out of scope, this is UI.
