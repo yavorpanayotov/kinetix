@@ -1,9 +1,13 @@
 package com.kinetix.demo
 
+import com.kinetix.demo.client.PositionServiceHttpClient
 import com.kinetix.demo.client.RiskOrchestratorHttpClient
 import com.kinetix.demo.config.DemoConfig
+import com.kinetix.demo.schedule.DefaultPriceBook
+import com.kinetix.demo.schedule.DefaultStrategyIdResolver
 import com.kinetix.demo.schedule.LimitSeedJob
 import com.kinetix.demo.schedule.SchedulingHelpers
+import com.kinetix.demo.schedule.SimulatedTraderJob
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
@@ -22,9 +26,12 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import java.time.LocalTime
+import kotlin.coroutines.coroutineContext
+import kotlin.time.Duration.Companion.seconds
 
 private const val DEFAULT_PORT = 8094
 private val LIMIT_SEED_TARGET_UTC: LocalTime = LocalTime.of(6, 5)
@@ -82,6 +89,45 @@ private fun Application.wireDemoSchedulers(config: DemoConfig) {
     }
     launch {
         scheduleDailyLimitSeed(limitSeedJob)
+    }
+
+    val positionClient = PositionServiceHttpClient(httpClient, config.positionServiceUrl)
+    val simulatedTraderJob = SimulatedTraderJob(
+        positionClient = positionClient,
+        strategyIdResolver = DefaultStrategyIdResolver(),
+        priceBook = DefaultPriceBook(),
+        tradingHoursStart = config.tradingHoursStart,
+        tradingHoursEnd = config.tradingHoursEnd,
+    )
+    launch {
+        runSimulatedTraderLoop(simulatedTraderJob, config.tradeCadenceSeconds)
+    }
+}
+
+private suspend fun Application.runSimulatedTraderLoop(
+    job: SimulatedTraderJob,
+    cadenceSeconds: Long,
+) {
+    log.info(
+        "SimulatedTraderJob loop starting — cadence {}s",
+        cadenceSeconds,
+    )
+    while (coroutineContext.isActive) {
+        try {
+            val posted = job.runTick()
+            log.debug("SimulatedTraderJob tick posted {} trade(s)", posted)
+        } catch (cancellation: CancellationException) {
+            log.info("SimulatedTraderJob loop cancelled — exiting")
+            throw cancellation
+        } catch (failure: Throwable) {
+            log.warn("SimulatedTraderJob tick failed — continuing", failure)
+        }
+        try {
+            delay(cadenceSeconds.seconds)
+        } catch (cancellation: CancellationException) {
+            log.info("SimulatedTraderJob loop cancelled during delay — exiting")
+            throw cancellation
+        }
     }
 }
 
