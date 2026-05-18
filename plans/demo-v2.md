@@ -135,7 +135,7 @@ and flag (per `/work-plan` guardrails).
 
 ### PR 3 — EOD observer
 
-- [ ] 3.1 Add `client/RegulatoryServiceClient.kt` interface plus
+- [x] 3.1 Add `client/RegulatoryServiceClient.kt` interface plus
       `client/RegulatoryServiceHttpClient.kt` Ktor-CIO implementation.
       Methods: `runBacktest(bookId, BacktestRequest)` and
       `createSubmission(CreateSubmissionRequest)`. DTOs in `client/dtos/`.
