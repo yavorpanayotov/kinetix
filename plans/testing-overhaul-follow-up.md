@@ -54,7 +54,7 @@ That brings in `org.testcontainers.kafka.KafkaContainer` transitively, plus the 
   - VaR is non-negative for any well-formed input (loss magnitude convention).
   - Cap each test at `max_examples=100` because each VaR call is heavier than a BS price.
   - Acceptance: `cd risk-engine && uv run pytest tests/test_var_invariants.py -m unit`
-- [ ] **2.2** Create `risk-engine/tests/test_bond_pricing_invariants.py`:
+- [x] **2.2** Create `risk-engine/tests/test_bond_pricing_invariants.py`:
   - Price-yield round-trip: `price(yield(price)) ≈ price` within numerical tolerance over a domain of valid (coupon, maturity, face) inputs.
   - Bond price monotone decreasing in yield.
   - Duration is non-negative.
