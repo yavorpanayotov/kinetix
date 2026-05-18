@@ -59,6 +59,7 @@ import { PersonaSwitcher } from './components/PersonaSwitcher'
 import { DemoWelcomeStrip } from './components/DemoWelcomeStrip'
 import { KeyboardShortcutsOverlay } from './components/KeyboardShortcutsOverlay'
 import { CommandPalette, type CommandItem } from './components/CommandPalette'
+import { SmallViewportWarning, MIN_VIEWPORT_WIDTH_PX } from './components/SmallViewportWarning'
 
 type Tab = 'positions' | 'trades' | 'pnl' | 'risk' | 'eod' | 'scenarios' | 'regulatory' | 'counterparty-risk' | 'reports' | 'alerts' | 'system'
 
@@ -89,7 +90,32 @@ const TABS: { key: Tab; label: string; icon: typeof Activity; cluster: TabCluste
   { key: 'system', label: 'System', icon: Server, cluster: 'ops' },
 ]
 
+// Plan §9 — Desktop-only floor. The viewport check lives in a wrapper so that
+// when the window is too narrow we render *only* the warning, without paying
+// the cost of mounting the rest of the app tree (data fetches, websockets,
+// risk hooks, etc.). When the viewport grows back above the floor we mount
+// the full app cleanly.
 function App() {
+  const [tooSmall, setTooSmall] = useState<boolean>(
+    () => typeof window !== 'undefined' && window.innerWidth < MIN_VIEWPORT_WIDTH_PX,
+  )
+
+  useEffect(() => {
+    function handleResize() {
+      setTooSmall(window.innerWidth < MIN_VIEWPORT_WIDTH_PX)
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  if (tooSmall) {
+    return <SmallViewportWarning />
+  }
+
+  return <AppContent />
+}
+
+function AppContent() {
   const workspace = useWorkspace()
   const auth = useAuth()
   const [activeTab, setActiveTab] = useState<Tab>(

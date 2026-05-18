@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PositionDto } from './types'
 
 vi.mock('./hooks/usePositions')
@@ -1602,6 +1602,47 @@ describe('App', () => {
 
       // After the view switch, the Risk tab is now the active tab.
       expect(screen.getByTestId('tab-risk')).toHaveAttribute('aria-selected', 'true')
+    })
+  })
+
+  // Plan §9 — Desktop-only floor enforced via a small-viewport warning page.
+  // The warning short-circuits the rest of the app when innerWidth < 1280.
+  describe('small-viewport warning (plan §9)', () => {
+    const originalInnerWidth = window.innerWidth
+
+    function setWidth(width: number) {
+      Object.defineProperty(window, 'innerWidth', {
+        configurable: true,
+        writable: true,
+        value: width,
+      })
+    }
+
+    afterEach(() => {
+      Object.defineProperty(window, 'innerWidth', {
+        configurable: true,
+        writable: true,
+        value: originalInnerWidth,
+      })
+    })
+
+    it('renders the warning and hides the main app when viewport is below 1280px', () => {
+      setWidth(800)
+
+      render(<App />)
+
+      expect(screen.getByTestId('small-viewport-warning')).toBeInTheDocument()
+      // Tab bar is the canonical "main app rendered" sentinel.
+      expect(screen.queryByTestId('tab-bar')).not.toBeInTheDocument()
+    })
+
+    it('does not render the warning and shows the main app on a desktop width', () => {
+      setWidth(1440)
+
+      render(<App />)
+
+      expect(screen.queryByTestId('small-viewport-warning')).not.toBeInTheDocument()
+      expect(screen.getByTestId('tab-bar')).toBeInTheDocument()
     })
   })
 })
