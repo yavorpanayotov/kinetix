@@ -1,11 +1,16 @@
-import type { FactorRiskDto, FactorContributionDto } from '../types'
+import type { FactorRiskDto, FactorContributionDto, MarketRegime } from '../types'
 import { Card } from './ui'
 import { Spinner } from './ui/Spinner'
+import { ScenarioBadge } from './ScenarioBadge'
 
 interface FactorDecompositionPanelProps {
   result: FactorRiskDto | null
   loading: boolean
   error: string | null
+  /** Active scenario context for per-number annotation (plan §1.2). */
+  activeScenario?: string | null
+  /** Market regime — factor VaR carries a regime-adj badge when non-NORMAL. */
+  marketRegime?: MarketRegime | null
 }
 
 const FACTOR_COLORS: Record<string, string> = {
@@ -71,6 +76,8 @@ export function FactorDecompositionPanel({
   result,
   loading,
   error,
+  activeScenario = null,
+  marketRegime = null,
 }: FactorDecompositionPanelProps) {
   if (loading) {
     return (
@@ -141,11 +148,14 @@ export function FactorDecompositionPanel({
           <span className="text-xs text-gray-500 dark:text-gray-400">
             Total VaR
           </span>
-          <span
-            data-testid="factor-total-var"
-            className="text-lg font-bold text-gray-900 dark:text-gray-100"
-          >
-            {formatCurrency(result.totalVar)}
+          <span className="inline-flex items-center gap-1.5">
+            <span
+              data-testid="factor-total-var"
+              className="text-lg font-bold text-gray-900 dark:text-gray-100"
+            >
+              {formatCurrency(result.totalVar)}
+            </span>
+            <ScenarioBadge scenario={activeScenario} regime={marketRegime} />
           </span>
         </div>
         <div className="flex flex-col">

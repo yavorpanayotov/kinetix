@@ -3,6 +3,8 @@ import { Info, X } from 'lucide-react'
 import { useClickOutside } from '../hooks/useClickOutside'
 import { formatMoney } from '../utils/format'
 import { formatCompactCurrency } from '../utils/formatCompactCurrency'
+import { ScenarioBadge } from './ScenarioBadge'
+import type { MarketRegime } from '../types'
 
 type Metric = 'var' | 'es'
 
@@ -22,6 +24,10 @@ interface VaRGaugeProps {
   disabled?: boolean
   totalStandaloneVar?: number | null
   diversificationBenefit?: number | null
+  /** Active demo scenario, if any — annotated next to VaR and ES per plan §1.2. */
+  activeScenario?: string | null
+  /** Current market regime — VaR / ES carry a regime-adj badge when non-NORMAL. */
+  marketRegime?: MarketRegime | null
 }
 
 function gaugeColorEsBased(ratio: number): string {
@@ -42,7 +48,7 @@ function confidenceLabel(level: string): string {
   return 'VaR (95%)'
 }
 
-export function VaRGauge({ varValue, expectedShortfall, confidenceLevel, varLimit, pvValue, previousVaR, onConfidenceLevelChange, disabled, totalStandaloneVar, diversificationBenefit }: VaRGaugeProps) {
+export function VaRGauge({ varValue, expectedShortfall, confidenceLevel, varLimit, pvValue, previousVaR, onConfidenceLevelChange, disabled, totalStandaloneVar, diversificationBenefit, activeScenario = null, marketRegime = null }: VaRGaugeProps) {
   const [openPopover, setOpenPopover] = useState<Metric | null>(null)
   const gaugeRef = useRef<HTMLDivElement>(null)
 
@@ -122,7 +128,7 @@ export function VaRGauge({ varValue, expectedShortfall, confidenceLevel, varLimi
         )}
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <div data-testid="var-value" className="text-2xl font-bold" title={formatMoney(varValue.toFixed(2), 'USD')}>
           {formatCompactCurrency(varValue)}
         </div>
@@ -131,6 +137,7 @@ export function VaRGauge({ varValue, expectedShortfall, confidenceLevel, varLimi
           className="h-2.5 w-2.5 rounded-full"
           style={{ backgroundColor: color }}
         />
+        <ScenarioBadge scenario={activeScenario} regime={marketRegime} />
       </div>
 
       {previousVaR != null && (() => {
@@ -164,6 +171,7 @@ export function VaRGauge({ varValue, expectedShortfall, confidenceLevel, varLimi
               ({(expectedShortfall / varValue).toFixed(2)}x)
             </span>
           )}
+          <ScenarioBadge scenario={activeScenario} regime={marketRegime} />
         </div>
         {openPopover === 'es' && (
           <span

@@ -722,6 +722,74 @@ describe('VaRDashboard', () => {
     })
   })
 
+  describe('scenario / regime annotation', () => {
+    it('does not render a scenario badge when no scenario is active and regime is null', () => {
+      render(
+        <VaRDashboard
+          varResult={varResult}
+          loading={false}
+          error={null}
+          onRefresh={() => {}}
+          {...defaultZoomProps}
+        />,
+      )
+
+      expect(screen.queryByTestId('scenario-badge')).not.toBeInTheDocument()
+    })
+
+    it('does not render a scenario badge when regime is NORMAL and no scenario', () => {
+      render(
+        <VaRDashboard
+          varResult={varResult}
+          loading={false}
+          error={null}
+          onRefresh={() => {}}
+          {...defaultZoomProps}
+          activeScenario={null}
+          marketRegime="NORMAL"
+        />,
+      )
+
+      expect(screen.queryByTestId('scenario-badge')).not.toBeInTheDocument()
+    })
+
+    it('renders a scenario badge on the VaR number when a scenario is active', () => {
+      render(
+        <VaRDashboard
+          varResult={varResult}
+          loading={false}
+          error={null}
+          onRefresh={() => {}}
+          {...defaultZoomProps}
+          activeScenario="stress"
+        />,
+      )
+
+      const badges = screen.getAllByTestId('scenario-badge')
+      expect(badges.length).toBeGreaterThan(0)
+      expect(badges[0].getAttribute('aria-label')).toMatch(/scenario/i)
+      expect(badges[0].getAttribute('aria-label')).toMatch(/stress/i)
+    })
+
+    it('renders a regime annotation when regime is non-normal', () => {
+      render(
+        <VaRDashboard
+          varResult={varResult}
+          loading={false}
+          error={null}
+          onRefresh={() => {}}
+          {...defaultZoomProps}
+          marketRegime="CRISIS"
+        />,
+      )
+
+      const badges = screen.getAllByTestId('scenario-badge')
+      expect(badges.length).toBeGreaterThan(0)
+      expect(badges[0].getAttribute('aria-label')).toMatch(/regime/i)
+      expect(badges[0].getAttribute('aria-label')).toMatch(/CRISIS/)
+    })
+  })
+
   describe('chart toggle', () => {
     it('renders toggle buttons for VaR/ES and Greeks', () => {
       render(

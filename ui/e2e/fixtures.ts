@@ -173,6 +173,33 @@ export async function mockRegimeRoutes(
   })
 }
 
+/**
+ * Mocks the active demo scenario endpoint used by `useActiveScenario`.
+ * Pass a scenario name (e.g. 'stress', 'multi-asset') to simulate a demo run,
+ * or `null` to simulate "no active scenario".
+ */
+export async function mockActiveScenario(
+  page: Page,
+  scenario: string | null,
+): Promise<void> {
+  await page.unroute('**/api/v1/demo/scenario')
+  await page.route('**/api/v1/demo/scenario', (route: Route) => {
+    if (scenario === null) {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ scenario: null }),
+      })
+    } else {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ scenario }),
+      })
+    }
+  })
+}
+
 export const TEST_REPORT_TEMPLATES = [
   {
     templateId: 'tpl-risk-summary',

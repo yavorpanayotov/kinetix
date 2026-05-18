@@ -1,6 +1,7 @@
 import { TrendingUp, ExternalLink } from 'lucide-react'
 import type { PnlAttributionDto, SodBaselineStatusDto } from '../types'
 import { Card, Button } from './ui'
+import { ScenarioBadge } from './ScenarioBadge'
 import { formatNum, pnlColorClass } from '../utils/format'
 
 interface PnlSummaryCardProps {
@@ -9,6 +10,8 @@ interface PnlSummaryCardProps {
   computing: boolean
   onComputePnl: () => void
   onViewFullAttribution?: () => void
+  /** When a demo scenario is active, attribution P&L numbers are scenario-driven. */
+  activeScenario?: string | null
 }
 
 interface Factor {
@@ -17,7 +20,7 @@ interface Factor {
   value: string
 }
 
-export function PnlSummaryCard({ sodStatus, pnlData, computing, onComputePnl, onViewFullAttribution }: PnlSummaryCardProps) {
+export function PnlSummaryCard({ sodStatus, pnlData, computing, onComputePnl, onViewFullAttribution, activeScenario = null }: PnlSummaryCardProps) {
   const hasBaseline = sodStatus?.exists === true
   const showNoBaseline = !hasBaseline && !pnlData
   const showComputePrompt = hasBaseline && !pnlData
@@ -68,12 +71,15 @@ export function PnlSummaryCard({ sodStatus, pnlData, computing, onComputePnl, on
         <div data-testid="pnl-summary-data">
           <div className="mb-3">
             <p className="text-xs text-slate-500 uppercase tracking-wide">Total P&L</p>
-            <p
-              data-testid="pnl-total-value"
-              className={`text-2xl font-bold tabular-nums ${pnlColorClass(pnlData.totalPnl)}`}
-            >
-              {formatNum(pnlData.totalPnl)}
-            </p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <p
+                data-testid="pnl-total-value"
+                className={`text-2xl font-bold tabular-nums ${pnlColorClass(pnlData.totalPnl)}`}
+              >
+                {formatNum(pnlData.totalPnl)}
+              </p>
+              <ScenarioBadge scenario={activeScenario} regime={null} />
+            </div>
           </div>
 
           <div className="grid grid-cols-3 gap-x-4 gap-y-2 text-sm">

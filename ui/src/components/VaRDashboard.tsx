@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Calendar, FlaskRound, Info, RefreshCw, X } from 'lucide-react'
-import type { VaRResultDto, GreeksResultDto, TimeRange } from '../types'
+import type { VaRResultDto, GreeksResultDto, MarketRegime, TimeRange } from '../types'
 import type { VaRHistoryEntry } from '../hooks/useVaR'
 import { useClickOutside } from '../hooks/useClickOutside'
 import { VaRGauge } from './VaRGauge'
@@ -40,9 +40,21 @@ interface VaRDashboardProps {
   valuationDate?: string | null
   totalStandaloneVar?: number
   diversificationBenefit?: number
+  /**
+   * The name of the active demo scenario, if any. When non-null, the VaR and
+   * sensitivities displayed below came out of a scenario run and are annotated
+   * with a per-number badge — see plan §1.2.
+   */
+  activeScenario?: string | null
+  /**
+   * The current market regime, if any. Non-NORMAL regimes adjust the VaR
+   * parameters (calculationType, confidenceLevel, horizon) and the VaR /
+   * Expected Shortfall numbers carry a regime-adjusted badge accordingly.
+   */
+  marketRegime?: MarketRegime | null
 }
 
-export function VaRDashboard({ varResult, filteredHistory, loading, historyLoading, refreshing = false, error, onRefresh, timeRange, setTimeRange, zoomIn, resetZoom, zoomDepth, greeksResult, varLimit, onWhatIf, selectedConfidenceLevel, onConfidenceLevelChange, isLive = true, valuationDate, totalStandaloneVar, diversificationBenefit }: VaRDashboardProps) {
+export function VaRDashboard({ varResult, filteredHistory, loading, historyLoading, refreshing = false, error, onRefresh, timeRange, setTimeRange, zoomIn, resetZoom, zoomDepth, greeksResult, varLimit, onWhatIf, selectedConfidenceLevel, onConfidenceLevelChange, isLive = true, valuationDate, totalStandaloneVar, diversificationBenefit, activeScenario = null, marketRegime = null }: VaRDashboardProps) {
   const [tooltipOpen, setTooltipOpen] = useState(false)
   const [chartView, setChartView] = useState<'var' | 'greeks'>('var')
   const calcTypeRef = useRef<HTMLSpanElement>(null)
@@ -124,6 +136,8 @@ export function VaRDashboard({ varResult, filteredHistory, loading, historyLoadi
           disabled={refreshing}
           totalStandaloneVar={totalStandaloneVar}
           diversificationBenefit={diversificationBenefit}
+          activeScenario={activeScenario}
+          marketRegime={marketRegime}
         />
 
         <div data-testid="var-sensitivities" className="md:col-span-2 flex flex-col items-center justify-center">

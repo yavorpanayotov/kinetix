@@ -3,17 +3,23 @@ import { Zap, ExternalLink } from 'lucide-react'
 import type { StressTestResultDto } from '../types'
 import { formatCurrency } from '../utils/format'
 import { Card, Button } from './ui'
+import { ScenarioBadge } from './ScenarioBadge'
 
 interface StressSummaryCardProps {
   results: StressTestResultDto[]
   loading: boolean
   onRun: () => void
   onViewDetails: () => void
+  /**
+   * Active demo scenario context. When non-null, stress P&L impacts are computed
+   * against the scenario-tilted book — annotated per plan §1.2.
+   */
+  activeScenario?: string | null
 }
 
 const MAX_ROWS = 3
 
-export function StressSummaryCard({ results, loading, onRun, onViewDetails }: StressSummaryCardProps) {
+export function StressSummaryCard({ results, loading, onRun, onViewDetails, activeScenario = null }: StressSummaryCardProps) {
   const sorted = useMemo(
     () => [...results].sort((a, b) => Math.abs(Number(b.pnlImpact)) - Math.abs(Number(a.pnlImpact))),
     [results],
@@ -56,7 +62,12 @@ export function StressSummaryCard({ results, loading, onRun, onViewDetails }: St
                 <th className="py-2">Scenario</th>
                 <th className="py-2 text-right">Base VaR</th>
                 <th className="py-2 text-right">Stressed VaR</th>
-                <th className="py-2 text-right">P&L Impact</th>
+                <th className="py-2 text-right">
+                  <span className="inline-flex items-center gap-1.5 justify-end">
+                    P&L Impact
+                    <ScenarioBadge scenario={activeScenario} regime={null} />
+                  </span>
+                </th>
               </tr>
             </thead>
             <tbody>

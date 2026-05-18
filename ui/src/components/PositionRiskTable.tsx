@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from 'react'
 import { ChevronDown, ChevronUp, Download, RefreshCw } from 'lucide-react'
-import type { PositionRiskDto } from '../types'
+import type { MarketRegime, PositionRiskDto } from '../types'
 import { formatNum } from '../utils/format'
 import { formatAssetClassLabel } from '../utils/formatAssetClass'
 import { exportToCsv } from '../utils/exportCsv'
 import { Card, Spinner } from './ui'
+import { ScenarioBadge } from './ScenarioBadge'
 
 type SortField =
   | 'marketValue'
@@ -23,6 +24,10 @@ interface PositionRiskTableProps {
   loading: boolean
   error?: string | null
   onRetry?: () => void
+  /** Active scenario context — annotates the table header (plan §1.2). */
+  activeScenario?: string | null
+  /** Market regime — VaR / ES contributions carry a regime-adj badge when non-NORMAL. */
+  marketRegime?: MarketRegime | null
 }
 
 function numericValue(row: PositionRiskDto, field: SortField, useAbsolute: boolean): number {
@@ -50,7 +55,7 @@ const COLUMNS: { label: string; tooltip?: string; field: SortField; sortable: tr
   { label: '% Total', field: 'percentageOfTotal', sortable: true },
 ]
 
-export function PositionRiskTable({ data, loading, error, onRetry }: PositionRiskTableProps) {
+export function PositionRiskTable({ data, loading, error, onRetry, activeScenario = null, marketRegime = null }: PositionRiskTableProps) {
   const [expanded, setExpanded] = useState(true)
   const [sortField, setSortField] = useState<SortField>('varContribution')
   const [sortDir, setSortDir] = useState<SortDirection>('desc')
@@ -104,16 +109,19 @@ export function PositionRiskTable({ data, loading, error, onRetry }: PositionRis
     <Card data-testid="position-risk-section">
       <div className="-mx-4 -my-4">
         <div className="flex items-center justify-between px-4 py-3">
-          <button
-            data-testid="position-risk-toggle"
-            onClick={() => setExpanded((prev) => !prev)}
-            className="flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-slate-900 transition-colors"
-          >
-            <span>Position Risk Breakdown</span>
-            {expanded
-              ? <ChevronUp className="h-4 w-4 text-slate-400" />
-              : <ChevronDown className="h-4 w-4 text-slate-400" />}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              data-testid="position-risk-toggle"
+              onClick={() => setExpanded((prev) => !prev)}
+              className="flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-slate-900 transition-colors"
+            >
+              <span>Position Risk Breakdown</span>
+              {expanded
+                ? <ChevronUp className="h-4 w-4 text-slate-400" />
+                : <ChevronDown className="h-4 w-4 text-slate-400" />}
+            </button>
+            <ScenarioBadge scenario={activeScenario} regime={marketRegime} />
+          </div>
           {data.length > 0 && (
             <button
               data-testid="risk-csv-export"

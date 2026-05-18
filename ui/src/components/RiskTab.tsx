@@ -11,7 +11,7 @@ import { useLiquidityRisk } from '../hooks/useLiquidityRisk'
 import { useFactorRisk } from '../hooks/useFactorRisk'
 import { useFactorRiskHistory } from '../hooks/useFactorRiskHistory'
 import { useHierarchyNodeRisk } from '../hooks/useHierarchyNodeRisk'
-import type { StressTestResultDto } from '../types'
+import type { MarketRegime, StressTestResultDto } from '../types'
 import { VaRDashboard } from './VaRDashboard'
 import { PositionRiskTable } from './PositionRiskTable'
 import { BookContributionTable } from './BookContributionTable'
@@ -55,6 +55,10 @@ interface RiskTabProps {
   bookGroupId?: string | null
   hierarchyLevel?: 'FIRM' | 'DIVISION' | 'DESK' | null
   onNavigateToBook?: (bookId: string) => void
+  /** Active demo scenario context — threaded down to per-number annotations (plan §1.2). */
+  activeScenario?: string | null
+  /** Current market regime — used to annotate regime-adjusted VaR / ES numbers. */
+  marketRegime?: MarketRegime | null
 }
 
 export function RiskTab({
@@ -70,6 +74,8 @@ export function RiskTab({
   bookGroupId = null,
   hierarchyLevel = null,
   onNavigateToBook,
+  activeScenario = null,
+  marketRegime = null,
 }: RiskTabProps) {
   const [subTab, setSubTab] = useState<RiskSubTab>('dashboard')
   const [valuationDate, setValuationDate] = useState<string | null>(null)
@@ -278,6 +284,8 @@ export function RiskTab({
               valuationDate={valuationDate}
               totalStandaloneVar={crossBookResult ? Number(crossBookResult.totalStandaloneVar) : undefined}
               diversificationBenefit={crossBookResult ? Number(crossBookResult.diversificationBenefit) : undefined}
+              activeScenario={activeScenario}
+              marketRegime={marketRegime}
             />
           </ErrorBoundary>
           {aggregatedView && crossBookResult && (
@@ -306,11 +314,25 @@ export function RiskTab({
           )}
           <div className="mt-4">
             <ErrorBoundary fallback={<SectionErrorCard name="Position Risk" />}>
-              <PositionRiskTable data={positionRisk} loading={positionRiskLoading} error={positionRiskError} onRetry={refreshPositionRisk} />
+              <PositionRiskTable
+                data={positionRisk}
+                loading={positionRiskLoading}
+                error={positionRiskError}
+                onRetry={refreshPositionRisk}
+                activeScenario={activeScenario}
+                marketRegime={marketRegime}
+              />
             </ErrorBoundary>
           </div>
           <div className="mt-4">
-            <KrdPanel aggregated={krdAggregated} instruments={krdInstruments} loading={krdLoading} error={krdError} />
+            <KrdPanel
+              aggregated={krdAggregated}
+              instruments={krdInstruments}
+              loading={krdLoading}
+              error={krdError}
+              activeScenario={activeScenario}
+              marketRegime={marketRegime}
+            />
           </div>
           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
             <PnlSummaryCard
@@ -319,12 +341,14 @@ export function RiskTab({
               computing={sod.computing}
               onComputePnl={sod.computeAttribution}
               onViewFullAttribution={onViewPnlTab}
+              activeScenario={activeScenario}
             />
             <StressSummaryCard
               results={stressResults}
               loading={stressLoading}
               onRun={onRunStress}
               onViewDetails={onViewStressDetails}
+              activeScenario={activeScenario}
             />
           </div>
           <div className="mt-4">
@@ -352,6 +376,8 @@ export function RiskTab({
                 result={factorRiskResult}
                 loading={factorRiskLoading}
                 error={factorRiskError}
+                activeScenario={activeScenario}
+                marketRegime={marketRegime}
               />
             </ErrorBoundary>
           </div>

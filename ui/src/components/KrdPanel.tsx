@@ -1,12 +1,17 @@
 import { useState } from 'react'
-import type { KrdBucketDto, InstrumentKrdResultDto } from '../types'
+import type { KrdBucketDto, InstrumentKrdResultDto, MarketRegime } from '../types'
 import { formatCurrency } from '../utils/format'
+import { ScenarioBadge } from './ScenarioBadge'
 
 interface KrdPanelProps {
   aggregated: KrdBucketDto[]
   instruments: InstrumentKrdResultDto[]
   loading: boolean
   error: string | null
+  /** Active scenario context — annotates the Total DV01 summary (plan §1.2). */
+  activeScenario?: string | null
+  /** Market regime — DV01 inputs reflect the regime-adjusted rate moves. */
+  marketRegime?: MarketRegime | null
 }
 
 const BAR_HEIGHT = 24
@@ -29,7 +34,7 @@ function DV01Bar({ dv01, maxAbsDv01 }: { dv01: number; maxAbsDv01: number }) {
   )
 }
 
-export function KrdPanel({ aggregated, instruments, loading, error }: KrdPanelProps) {
+export function KrdPanel({ aggregated, instruments, loading, error, activeScenario = null, marketRegime = null }: KrdPanelProps) {
   const [expanded, setExpanded] = useState(false)
 
   if (loading) return <p className="text-sm text-slate-500" data-testid="krd-loading">Loading key rate durations...</p>
@@ -43,8 +48,11 @@ export function KrdPanel({ aggregated, instruments, loading, error }: KrdPanelPr
     <div data-testid="krd-panel" className="bg-white dark:bg-surface-800 border border-slate-200 dark:border-surface-700 rounded-lg p-4">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Key Rate Durations</h3>
-        <span className="font-mono tabular-nums text-sm text-slate-600 dark:text-slate-300" data-testid="krd-total-dv01">
-          Total DV01: {formatCurrency(totalDv01)}
+        <span className="inline-flex items-center gap-1.5">
+          <span className="font-mono tabular-nums text-sm text-slate-600 dark:text-slate-300" data-testid="krd-total-dv01">
+            Total DV01: {formatCurrency(totalDv01)}
+          </span>
+          <ScenarioBadge scenario={activeScenario} regime={marketRegime} />
         </span>
       </div>
 
