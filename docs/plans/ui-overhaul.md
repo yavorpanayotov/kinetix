@@ -283,7 +283,7 @@ If an item's scope has been partially addressed already (some sub-fixes shipped 
 
 ### Phase 2 — IA, Alerts, and Polish (Workstreams 2, 3, 4 — sequential here for the loop)
 
-- [ ] 2.2 Group Risk tab Dashboard into 4 collapsible `<SectionBlock>` sections (scope §2.2) — Market Risk / Position & Factor / P&L Stress Liquidity / Limits & Jobs; persist collapse state to workspace prefs.
+- [x] 2.2 Group Risk tab Dashboard into 4 collapsible `<SectionBlock>` sections (scope §2.2) — Market Risk / Position & Factor / P&L Stress Liquidity / Limits & Jobs; persist collapse state to workspace prefs.
 - [ ] 3.1 Per-alert actions: Acknowledge / Escalate / Resolve / Snooze (scope §3.1) — backend endpoints already exist per plan; wire them up in `NotificationCenter` and `AlertDrillDownPanel`.
 - [ ] 3.2 Alerts as a queue, not a list (scope §3.2) — default sort CRITICAL > WARNING > INFO then by age; filter chips with counts; auto-collapse RESOLVED >24h old.
 - [ ] 3.4 Breach banner generalised beyond RiskTab (scope §3.4) — show `RiskAlertBanner` on Positions and P&L when VaR > 80% of limit or any CRITICAL alert active.
