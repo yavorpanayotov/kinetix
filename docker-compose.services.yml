@@ -40,6 +40,30 @@ services:
         condition: service_completed_successfully
     networks: [kinetix]
 
+  # ── Python AI insights service (FastAPI + Claude Agent SDK) ────────────────
+  # Routes LLM calls through the host user's Claude Code subscription via the
+  # bind-mounted ~/.claude credentials directory. Set DEMO_MODE=true to bypass
+  # the SDK and return canned responses (used in CI / Playwright).
+  ai-insights-service:
+    build:
+      context: ../ai-insights-service
+      dockerfile: Dockerfile
+    environment:
+      DEMO_MODE: "${DEMO_MODE:-false}"
+      PYTHONPATH: /app/src
+    expose:
+      - "8095"
+    volumes:
+      - ~/.claude:/root/.claude:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8095/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+    networks: [kinetix]
+
   # ── Kotlin services ────────────────────────────────────────────────────────
   position-service:
     build:
@@ -518,6 +542,7 @@ services:
       CORRELATION_SERVICE_URL: http://correlation-service:8091
       REGULATORY_SERVICE_URL: http://regulatory-service:8085
       AUDIT_SERVICE_URL: http://audit-service:8084
+      INSIGHTS_SERVICE_URL: http://ai-insights-service:8095
       JWT_ISSUER: https://auth.kinetixrisk.ai/realms/kinetix
       JWT_JWKS_URL: http://keycloak:8080/realms/kinetix/protocol/openid-connect/certs
       JWT_AUDIENCE: kinetix-api
