@@ -132,7 +132,7 @@ describe('JobHistory', () => {
     expect(screen.getByTestId('job-history-loading')).toBeInTheDocument()
   })
 
-  it('shows error message', () => {
+  it('shows error message in an ErrorCard', () => {
     mockUseJobHistory.mockReturnValue({
       ...defaultHookResult,
       error: 'Failed to load',
@@ -140,8 +140,10 @@ describe('JobHistory', () => {
 
     render(<JobHistory bookId="book-1" />)
 
-    expect(screen.getByTestId('job-history-error')).toBeInTheDocument()
-    expect(screen.getByText('Failed to load')).toBeInTheDocument()
+    const errorCard = screen.getByTestId('job-history-error')
+    expect(errorCard).toBeInTheDocument()
+    expect(errorCard).toHaveAttribute('role', 'alert')
+    expect(errorCard).toHaveTextContent('Failed to load')
   })
 
   it('shows job count badge', () => {

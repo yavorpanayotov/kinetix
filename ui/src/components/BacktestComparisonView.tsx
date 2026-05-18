@@ -1,4 +1,4 @@
-import { Card } from './ui'
+import { Card, Spinner } from './ui'
 import type { BacktestComparisonDto } from '../types'
 
 interface BacktestComparisonViewProps {
@@ -25,9 +25,16 @@ export function BacktestComparisonView({ comparison, loading }: BacktestComparis
   if (!comparison) {
     return (
       <Card data-testid="backtest-comparison-view">
-        <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-4">
-          {loading ? 'Loading comparison...' : 'Select two backtest results to compare'}
-        </p>
+        {loading ? (
+          <div className="flex items-center justify-center gap-2 text-sm text-slate-500 dark:text-slate-400 py-4">
+            <Spinner size="sm" />
+            Loading comparison...
+          </div>
+        ) : (
+          <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-4">
+            Select two backtest results to compare
+          </p>
+        )}
       </Card>
     )
   }

@@ -1,6 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { FactorRiskDto } from '../types'
-import { Card } from './ui'
+import { Card, EmptyState, ErrorCard } from './ui'
 import { Spinner } from './ui/Spinner'
 
 interface FactorAttributionHistoryChartProps {
@@ -151,25 +151,17 @@ export function FactorAttributionHistoryChart({
   if (error) {
     return (
       <Card className="p-4">
-        <p
-          data-testid="factor-history-error"
-          className="text-sm text-red-600 dark:text-red-400"
-        >
-          {error}
-        </p>
+        <ErrorCard message={error} data-testid="factor-history-error" />
       </Card>
     )
   }
 
   if (history.length === 0) {
     return (
-      <Card className="p-6 flex items-center justify-center">
-        <p
-          data-testid="factor-history-empty"
-          className="text-sm text-gray-500 dark:text-gray-400"
-        >
-          No factor attribution history available yet.
-        </p>
+      <Card className="p-4">
+        <div data-testid="factor-history-empty">
+          <EmptyState title="No factor attribution history available yet." />
+        </div>
       </Card>
     )
   }

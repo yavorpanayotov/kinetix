@@ -1,4 +1,5 @@
 import { Button } from './ui/Button'
+import { Spinner, ErrorCard } from './ui'
 import type { StressScenarioDto } from '../types'
 
 const STATUS_COLORS: Record<string, string> = {
@@ -30,12 +31,15 @@ export function ScenarioGovernancePanel({
       <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Scenario Governance</h3>
 
       {loading && (
-        <div className="text-sm text-slate-500">Loading scenarios...</div>
+        <div className="flex items-center gap-2 text-sm text-slate-500">
+          <Spinner size="sm" />
+          Loading scenarios...
+        </div>
       )}
 
       {error && (
-        <div className="text-sm text-red-600 dark:text-red-400 mb-2" data-testid="governance-error">
-          {error}
+        <div className="mb-2">
+          <ErrorCard message={error} data-testid="governance-error" />
         </div>
       )}
 

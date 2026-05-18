@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { KrdBucketDto, InstrumentKrdResultDto, MarketRegime } from '../types'
 import { formatCurrency } from '../utils/format'
 import { ScenarioBadge } from './ScenarioBadge'
+import { EmptyState, ErrorCard, Spinner } from './ui'
 
 interface KrdPanelProps {
   aggregated: KrdBucketDto[]
@@ -37,9 +38,22 @@ function DV01Bar({ dv01, maxAbsDv01 }: { dv01: number; maxAbsDv01: number }) {
 export function KrdPanel({ aggregated, instruments, loading, error, activeScenario = null, marketRegime = null }: KrdPanelProps) {
   const [expanded, setExpanded] = useState(false)
 
-  if (loading) return <p className="text-sm text-slate-500" data-testid="krd-loading">Loading key rate durations...</p>
-  if (error) return <p className="text-sm text-red-600" data-testid="krd-error">{error}</p>
-  if (aggregated.length === 0) return <p className="text-sm text-slate-500" data-testid="krd-empty">No fixed-income positions in this book.</p>
+  if (loading) {
+    return (
+      <div data-testid="krd-loading" className="flex items-center gap-2 text-sm text-slate-500">
+        <Spinner size="sm" />
+        Loading key rate durations...
+      </div>
+    )
+  }
+  if (error) return <ErrorCard message={error} data-testid="krd-error" />
+  if (aggregated.length === 0) {
+    return (
+      <div data-testid="krd-empty">
+        <EmptyState title="No fixed-income positions in this book." />
+      </div>
+    )
+  }
 
   const totalDv01 = aggregated.reduce((sum, b) => sum + Number(b.dv01), 0)
   const maxAbsDv01 = Math.max(...aggregated.map((b) => Math.abs(Number(b.dv01))), 1)

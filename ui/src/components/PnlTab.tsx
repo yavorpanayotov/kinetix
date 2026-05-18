@@ -14,6 +14,7 @@ import { ConfirmDialog } from './ui/ConfirmDialog'
 import { Button } from './ui/Button'
 import { Card } from './ui/Card'
 import { EmptyState } from './ui/EmptyState'
+import { ErrorCard } from './ui/ErrorCard'
 import { Spinner } from './ui/Spinner'
 import { formatTimestamp } from '../utils/format'
 import { exportToCsv } from '../utils/exportCsv'
@@ -90,8 +91,8 @@ export function PnlTab({ bookId }: PnlTabProps) {
       />
 
       {sod.error && (
-        <div data-testid="sod-error" className="text-center py-2">
-          <p className="text-red-600 text-sm">{sod.error}</p>
+        <div data-testid="sod-error" className="py-2">
+          <ErrorCard message={sod.error} />
         </div>
       )}
 

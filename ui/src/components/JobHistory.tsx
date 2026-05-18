@@ -9,7 +9,7 @@ import { jobMatchesSearch } from '../utils/jobSearch'
 import { JobHistoryTable } from './JobHistoryTable'
 import { JobTimechart } from './JobTimechart'
 import { TimeRangeSelector } from './TimeRangeSelector'
-import { Card, Badge, Spinner } from './ui'
+import { Card, Badge, Spinner, ErrorCard } from './ui'
 
 interface JobHistoryProps {
   bookId: string | null
@@ -189,7 +189,9 @@ export function JobHistory({ bookId, refreshSignal = 0, onCompareJobs }: JobHist
       )}
 
       {error && (
-        <p data-testid="job-history-error" className="text-sm text-red-600 py-2 mt-2">{error}</p>
+        <div className="py-2 mt-2">
+          <ErrorCard message={error} data-testid="job-history-error" />
+        </div>
       )}
 
       {!expanded && !loading && !error && (

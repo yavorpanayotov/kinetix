@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { XCircle } from 'lucide-react'
 import { fetchOrderGhostFills, type GhostFillDto } from '../api/ghostFills'
+import { ErrorCard, Spinner } from './ui'
 
 interface OrderGhostFillsProps {
   orderId: string
@@ -34,18 +35,18 @@ export function OrderGhostFills({ orderId }: OrderGhostFillsProps) {
   }, [orderId])
 
   if (error) {
-    return (
-      <p data-testid="ghost-fills-error" className="text-sm text-red-600">
-        {error}
-      </p>
-    )
+    return <ErrorCard message={error} data-testid="ghost-fills-error" />
   }
 
   if (fills === null) {
     return (
-      <p data-testid="ghost-fills-loading" className="text-sm text-slate-500">
+      <div
+        data-testid="ghost-fills-loading"
+        className="flex items-center gap-2 text-sm text-slate-500"
+      >
+        <Spinner size="sm" />
         Loading ghost fills…
-      </p>
+      </div>
     )
   }
 

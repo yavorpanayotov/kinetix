@@ -14,7 +14,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import type { SystemHealthResponse } from '../api/system'
-import { Card, Button, StatusDot, Spinner } from './ui'
+import { Card, Button, StatusDot, Spinner, ErrorCard } from './ui'
 
 interface Props {
   health: SystemHealthResponse | null
@@ -125,11 +125,7 @@ export function SystemDashboard({ health, loading, error, onRefresh }: Props) {
   }
 
   if (error) {
-    return (
-      <p data-testid="system-error" className="text-red-600">
-        {error}
-      </p>
-    )
+    return <ErrorCard message={error} onRetry={onRefresh} data-testid="system-error" />
   }
 
   const services = health?.services ?? {}

@@ -107,18 +107,21 @@ describe('TradeBlotter', () => {
     expect(screen.getByText('No trades to display.')).toBeInTheDocument()
   })
 
-  it('shows loading state', () => {
+  it('shows loading state with a spinner', () => {
     setupDefaults({ loading: true, trades: [] })
-    render(<TradeBlotter bookId="book-1" />)
+    const { container } = render(<TradeBlotter bookId="book-1" />)
 
     expect(screen.getByText('Loading trades...')).toBeInTheDocument()
+    // Spinner uses lucide-react's Loader2 with animate-spin
+    expect(container.querySelector('.animate-spin')).toBeInTheDocument()
   })
 
   it('shows error state', () => {
     setupDefaults({ error: 'Failed to load', trades: [] })
     render(<TradeBlotter bookId="book-1" />)
 
-    expect(screen.getByText('Failed to load')).toBeInTheDocument()
+    const alert = screen.getByRole('alert')
+    expect(alert).toHaveTextContent('Failed to load')
   })
 
   it('color-codes BUY trades in green and SELL trades in red', () => {

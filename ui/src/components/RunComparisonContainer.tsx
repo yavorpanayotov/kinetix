@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { Spinner } from './ui'
+import { ErrorCard, Spinner } from './ui'
 import { useRunComparison } from '../hooks/useRunComparison'
 import { DailyVarSelector } from './DailyVarSelector'
 import { ModelComparisonSelector } from './ModelComparisonSelector'
@@ -103,15 +103,7 @@ export function RunComparisonContainer({ bookId, initialJobIds }: RunComparisonC
       )}
 
       {/* Error */}
-      {error && (
-        <div
-          data-testid="comparison-error"
-          role="alert"
-          className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-md px-3 py-2"
-        >
-          {error}
-        </div>
-      )}
+      {error && <ErrorCard message={error} data-testid="comparison-error" />}
 
       {/* Loading */}
       {loading && (

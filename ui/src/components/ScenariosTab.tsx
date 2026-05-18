@@ -7,7 +7,7 @@ import { runHistoricalReplay, runReverseStress } from '../api/historicalReplay'
 import { exportStressResultsToCsv } from '../utils/exportStressResults'
 import type { ScenarioSavePayload, ScenarioRunPayload } from '../hooks/useCustomScenario'
 import { useScenarioGovernance } from '../hooks/useScenarioGovernance'
-import { Card, Spinner } from './ui'
+import { Card, Spinner, ErrorCard } from './ui'
 import { ScenarioControlBar } from './ScenarioControlBar'
 import { ScenarioComparisonTable } from './ScenarioComparisonTable'
 import { ScenarioDetailPanel } from './ScenarioDetailPanel'
@@ -200,8 +200,8 @@ export function ScenariosTab({
         )}
 
         {error && (
-          <div data-testid="stress-error" className="text-red-600 text-sm mb-4">
-            {error}
+          <div className="mb-4">
+            <ErrorCard message={error} data-testid="stress-error" />
           </div>
         )}
 

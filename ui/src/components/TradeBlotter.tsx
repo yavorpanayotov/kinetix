@@ -3,7 +3,7 @@ import { ChevronDown, ChevronRight, Copy, Download, Inbox } from 'lucide-react'
 import { useTradeHistory } from '../hooks/useTradeHistory'
 import { formatMoney, formatQuantity, formatTimestamp } from '../utils/format'
 import { formatCompactCurrency } from '../utils/formatCompactCurrency'
-import { Card, EmptyState } from './ui'
+import { Card, EmptyState, ErrorCard, Spinner } from './ui'
 import type { TradeHistoryDto } from '../types'
 import { InstrumentTypeBadge } from './InstrumentTypeBadge'
 import { INSTRUMENT_TYPE_OPTIONS, formatInstrumentTypeLabel } from '../utils/instrumentTypes'
@@ -159,11 +159,16 @@ export function TradeBlotter({ bookId }: TradeBlotterProps) {
   }
 
   if (loading) {
-    return <p className="text-gray-500">Loading trades...</p>
+    return (
+      <div className="flex items-center gap-2 text-sm text-slate-500">
+        <Spinner size="sm" />
+        Loading trades...
+      </div>
+    )
   }
 
   if (error) {
-    return <p className="text-red-600">{error}</p>
+    return <ErrorCard message={error} />
   }
 
   if (trades.length === 0) {

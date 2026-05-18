@@ -3,6 +3,8 @@ import { useBrinsonAttribution } from '../hooks/useBrinsonAttribution'
 import { BrinsonAttributionTable } from './BrinsonAttributionTable'
 import { Spinner } from './ui/Spinner'
 import { Card } from './ui/Card'
+import { EmptyState } from './ui/EmptyState'
+import { ErrorCard } from './ui/ErrorCard'
 
 interface BenchmarkAttributionSectionProps {
   bookId: string
@@ -58,15 +60,18 @@ export function BenchmarkAttributionSection({ bookId }: BenchmarkAttributionSect
       )}
 
       {error && (
-        <p data-testid="benchmark-attribution-error" className="text-sm text-red-600 py-2">
-          {error}
-        </p>
+        <div className="py-2">
+          <ErrorCard message={error} data-testid="benchmark-attribution-error" />
+        </div>
       )}
 
       {!submittedBenchmarkId && !loading && (
-        <p data-testid="benchmark-attribution-empty" className="text-sm text-slate-500 py-2">
-          Enter a benchmark ID and click Run to compute attribution.
-        </p>
+        <div data-testid="benchmark-attribution-empty">
+          <EmptyState
+            title="No attribution yet"
+            description="Enter a benchmark ID and click Run to compute attribution."
+          />
+        </div>
       )}
 
       {data && !loading && (

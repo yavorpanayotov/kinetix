@@ -118,7 +118,10 @@ export function HierarchySelector({ hierarchy }: HierarchySelectorProps) {
 
           <div className="py-1">
             {loading && (
-              <div className="px-3 py-2 text-sm text-slate-500">Loading...</div>
+              <div className="flex items-center gap-2 px-3 py-2 text-sm text-slate-500">
+                <Spinner size="sm" />
+                Loading...
+              </div>
             )}
 
             {!loading && (

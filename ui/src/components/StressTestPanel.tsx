@@ -1,7 +1,7 @@
 import { Zap } from 'lucide-react'
 import type { StressTestResultDto } from '../types'
 import { formatCurrency } from '../utils/format'
-import { Card, Button, Select, Spinner } from './ui'
+import { Card, Button, Select, Spinner, ErrorCard } from './ui'
 
 interface StressTestPanelProps {
   scenarios: string[]
@@ -64,11 +64,7 @@ export function StressTestPanel({
         </div>
       )}
 
-      {error && (
-        <div data-testid="stress-error" className="text-red-600 text-sm">
-          {error}
-        </div>
-      )}
+      {error && <ErrorCard message={error} data-testid="stress-error" />}
 
       {result && !loading && (
         <div data-testid="stress-results">

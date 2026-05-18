@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { X, Target } from 'lucide-react'
 import type { ReverseStressRequestDto, ReverseStressResultDto } from '../types'
 import { formatCurrency } from '../utils/format'
-import { Button, Input, Spinner } from './ui'
+import { Button, ErrorCard, Input, Spinner } from './ui'
 
 interface ReverseStressDialogProps {
   open: boolean
@@ -150,11 +150,7 @@ export function ReverseStressDialog({
             </div>
           )}
 
-          {error && (
-            <div data-testid="reverse-stress-error" className="text-red-600 text-sm">
-              {error}
-            </div>
-          )}
+          {error && <ErrorCard message={error} data-testid="reverse-stress-error" />}
 
           {result && !loading && (
             <div data-testid="reverse-stress-results" className="space-y-3">

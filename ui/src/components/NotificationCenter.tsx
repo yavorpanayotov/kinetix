@@ -15,7 +15,7 @@ import {
 import type { AlertRuleDto, AlertEventDto, CreateAlertRuleRequestDto } from '../types'
 import { formatRelativeTime } from '../utils/format'
 import { exportToCsv } from '../utils/exportCsv'
-import { Card, Button, Badge, Input, Select, Spinner } from './ui'
+import { Card, Button, Badge, Input, Select, Spinner, ErrorCard } from './ui'
 import { ConfirmDialog } from './ui/ConfirmDialog'
 
 /**
@@ -385,8 +385,8 @@ export function NotificationCenter({
       )}
 
       {error && (
-        <div data-testid="notification-error" className="text-red-600 text-sm mb-3">
-          {error}
+        <div className="mb-3">
+          <ErrorCard message={error} data-testid="notification-error" />
         </div>
       )}
 

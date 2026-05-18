@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
 import type { StressScenarioDto } from '../types'
-import { Input, Select, Spinner } from './ui'
+import { Input, Select, Spinner, ErrorCard } from './ui'
 
 type SortField = 'name' | 'status' | 'type'
 type SortDirection = 'asc' | 'desc'
@@ -131,8 +131,8 @@ export function ScenarioLibraryGrid({ scenarios, loading, error }: ScenarioLibra
 
       {/* Error */}
       {!loading && error && (
-        <div data-testid="scenario-library-error" className="text-red-600 text-sm py-2">
-          {error}
+        <div className="py-2">
+          <ErrorCard message={error} data-testid="scenario-library-error" />
         </div>
       )}
 

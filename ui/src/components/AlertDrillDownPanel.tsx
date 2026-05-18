@@ -3,7 +3,7 @@ import { Check, X } from 'lucide-react'
 import type { AlertEventDto } from '../types'
 import { fetchAlertContributors, type PositionContributor } from '../api/alertContributors'
 import { formatCurrency } from '../utils/format'
-import { Button, Input } from './ui'
+import { Button, EmptyState, Input, Spinner } from './ui'
 
 function useAlertContributors(alertId: string) {
   const [contributors, setContributors] = useState<PositionContributor[]>([])
@@ -187,11 +187,17 @@ export function AlertDrillDownPanel({ alert, onClose, onAcknowledge }: AlertDril
         <h3 className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase mb-3">Top Contributors to VaR</h3>
 
         {loading && (
-          <div className="text-sm text-slate-500">Loading contributors...</div>
+          <div className="flex items-center gap-2 text-sm text-slate-500">
+            <Spinner size="sm" />
+            Loading contributors...
+          </div>
         )}
 
         {!loading && contributors.length === 0 && (
-          <div className="text-sm text-slate-500">No contributor data available for this alert.</div>
+          <EmptyState
+            title="No contributor data"
+            description="No contributor data available for this alert."
+          />
         )}
 
         {!loading && visible.map((c) => {
