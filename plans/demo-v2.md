@@ -88,7 +88,7 @@ and flag (per `/work-plan` guardrails).
       `derivatives-book`) to a profile. One type per file. Unit test asserts
       every seeded book has exactly one profile.
       Acceptance: `./gradlew :demo-orchestrator:test --tests "*DemoBookProfilesTest"`
-- [ ] 1.2 Add `client/RiskOrchestratorClient.kt` interface plus
+- [x] 1.2 Add `client/RiskOrchestratorClient.kt` interface plus
       `client/RiskOrchestratorHttpClient.kt` Ktor-CIO implementation. Methods:
       `readBookExposure(bookId): BookExposureSnapshot` against
       `GET /api/v1/risk/hierarchy/BOOK/{bookId}`; `seedLimit(bookId, limitType,
