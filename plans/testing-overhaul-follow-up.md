@@ -76,7 +76,7 @@ That brings in `org.testcontainers.kafka.KafkaContainer` transitively, plus the 
   - For a portfolio split into N book-sized chunks, sum of per-book P&L equals portfolio-level P&L within floating-point tolerance.
   - Property holds across random book partitions and random market shifts.
   - Acceptance: `./gradlew :risk-orchestrator:test --tests "*PnLAdditivityPropertyTest"`
-- [ ] **3.3** Create `position-service/src/test/kotlin/com/kinetix/position/property/PositionAggregationPropertyTest.kt`:
+- [x] **3.3** Create `position-service/src/test/kotlin/com/kinetix/position/property/PositionAggregationPropertyTest.kt`:
   - For any sequence of trades, aggregating them in any order yields the same net position (commutativity).
   - Aggregating sub-sequences and then aggregating the results equals aggregating the full sequence (associativity).
   - These properties already hold by the algebra — these tests lock them in against accidental future regressions.
