@@ -137,7 +137,7 @@ That brings in `org.testcontainers.kafka.KafkaContainer` transitively, plus the 
   - Acceptance: `./gradlew :position-service:pitest && test -f position-service/build/reports/pitest/mutations.xml`
 - [x] **6.3** Apply `kinetix.kotlin-mutation` to `correlation-service/build.gradle.kts`.
   - Acceptance: `./gradlew :correlation-service:pitest && test -f correlation-service/build/reports/pitest/mutations.xml`
-- [ ] **6.4** Apply `kinetix.kotlin-mutation` to `volatility-service/build.gradle.kts`.
+- [x] **6.4** Apply `kinetix.kotlin-mutation` to `volatility-service/build.gradle.kts`.
   - Acceptance: `./gradlew :volatility-service:pitest && test -f volatility-service/build/reports/pitest/mutations.xml`
 - [ ] **6.5** Apply `kinetix.kotlin-mutation` to `regulatory-service/build.gradle.kts`.
   - Acceptance: `./gradlew :regulatory-service:pitest && test -f regulatory-service/build/reports/pitest/mutations.xml`
