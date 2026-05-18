@@ -26,6 +26,21 @@ All 6 Kafka consumers across the platform use `RetryableConsumer`.
 
 The implementation is coroutine-safe using Kotlin's `Mutex`.
 
+## Applies when
+- Writing a new Kafka consumer.
+- Adding an HTTP or gRPC client to call another service.
+- Tempted to wrap a call in raw `try/retry` loops or to swallow exceptions to "keep the consumer alive".
+
+## Rules
+- **DO** instantiate Kafka consumers via `RetryableConsumer` from `common/.../kafka/RetryableConsumer.kt`. Specify `maxRetries`, `baseDelayMs`, and the DLQ topic.
+- **DO** provision a `<topic>.dlq` for every consumer-bearing topic in `infra/kafka/create-topics.sh`.
+- **DO** wrap inter-service HTTP/gRPC calls in `CircuitBreaker` (`common/.../resilience/CircuitBreaker.kt`) when the downstream is critical-path.
+- **DO** emit metrics from both patterns — DLQ message counts and circuit-state transitions are alertable signals.
+- **DO** monitor DLQ topics (`<topic>.dlq`) for accumulating messages; a growing DLQ indicates a poison-message bug or schema mismatch.
+- **DON'T** add Resilience4j or any other JVM resilience library. The two existing patterns in `common/` cover the cases we have.
+- **DON'T** apply exponential backoff to user-facing request paths — retries can stack into multi-second waits. These patterns are for background processing and Kafka pipelines.
+- **DON'T** silently retry on `CircuitBreakerOpenException` — propagate it; the caller decides whether to degrade or fail.
+
 ## Consequences
 
 ### Positive

@@ -9,6 +9,23 @@ The system needs a modern UI for risk dashboards, position management, and regul
 ## Decision
 Use React 19 with Vite 7.3.1, TypeScript, and Tailwind CSS 4.
 
+## Applies when
+- Adding a new UI tab, panel, dialog, route, or interactive workflow.
+- Choosing a UI library, charting library, or styling approach.
+- Tempted to introduce SSR, CSS-in-JS, Bootstrap, Material UI, or a state-management framework.
+
+## Rules
+- **DO** write components as TypeScript function components with hooks. Strict mode is on — fix typing errors, don't `any` them away.
+- **DO** style with Tailwind utility classes. Co-locate component-specific styles in the JSX.
+- **DO** import icons from `lucide-react`.
+- **DO** test every new tab/panel/dialog/workflow with both Vitest unit tests **and** Playwright E2E tests under `ui/e2e/` (CLAUDE.md mandate). Unit tests alone are never sufficient.
+- **DO** run `cd ui && npm run lint` before committing UI changes — ESLint catches `react-hooks/set-state-in-effect` and similar that tests miss.
+- **DO** add new dependencies via `npm install` and commit the lockfile.
+- **DON'T** introduce Next.js, server components, or any SSR concept — this is an SPA.
+- **DON'T** introduce a CSS-in-JS library (styled-components, Emotion), a competing CSS framework (Bootstrap, MUI, Chakra), or a global state library (Redux, Zustand, MobX) without ADR approval.
+- **DON'T** add a new charting library if `recharts` (or whatever the existing component uses) already covers the case.
+- **DON'T** call backend services directly from the UI — always go through the gateway (ADR-0012).
+
 ## Consequences
 
 ### Positive

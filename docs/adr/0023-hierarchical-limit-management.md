@@ -20,6 +20,21 @@ Key features:
 - **Parent resolution**: `LimitHierarchyService` can auto-resolve parent entity IDs via `ReferenceDataServiceClient` (e.g., looking up a desk's division from reference data)
 - **Three-state result**: `OK`, `WARNING`, `BREACHED` — each with the effective limit, current exposure, and breach level
 
+## Applies when
+- Adding a new limit type, a new limit dimension, or a new entity that needs limit enforcement.
+- Touching `LimitHierarchyService`, `LimitDefinition`, or `TemporaryLimitIncrease`.
+- Implementing pre-trade checks anywhere in the platform.
+
+## Rules
+- **DO** check limits bottom-up via `LimitHierarchyService.checkLimits(...)`. A book check evaluates BOOK → DESK → DIVISION → FIRM in one call.
+- **DO** record `intradayLimit` and `overnightLimit` distinctly when they differ. Don't conflate them.
+- **DO** use `TemporaryLimitIncreaseRepository` for time-bounded overrides. Never edit `LimitDefinition` rows for short-term breaches.
+- **DO** emit all three states (`OK`, `WARNING`, `BREACHED`) and surface them in the UI. WARNING is the early signal the desk relies on.
+- **DO** call `parentHierarchyFor(entityType)` rather than hardcoding parent relationships.
+- **DON'T** add a parallel limit-checking path for "performance" — bottom-up traversal is the contract. Acceptable for pre-trade; not for HFT-style hot paths (which aren't in scope).
+- **DON'T** invent a new hierarchy level (e.g. "sub-desk") without updating `parentHierarchyFor`, `LimitLevel`, and the reference-data lookups in one coherent change.
+- **DON'T** silently fall back to `OK` when parent resolution fails — surface the error.
+
 ## Consequences
 
 ### Positive

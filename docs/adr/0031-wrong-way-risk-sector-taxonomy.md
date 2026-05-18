@@ -49,6 +49,19 @@ Concretely:
 - Emit one `WrongWayRiskFlag` per matching trade with `instrument_id`, `counterparty_sector`, `position_sector`, and `exposure_amount`.
 - Aggregate counts into `wrongWayRiskFlags: List<String>` on the snapshot for backwards-compatible API surface; the per-trade detail goes onto a new `wrongWayRiskFlags: List<WrongWayRiskFlag>` field on `CounterpartyRiskSnapshot` (matches spec value type at `counterparty-risk.allium:52-58`).
 
+## Applies when
+- Touching `CounterpartyRiskOrchestrationService.computeWrongWayRiskFlags` or the `WrongWayRiskFlag` value type.
+- Adding a new WWR signal, alert, or CVA add-on.
+- Reading or persisting `CounterpartyRiskSnapshot` flags.
+
+## Rules
+- **DO** fire a WWR flag only when the counterparty's sector matches the *position's* sector for that trade. Emit one `WrongWayRiskFlag` per matching trade with `instrument_id`, `counterparty_sector`, `position_sector`, and `exposure_amount`.
+- **DO** keep aggregate counts on the legacy `wrongWayRiskFlags: List<String>` surface for backwards compatibility; put per-trade detail on the typed `List<WrongWayRiskFlag>` field.
+- **DO** align with BCBS d325 §83-87 / ISDA WWR working group: SWWR (direct claim on counterparty) and GWWR (sector-matched) only.
+- **DON'T** emit a `FINANCIAL_SECTOR_WRONG_WAY_RISK` or `SOVEREIGN_WRONG_WAY_RISK` flag based on counterparty attributes alone. That is a counterparty-quality signal, not WWR.
+- **DON'T** fall back to the old counterparty-only heuristic when sector data is missing — that encourages reference-data laziness and produces misleading flags during outages.
+- **DON'T** flag cross-sector positions. Spec invariant `WrongWayRiskSectorMatch` (`counterparty-risk.allium:484-486`) explicitly excludes them.
+
 ## Trade-offs
 
 ### Positive

@@ -23,6 +23,22 @@ Key design choices:
 - Dependencies are grouped by position to enable targeted data fetching
 - Run manifests capture input digests for reproducibility (see ADR-0018)
 
+## Applies when
+- Adding a new phase, input source, or output to the VaR / valuation workflow.
+- Modifying `VaRCalculationService` or any of its collaborators (`PositionProvider`, `DependenciesDiscoverer`, `MarketDataFetcher`, `RiskEngineClient`, `RunManifestCapture`, `ResultPublisher`).
+- Tempted to have the risk-engine fetch data, or to skip the discovery phase.
+
+## Rules
+- **DO** preserve the five sequential phases (fetch positions → discover → fetch market data → valuate → publish). Each phase is timed and recorded in `ValuationJob`.
+- **DO** add a new collaborator as a new file and inject via Koin — don't fold new responsibility into `VaRCalculationService`.
+- **DO** fetch market data via HTTP REST clients. Risk requires point-in-time snapshots, not streaming.
+- **DO** call the risk-engine via gRPC `Valuate` (ADR-0024), passing all required market data inline (ADR-0029).
+- **DO** capture a `RunManifest` between fetch and valuate (ADR-0018).
+- **DO** publish the result on `risk.results` Kafka topic.
+- **DON'T** let the risk-engine make outbound calls to fetch data. It is a pure calculator (ADR-0029).
+- **DON'T** add a new "fast path" that skips manifest capture, dependency discovery, or result publication.
+- **DON'T** introduce event-choreography for the workflow — the orchestrator owns the sequence.
+
 ## Consequences
 
 ### Positive

@@ -59,6 +59,20 @@ When a genuinely non-nullable column must be introduced:
 2. **Backfill:** Update every existing row: `UPDATE table SET new_col = <value> WHERE new_col IS NULL;`
 3. **Contract (next release):** `ALTER TABLE table ALTER COLUMN new_col SET NOT NULL;` — safe once all rows are populated and old pods are gone.
 
+## Applies when
+- Writing any Flyway migration that changes existing schema (rename, drop, type narrow, NOT NULL).
+- Reviewing a PR that mixes new schema with a column drop in a single migration.
+- Tempted to "just rename" a column to clean up naming.
+
+## Rules
+- **DO** split every destructive schema change into two migrations across two releases: **Release N expand**, **Release N+1 contract**.
+- **DO** add new columns as `NULL` or with a literal `DEFAULT`. Backfill in the same migration or the next one before adding `NOT NULL`.
+- **DO** dual-write to both old and new columns in application code during the expand phase if a rollback must keep working.
+- **DO** add a paired `V{N}-rollback.sql` for risk-orchestrator migrations (ADR-0027 §Rollback SQL).
+- **DON'T** `DROP COLUMN`, `RENAME COLUMN`, `RENAME TABLE`, `ALTER COLUMN ... TYPE` (narrowing), `ADD COLUMN ... NOT NULL` without DEFAULT, or `DROP TABLE` in a single rolling-deploy migration. Each of these has caused production breakage already.
+- **DON'T** use `CREATE INDEX CONCURRENTLY` — Flyway wraps migrations in a transaction. Use plain `CREATE INDEX` (see ADR-0027 for the full forbidden list).
+- **DON'T** combine schema rename and code rename in one PR. Rename column in expand release; switch code reads in expand release; drop old column in contract release.
+
 ## Consequences
 
 ### Positive

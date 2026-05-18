@@ -34,6 +34,21 @@ The `RiskCalculationService` gRPC service now has three RPCs:
 - `CalculateVaRStream` — streaming variant
 - `Valuate` — unified RPC with full output control
 
+## Applies when
+- Adding a new valuation output (a new Greek, a new sensitivity, a new aggregation).
+- Calling the risk-engine from new orchestrator code.
+- Adding a new market data type that must reach the engine.
+
+## Rules
+- **DO** call `Valuate` for all new valuation work. Treat `CalculateVaR` as deprecated and don't add new callers.
+- **DO** populate `requested_outputs` with the minimum set needed. Don't request everything — VAR + GREEKS + PV can each be expensive.
+- **DO** populate `monte_carlo_seed` with a non-zero value when the result must be reproducible (regulatory submissions, replay verification per ADR-0018). Seed 0 = non-deterministic.
+- **DO** add new market data types via the `MarketDataValue` `oneof` (scalar/time_series/matrix/curve). Match the Python side at the same time.
+- **DO** carry `model_version` from the response into the `RunManifest`.
+- **DON'T** add a new top-level RPC for a specific output (`CalculatePV`, `CalculateGreeks`). Extend `requested_outputs` and `ValuationResponse` instead.
+- **DON'T** invent a new market-data shape outside the `oneof`. Use `scalar`, `time_series`, `matrix`, or `curve`; if a fifth shape is genuinely required, add it to `MarketDataValue` and update both sides.
+- **DON'T** call `Valuate` and ignore `computed_outputs`. The engine may decline an output if inputs are missing; check what was actually produced.
+
 ## Consequences
 
 ### Positive

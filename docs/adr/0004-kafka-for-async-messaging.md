@@ -9,6 +9,22 @@ Services need asynchronous communication for event-driven workflows: market data
 ## Decision
 Use Apache Kafka 3.9.0 in KRaft mode (no ZooKeeper dependency).
 
+## Applies when
+- Producing or consuming an async event between services.
+- Adding a new Kafka topic, changing partition count, or changing a key schema.
+- Choosing between Kafka, an HTTP call, and a gRPC call for service-to-service communication.
+
+## Rules
+- **DO** publish a new topic by adding it to `infra/kafka/create-topics.sh` so all environments provision it idempotently. Don't rely on auto-create.
+- **DO** define event payloads as `@Serializable` data classes in `common/` (or proto where Python is a consumer). One event type per file.
+- **DO** wrap consumers in `RetryableConsumer` (ADR-0014) so transient failures retry and poison messages route to `<topic>.dlq`.
+- **DO** add a DLQ topic for every consumer-bearing topic, named `<topic>.dlq`, and provision it in `create-topics.sh`.
+- **DO** propagate `correlationId` end-to-end (ADR-0022) on every event payload.
+- **DO** pick partition keys that preserve per-entity ordering (e.g. `clOrdID`, `bookId`, `instrumentId`). Don't partition by random UUIDs unless ordering is genuinely irrelevant.
+- **DON'T** use Kafka for synchronous request/reply (use gRPC or HTTP). Don't invent reply-topic correlation patterns.
+- **DON'T** add a new topic for a one-off use case before checking whether an existing core topic (`trades.lifecycle`, `price.updates`, `risk.results`) already covers it.
+- **DON'T** rename a topic in-place; create the new topic, dual-publish, switch consumers, then deprecate the old one.
+
 ## Consequences
 
 ### Positive

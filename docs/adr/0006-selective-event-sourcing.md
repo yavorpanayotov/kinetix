@@ -12,6 +12,19 @@ Apply event sourcing selectively:
 - **audit-service**: Append-only event store consuming from all Kafka topics.
 - **All other services**: Standard CRUD with PostgreSQL.
 
+## Applies when
+- Designing persistence for a new entity type — choosing between event-sourced and CRUD.
+- Adding a new mutation to a trade, order, or audit entity.
+- Tempted to "fix" event-sourced data with an UPDATE/DELETE.
+
+## Rules
+- **DO** model every trade lifecycle mutation in `position-service` as an immutable `trade_event` row. Compute current position state as a projection.
+- **DO** append-only in `audit-service` — every row is sealed by hash chain (ADR-0017).
+- **DO** use standard CRUD in price-service, rates-service, volatility-service, correlation-service, reference-data-service, notification-service, regulatory-service, risk-orchestrator. Event sourcing here adds complexity without auditability benefit.
+- **DO** version event schemas explicitly (e.g. `event_type`, `schema_version`) when adding new fields to an event-sourced table.
+- **DON'T** issue `UPDATE`/`DELETE` against `trade_events` or `audit_events`. To correct a trade, append a corrective event. To correct an audit entry, append a new entry referencing the prior one — never break the chain.
+- **DON'T** propose new event-sourced tables outside position-service and audit-service without architectural review.
+
 ## Consequences
 
 ### Positive

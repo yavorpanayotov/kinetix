@@ -16,6 +16,21 @@ Propagate a `correlationId` (UUID string) across all Kafka events and HTTP reque
 
 The gateway's `CallLogging` plugin adds `correlationId` and `userId` to the MDC for structured logging.
 
+## Applies when
+- Defining a new event payload (Kafka or otherwise).
+- Adding a new HTTP route or HTTP client call.
+- Wiring a new consumer that produces follow-on events.
+- Tempted to generate a new UUID mid-chain instead of propagating the inbound one.
+
+## Rules
+- **DO** include a nullable `correlationId: String?` field on every new event payload.
+- **DO** propagate `X-Correlation-ID` on every outbound HTTP call. If absent on inbound, generate a UUID — but only at the chain's true origin.
+- **DO** put `correlationId` into the MDC at request entry so all logs in that handler carry it (Loki indexes by label).
+- **DO** in consumers: extract the inbound `correlationId` and pass it through to every event the consumer produces. Missing propagation silently breaks tracing.
+- **DON'T** generate a fresh `correlationId` in the middle of a causal chain. That orphans downstream events from their parent.
+- **DON'T** rely on OpenTelemetry trace context as a substitute for `correlationId` in Kafka payloads — OTel context in Kafka is non-trivial and not currently wired end-to-end.
+- **DON'T** use `correlationId` as a primary key, dedup key, or business identifier. It is for tracing only.
+
 ## Consequences
 
 ### Positive

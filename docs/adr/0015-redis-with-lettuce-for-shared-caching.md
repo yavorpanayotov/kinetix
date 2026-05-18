@@ -18,6 +18,21 @@ Implementations:
 
 Cached values are serialized to JSON via `kotlinx.serialization` with dedicated `Cached*` DTOs to handle type conversion (BigDecimal ↔ String, Instant ↔ String, UUID ↔ String).
 
+## Applies when
+- Adding a cache to avoid re-computing or re-fetching an expensive value.
+- Caching something that must be visible across replicas (gateway scale-out, orchestrator scale-out).
+- Tempted to use Caffeine, Guava cache, or a `ConcurrentHashMap` for cross-replica caching.
+
+## Rules
+- **DO** define every cache behind an interface (e.g. `VaRCache`, `QuantDiffCache`). Implement `Redis*` for production and `InMemory*` for tests.
+- **DO** serialise cached payloads via dedicated `Cached*` DTOs that convert `BigDecimal`, `Instant`, `UUID` to strings. Never serialise domain types directly.
+- **DO** set an explicit TTL via `SetArgs.ex(seconds)`. No unbounded keys.
+- **DO** key by a stable, low-cardinality identifier (e.g. `var:<bookId>:<runId>`). Document the key schema where the cache is defined.
+- **DO** treat the cache as advisory — every code path must still work if the cache is empty or stale.
+- **DON'T** add Caffeine, Guava cache, or any other in-process cache library when the cached state must be shared across replicas. In-process is acceptable only for per-instance state (e.g. `LatestVaRCache` for local convenience).
+- **DON'T** use Redis as a database. No write-only paths, no source-of-truth state. Cache only.
+- **DON'T** add a Hazelcast/Memcached/Infinispan dependency.
+
 ## Consequences
 
 ### Positive

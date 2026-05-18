@@ -27,6 +27,20 @@ Capture a `RunManifest` for every risk calculation run. The manifest records all
 
 The `RunManifestCapture` service (`risk-orchestrator`) is integrated into `VaRCalculationService` as an optional collaborator, called between position fetch and valuation phases.
 
+## Applies when
+- Adding a new risk calculation type or modifying `VaRCalculationService`.
+- Adding inputs that affect the computed result (a new market data type, a new parameter).
+- Touching `RunManifestCapture` or the `RunManifest` schema.
+
+## Rules
+- **DO** capture a `RunManifest` for every risk calculation. Manifest capture is part of the contract, not optional — null-safety in code is a defensive backstop, not an escape hatch.
+- **DO** include any new result-affecting input in the `inputDigest`. If you add a field that changes the output, the digest must change.
+- **DO** record the `monteCarloSeed` whenever Monte Carlo is used. Seed 0 = unseeded/non-deterministic; non-zero = reproducible.
+- **DO** record the `modelVersion` from the risk-engine response — this is how a result is linked to the exact engine commit.
+- **DO** compute `positionDigest` and `marketDataDigest` from the same canonical serialization used to send to the engine, otherwise reproducibility fails silently.
+- **DON'T** persist a risk result without an associated manifest. Even a failed run captures `status=FAILED` and the input digests.
+- **DON'T** mutate a `RunManifest` after capture. It is an immutable witness.
+
 ## Consequences
 
 ### Positive

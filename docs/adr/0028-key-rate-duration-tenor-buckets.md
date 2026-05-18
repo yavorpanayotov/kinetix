@@ -31,6 +31,20 @@ This requires:
 - Updating `daily_krd_snapshots` schema to accommodate 12 columns (or use a normalised tenor/value schema)
 - Verifying that the yield curve data from `rates-service` contains all 12 tenor nodes
 
+## Applies when
+- Adding KRD outputs, displays, or aggregations.
+- Touching `key_rate_duration.py`, `DEFAULT_TENORS`, or the `daily_krd_snapshots` table.
+- Working on FRTB GIRR submissions or sensitivities-based-method capital.
+
+## Rules
+- **DO** compute KRD on the 4-tenor grid `(2Y, 5Y, 10Y, 30Y)` for internal risk management — limits, trader dashboards, P&L attribution.
+- **DO** distribute cash flows between tenor nodes via the existing tent-function method (Reitano/BARRA standard).
+- **DO** keep KRD computation analytical (closed-form tent-function DV01). Sub-millisecond per instrument is the target — don't fold it into Monte Carlo.
+- **DO** require the 12-tenor FRTB GIRR grid for any regulatory capital path. Don't reuse the 4-tenor result.
+- **DON'T** assume `DEFAULT_TENORS` is FRTB-compliant. It's internal only until ADR-0028 Phase 2 ships.
+- **DON'T** report 4-tenor KRD as a regulatory submission output.
+- **DON'T** extend `DEFAULT_TENORS` to 12 tenors without also updating `sbm.py` risk weights and the snapshot schema in lockstep.
+
 ## Consequences
 
 - Traders see DV01 bucketed at 2Y, 5Y, 10Y, and 30Y — sufficient for identifying curve exposure concentration

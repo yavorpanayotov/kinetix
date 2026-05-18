@@ -9,6 +9,20 @@ The Python risk engine performs computationally intensive calculations (VaR, Mon
 ## Decision
 Use gRPC with Protocol Buffers for synchronous communication between the Kotlin risk-orchestrator and the Python risk-engine.
 
+## Applies when
+- Adding a new RPC between Kotlin and the Python risk-engine.
+- Changing fields in `risk_calculation.proto`, `market_data_dependencies.proto`, or any other `.proto` under `proto/`.
+- Considering a REST endpoint on the risk-engine, or considering Kafka as a way to invoke the engine.
+
+## Rules
+- **DO** define every Kotlin↔Python contract in `proto/` first. Add fields, then regenerate stubs, then implement.
+- **DO** add new fields with the next available tag number. Never reuse tag numbers from removed fields — mark them `reserved` instead.
+- **DO** route every new Kotlin→Python call through a typed interface in `risk-orchestrator` (e.g. `RiskEngineClient`) backed by a generated gRPC stub. Stub the interface in tests via the in-JVM Netty pattern from CLAUDE.md.
+- **DO** propagate W3C traceparent via gRPC metadata — that is how distributed tracing crosses the language boundary.
+- **DON'T** add a REST/JSON endpoint to the risk-engine. The engine speaks gRPC only.
+- **DON'T** invoke the risk-engine via Kafka. Risk calls are synchronous request/response by design (ADR-0029).
+- **DON'T** embed Python into the JVM (GraalPython/Jython). NumPy/QuantLib/PyTorch require CPython.
+
 ## Consequences
 
 ### Positive

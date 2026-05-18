@@ -20,6 +20,21 @@ Introduce `RunLabel` to classify each valuation run and `EodPromotionService` to
 - Demotion is supported for corrections (`demoteFromOfficialEod`)
 - Requires `PROMOTE_EOD_RUN` permission (granted to `RISK_MANAGER` and `ADMIN` roles)
 
+## Applies when
+- Adding a new run label, or any feature touching EOD selection.
+- Writing code that promotes, demotes, or queries the official EOD run.
+- Building a regulatory report, dashboard, or P&L attribution that consumes "the EOD result".
+
+## Rules
+- **DO** filter on `runLabel = OFFICIAL_EOD` when "the EOD result" is required. Never reach for "latest run of the day" as a substitute.
+- **DO** enforce the four-eyes rule — the promoter's `userId` must differ from the run's originator. `EodPromotionService.promoteToOfficialEod` already checks this; don't bypass it.
+- **DO** emit both `OfficialEodPromotedEvent` (Kafka) and an audit-chain entry on every promotion and demotion.
+- **DO** check the `PROMOTE_EOD_RUN` permission at the gateway (ADR-0013) for any new promotion endpoint.
+- **DO** treat supersession as automatic: promoting a new official EOD demotes the previous one to `SUPERSEDED_EOD` in the same transaction.
+- **DON'T** promote a run that is not `COMPLETED`. The service throws — don't catch and retry.
+- **DON'T** allow a run to be promoted twice. The `AlreadyPromoted` exception is the intended behaviour.
+- **DON'T** add a new "promote silently" path. Demotion exists for corrections and must remain explicit and auditable.
+
 ## Consequences
 
 ### Positive

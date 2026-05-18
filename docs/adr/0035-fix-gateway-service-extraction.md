@@ -130,6 +130,21 @@ message CancelOrderRequest {
 
 - **`execution.reports`** (new). Source of truth for downstream consumers (`position-service`, audit-service, notification-service). Replaces the in-process flow currently routed through `FIXExecutionReportProcessor`. Partition by `clOrdID` so per-order events stay ordered.
 
+## Applies when
+- Adding FIX protocol handling, venue connectivity, or any new venue (NYSE, NASDAQ, LSE, TSE, HKEX, etc.).
+- Touching order lifecycle code in `position-service` — order placement, cancel, replace, expiry.
+- Tempted to add `FIXExecutionReportProcessor`-style code, a QuickFIX/J initiator, or any venue cutoff logic outside `fix-gateway`.
+
+## Rules
+- **DO** place every FIX/venue concern (session lifecycle, sequence numbers, MsgType parsing, venue cutoffs, drop-copy ingestion) in `fix-gateway/`. Nowhere else.
+- **DO** keep order/position state, `TimeInForce`, `OrderStatus` transitions, `expires_at`, and the `ScheduledOrderExpirySweeper` job in `position-service`. State stays here even when it is "venue-adjacent".
+- **DO** call `fix-gateway` via gRPC: `PlaceOrder` synchronously (trader needs the Pending New reply), `CancelOrder` / `ReplaceOrder` fire-and-forget (ack flows back via Kafka `execution.reports`).
+- **DO** mint `clOrdID` in `position-service` and pass it to `fix-gateway`. Treat venue execution reports on `execution.reports` as authoritative — local optimistic writes lose any race with the venue.
+- **DO** partition `execution.reports` by `clOrdID` so per-order events stay ordered for downstream consumers.
+- **DON'T** add a FIX engine or QuickFIX/J dependency to `position-service` (or any other non-`fix-gateway` module).
+- **DON'T** rely on the deprecated in-process `FIXExecutionReportProcessor` for new work. Phases 3-4 migrate this out — new flows must consume `execution.reports`.
+- **DON'T** run multiple `fix-gateway` replicas active-active per venue. FIX sequence numbers make this hard; phase 1 ships single-instance + HPA pinned to 1.
+
 ## Trade-offs
 
 ### Positive

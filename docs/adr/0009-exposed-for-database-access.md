@@ -9,6 +9,21 @@ Kotlin services need a database access layer for PostgreSQL and TimescaleDB. Opt
 ## Decision
 Use Exposed 0.58.0 (JetBrains Kotlin SQL framework) with its DSL API.
 
+## Applies when
+- Writing a new database query in a Kotlin service.
+- Designing a new repository class.
+- Tempted to reach for JPA annotations (`@Entity`, `@Id`, `@OneToMany`), jOOQ, or raw JDBC.
+
+## Rules
+- **DO** define tables as `object Foo : Table("foo") { val id = uuid("id"); … }` and access via the Exposed DSL.
+- **DO** wrap every query in `transaction { … }` (blocking) or `newSuspendedTransaction(Dispatchers.IO) { … }` (coroutines). Repositories own the transaction boundary.
+- **DO** expose persistence behind interfaces (`FooRepository`) with an `ExposedFooRepository` implementation. Tests substitute in-memory fakes.
+- **DO** prefer the DSL API. Use DAO only for trivial CRUD where the boilerplate saving is worth it.
+- **DO** validate inputs **before** entering `newSuspendedTransaction` — exceptions thrown inside cannot be caught by Kotest `shouldThrow` (CLAUDE.md gotcha).
+- **DON'T** add Hibernate/JPA, Spring Data, or jOOQ as dependencies.
+- **DON'T** use Exposed's DAO entity-graph traversal for cross-aggregate reads — issue explicit queries. Lazy loading bites in coroutines.
+- **DON'T** run migrations through Exposed's `SchemaUtils.create()`. Flyway owns schema (ADR-0027).
+
 ## Consequences
 
 ### Positive

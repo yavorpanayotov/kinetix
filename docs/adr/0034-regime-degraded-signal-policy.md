@@ -46,6 +46,20 @@ Concretely in `regime_detector.py`:
 - If the available signals are ambiguous or disagree, hold the confirmed regime.
 - In all degraded paths, set `degraded_inputs = true` and reduce `confidence` (probably one tier — VERY_HIGH → HIGH, HIGH → MEDIUM, etc.).
 
+## Applies when
+- Touching `regime_detector.py` or the regime-classification pipeline.
+- Adding a new input signal to the regime classifier.
+- Adding alert payloads or VaR parameter selection that branches on regime.
+
+## Rules
+- **DO** allow a regime transition under degraded inputs **iff** both available signals (realised vol and cross-asset correlation) independently indicate the same target regime.
+- **DO** set `degraded_inputs = true` and reduce `confidence` by one tier on any classification derived from a partial signal set.
+- **DO** run the normal `escalation_debounce` / `de_escalation_debounce` logic for degraded-input transitions — the existing debouncers must apply consistently.
+- **DO** distinguish "transition under degraded inputs" in alert payloads so on-call can apply extra scrutiny.
+- **DON'T** unconditionally hold the prior regime under degraded inputs. The carve-out exists because outages correlate with stress — exactly when escalation is most needed.
+- **DON'T** allow a transition on a single available signal. The rule is *both* signals must agree.
+- **DON'T** ship a regime-related code change without a backtest against the last 12 months — feed results into the Q3 model-committee paper.
+
 ## Trade-offs
 
 ### Positive

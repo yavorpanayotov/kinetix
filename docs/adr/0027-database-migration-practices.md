@@ -79,6 +79,22 @@ The rollback file naming convention (`V{N}-rollback.sql`) keeps rollback scripts
 
 See ADR-0025 for the expand-contract pattern governing all breaking schema changes. Migrations that rename or drop columns require two releases. This ADR documents the mechanical Flyway and TimescaleDB constraints; ADR-0025 governs the sequencing discipline.
 
+## Applies when
+- Writing any Flyway migration in any Kinetix service.
+- Touching a TimescaleDB hypertable (create, alter, add column, change indexes).
+- Considering a maintenance-window operation (decompression, large rebuild).
+
+## Rules
+- **DO** name files `V{N}__{description}.sql` with double underscore and snake_case description, under the service's path (`db/<service>/`).
+- **DO** treat applied migrations as immutable. Once Flyway has checksummed a file, never edit it — add a follow-up migration.
+- **DO** use plain `CREATE INDEX` (transactional). Long lock times are acceptable at our volumes; schedule against peak hours if needed.
+- **DO** include the hypertable partitioning column in every unique constraint and primary key (see `audit-service V4`, `risk-orchestrator V8` for the pattern).
+- **DO** replace `RULE` objects with triggers when converting a table to a hypertable (PostgreSQL rules are not supported on hypertables).
+- **DO** add a paired `V{N}-rollback.sql` for risk-orchestrator migrations. These are manual operator scripts; Flyway Community has no rollback.
+- **DON'T** use `CREATE INDEX CONCURRENTLY`, `CREATE UNIQUE INDEX CONCURRENTLY`, `ALTER TYPE ... ADD VALUE`, `VACUUM`, or `CLUSTER` inside a Flyway migration — all incompatible with a single transaction.
+- **DON'T** alter columns on a compressed hypertable. Decompress → alter → recompress (see V19/V21) and schedule in 18:00–06:00 UTC.
+- **DON'T** put integration tests requiring Docker in the `common` module — Docker client deps are missing on its classpath (CLAUDE.md gotcha).
+
 ## Consequences
 
 ### Positive

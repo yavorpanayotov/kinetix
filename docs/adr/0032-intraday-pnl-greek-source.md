@@ -44,6 +44,20 @@ Concretely:
 - Promote `greekOrFallback` and `PositionPnlInput` to a shared location (`risk-orchestrator/.../service/PnlAttributionInputs.kt`?) so both services use one definition.
 - Carry the `dataQualityFlag` (PRICING / PRICE_ONLY / FALLBACK) onto the published `IntradayPnlSnapshot`.
 
+## Applies when
+- Touching `IntradayPnlService`, `PnlComputationService`, or any code that reads Greeks for attribution.
+- Adding a new attribution term (delta, gamma, vega, theta, rho, vanna, volga, charm).
+- Tempted to read Greeks from `DailyRiskSnapshot` (VaR sensitivities) for P&L attribution.
+
+## Rules
+- **DO** read pricing Greeks from `SodGreekSnapshotRepository` for P&L attribution — analytical Black-Scholes Greeks, `bond_dv01`, `swap_dv01`.
+- **DO** use the `greekOrFallback` pattern: prefer pricing Greek; fall back to VaR Greek if absent; flag `PRICE_ONLY` quality on the attribution. Keep one shared implementation.
+- **DO** carry the `dataQualityFlag` (PRICING / PRICE_ONLY / FALLBACK) onto the published `IntradayPnlSnapshot` so downstream consumers can gate on it.
+- **DO** populate `sod_greek_snapshots` via `SodSnapshotService.persistPricingGreeks` alongside the daily VaR snapshot. The `CalculatePricingGreeks` gRPC RPC on `risk-engine` is the source.
+- **DON'T** use VaR Greeks (from `greeks.py`) for attribution. The Taylor expansion `delta_pnl = sod_delta * price_change` is correct only for closed-form `sod_delta`. Vega gaps of 20–40% between sources are typical.
+- **DON'T** duplicate `greekOrFallback` per service. Promote it to a shared location (e.g. `PnlAttributionInputs.kt`) and reuse.
+- **DON'T** silently use VaR Greeks when `SodGreekSnapshot` is missing without setting the data-quality flag.
+
 ## Trade-offs
 
 ### Positive

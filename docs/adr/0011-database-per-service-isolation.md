@@ -24,6 +24,20 @@ The 11 databases are provisioned idempotently by `infra/db/init/01-create-databa
 
 Each service manages its own schema via Flyway migrations under `src/main/resources/db/<service-name>/` and connects through its own HikariCP pool.
 
+## Applies when
+- Adding a table that needs data from another service's domain.
+- Tempted to JOIN across `kinetix_*` databases or open a connection to another service's DB.
+- Choosing where a new piece of state should live (which service owns it?).
+
+## Rules
+- **DO** persist each service's data in its own database (`kinetix_<service>`).
+- **DO** acquire data from another service via that service's HTTP API, gRPC, or a Kafka event — never via direct DB access.
+- **DO** keep migration files under `src/main/resources/db/<service>/` with versions managed in Flyway (ADR-0027).
+- **DO** denormalise sparingly when a service needs a read replica of another's data; subscribe to the source service's Kafka topic and project locally.
+- **DON'T** add a foreign key, view, or query that crosses `kinetix_*` database boundaries.
+- **DON'T** share a connection pool, user, or schema across services. Each service has its own HikariCP pool configured for its workload.
+- **DON'T** use `kinetix_gateway` for anything — it is reserved/unused.
+
 ## Consequences
 
 ### Positive

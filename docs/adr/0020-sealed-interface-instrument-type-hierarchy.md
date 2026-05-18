@@ -31,6 +31,20 @@ The hierarchy is mirrored in:
 - **Database**: `instrument_type` JSONB column in the reference-data-service instruments table
 - **UI**: Instrument type and name columns in position/trade grids
 
+## Applies when
+- Adding a new instrument type (exotic option, structured product, new asset class).
+- Adding pricing logic that branches by instrument type.
+- Touching `InstrumentType`, `AssetClass`, or any subtype data class.
+
+## Rules
+- **DO** add a new `InstrumentType` subtype as its own file under `common/.../model/instrument/`. One data class per file.
+- **DO** mark every subtype `@Serializable` and give it `instrumentTypeName` plus a concrete `assetClass()`.
+- **DO** update **all four layers** when adding a new type — Kotlin sealed subtype, proto `InstrumentTypeEnum` + attribute message, Python `Position` subclass in `risk-engine`, UI grid rendering and filter. Single-layer changes will compile but break at runtime.
+- **DO** use `when(instrumentType)` (no `else` branch) to exploit exhaustiveness. The compiler error after adding a subtype is the checklist.
+- **DON'T** add a "generic" instrument type or a `Map<String, Any>` of attributes — that defeats the entire ADR.
+- **DON'T** branch on `instrumentTypeName` strings. Use type checks on the sealed subtype.
+- **DON'T** push instrument-type-specific data into separate tables when JSONB on the existing instruments table is sufficient.
+
 ## Consequences
 
 ### Positive

@@ -17,6 +17,20 @@ Use Ktor's WebSocket support in the gateway to push real-time price updates to t
 
 The UI implements auto-reconnect with exponential backoff (max 20 attempts) and displays a "Reconnecting..." banner during disconnection.
 
+## Applies when
+- Adding a real-time UI feature (price tick, alert badge, risk recalc, position update).
+- Tempted to add a polling loop in the UI, or a Server-Sent Events endpoint, or to expose Kafka to the browser.
+
+## Rules
+- **DO** publish new real-time streams via `PriceBroadcaster`-style instrument/topic-subscription patterns on the gateway WebSocket endpoint.
+- **DO** key subscriptions by a stable id (instrument, book, alert channel). Maintain `ConcurrentHashMap<key, Set<WebSocketServerSession>>`.
+- **DO** detect dead sessions on send failure and remove them — no zombie sessions.
+- **DO** implement auto-reconnect with exponential backoff in the UI client and surface a "Reconnecting..." indicator.
+- **DO** test WebSocket flows in Playwright by intercepting `ws://` traffic — not just unit tests.
+- **DON'T** poll the gateway for live data when a WebSocket subscription exists.
+- **DON'T** expose Kafka directly to the browser.
+- **DON'T** assume a single gateway replica. Horizontal scaling requires sticky sessions (current) or a pub/sub backplane (future) — design subscription handlers accordingly.
+
 ## Consequences
 
 ### Positive

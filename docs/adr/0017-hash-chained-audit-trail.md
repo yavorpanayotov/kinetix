@@ -18,6 +18,20 @@ Implement a hash-chained audit trail in the audit-service. Each audit event reco
 
 A REST endpoint (`/api/v1/audit/verify`) allows on-demand chain verification.
 
+## Applies when
+- Adding a field to `audit_events` or to any payload that gets hashed into the chain.
+- Writing code that inserts into `audit_events`.
+- Touching `AuditHasher`, the verification endpoint, or the chain-link logic.
+
+## Rules
+- **DO** include every hash-relevant field in `AuditHasher.computeHash` in a deterministic order. Adding a field requires updating the hash input and recording the schema change.
+- **DO** insert audit events serially. The chain has no parallel-write semantics — concurrent inserts will produce out-of-order `previous_hash` references.
+- **DO** verify the chain incrementally for routine checks (`verifyChainIncremental`). Full verification is O(n) and should be rare.
+- **DO** store audit values as `VARCHAR` exactly as received. Don't normalise enums or trim whitespace in flight.
+- **DON'T** issue `UPDATE` or `DELETE` against `audit_events`. Corrections are appended, not mutated. The chain cannot self-heal.
+- **DON'T** silently change which fields participate in the hash. That breaks historical verification — coordinate any change explicitly and document it (see the 2026-04-07 `portfolio→book` note inline).
+- **DON'T** swap SHA-256 for another hash without an ADR superseding this one.
+
 ## Consequences
 
 ### Positive

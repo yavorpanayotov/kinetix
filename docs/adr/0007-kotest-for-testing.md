@@ -9,6 +9,23 @@ TDD is a first-class requirement. We need a testing framework for Kotlin that su
 ## Decision
 Use Kotest 5.9 as the primary testing framework for all Kotlin modules. Use MockK for mocking. Use Testcontainers for integration tests.
 
+## Applies when
+- Writing or modifying any Kotlin test (unit, acceptance, integration, end-to-end).
+- Tempted to import `org.junit.jupiter.api.*`, `org.mockito.*`, `org.hamcrest.*` — that's the signal to read this ADR.
+- Naming a new test class — the suffix decides which Gradle task runs it.
+
+## Rules
+- **DO** use `FunSpec` for unit tests, `BehaviorSpec` (Given/When/Then) for acceptance tests.
+- **DO** use Kotest matchers: `shouldBe`, `shouldNotBe`, `shouldContain`, `shouldThrow<T>`, `eventually { … }`.
+- **DO** use MockK (`mockk<T>()`, `every { … } returns …`, `coEvery`, `verify`) for mocking — never Mockito.
+- **DO** suffix tests by intent: `*Test` → `./gradlew test`; `*AcceptanceTest` → `acceptanceTest`; `*IntegrationTest` → `integrationTest`; `*End2EndTest` → end-to-end run.
+- **DO** name test functions as specifications: `"rejects a trade when the position limit is exceeded"` — not `testTradeLimit`.
+- **DO** use Testcontainers for Postgres and Kafka in acceptance/integration tests. Stub other Kinetix services via in-JVM Netty gRPC servers (see CLAUDE.md "Acceptance tests").
+- **DON'T** import `org.junit.jupiter.api.*`, Mockito, or Hamcrest. They are not on the classpath by intent.
+- **DON'T** use H2, embedded Kafka, or in-memory fakes in acceptance tests.
+- **DON'T** mark a test `@Ignore`, `@Disabled`, or otherwise skip it without explicit user permission (CLAUDE.md guardrail).
+- **WORKAROUND**: `shouldThrow` cannot catch exceptions thrown inside `newSuspendedTransaction`. Validate before the transaction block.
+
 ## Consequences
 
 ### Positive

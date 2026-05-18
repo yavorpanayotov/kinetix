@@ -36,6 +36,19 @@ Concretely:
 - Remove the `nearestVol` helper.
 - Document the known limitation per spec line 86: "Bilinear can produce butterfly arbitrages for skewed surfaces, especially short-dated near-ATM. This is a known model limitation and must be documented in any risk model disclosure."
 
+## Applies when
+- Touching `VolatilityRoutes.computeUnionGridDiff` or any vol-surface arithmetic on differing grids.
+- Adding new vol-surface comparison features (UI diff views, alerting on surface moves).
+- Tempted to introduce a `nearestVol` helper or to clip to the intersection grid.
+
+## Rules
+- **DO** interpolate missing `(strike, maturity)` points via `VolSurface.interpolate(...)` — bilinear in (log K, sqrt T) with flat boundary clamping.
+- **DO** apply this rule to all surface-difference paths, not just the obvious one. If you're comparing two surfaces on different grids, you're interpolating.
+- **DO** keep the known limitation (butterfly arb risk near ATM for skewed surfaces) documented anywhere the diff output is exposed externally.
+- **DON'T** add or restore a `nearestVol` fallback. Nearest-neighbour produces 50–150bp distortion exactly where traders look for signal.
+- **DON'T** restrict the diff to the intersection grid. Wing differences are the diagnostic point.
+- **DON'T** use the diff output as a pricing input — it is for reporting and comparison only. The butterfly-arb concern is acceptable there; it is not acceptable for repricing.
+
 ## Trade-offs
 
 ### Positive

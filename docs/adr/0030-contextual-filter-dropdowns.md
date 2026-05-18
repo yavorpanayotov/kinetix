@@ -21,6 +21,22 @@ Filter dropdowns for **data-driven types** (instrument types in PositionGrid and
 3. When a selected filter value disappears from the dataset (e.g. on book switch), the filter **auto-resets** to "All" with an inline notice.
 4. The dropdown is **suppressed** when only one type exists in the dataset.
 
+## Applies when
+- Adding a filter dropdown to a data grid or list view in the UI.
+- Touching `PositionGrid`, `TradeBlotter`, or any component that filters by instrument type / asset class / book.
+- Tempted to derive options from `Object.keys(SOME_COLOR_MAP)` or from a hardcoded constant.
+
+## Rules
+- **DO** derive options for **data-driven** filters from the unfiltered dataset (`useMemo` over the source array) with counts appended (e.g. `"Cash Equity (42)"`).
+- **DO** sort options in canonical domain order (e.g. `INSTRUMENT_TYPE_OPTIONS` from `instrumentTypes.ts`). Not alphabetical, not by count.
+- **DO** auto-reset the filter to "All" (with an inline notice) when the selected value disappears from the dataset.
+- **DO** suppress the dropdown entirely when the dataset has only one distinct value for that dimension.
+- **DO** leave **closed enums** static — scenario types in `ScenarioLibraryGrid`, trade sides BUY/SELL. The user value is "confirm zero exist".
+- **DO** show the **full domain list** in creation forms (e.g. `WhatIfPanel`). The user may be creating something not yet in the dataset.
+- **DON'T** use `Object.keys(INSTRUMENT_TYPE_COLORS)` as a source of options — it leaks legacy aliases (`FUTURES`, `COMMODITY`). Use the curated `INSTRUMENT_TYPE_OPTIONS`.
+- **DON'T** make options depend on the *filtered* dataset — that creates cascading-filter confusion.
+- **DON'T** introduce a shared `useFilterOptions` hook. A single `useMemo` per component is preferred over indirection.
+
 ## Consequences
 
 ### Positive

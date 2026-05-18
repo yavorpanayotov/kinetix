@@ -9,6 +9,19 @@ We need a web/service framework for the Kotlin backend services. The main conten
 ## Decision
 Use Ktor 3.1.3 for all Kotlin services.
 
+## Applies when
+- Building a new Kotlin service or adding HTTP routes to an existing one.
+- Wiring authentication, serialization, metrics, or logging into a service module.
+- Tempted to reach for a Spring annotation (`@RestController`, `@Autowired`, `@Component`, etc.) — that's the signal to read this ADR.
+
+## Rules
+- **DO** use `embeddedServer(Netty, …)` + `Application.module()` for service entry points. Follow the layout established in `gateway/`, `position-service/`, `risk-orchestrator/`.
+- **DO** install Ktor plugins via the `install(...)` DSL inside `Application.module()` — `ContentNegotiation`, `Authentication`, `StatusPages`, `CallLogging`, `MicrometerMetrics`.
+- **DO** use Koin for DI. Module wiring lives in `Application.kt` alongside server setup.
+- **DON'T** add Spring Boot, Spring Web, Spring Security, or Spring Data dependencies — even transitively.
+- **DON'T** use annotation-driven request mapping or annotation-driven DI. If a library only ships annotations, wrap it behind a Ktor plugin or a Koin-provided bean.
+- **DON'T** use Spring's reactive `Mono`/`Flux`. Use Kotlin coroutines and `Flow` — Ktor is coroutine-first.
+
 ## Consequences
 
 ### Positive

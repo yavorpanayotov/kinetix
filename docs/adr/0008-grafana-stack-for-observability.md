@@ -14,6 +14,21 @@ Use the Grafana observability stack:
 - **Grafana** as the single-pane-of-glass UI
 - **OpenTelemetry Collector** as the vendor-neutral telemetry pipeline
 
+## Applies when
+- Adding a new metric, log line, span, or alert rule.
+- Wiring a new service into observability (instrumentation, scrape config, dashboard).
+- Considering a SaaS observability vendor (Datadog, New Relic, Honeycomb).
+
+## Rules
+- **DO** export metrics via Micrometer with the Prometheus registry (Kotlin) or `opentelemetry-exporter-otlp` (Python). The OTel Collector fans out to Prometheus/Loki/Tempo.
+- **DO** emit structured logs with `correlationId`, `userId`, and `bookId` in the MDC where applicable (ADR-0022). Loki indexes by labels, not full text — keep cardinality on labels low.
+- **DO** name metrics with the standard prefix `kinetix_<service>_<measurement>_<unit>` (e.g. `kinetix_risk_orchestrator_valuation_duration_seconds`).
+- **DO** add Prometheus alert rules under `deploy/observability/prometheus/alerts/` for any new SLO. Reference the alert in the Grafana dashboard for that service.
+- **DO** instrument spans across the gRPC boundary so Tempo can stitch Kotlin↔Python traces.
+- **DON'T** add a Datadog/New Relic/Honeycomb SDK. SaaS observability is out of scope.
+- **DON'T** log high-cardinality fields (UUIDs, instrumentIds, full payloads) as Loki labels. Put them in the log body.
+- **DON'T** rely on logs as a primary signal where a metric or trace would do — logs are search-only, not aggregatable beyond `count_over_time`.
+
 ## Consequences
 
 ### Positive

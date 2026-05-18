@@ -77,6 +77,20 @@ Non-consumer services (gateway, reference-data-service, regulatory-service) use 
           averageUtilization: 80
 ```
 
+## Applies when
+- Creating or editing a service's HPA in its Helm chart under `deploy/`.
+- Setting JVM heap (`-Xmx`) or container memory limits.
+- Operating a service that consumes a Kafka topic.
+
+## Rules
+- **DO** include **both** CPU and memory metrics on every HPA (target 80% on each).
+- **DO** add the `kafka_consumer_lag_sum` Pods metric to HPAs for Kafka-consumer services (risk-orchestrator, notification-service, audit-service, position-service). Target `averageValue: "10000"` messages per replica.
+- **DO** tune `-Xmx` and the container memory limit together before enabling the memory metric — large stable heaps inflate utilisation.
+- **DO** verify the Prometheus adapter `CustomMetricsAPIService` mapping is in place before adding `kafka_consumer_lag_sum` to a new HPA. Without it, the HPA silently degrades.
+- **DON'T** ship a new service HPA with CPU only. That has demonstrably failed for memory-bound and consumer-lag scenarios.
+- **DON'T** introduce KEDA, custom controllers, or a parallel scaling system. `autoscaling/v2` + Prometheus adapter is the agreed path.
+- **DON'T** set `minReplicas: 0` for consumer services — rebalances on every cold-start are operationally expensive.
+
 ## Consequences
 
 ### Positive

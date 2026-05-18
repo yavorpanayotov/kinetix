@@ -17,6 +17,21 @@ The gateway also hosts:
 - OpenAPI/Swagger documentation
 - System health aggregation (`/api/v1/system/health` — fans out health checks to all 10 backend services)
 
+## Applies when
+- Exposing a backend feature to the UI.
+- Adding a new HTTP route that the browser will call.
+- Tempted to call `position-service`, `risk-orchestrator`, or any other backend service directly from the UI.
+
+## Rules
+- **DO** add every UI-facing route to `gateway/` and proxy to backend services via the typed client interfaces (`PositionServiceClient`, `RiskServiceClient`, etc.).
+- **DO** define new backend clients as interfaces in `gateway/.../clients/` with `Http*` implementations. Tests substitute fakes.
+- **DO** enforce auth at the gateway via `requirePermission(...)` wrappers (ADR-0013). Backend services trust the gateway's forwarded identity.
+- **DO** put aggregation logic (cross-service composition, fan-out, response shaping) in the gateway, not the UI.
+- **DO** keep the gateway stateless — no per-user state, no session storage. WebSockets are the only stateful aspect.
+- **DON'T** expose backend services to the browser. The UI's CORS allowlist names the gateway origin only.
+- **DON'T** add business logic to the gateway beyond response shaping and auth. Heavy logic belongs in the owning backend service.
+- **DON'T** call a backend service's DB or Kafka directly from the gateway — go through the service's HTTP API.
+
 ## Consequences
 
 ### Positive

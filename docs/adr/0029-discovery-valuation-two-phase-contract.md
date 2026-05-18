@@ -30,6 +30,20 @@ The risk-engine must have **zero knowledge** of how or where market data is sour
 
 This rule applies to all current and future gRPC services exposed by the risk-engine. If a new calculation type requires additional market data, the correct response is to extend the dependency registry and the proto contract — never to add an HTTP client or service call inside the engine.
 
+## Applies when
+- Adding a new asset class, instrument type, or calculation method to the risk-engine.
+- Touching `dependencies.py`, `DiscoverDependencies`, or `Valuate`.
+- Tempted to add `httpx`, `requests`, a gRPC client, or any other outbound network library to `risk-engine/`.
+
+## Rules
+- **DO** declare new market-data dependencies in `dependencies.py`. The orchestrator fetches them; the engine receives them.
+- **DO** add new data types to the `MarketDataValue` `oneof` in proto when the existing four shapes don't fit (ADR-0024).
+- **DO** call `DiscoverDependencies` before `Valuate` for every calculation. The discovery round trip is part of the contract, not an optimisation to skip.
+- **DO** keep the risk-engine deterministic: same inputs + same `monte_carlo_seed` + same `model_version` → same outputs.
+- **DON'T** add an HTTP, gRPC, or Kafka client inside the risk-engine. The engine has zero outbound dependencies on Kinetix services.
+- **DON'T** read from disk for market data, configuration files that vary at runtime, or environment-derived inputs. Everything that affects the result comes via the gRPC request.
+- **DON'T** hardcode market data lookups in the orchestrator that bypass `DiscoverDependencies`. Domain knowledge of "which inputs does this calculation need" belongs in the engine.
+
 ## Consequences
 
 ### Positive

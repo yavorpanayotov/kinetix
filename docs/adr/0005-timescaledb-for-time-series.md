@@ -9,6 +9,20 @@ Risk calculation results and market data history are time-series data requiring 
 ## Decision
 Use TimescaleDB (latest for PostgreSQL 17) as a PostgreSQL extension for time-series storage.
 
+## Applies when
+- Designing a new table whose primary access pattern is "rows are time-stamped, queries are by time range".
+- Considering a separate TSDB (QuestDB, InfluxDB) for a new service.
+- Writing a migration that converts an existing table to a hypertable, or adds a column to one.
+
+## Rules
+- **DO** model new time-series tables as hypertables via `create_hypertable(...)`. Read ADR-0027 first — there are non-obvious migration constraints.
+- **DO** include the partitioning column (typically `received_at`, `started_at`, `valuation_date`) in every unique constraint and primary key on the hypertable.
+- **DO** enable the extension with `CREATE EXTENSION IF NOT EXISTS timescaledb;` at the top of the first migration that needs it (idempotent and safe).
+- **DO** use continuous aggregates for pre-computed rollups (hourly/daily aggregations).
+- **DON'T** introduce a separate time-series database. PostgreSQL + TimescaleDB is the only sanctioned TSDB.
+- **DON'T** use PostgreSQL `RULE` objects on a hypertable — replace with `BEFORE UPDATE`/`BEFORE DELETE` triggers (see `audit-service V4`).
+- **DON'T** alter a compressed chunk in-place. Decompress → alter → recompress (see `risk-orchestrator V19`/`V21` in ADR-0027), and only during a maintenance window.
+
 ## Consequences
 
 ### Positive
