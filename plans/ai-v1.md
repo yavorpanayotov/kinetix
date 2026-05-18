@@ -113,7 +113,7 @@ Per CLAUDE.md guardrails, the following are explicitly approved in this plan so 
 
 ### PR 4 — Deployment + demo integration
 
-- [ ] 4.1 Add `ai-insights-service` to `deploy/docker-compose.services.yml` with the `~/.claude:/root/.claude:ro` host volume mount, exposing port 8095, and the same logging/health-check pattern as other services. Add `INSIGHTS_SERVICE_URL=http://ai-insights-service:8095` to the `gateway` service env block. Verify the compose file is still valid.
+- [x] 4.1 Add `ai-insights-service` to `deploy/docker-compose.services.yml` with the `~/.claude:/root/.claude:ro` host volume mount, exposing port 8095, and the same logging/health-check pattern as other services. Add `INSIGHTS_SERVICE_URL=http://ai-insights-service:8095` to the `gateway` service env block. Verify the compose file is still valid.
       Acceptance: `docker compose -f deploy/docker-compose.services.yml config --quiet`
 - [ ] 4.2 Add `deploy/helm/kinetix/charts/ai-insights-service/` chart mirroring an existing per-service chart (e.g. `deploy/helm/kinetix/charts/risk-orchestrator/`): `Chart.yaml`, `values.yaml` (with a `claudeAuth.hostPath` value defaulting to `/root/.claude`), `templates/deployment.yaml` (with a `hostPath`-typed volume mount for the host's Claude credentials, gated by a `claudeAuth.enabled` value that defaults to `true`), `templates/service.yaml`, `templates/configmap.yaml`. Add the chart to the parent `deploy/helm/kinetix/Chart.yaml` dependencies.
       Acceptance: `helm lint deploy/helm/kinetix/charts/ai-insights-service && helm template deploy/helm/kinetix > /dev/null`
