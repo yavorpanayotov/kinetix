@@ -286,8 +286,13 @@ rule EarlyWarningCheck {
         -- If cross_asset_correlation > 0.8 * crisis_correlation_floor:
         --   "Cross-asset correlation structure shifting toward crisis pattern"
         --
-        -- If credit_spread_bps increased by >30% over 5-day lookback:
+        -- If credit_spread_bps increased by >30% versus the previous
+        -- detection-cycle reading:
         --   "Credit spreads widening rapidly"
+        -- (Detection cycles run every 15 minutes during market hours and
+        -- hourly overnight. The comparison window is therefore one cycle,
+        -- not a rolling 5-day buffer — true rolling history would require
+        -- additional state plumbed through ScheduledRegimeDetector.)
         --
         -- Warnings are published as REGIME_SHIFT_WARNING alerts through
         -- the existing notification-service alert framework.
@@ -304,7 +309,14 @@ rule CorrelationAnomalyCheck {
     let anomaly_score = l2_norm(current_corr - historical_avg)
 
     @guidance
-        -- Uses the existing IsolationForest anomaly detector from ml_server.
+        -- anomaly_score is computed as the Frobenius (L2) norm of
+        -- (current_corr - historical_avg) — a straightforward
+        -- magnitude-of-shift signal that does not rely on the
+        -- IsolationForest detector. The IsolationForest model still
+        -- exists in risk-engine/ml/ for future use; today the
+        -- correlation anomaly path uses the deterministic norm
+        -- because it is interpretable and easy to threshold.
+        --
         -- If anomaly_score exceeds threshold (calibrated from history):
         --   Fire CORRELATION_ANOMALY alert with:
         --     - The specific asset class pair that changed most
@@ -337,12 +349,16 @@ rule CheckModelStaleness {
     when: ScheduledRegimeDetectionTick()
 
     @guidance
-        -- If the LSTM vol predictor or IsolationForest anomaly detector
-        -- has not been retrained in > config.model_staleness_threshold (90 days),
-        -- emit a MODEL_STALENESS warning.
-        -- The warning does not prevent regime detection (rule-based classifier
-        -- runs independently of ML models), but signals that ML-enhanced
-        -- signals may be degraded.
+        -- Aspirational. If the LSTM vol predictor or IsolationForest
+        -- anomaly detector has not been retrained in
+        -- > config.model_staleness_threshold (90 days), emit a
+        -- MODEL_STALENESS warning.
+        --
+        -- Not yet implemented: no MODEL_STALENESS alert type exists in
+        -- code and no path checks model retrain timestamps. The
+        -- rule-based classifier runs independently of ML models, so
+        -- regime detection is not gated on this signal. Wiring is
+        -- tracked in docs/plans/spec-weeding-followup-2026-05-18.md.
 }
 
 -- Regime-aware VaR override
@@ -419,10 +435,11 @@ rule HandleDegradedSignals {
 -- EvaluateRegimeTransition rule's count-based guard rather than by a
 -- separate invariant.
 --
--- Parameter mapping:
---   normal        -> parametric, cl_95
---   elevated_vol  -> historical, cl_99
---   crisis        -> monte_carlo, cl_99
+-- Parameter mapping (matches AdaptiveRegimeParameterProvider):
+--   normal        -> parametric, cl_95, 1-day, standard correlations
+--   elevated_vol  -> historical, cl_99, 1-day, standard correlations
+--   crisis        -> monte_carlo, cl_99, 1-day, stressed correlations
+--   recovery      -> historical, cl_975, 1-day, standard correlations
 -- Parameter selection is a property of the rules that source
 -- RegimeModelConfig; the mapping is not re-asserted here.
 --

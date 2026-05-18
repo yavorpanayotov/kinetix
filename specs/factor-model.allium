@@ -122,6 +122,17 @@ entity FactorDecompositionSnapshot {
         -- r_squared: fraction of portfolio variance explained by factors.
         -- Values below 0.30 indicate the factor model is a poor fit.
         -- systematic_var + idiosyncratic_var = total_var (by construction).
+        --
+        -- The risk-engine clamps r_squared to [0, 1] in
+        -- decompose_factor_risk: when the raw computation produces
+        -- systematic > total (e.g. due to factor-correlation effects or
+        -- finite-sample noise), r_squared is pinned to 1.0 and the
+        -- residual idiosyncratic component is recomputed so the
+        -- decomposition sums back to total_var. A stale inline docstring
+        -- in factor_model.py:19 still claims r_squared "may be negative
+        -- when systematic > total"; that text is misleading and is
+        -- tracked for cleanup in
+        -- docs/plans/spec-weeding-followup-2026-05-18.md.
 }
 
 entity FactorPnlAttribution {
@@ -205,9 +216,21 @@ rule ScheduledLoadingReestimation {
         ensures: EstimateLoadingsRequested(instrument_id: instrument_id)
 
     @guidance
-        -- Runs weekly. Re-estimates all loadings.
-        -- Loading change > 0.3 (in beta terms) between estimations
-        -- triggers a data quality warning for manual review.
+        -- Aspirational. The Kotlin
+        -- ExposedInstrumentFactorLoadingRepository and the
+        -- factor_model.estimate_loading entry point exist, but the
+        -- repository is not wired into the orchestrator's
+        -- Application.kt and no scheduled job populates
+        -- InstrumentFactorLoading rows. Today's daily
+        -- ScheduledFactorDecomposition estimates loadings inline and
+        -- discards them; persistent factor-loading history is not
+        -- available. See
+        -- docs/plans/spec-weeding-followup-2026-05-18.md for the
+        -- wiring follow-up.
+        --
+        -- Target cadence once wired: weekly. Loading change > 0.3 (in
+        -- beta terms) between estimations triggers a data-quality
+        -- warning for manual review.
 }
 
 -- Factor VaR decomposition
