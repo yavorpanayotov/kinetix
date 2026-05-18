@@ -263,7 +263,7 @@ S = ~1 day. M = ~3 days. L = ~1 week.
 - [x] Trades sub-tab dark-mode active color — add `dark:text-primary-400`.
 - [x] `+` prefix on positive P&L in `formatMoney` / `formatSignedMoney`.
 - [x] Remove or rename `EQUALS` operator in alert rules — "Equal to" for floats never fires.
-- [ ] Replace ReportsTab plain-text loading state with `<Spinner>`.
+- [x] Replace ReportsTab plain-text loading state with `<Spinner>`.
 - [ ] Add `role="dialog"` + focus management to DataQualityIndicator dropdown.
 - [ ] Document the existing `Shift+H` shortcut somewhere visible (tooltip on Suggest Hedge button already exists — extend to a `?` overlay).
 
