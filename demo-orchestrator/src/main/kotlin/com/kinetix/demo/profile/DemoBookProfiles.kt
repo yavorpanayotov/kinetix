@@ -39,14 +39,14 @@ object DemoBookProfiles {
             tradeProbability = 0.2,
             instrumentIds = listOf("UST-2Y", "UST-5Y", "UST-10Y", "UST-30Y"),
             notionalRangeUsd = 100_000L..2_000_000L,
-            assetClass = "RATES",
+            assetClass = "FIXED_INCOME",
         ),
         DemoBookProfile(
             bookId = "multi-asset",
             tradeProbability = 0.3,
             instrumentIds = listOf("AAPL", "MSFT", "UST-5Y", "UST-10Y"),
             notionalRangeUsd = 50_000L..750_000L,
-            assetClass = "MULTI",
+            assetClass = "EQUITY",
         ),
         DemoBookProfile(
             bookId = "macro-hedge",
@@ -60,14 +60,14 @@ object DemoBookProfiles {
             tradeProbability = 0.2,
             instrumentIds = listOf("JNJ", "KO", "PG", "UST-5Y", "UST-10Y"),
             notionalRangeUsd = 50_000L..750_000L,
-            assetClass = "MULTI",
+            assetClass = "EQUITY",
         ),
         DemoBookProfile(
             bookId = "derivatives-book",
             tradeProbability = 0.4,
             instrumentIds = listOf("SPX-OPT-5000C", "ES-FUT-MAR", "VIX-OPT-20C"),
             notionalRangeUsd = 50_000L..1_500_000L,
-            assetClass = "DERIV",
+            assetClass = "DERIVATIVE",
         ),
     ).associateBy { it.bookId }
 

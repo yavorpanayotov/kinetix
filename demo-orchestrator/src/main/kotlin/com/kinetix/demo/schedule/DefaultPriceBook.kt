@@ -26,17 +26,16 @@ class DefaultPriceBook(
         private val DEFAULT_FALLBACK_PRICE: BigDecimal = "100.00".toBigDecimal()
 
         /**
-         * Asset-class -> indicative USD spot price. Keys match the free-form
-         * `assetClass` strings on [com.kinetix.demo.profile.DemoBookProfile]
-         * rather than the `position-service` `AssetClass` enum (e.g. the
-         * profile tag `RATES` covers government bonds in this demo seed).
+         * Asset-class -> indicative USD spot price. Keys are the canonical
+         * `com.kinetix.common.model.AssetClass` enum names so the values
+         * deserialise on the wire when posted to `position-service`.
          */
         val DEFAULT_PRICES: Map<String, BigDecimal> = mapOf(
             "EQUITY" to "100.00".toBigDecimal(),
             "FX" to "1.10".toBigDecimal(),
-            "RATES" to "0.05".toBigDecimal(),
-            "MULTI" to "100.00".toBigDecimal(),
-            "DERIV" to "50.00".toBigDecimal(),
+            "FIXED_INCOME" to "0.05".toBigDecimal(),
+            "COMMODITY" to "75.00".toBigDecimal(),
+            "DERIVATIVE" to "50.00".toBigDecimal(),
         )
     }
 }

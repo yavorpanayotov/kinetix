@@ -168,9 +168,9 @@ class SimulatedTraderJob(
     private fun instrumentTypeFor(assetClass: String): String = when (assetClass) {
         "EQUITY" -> "CASH_EQUITY"
         "FX" -> "FX_SPOT"
-        "RATES" -> "GOVERNMENT_BOND"
-        "MULTI" -> "CASH_EQUITY"
-        "DERIV" -> "EQUITY_OPTION"
+        "FIXED_INCOME" -> "GOVERNMENT_BOND"
+        "COMMODITY" -> "COMMODITY_FUTURE"
+        "DERIVATIVE" -> "EQUITY_OPTION"
         else -> "CASH_EQUITY"
     }
 }
