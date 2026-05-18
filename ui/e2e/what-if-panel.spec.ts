@@ -278,4 +278,103 @@ test.describe('What-If Panel', () => {
     // Error should appear
     await expect(page.getByTestId('whatif-error')).toBeVisible()
   })
+
+  // ---------------------------------------------------------------------------
+  // Focus trap (WCAG 2.1.2)
+  // ---------------------------------------------------------------------------
+
+  test.describe('focus trap', () => {
+    test('keeps focus inside the panel when Tab cycles from the last focusable', async ({
+      page,
+    }) => {
+      await page.goto('/')
+      await page.waitForSelector('[data-testid="whatif-open-button"]')
+
+      // Focus the opener explicitly so we can verify focus restoration later.
+      await page.getByTestId('whatif-open-button').focus()
+      await page.getByTestId('whatif-open-button').click()
+      await page.waitForSelector('[data-testid="whatif-instrument-0"]')
+      // Initial focus should land in the panel.
+      await expect(page.getByTestId('whatif-instrument-0')).toBeFocused()
+
+      // Tab through every focusable element inside the panel; collect each
+      // visited element's data-testid (or tag name when none). Stop once we
+      // detect a cycle.
+      const visited: string[] = []
+      let escaped = false
+
+      for (let i = 0; i < 60; i++) {
+        const inside = await page.evaluate(() => {
+          const active = document.activeElement
+          const panel = document.querySelector('[data-testid="whatif-panel"]')
+          if (!active || !panel) return { inside: false, key: '' }
+          const tag = active.tagName.toLowerCase()
+          const tid = active.getAttribute('data-testid') ?? ''
+          return {
+            inside: panel.contains(active),
+            key: tid || tag,
+          }
+        })
+
+        if (!inside.inside) {
+          escaped = true
+          break
+        }
+
+        // Cycle detection: if we see the same key twice we've completed a loop.
+        if (visited.includes(inside.key)) break
+        visited.push(inside.key)
+
+        await page.keyboard.press('Tab')
+      }
+
+      expect(escaped).toBe(false)
+      // Must have visited more than one element to constitute a meaningful cycle.
+      expect(visited.length).toBeGreaterThan(2)
+    })
+
+    test('keeps focus inside the panel on Shift+Tab from the first focusable', async ({
+      page,
+    }) => {
+      await page.goto('/')
+      await page.waitForSelector('[data-testid="whatif-open-button"]')
+
+      await page.getByTestId('whatif-open-button').click()
+      await page.waitForSelector('[data-testid="whatif-instrument-0"]')
+      await expect(page.getByTestId('whatif-instrument-0')).toBeFocused()
+
+      // Shift+Tab from the first focusable should wrap to the last focusable
+      // inside the panel rather than escaping to background content.
+      await page.keyboard.press('Shift+Tab')
+
+      const stillInside = await page.evaluate(() => {
+        const active = document.activeElement
+        const panel = document.querySelector('[data-testid="whatif-panel"]')
+        return !!active && !!panel && panel.contains(active)
+      })
+      expect(stillInside).toBe(true)
+    })
+
+    test('restores focus to the opener when the panel closes via Escape', async ({
+      page,
+    }) => {
+      await page.goto('/')
+      await page.waitForSelector('[data-testid="whatif-open-button"]')
+
+      const opener = page.getByTestId('whatif-open-button')
+      await opener.focus()
+      await opener.click()
+      await page.waitForSelector('[data-testid="whatif-instrument-0"]')
+      await expect(page.getByTestId('whatif-instrument-0')).toBeFocused()
+
+      await page.keyboard.press('Escape')
+
+      await expect(page.getByTestId('whatif-panel')).toHaveAttribute(
+        'aria-hidden',
+        'true',
+      )
+      // Focus should now be back on the opener (WCAG 2.4.3).
+      await expect(opener).toBeFocused()
+    })
+  })
 })

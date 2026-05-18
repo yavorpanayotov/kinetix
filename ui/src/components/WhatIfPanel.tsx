@@ -98,11 +98,20 @@ export function WhatIfPanel({
 }: WhatIfPanelProps) {
   const [rebalancingMode, setRebalancingMode] = useState(false)
   const firstInputRef = useRef<HTMLInputElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null)
 
   const prevOpenRef = useRef(false)
 
   useEffect(() => {
     if (!open) {
+      // Panel just closed (or never opened) — restore focus if we have a saved element.
+      if (prevOpenRef.current && previouslyFocusedRef.current) {
+        const toRestore = previouslyFocusedRef.current
+        previouslyFocusedRef.current = null
+        // Defer so React has finished any pending DOM updates.
+        setTimeout(() => toRestore.focus(), 0)
+      }
       prevOpenRef.current = false
       return
     }
@@ -110,6 +119,48 @@ export function WhatIfPanel({
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         onClose()
+        return
+      }
+      if (e.key !== 'Tab') return
+      if (!panelRef.current) return
+
+      // Re-query focusables on every Tab so dynamic content (tabs, results,
+      // rebalancing inputs) is reflected without stale caches.
+      const focusables = Array.from(
+        panelRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((el) => {
+        // Skip elements that are visually hidden or aria-hidden.
+        if (el.hasAttribute('disabled')) return false
+        const ariaHidden = el.getAttribute('aria-hidden')
+        if (ariaHidden === 'true') return false
+        return true
+      })
+
+      if (focusables.length === 0) {
+        // No focusables — keep focus on the panel itself.
+        e.preventDefault()
+        panelRef.current.focus()
+        return
+      }
+
+      const first = focusables[0]
+      const last = focusables[focusables.length - 1]
+      const active = document.activeElement as HTMLElement | null
+
+      if (e.shiftKey) {
+        // Shift+Tab from first (or from outside the focusables) cycles to last.
+        if (active === first || !active || !focusables.includes(active)) {
+          e.preventDefault()
+          last.focus()
+        }
+      } else {
+        // Tab from last (or from outside the focusables) cycles to first.
+        if (active === last || !active || !focusables.includes(active)) {
+          e.preventDefault()
+          first.focus()
+        }
       }
     }
 
@@ -118,6 +169,11 @@ export function WhatIfPanel({
     // Auto-focus first input only when panel first opens
     if (!prevOpenRef.current) {
       prevOpenRef.current = true
+      // Save the element that was focused before the panel opened so we can
+      // restore focus when the panel closes (WCAG 2.4.3 / 2.1.2).
+      const active = document.activeElement
+      previouslyFocusedRef.current =
+        active instanceof HTMLElement && active !== document.body ? active : null
       setTimeout(() => firstInputRef.current?.focus(), 0)
     }
 
@@ -134,11 +190,13 @@ export function WhatIfPanel({
       aria-hidden={!open}
     />
     <div
+      ref={panelRef}
       data-testid="whatif-panel"
       role="dialog"
       aria-modal="true"
       aria-labelledby="whatif-title"
       aria-hidden={!open}
+      tabIndex={-1}
       className={`fixed top-0 right-0 h-full w-[420px] bg-white dark:bg-surface-800 border-l border-slate-200 dark:border-surface-700 shadow-xl z-50 flex flex-col transition-transform duration-300 ease-out ${open ? 'translate-x-0' : 'translate-x-full'}`}
     >
       {/* Header */}

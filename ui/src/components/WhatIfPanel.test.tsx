@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { WhatIfResponseDto, WhatIfImpactDto, RebalancingResponseDto } from '../types'
 import type { TradeFormEntry } from '../hooks/useWhatIf'
@@ -619,6 +619,111 @@ describe('WhatIfPanel', () => {
       })
 
       expect(onUpdateTrade).toHaveBeenCalledWith(0, 'assetClass', 'FX')
+    })
+  })
+
+  describe('focus trap (WCAG 2.1.2)', () => {
+    function getFocusable(panel: HTMLElement): HTMLElement[] {
+      return Array.from(
+        panel.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((el) => !el.hasAttribute('aria-hidden') || el.getAttribute('aria-hidden') === 'false')
+    }
+
+    it('moves focus into the panel when it opens', async () => {
+      // Render with open=false then re-render with open=true to exercise the open transition.
+      const { rerender } = render(<WhatIfPanel {...defaultProps} open={false} />)
+      rerender(<WhatIfPanel {...defaultProps} open={true} />)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('whatif-instrument-0')).toHaveFocus()
+      })
+    })
+
+    it('cycles focus from the last focusable to the first on Tab', async () => {
+      render(<WhatIfPanel {...defaultProps} />)
+      const panel = screen.getByTestId('whatif-panel')
+
+      const focusables = getFocusable(panel)
+      expect(focusables.length).toBeGreaterThan(1)
+
+      const first = focusables[0]
+      const last = focusables[focusables.length - 1]
+
+      last.focus()
+      expect(last).toHaveFocus()
+
+      fireEvent.keyDown(panel, { key: 'Tab' })
+
+      expect(first).toHaveFocus()
+    })
+
+    it('cycles focus from the first focusable back to the last on Shift+Tab', async () => {
+      render(<WhatIfPanel {...defaultProps} />)
+      const panel = screen.getByTestId('whatif-panel')
+
+      const focusables = getFocusable(panel)
+      expect(focusables.length).toBeGreaterThan(1)
+
+      const first = focusables[0]
+      const last = focusables[focusables.length - 1]
+
+      first.focus()
+      expect(first).toHaveFocus()
+
+      fireEvent.keyDown(panel, { key: 'Tab', shiftKey: true })
+
+      expect(last).toHaveFocus()
+    })
+
+    it('does not interfere with Tab when focus is in the middle of the panel', async () => {
+      render(<WhatIfPanel {...defaultProps} />)
+      const panel = screen.getByTestId('whatif-panel')
+
+      const focusables = getFocusable(panel)
+      expect(focusables.length).toBeGreaterThan(2)
+
+      // Focus a middle element.
+      const middle = focusables[Math.floor(focusables.length / 2)]
+      middle.focus()
+      expect(middle).toHaveFocus()
+
+      // Plain Tab in the middle should not move focus (the browser handles it);
+      // critically, it must not jump to first or last via our trap.
+      const event = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true })
+      const prevented = !panel.dispatchEvent(event)
+      // We expect default NOT to have been prevented for mid-panel tabs.
+      expect(prevented).toBe(false)
+      // Focus should still be on middle (jsdom doesn't auto-advance focus on Tab).
+      expect(middle).toHaveFocus()
+    })
+
+    it('restores focus to the previously-focused element when the panel closes', async () => {
+      // Mount an opener button outside the panel, focus it, then open the panel.
+      const Wrapper = ({ open }: { open: boolean }) => (
+        <>
+          <button data-testid="opener">Open</button>
+          <WhatIfPanel {...defaultProps} open={open} />
+        </>
+      )
+
+      const { rerender } = render(<Wrapper open={false} />)
+      const opener = screen.getByTestId('opener')
+      opener.focus()
+      expect(opener).toHaveFocus()
+
+      // Open the panel — focus moves to first input.
+      rerender(<Wrapper open={true} />)
+      await waitFor(() => {
+        expect(screen.getByTestId('whatif-instrument-0')).toHaveFocus()
+      })
+
+      // Close the panel — focus should return to the opener.
+      rerender(<Wrapper open={false} />)
+      await waitFor(() => {
+        expect(opener).toHaveFocus()
+      })
     })
   })
 })
