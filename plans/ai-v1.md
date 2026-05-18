@@ -123,6 +123,10 @@ Per CLAUDE.md guardrails, the following are explicitly approved in this plan so 
       Acceptance: `grep -q 'AI features\|VaR Explainer' README.md && grep -q 'ai-insights-service/README.md' README.md`
 - [ ] 4.5 Final full-stack test sweep: run unit + acceptance tests across all touched modules to confirm green.
       Acceptance: `./gradlew :gateway:test :gateway:acceptanceTest && cd ai-insights-service && uv run pytest && cd ../ui && npm run test && npm run lint`
+      Blocked: 2026-05-18 — `:gateway:test` fails on two tests, both from a *different* concurrent /work-plan loop (testing-overhaul-follow-up or demo-v2) that ran on the same repo while ai-v1 was executing:
+        1. `JwtAuthenticationTest` expects 201 Created, gets 500. Unrelated to insights work.
+        2. `HttpPositionServiceClientTest` — `Field 'instrumentType' is required for type 'PositionDto'/'TradeDto'`. The concurrent loop added the `instrumentType` field to those DTOs (in commits around `81486cbb feat(notification-service): POST escalate and resolve alert routes` and the demo-orchestrator series) but didn't update test fixtures.
+      All `ai-insights-service` and `:gateway:acceptanceTest --tests "*InsightsRoutesAcceptanceTest"` tests still pass; the breakage is upstream of ai-v1. Fix by either updating the affected test fixtures or reverting the DTO changes — both belong to the sibling plan.
 
 ## Verification — end-to-end (after `/loop` completes)
 
