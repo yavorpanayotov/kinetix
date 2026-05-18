@@ -118,6 +118,15 @@ export function NotificationCenter({
   const [operator, setOperator] = useState('GREATER_THAN')
   const [severity, setSeverity] = useState('CRITICAL')
   const [channels, setChannels] = useState<string[]>(['IN_APP'])
+  /**
+   * Per-field validation errors for the create-rule form. We surface these
+   * inline with aria-describedby + aria-invalid so screen-reader users get
+   * the same feedback as sighted users — see docs/plans/ui-overhaul.md §6.4.
+   * Browser-native `required` was insufficient: it never announces *which*
+   * field failed and renders a transient bubble that screen readers ignore.
+   */
+  const [nameError, setNameError] = useState<string | null>(null)
+  const [thresholdError, setThresholdError] = useState<string | null>(null)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [activeStatuses, setActiveStatuses] = useState<Set<AlertStatus>>(
     () => new Set(DEFAULT_ACTIVE_STATUSES),
@@ -212,10 +221,23 @@ export function NotificationCenter({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    // Explicit JS validation is the source of truth (§6.4) — HTML5 `required`
+    // alone leaves screen-reader users without a clear "this field failed"
+    // signal. Errors here drive the inline messages + aria-invalid below.
+    const trimmedName = name.trim()
+    const trimmedThreshold = threshold.trim()
+    const nextNameError = trimmedName === '' ? 'Rule name is required.' : null
+    const nextThresholdError =
+      trimmedThreshold === '' ? 'Threshold is required.' : null
+    setNameError(nextNameError)
+    setThresholdError(nextThresholdError)
+    if (nextNameError !== null || nextThresholdError !== null) {
+      return
+    }
     onCreateRule({
-      name,
+      name: trimmedName,
       type,
-      threshold: Number(threshold),
+      threshold: Number(trimmedThreshold),
       operator,
       severity,
       channels,
@@ -413,14 +435,33 @@ export function NotificationCenter({
       {/* Create Rule Form */}
       <div data-testid="create-rule-form" className="mb-4 p-3 bg-slate-50 rounded-lg">
         <h3 className="text-sm font-semibold text-slate-700 mb-2">Create Alert Rule</h3>
-        <form onSubmit={handleSubmit} className="grid grid-cols-3 gap-2 text-sm">
-          <Input
-            data-testid="rule-name-input"
-            placeholder="Rule name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
+        <form onSubmit={handleSubmit} noValidate className="grid grid-cols-3 gap-2 text-sm">
+          <div>
+            <Input
+              data-testid="rule-name-input"
+              placeholder="Rule name"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value)
+                if (nameError !== null && e.target.value.trim() !== '') {
+                  setNameError(null)
+                }
+              }}
+              required
+              aria-invalid={nameError !== null ? 'true' : undefined}
+              aria-describedby={nameError !== null ? 'rule-name-error' : undefined}
+            />
+            {nameError !== null && (
+              <p
+                id="rule-name-error"
+                data-testid="rule-name-error"
+                role="alert"
+                className="mt-1 text-xs text-red-600 dark:text-red-400"
+              >
+                {nameError}
+              </p>
+            )}
+          </div>
           <Select
             data-testid="rule-type-select"
             value={type}
@@ -434,14 +475,33 @@ export function NotificationCenter({
             <option value="CONCENTRATION">Concentration</option>
             <option value="MARGIN_BREACH">Margin Breach</option>
           </Select>
-          <Input
-            data-testid="rule-threshold-input"
-            type="number"
-            placeholder="Threshold"
-            value={threshold}
-            onChange={(e) => setThreshold(e.target.value)}
-            required
-          />
+          <div>
+            <Input
+              data-testid="rule-threshold-input"
+              type="number"
+              placeholder="Threshold"
+              value={threshold}
+              onChange={(e) => {
+                setThreshold(e.target.value)
+                if (thresholdError !== null && e.target.value.trim() !== '') {
+                  setThresholdError(null)
+                }
+              }}
+              required
+              aria-invalid={thresholdError !== null ? 'true' : undefined}
+              aria-describedby={thresholdError !== null ? 'rule-threshold-error' : undefined}
+            />
+            {thresholdError !== null && (
+              <p
+                id="rule-threshold-error"
+                data-testid="rule-threshold-error"
+                role="alert"
+                className="mt-1 text-xs text-red-600 dark:text-red-400"
+              >
+                {thresholdError}
+              </p>
+            )}
+          </div>
           <Select
             data-testid="rule-operator-select"
             value={operator}

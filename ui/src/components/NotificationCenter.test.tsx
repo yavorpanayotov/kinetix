@@ -494,6 +494,150 @@ describe('NotificationCenter', () => {
     })
   })
 
+  describe('create-rule form accessibility', () => {
+    // §6.4 of docs/plans/ui-overhaul.md — surfacing field errors to screen
+    // readers via aria-invalid + aria-describedby linked inline messages,
+    // not just HTML5 `required`.
+    it('does not call onCreateRule when a required field is empty', () => {
+      const onCreateRule = vi.fn()
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[]}
+          loading={false}
+          error={null}
+          onCreateRule={onCreateRule}
+          onDeleteRule={() => {}}
+        />,
+      )
+
+      // Name is empty by default — submitting should surface a validation
+      // error rather than firing the callback.
+      fireEvent.click(screen.getByTestId('create-rule-btn'))
+
+      expect(onCreateRule).not.toHaveBeenCalled()
+    })
+
+    it('marks the empty name field with aria-invalid and an inline error linked via aria-describedby', () => {
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[]}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+        />,
+      )
+
+      const nameInput = screen.getByTestId('rule-name-input')
+      // Pristine state: no aria-invalid yet (don't yell at the user before
+      // they've tried to submit).
+      expect(nameInput.getAttribute('aria-invalid')).not.toBe('true')
+
+      fireEvent.click(screen.getByTestId('create-rule-btn'))
+
+      expect(nameInput.getAttribute('aria-invalid')).toBe('true')
+
+      const describedBy = nameInput.getAttribute('aria-describedby')
+      expect(describedBy).toBeTruthy()
+
+      const errorMessage = screen.getByTestId('rule-name-error')
+      expect(errorMessage).toBeInTheDocument()
+      expect(errorMessage.id).toBe(describedBy)
+      expect(errorMessage.textContent).toBeTruthy()
+    })
+
+    it('marks the empty threshold field with aria-invalid and an inline error linked via aria-describedby', () => {
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[]}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+        />,
+      )
+
+      const thresholdInput = screen.getByTestId('rule-threshold-input')
+      expect(thresholdInput.getAttribute('aria-invalid')).not.toBe('true')
+
+      fireEvent.click(screen.getByTestId('create-rule-btn'))
+
+      expect(thresholdInput.getAttribute('aria-invalid')).toBe('true')
+
+      const describedBy = thresholdInput.getAttribute('aria-describedby')
+      expect(describedBy).toBeTruthy()
+
+      const errorMessage = screen.getByTestId('rule-threshold-error')
+      expect(errorMessage).toBeInTheDocument()
+      expect(errorMessage.id).toBe(describedBy)
+      expect(errorMessage.textContent).toBeTruthy()
+    })
+
+    it('clears the error and aria-invalid once the field is fixed', () => {
+      const onCreateRule = vi.fn()
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[]}
+          loading={false}
+          error={null}
+          onCreateRule={onCreateRule}
+          onDeleteRule={() => {}}
+        />,
+      )
+
+      // Trigger validation errors first.
+      fireEvent.click(screen.getByTestId('create-rule-btn'))
+      expect(screen.getByTestId('rule-name-error')).toBeInTheDocument()
+      expect(screen.getByTestId('rule-threshold-error')).toBeInTheDocument()
+
+      // Fix the name field — its error should clear, aria-invalid should drop.
+      const nameInput = screen.getByTestId('rule-name-input')
+      fireEvent.change(nameInput, { target: { value: 'My Rule' } })
+      expect(screen.queryByTestId('rule-name-error')).not.toBeInTheDocument()
+      expect(nameInput.getAttribute('aria-invalid')).not.toBe('true')
+
+      // Threshold error still present because that field is still empty.
+      expect(screen.getByTestId('rule-threshold-error')).toBeInTheDocument()
+
+      // Fix threshold too — error clears.
+      const thresholdInput = screen.getByTestId('rule-threshold-input')
+      fireEvent.change(thresholdInput, { target: { value: '100' } })
+      expect(screen.queryByTestId('rule-threshold-error')).not.toBeInTheDocument()
+      expect(thresholdInput.getAttribute('aria-invalid')).not.toBe('true')
+    })
+
+    it('submits successfully when all required fields are populated', () => {
+      const onCreateRule = vi.fn()
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[]}
+          loading={false}
+          error={null}
+          onCreateRule={onCreateRule}
+          onDeleteRule={() => {}}
+        />,
+      )
+
+      fireEvent.change(screen.getByTestId('rule-name-input'), {
+        target: { value: 'My Rule' },
+      })
+      fireEvent.change(screen.getByTestId('rule-threshold-input'), {
+        target: { value: '100' },
+      })
+      fireEvent.click(screen.getByTestId('create-rule-btn'))
+
+      expect(onCreateRule).toHaveBeenCalledTimes(1)
+      expect(onCreateRule).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'My Rule', threshold: 100 }),
+      )
+    })
+  })
+
   describe('CSV export', () => {
     it('should have a CSV export button for alerts', () => {
       render(
