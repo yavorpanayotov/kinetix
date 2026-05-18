@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { X, TrendingDown, AlertCircle, Loader2 } from 'lucide-react'
 import type { HedgeRecommendationDto, HedgeSuggestionDto, HedgeTarget, GreekImpactDto } from '../types'
 import { formatNum } from '../utils/format'
-import { Button, Card } from './ui'
+import { Button, Card, StalePanelWrapper } from './ui'
 
 interface HedgeRecommendationPanelProps {
   open: boolean
@@ -77,16 +77,18 @@ function GreekImpactCard({ impact }: { impact: GreekImpactDto }) {
 function SuggestionCard({
   suggestion,
   rank,
+  computedAt,
   onSendToWhatIf,
 }: {
   suggestion: HedgeSuggestionDto
   rank: number
+  computedAt?: string
   onSendToWhatIf?: (s: HedgeSuggestionDto) => void
 }) {
   const [showGreeks, setShowGreeks] = useState(false)
   const isStale = suggestion.dataQuality === 'STALE'
 
-  return (
+  const card = (
     <div
       data-testid={`suggestion-${rank}`}
       className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 mb-2"
@@ -149,6 +151,17 @@ function SuggestionCard({
 
       {showGreeks && <GreekImpactCard impact={suggestion.greekImpact} />}
     </div>
+  )
+
+  return (
+    <StalePanelWrapper
+      stale={isStale}
+      computedAt={computedAt}
+      data-testid={`suggestion-stale-wrapper-${rank}`}
+      className="mb-2"
+    >
+      {card}
+    </StalePanelWrapper>
   )
 }
 
@@ -331,6 +344,7 @@ export function HedgeRecommendationPanel({
                   key={s.instrumentId}
                   suggestion={s}
                   rank={i + 1}
+                  computedAt={recommendation.requestedAt}
                   onSendToWhatIf={onSendToWhatIf}
                 />
               ))

@@ -136,6 +136,24 @@ describe('HedgeRecommendationPanel', () => {
     expect(screen.queryByTestId('stale-badge-1')).toBeNull()
   })
 
+  it('wraps a stale suggestion in the amber stale-panel wrapper with provenance', () => {
+    const staleSuggestion = { ...sampleSuggestion, dataQuality: 'STALE' }
+    const rec = { ...sampleRecommendation, suggestions: [staleSuggestion] }
+    renderPanel({ recommendation: rec })
+    const wrapper = screen.getByTestId('suggestion-stale-wrapper-1')
+    expect(wrapper).toBeDefined()
+    // provenance line uses the recommendation's requestedAt timestamp
+    const provenance = screen.getByTestId('stale-provenance')
+    expect(provenance.textContent).toContain('Computed at')
+    expect(provenance.textContent).toContain('2026-03-24T10:00:00Z')
+  })
+
+  it('does not wrap a fresh suggestion in the stale-panel wrapper', () => {
+    renderPanel({ recommendation: sampleRecommendation })
+    expect(screen.queryByTestId('suggestion-stale-wrapper-1')).toBeNull()
+    expect(screen.queryByTestId('stale-provenance')).toBeNull()
+  })
+
   it('shows expired warning when recommendation is expired', () => {
     const expiredRec = { ...sampleRecommendation, isExpired: true }
     renderPanel({ recommendation: expiredRec })
