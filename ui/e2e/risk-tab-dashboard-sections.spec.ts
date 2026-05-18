@@ -53,11 +53,17 @@ test.describe('Risk tab Dashboard - collapsible sections', () => {
     await page.getByRole('button', { name: /limits & jobs/i }).click()
     await expect(page.getByTestId('job-history')).toHaveCount(0)
 
-    // Verify the workspace pref was saved to localStorage
+    // Verify the workspace pref was saved to localStorage. The stored shape is
+    // the v2 envelope: { version: 2, activeViewId, views: [{ id, name, prefs }] }
+    // (plan §2.3 saved-views migration). Read prefs off the active view.
     const stored = await page.evaluate(() => localStorage.getItem('kinetix:workspace'))
     expect(stored).toBeTruthy()
     const parsed = JSON.parse(stored!)
-    expect(parsed.riskDashboardSections.limitsJobs).toBe(false)
+    const activeView = parsed.views.find(
+      (v: { id: string }) => v.id === parsed.activeViewId,
+    )
+    expect(activeView).toBeTruthy()
+    expect(activeView.prefs.riskDashboardSections.limitsJobs).toBe(false)
 
     // Reload the page — collapsed state should persist
     await page.reload()
