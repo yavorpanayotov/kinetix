@@ -423,6 +423,49 @@ services:
         condition: service_healthy
     networks: [kinetix]
 
+  demo-orchestrator:
+    build:
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.kotlin
+      args:
+        SERVICE_NAME: demo-orchestrator
+    environment:
+      SERVICE_NAME: demo-orchestrator
+      DEMO_MODE: "true"
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      POSITION_SERVICE_URL: http://position-service:8081
+      RISK_ORCHESTRATOR_URL: http://risk-orchestrator:8083
+      REGULATORY_SERVICE_URL: http://regulatory-service:8085
+      DEMO_TRADING_HOURS_START: "09:00"
+      DEMO_TRADING_HOURS_END: "16:30"
+      DEMO_TRADE_CADENCE_SECONDS: "90"
+      OTEL_JAVA_GLOBAL_AUTOCONFIGURE_ENABLED: "true"
+      OTEL_SERVICE_NAME: demo-orchestrator
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_LOGS_EXPORTER: otlp
+      OTEL_METRICS_EXPORTER: none
+      OTEL_TRACES_EXPORTER: none
+      JAVA_TOOL_OPTIONS: "-Xmx256m -Xms64m -XX:+UseG1GC -XX:MaxGCPauseMillis=100"
+    expose:
+      - "8094"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8094/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      position-service:
+        condition: service_healthy
+      risk-orchestrator:
+        condition: service_healthy
+      regulatory-service:
+        condition: service_healthy
+    networks: [kinetix]
+
   regulatory-service:
     build:
       context: ..
