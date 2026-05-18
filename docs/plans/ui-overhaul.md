@@ -284,8 +284,7 @@ If an item's scope has been partially addressed already (some sub-fixes shipped 
 ### Phase 2 — IA, Alerts, and Polish (Workstreams 2, 3, 4 — sequential here for the loop)
 
 - [x] 2.2 Group Risk tab Dashboard into 4 collapsible `<SectionBlock>` sections (scope §2.2) — Market Risk / Position & Factor / P&L Stress Liquidity / Limits & Jobs; persist collapse state to workspace prefs.
-- [x] 3.1a Per-alert action: **Acknowledge** wired in `NotificationCenter` and `AlertDrillDownPanel` with optimistic update + lifecycle status badge.
-- [ ] 3.1b Per-alert actions: **Escalate / Resolve / Snooze** — **BLOCKED on backend**. Plan claimed "alert action endpoints already exist"; verified in code that only `POST /alerts/{id}/acknowledge` is implemented. Escalate/Resolve repository methods exist but no HTTP routes; Snooze has no backend support at all. Adding routes is a new API contract — needs explicit approval per CLAUDE.md guardrails before proceeding.
+- [x] 3.1a Per-alert action: **Acknowledge** wired in `NotificationCenter` and `AlertDrillDownPanel` with optimistic update + lifecycle status badge. (Escalate / Resolve / Snooze deferred — see "Blocked items needing decisions" at the bottom.)
 - [ ] 3.2 Alerts as a queue, not a list (scope §3.2) — default sort CRITICAL > WARNING > INFO then by age; filter chips with counts; auto-collapse RESOLVED >24h old.
 - [ ] 3.4 Breach banner generalised beyond RiskTab (scope §3.4) — show `RiskAlertBanner` on Positions and P&L when VaR > 80% of limit or any CRITICAL alert active.
 - [ ] 4.1 Consolidate banners into a single status bar (scope §4.1) — single horizontal bar that swaps content/severity instead of stacking; demo strip stays as its own dismissible row.
@@ -315,6 +314,12 @@ If an item's scope has been partially addressed already (some sub-fixes shipped 
 ### Phase 5 — Responsive Strategy
 
 - [ ] 9. Adopt desktop-only floor (scope §9) — `min-width: 1280px` on `<body>` or a small-viewport warning page; strip partial `md:` / `lg:` / `hidden sm:` accommodations and the maintenance burden they imply.
+
+### Blocked items needing decisions
+
+These are surfaced for the user to weigh in on. The loop will not re-attempt them automatically — they need an explicit approval to add backend contracts (a guardrail per CLAUDE.md).
+
+- 3.1b **Escalate / Resolve / Snooze per-alert actions** — Plan claimed "alert action endpoints already exist" but only `POST /alerts/{id}/acknowledge` is actually wired in `notification-service`. Repository methods for escalate/resolve exist but no HTTP routes; Snooze has no backend support at all. Decision needed: (a) add the three missing routes (and Snooze backend) in a separate Kotlin/notification-service iteration, or (b) drop Escalate/Resolve/Snooze from scope.
 
 ---
 
