@@ -87,7 +87,7 @@ export function BreachBanner({
   return (
     <div
       data-testid="breach-banner"
-      className="sticky top-0 z-20 px-4 md:px-6 pt-2 pb-1 bg-surface-50 dark:bg-surface-900"
+      className="sticky top-0 z-20 px-6 pt-2 pb-1 bg-surface-50 dark:bg-surface-900"
     >
       <div className="flex items-start gap-3">
         <div className="flex-1 min-w-0">

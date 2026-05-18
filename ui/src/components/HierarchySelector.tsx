@@ -75,7 +75,7 @@ export function HierarchySelector({ hierarchy }: HierarchySelectorProps) {
         aria-label={`Hierarchy: ${breadcrumbLabel}`}
       >
         <Building2 className="h-4 w-4 text-primary-400" />
-        <span className="hidden md:inline text-sm text-white max-w-[10rem] xl:max-w-[18rem] truncate">{breadcrumbLabel}</span>
+        <span className="text-sm text-white max-w-[10rem] xl:max-w-[18rem] truncate">{breadcrumbLabel}</span>
         <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 

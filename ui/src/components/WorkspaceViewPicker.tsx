@@ -96,7 +96,7 @@ export function WorkspaceViewPicker(props: WorkspaceViewPickerProps) {
         ref={toggleRef}
         data-testid="workspace-view-toggle"
         onClick={() => setOpen((v) => !v)}
-        className="hidden sm:flex items-center gap-1.5 bg-surface-800 border border-surface-700 text-white rounded-md px-2.5 py-1 text-xs hover:bg-surface-700 focus:ring-2 focus:ring-primary-500 transition-colors"
+        className="flex items-center gap-1.5 bg-surface-800 border border-surface-700 text-white rounded-md px-2.5 py-1 text-xs hover:bg-surface-700 focus:ring-2 focus:ring-primary-500 transition-colors"
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={`Saved view: ${activeName}`}

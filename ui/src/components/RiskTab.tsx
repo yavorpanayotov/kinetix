@@ -383,7 +383,7 @@ export function RiskTab({
                       onBookClick={onNavigateToBook}
                     />
                   </div>
-                  <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="mt-4 grid grid-cols-2 gap-4">
                     <CorrelationHeatmap
                       assetClasses={[...new Set(crossBookResult.componentBreakdown.map((c) => c.assetClass))]}
                     />
@@ -453,7 +453,7 @@ export function RiskTab({
               onToggle={(next) => toggleSection('pnlStressLiquidity', next)}
               data-testid="section-block-pnl-stress-liquidity"
             >
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <PnlSummaryCard
                   sodStatus={sod.status}
                   pnlData={pnlData}

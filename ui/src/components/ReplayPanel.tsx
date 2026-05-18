@@ -28,7 +28,7 @@ function DigestBadge({ matched }: { matched: boolean }) {
 function ManifestSummary({ manifest }: { manifest: RunManifestDto }) {
   return (
     <div data-testid="manifest-section" className="space-y-2">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-1 text-xs">
+      <div className="grid grid-cols-4 gap-x-6 gap-y-1 text-xs">
         <div>
           <span className="text-slate-500">Model Version</span>
           <p data-testid="manifest-model-version" className="font-mono text-slate-700">{manifest.modelVersion || '(not captured)'}</p>

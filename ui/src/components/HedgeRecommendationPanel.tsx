@@ -198,7 +198,7 @@ export function HedgeRecommendationPanel({
 
   return (
     <div
-      className="fixed inset-y-0 right-0 w-full sm:w-[480px] bg-white dark:bg-gray-900 shadow-2xl z-50 flex flex-col"
+      className="fixed inset-y-0 right-0 w-[480px] bg-white dark:bg-gray-900 shadow-2xl z-50 flex flex-col"
       role="dialog"
       aria-label="Hedge Recommendation Panel"
       data-testid="hedge-recommendation-panel"

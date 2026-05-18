@@ -496,7 +496,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-surface-50 dark:bg-surface-900 dark:text-slate-100 flex flex-col">
-      <header className="bg-surface-900 text-white px-4 md:px-6 py-3 flex items-center justify-between">
+      <header className="bg-surface-900 text-white px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Activity className="h-5 w-5 text-primary-500" />
           <h1 className="text-lg font-bold tracking-tight">Kinetix</h1>
@@ -510,7 +510,7 @@ function AppContent() {
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2 lg:gap-3" data-testid="header-right-cluster">
+        <div className="flex items-center gap-3" data-testid="header-right-cluster">
           <HierarchySelector hierarchy={hierarchy} />
           <ScenarioIndicator scenario={activeScenario.scenario} loading={activeScenario.loading} />
           <TapeReplayIndicator status={tapeReplay.status} loading={tapeReplay.loading} />
@@ -608,7 +608,7 @@ function AppContent() {
         </div>
       </header>
 
-      <nav className="bg-surface-800 px-4 md:px-6 flex gap-1 border-b border-surface-700 overflow-x-auto" data-testid="tab-bar" role="tablist" onKeyDown={handleTabKeyDown}>
+      <nav className="bg-surface-800 px-6 flex gap-1 border-b border-surface-700 overflow-x-auto" data-testid="tab-bar" role="tablist" onKeyDown={handleTabKeyDown}>
         {TABS.map(({ key, label, icon: Icon, clusterStart }, index) => (
           <Fragment key={key}>
             {/* Plan §2.1: cluster divider sits between cluster boundaries.
@@ -636,7 +636,7 @@ function AppContent() {
               }`}
             >
               <Icon className="h-4 w-4" />
-              <span className="hidden md:inline">{label}</span>
+              <span>{label}</span>
               {key === 'alerts' && notifications.error && (
                 <span
                   data-testid="alerts-error-dot"
@@ -694,7 +694,7 @@ function AppContent() {
         onOpenHedgePanel={openHedgePanel}
       />
 
-      <main className="flex-1 p-4 md:p-6 dark:bg-surface-900" role="tabpanel" aria-labelledby={`tab-${activeTab}`}>
+      <main className="flex-1 p-6 dark:bg-surface-900" role="tabpanel" aria-labelledby={`tab-${activeTab}`}>
         {(activeTab === 'positions' || activeTab === 'pnl' || activeTab === 'risk') && (
           <div
             data-testid="trader-filter-row"

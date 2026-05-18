@@ -39,7 +39,7 @@ export function SaCcrPanel({ result, loading, error }: SaCcrPanelProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-4 gap-3">
         <div data-testid="sa-ccr-ead">
           <p className="text-xs text-slate-500 dark:text-slate-400">EAD (α={result.alpha})</p>
           <p className="font-mono tabular-nums text-lg font-semibold text-slate-900 dark:text-slate-100">

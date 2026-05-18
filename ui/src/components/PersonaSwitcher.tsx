@@ -100,7 +100,7 @@ export function PersonaSwitcher() {
         >
           {persona.role.replace('_', ' ')}
         </span>
-        <span data-testid="header-username" className="hidden sm:inline text-sm text-slate-300">
+        <span data-testid="header-username" className="text-sm text-slate-300">
           {persona.username}
         </span>
         <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />

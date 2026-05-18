@@ -43,7 +43,7 @@ export function TapeReplayIndicator({ status, loading }: TapeReplayIndicatorProp
     return (
       <div
         data-testid="tape-replay-indicator-loading"
-        className="hidden lg:inline-flex items-center gap-1.5 px-2 py-1 text-[11px] tracking-wider rounded border border-slate-700/50 bg-slate-800/40 text-slate-500"
+        className="inline-flex items-center gap-1.5 px-2 py-1 text-[11px] tracking-wider rounded border border-slate-700/50 bg-slate-800/40 text-slate-500"
         aria-label="Tape replay status loading"
       >
         <Activity className="h-3 w-3" />
@@ -63,7 +63,7 @@ export function TapeReplayIndicator({ status, loading }: TapeReplayIndicatorProp
     <div
       data-testid="tape-replay-indicator"
       data-status={status}
-      className={`hidden lg:inline-flex items-center gap-1.5 px-2 py-1 text-[11px] tracking-wider rounded border ${variant.className}`}
+      className={`inline-flex items-center gap-1.5 px-2 py-1 text-[11px] tracking-wider rounded border ${variant.className}`}
       aria-label={variant.longLabel}
       title={variant.description}
     >

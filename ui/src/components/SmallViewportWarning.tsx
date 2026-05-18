@@ -3,13 +3,13 @@ import { Monitor } from 'lucide-react'
 
 // Plan §9 — Kinetix is desktop-only. The platform's dense, multi-pane layouts
 // (tab clusters, ticker strip, breach banner, RiskTab grids) collapse below a
-// ~1280px floor. Rather than maintain partial `md:` / `lg:` accommodations
+// ~1280px floor. Rather than maintain partial responsive accommodations
 // indefinitely, render a friendly full-screen warning when the viewport is
 // narrower than this threshold; flip back to the app when the user resizes.
 //
 // The threshold is exposed as a named constant so it stays easy to tweak in
-// one place and (eventually) align with the cleanup of the partial Tailwind
-// `md:` / `lg:` / `hidden sm:` classes still scattered across the app.
+// one place. Plan §FU4 removed the partial `sm:` / `md:` / `lg:` Tailwind
+// classes scattered across the app — they were dead code below this floor.
 export const MIN_VIEWPORT_WIDTH_PX = 1280
 
 function isBelowDesktopFloor(): boolean {

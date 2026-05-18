@@ -65,7 +65,7 @@ export function VolSurfacePanel({ instruments, defaultInstrumentId }: VolSurface
           No vol surface available for this instrument.
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           <VolSkewChart
             points={surface?.points ?? []}
             maturities={maturities}

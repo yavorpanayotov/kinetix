@@ -65,7 +65,7 @@ export function EodDrillPanel({
         role="dialog"
         aria-modal="true"
         aria-label={`EOD details for ${entry.valuationDate}`}
-        className="fixed right-0 top-0 bottom-0 z-40 w-full md:w-[480px] bg-white dark:bg-surface-800 border-l border-slate-200 dark:border-surface-700 shadow-xl flex flex-col overflow-y-auto"
+        className="fixed right-0 top-0 bottom-0 z-40 w-[480px] bg-white dark:bg-surface-800 border-l border-slate-200 dark:border-surface-700 shadow-xl flex flex-col overflow-y-auto"
       >
         {/* Header */}
         <div className="flex items-start justify-between px-5 py-4 border-b border-slate-200 dark:border-surface-700 flex-shrink-0">

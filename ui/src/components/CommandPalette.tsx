@@ -213,7 +213,7 @@ export function CommandPalette({ open, onClose, items }: CommandPaletteProps) {
             aria-label="Command palette search"
             className="flex-1 bg-transparent text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none"
           />
-          <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-surface-900 border border-slate-300 dark:border-surface-600 rounded">
+          <kbd className="inline-block px-1.5 py-0.5 text-[10px] font-mono font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-surface-900 border border-slate-300 dark:border-surface-600 rounded">
             Esc
           </kbd>
         </div>

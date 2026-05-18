@@ -422,7 +422,7 @@ describe('RiskTab', () => {
     const gridContainer = pnlCard.parentElement!
     expect(gridContainer).toBe(stressCard.parentElement)
     expect(gridContainer.className).toContain('grid')
-    expect(gridContainer.className).toContain('md:grid-cols-2')
+    expect(gridContainer.className).toContain('grid-cols-2')
   })
 
   it('shows no-baseline state when SOD status has no baseline', () => {

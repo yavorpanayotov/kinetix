@@ -40,7 +40,7 @@ export function ModelComparisonSelector({ loading, onCompare }: ModelComparisonS
 
   return (
     <div data-testid="model-comparison-selector" className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         {/* Base model */}
         <fieldset className="space-y-2">
           <legend className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">

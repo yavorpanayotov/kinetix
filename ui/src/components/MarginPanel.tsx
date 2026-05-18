@@ -90,7 +90,7 @@ export function MarginPanel({ bookId }: MarginPanelProps) {
           <RefreshCw className="h-3 w-3" /> Refresh
         </button>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <div data-testid="margin-initial" className="rounded-md border border-slate-200 dark:border-slate-700 p-3">
           <p className="text-xs uppercase text-slate-500 dark:text-slate-400">Initial margin</p>
           <p className="text-lg font-semibold text-slate-900 dark:text-slate-100">

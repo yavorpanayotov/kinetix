@@ -273,7 +273,7 @@ describe('VaRDashboard', () => {
     )
 
     const dashboard = screen.getByTestId('var-dashboard')
-    const grid = dashboard.querySelector('.md\\:grid-cols-4')
+    const grid = dashboard.querySelector('.grid-cols-4')
     expect(grid).toBeInTheDocument()
 
     const trendChart = screen.getByTestId('var-trend-chart')

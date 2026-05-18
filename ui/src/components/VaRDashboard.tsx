@@ -183,7 +183,7 @@ export function VaRDashboard({ varResult, filteredHistory, loading, historyLoadi
           Explain
         </button>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-4 gap-6">
         <VaRGauge
           varValue={varValue}
           expectedShortfall={expectedShortfall}
@@ -198,7 +198,7 @@ export function VaRDashboard({ varResult, filteredHistory, loading, historyLoadi
           marketRegime={marketRegime}
         />
 
-        <div data-testid="var-sensitivities" className="md:col-span-2 flex flex-col items-center justify-center">
+        <div data-testid="var-sensitivities" className="col-span-2 flex flex-col items-center justify-center">
           {greeksResult ? (
             <RiskSensitivities greeksResult={greeksResult} pvValue={varResult.pvValue} />
           ) : (
