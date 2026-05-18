@@ -30,6 +30,8 @@ import com.kinetix.notification.persistence.DatabaseConfig
 import com.kinetix.notification.persistence.DatabaseFactory
 import com.kinetix.notification.persistence.ExposedAlertEventRepository
 import com.kinetix.notification.persistence.ExposedAlertRuleRepository
+import com.kinetix.notification.routes.dtos.EscalateAlertRequest
+import com.kinetix.notification.routes.dtos.ResolveAlertRequest
 import com.kinetix.notification.seed.DevDataSeeder
 import io.github.smiley4.ktoropenapi.OpenApi
 import io.github.smiley4.ktoropenapi.delete
@@ -490,6 +492,105 @@ fun Route.notificationRoutes(
             call.respond(fetched.toEventResponse())
         }
 
+        post("/alerts/{alertId}/escalate", {
+            summary = "Manually escalate an alert"
+            tags = listOf("Alerts")
+            request {
+                pathParameter<String>("alertId") { description = "Alert event identifier" }
+                body<EscalateAlertRequest>()
+            }
+        }) {
+            val alertId = call.parameters["alertId"]
+                ?: throw IllegalArgumentException("Missing required path parameter: alertId")
+            val request = call.receive<EscalateAlertRequest>()
+            if (request.reason.isBlank()) {
+                call.respond(HttpStatusCode.BadRequest, ErrorResponse("Bad Request", "reason must not be blank"))
+                return@post
+            }
+            val eventRepo = inAppDelivery.repository
+
+            val alert = eventRepo.findById(alertId)
+            if (alert == null) {
+                call.respond(HttpStatusCode.NotFound, ErrorResponse("Not Found", "Alert not found"))
+                return@post
+            }
+            if (!alert.status.canTransitionTo(AlertStatus.ESCALATED)) {
+                val reason = when (alert.status) {
+                    AlertStatus.RESOLVED -> "Alert is already resolved"
+                    AlertStatus.ESCALATED -> "Alert is already escalated"
+                    else -> "Cannot escalate alert in status ${alert.status}"
+                }
+                call.respond(HttpStatusCode.Conflict, ErrorResponse("Conflict", reason))
+                return@post
+            }
+
+            val now = java.time.Instant.now()
+            val assignee = request.assignee?.takeIf { it.isNotBlank() } ?: defaultEscalationAssignee(alert.severity)
+            eventRepo.escalate(alertId, now, assignee, promotedSeverity = null)
+
+            auditPublisher?.publish(
+                com.kinetix.common.audit.GovernanceAuditEvent(
+                    eventType = com.kinetix.common.audit.AuditEventType.ALERT_ESCALATED,
+                    userId = "manual",
+                    userRole = "UNKNOWN",
+                    alertId = alertId,
+                    bookId = alert.bookId,
+                    details = "Alert $alertId manually escalated to $assignee: ${request.reason}",
+                ),
+            )
+
+            val fetched = eventRepo.findById(alertId)!!
+            call.respond(fetched.toEventResponse())
+        }
+
+        post("/alerts/{alertId}/resolve", {
+            summary = "Resolve an alert"
+            tags = listOf("Alerts")
+            request {
+                pathParameter<String>("alertId") { description = "Alert event identifier" }
+                body<ResolveAlertRequest>()
+            }
+        }) {
+            val alertId = call.parameters["alertId"]
+                ?: throw IllegalArgumentException("Missing required path parameter: alertId")
+            val request = call.receive<ResolveAlertRequest>()
+            if (request.resolutionText.isBlank()) {
+                call.respond(HttpStatusCode.BadRequest, ErrorResponse("Bad Request", "resolutionText must not be blank"))
+                return@post
+            }
+            val eventRepo = inAppDelivery.repository
+
+            val alert = eventRepo.findById(alertId)
+            if (alert == null) {
+                call.respond(HttpStatusCode.NotFound, ErrorResponse("Not Found", "Alert not found"))
+                return@post
+            }
+            if (!alert.status.canTransitionTo(AlertStatus.RESOLVED)) {
+                call.respond(
+                    HttpStatusCode.Conflict,
+                    ErrorResponse("Conflict", "Alert is already resolved"),
+                )
+                return@post
+            }
+
+            val now = java.time.Instant.now()
+            eventRepo.updateStatus(alertId, AlertStatus.RESOLVED, resolvedAt = now, resolvedReason = request.resolutionText)
+
+            auditPublisher?.publish(
+                com.kinetix.common.audit.GovernanceAuditEvent(
+                    eventType = com.kinetix.common.audit.AuditEventType.ALERT_RESOLVED,
+                    userId = "manual",
+                    userRole = "UNKNOWN",
+                    alertId = alertId,
+                    bookId = alert.bookId,
+                    details = "Alert $alertId resolved: ${request.resolutionText}",
+                ),
+            )
+
+            val fetched = eventRepo.findById(alertId)!!
+            call.respond(fetched.toEventResponse())
+        }
+
         get("/alerts/{alertId}/contributors", {
             summary = "Get alert contributors (position breakdown at breach time)"
             tags = listOf("Alerts")
@@ -524,6 +625,11 @@ private fun AlertRule.toResponse() = AlertRuleResponse(
     channels = channels.map { it.name },
     enabled = enabled,
 )
+
+private fun defaultEscalationAssignee(severity: Severity): String = when (severity) {
+    Severity.CRITICAL -> "risk-manager,cro"
+    Severity.WARNING, Severity.INFO -> "desk-head"
+}
 
 private fun com.kinetix.notification.model.AlertEvent.toEventResponse() = AlertEventResponse(
     id = id,

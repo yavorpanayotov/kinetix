@@ -14,8 +14,8 @@ class AlertStatusTransitionTest : FunSpec({
         AlertStatus.TRIGGERED.canTransitionTo(AlertStatus.RESOLVED) shouldBe true
     }
 
-    test("TRIGGERED cannot transition directly to ESCALATED") {
-        AlertStatus.TRIGGERED.canTransitionTo(AlertStatus.ESCALATED) shouldBe false
+    test("TRIGGERED transitions directly to ESCALATED — supports manual operator escalation without prior ack") {
+        AlertStatus.TRIGGERED.canTransitionTo(AlertStatus.ESCALATED) shouldBe true
     }
 
     test("ACKNOWLEDGED transitions to ESCALATED") {
