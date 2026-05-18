@@ -12,6 +12,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from .factory import build_client
+from .routes.report_commentary import router as report_router
 from .routes.var_explainer import router as var_router
 
 
@@ -24,6 +25,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(title="Kinetix Insights", lifespan=lifespan)
 app.include_router(var_router)
+app.include_router(report_router)
 
 
 @app.get("/health")
