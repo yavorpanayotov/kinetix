@@ -28,8 +28,9 @@ entity Trade {
 
     original_trade_id: String?
     counterparty_id: String?
-    instrument_type: String?
+    instrument_type: String
     strategy_id: String?
+    trader_id: String?
 
     -- Derived
     notional: price.amount * quantity
@@ -40,6 +41,20 @@ entity Trade {
         -- quantity must always be positive; sign comes from the side.
         -- Trade records are immutable except for the status field.
         -- status transitions: live -> amended, live -> cancelled.
+        --
+        -- instrument_type carries an InstrumentTypeCode value
+        -- (CASH_EQUITY, EQUITY_OPTION, …). The legacy 'UNKNOWN' sentinel
+        -- is rejected by the strict parser; the column is NOT NULL with
+        -- a CHECK constraint at the database level (V27 migration).
+        -- A lenient parser is retained only at wire-format ingress for
+        -- backwards-compatible deserialisation of older Kafka messages.
+        --
+        -- trader_id is the reference-data Trader identifier. Optional
+        -- on the entity for historical and tape-seeded rows that
+        -- predate the trader registry (V14); booking requires it
+        -- (see BookTrade.requires). Validated at booking time against
+        -- the TraderLookup gRPC surface; a missing trader is a hard
+        -- reject.
 }
 
 entity TradeEvent {
@@ -47,6 +62,7 @@ entity TradeEvent {
     correlation_id: String
     user_id: String?
     user_role: String?
+    trader_id: String?
 
     -- Derived
     audit_event_type: String
@@ -56,6 +72,10 @@ entity TradeEvent {
         --   new -> TRADE_BOOKED
         --   amend -> TRADE_AMENDED
         --   cancel -> TRADE_CANCELLED
+        --
+        -- trader_id is propagated through to the audit chain (see
+        -- audit.allium). It is `?` for historical events written
+        -- before V30; new events always carry it.
 }
 
 ------------------------------------------------------------
@@ -65,9 +85,12 @@ entity TradeEvent {
 -- Trade booking
 
 rule BookTrade {
-    when: BookTradeRequested(trade_id, book_id, instrument_id, asset_class, side, quantity, price, traded_at, counterparty_id, instrument_type, strategy_id)
+    when: BookTradeRequested(trade_id, book_id, instrument_id, asset_class, side, quantity, price, traded_at, counterparty_id, instrument_type, strategy_id, trader_id)
     requires: quantity > 0
     requires: price.amount >= 0
+    requires: instrument_type != null and instrument_type != "UNKNOWN"
+    requires: trader_id != null
+    requires: exists ref/Trader{trader_id: trader_id}
     requires: not exists Trade{trade_id: trade_id}
 
     let trade = Trade.created(
@@ -83,7 +106,8 @@ rule BookTrade {
         status: live,
         counterparty_id: counterparty_id,
         instrument_type: instrument_type,
-        strategy_id: strategy_id
+        strategy_id: strategy_id,
+        trader_id: trader_id
     )
 
     ensures: trade
@@ -95,10 +119,16 @@ rule BookTrade {
         -- Limit checks (position, notional, concentration) are evaluated before booking.
         -- Hard limit breaches block the trade; soft warnings are returned alongside.
         -- After persisting, publish TradeEvent to Kafka trades.lifecycle topic.
+        --
+        -- trader_id is validated against reference-data via the
+        -- TraderLookup gRPC surface. NOT_FOUND is a hard 4xx reject.
+        -- FIX-originated bookings resolve trader_id via the demo
+        -- per-book primary-trader roster until per-user FIX sessions
+        -- ship (ADR-0035 phase 5).
 }
 
 rule BookTradeIdempotent {
-    when: BookTradeRequested(trade_id, book_id, instrument_id, asset_class, side, quantity, price, traded_at, counterparty_id, instrument_type, strategy_id)
+    when: BookTradeRequested(trade_id, book_id, instrument_id, asset_class, side, quantity, price, traded_at, counterparty_id, instrument_type, strategy_id, trader_id)
     requires: exists Trade{trade_id: trade_id}
 
     @guidance
@@ -142,13 +172,32 @@ rule AmendTrade {
         -- Publish the new trade event to Kafka.
 }
 
+rule AmendTradeIdempotent {
+    when: AmendTradeRequested(original_trade_id, new_trade_id, book_id, instrument_id, asset_class, side, quantity, price, traded_at)
+    let original = Trade{trade_id: original_trade_id}
+    let existing_amend = Trade{trade_id: new_trade_id}
+    requires: original.status = amended
+    requires: existing_amend != null
+
+    @guidance
+        -- Re-amend with the same new_trade_id is treated as a replay
+        -- and returns the existing amend trade without re-processing
+        -- (no double position adjustment, no double Kafka publish).
+}
+
 rule AmendTradeRejectedNotLive {
     when: AmendTradeRequested(original_trade_id, new_trade_id, book_id, instrument_id, asset_class, side, quantity, price, traded_at)
     let original = Trade{trade_id: original_trade_id}
+    let existing_amend = Trade{trade_id: new_trade_id}
     requires: original.status != live
+    requires: original.status != amended or existing_amend = null
 
     @guidance
         -- Reject with InvalidTradeStateException (HTTP 409 Conflict).
+        -- Applies when:
+        --   * original is cancelled (any new_trade_id)
+        --   * original is amended but no matching prior amend exists
+        --     (the AmendTradeIdempotent rule handles the replay case).
 }
 
 -- Trade cancellation
@@ -170,13 +219,25 @@ rule CancelTrade {
         -- Publish cancelled trade event to Kafka.
 }
 
+rule CancelTradeIdempotent {
+    when: CancelTradeRequested(trade_id, book_id)
+    let trade = Trade{trade_id: trade_id}
+    requires: trade.status = cancelled
+
+    @guidance
+        -- Re-cancel of an already-cancelled trade is a no-op replay
+        -- and returns the existing cancelled trade without re-processing.
+}
+
 rule CancelTradeRejectedNotLive {
     when: CancelTradeRequested(trade_id, book_id)
     let trade = Trade{trade_id: trade_id}
-    requires: trade.status != live
+    requires: trade.status = amended
 
     @guidance
-        -- Reject with InvalidTradeStateException (HTTP 409 Conflict).
+        -- Reject with InvalidTradeStateException (HTTP 409 Conflict)
+        -- when attempting to cancel an already-amended trade. Cancellation
+        -- of a cancelled trade is handled idempotently above.
 }
 
 ------------------------------------------------------------
@@ -188,11 +249,11 @@ invariant TradeQuantityPositive {
         t.quantity > 0
 }
 
--- Trade identity fields (trade_id, book_id, instrument_id, asset_class, side,
--- quantity, price_amount, price_currency, traded_at, event_type) are
--- immutable after insertion. Status, counterparty_id, instrument_type,
--- original_trade_id and strategy_id are mutable to support lifecycle
--- transitions and enrichment.
+-- Trade identity fields (trade_id, book_id, instrument_id, instrument_type,
+-- asset_class, side, quantity, price_amount, price_currency, traded_at,
+-- event_type, trader_id) are immutable after insertion. Status,
+-- counterparty_id, original_trade_id and strategy_id are mutable to
+-- support lifecycle transitions and enrichment.
 
 -- Trades are never deleted; cancellation is a status transition
 -- (live -> cancelled), preserving the full trade history.

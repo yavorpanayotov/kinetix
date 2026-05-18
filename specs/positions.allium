@@ -58,15 +58,17 @@ entity Position {
     average_cost: core/Money
     market_price: core/Money
     realized_pnl: core/Money
-    instrument_type: String?
+    instrument_type: String
 
     @guidance
-        -- instrument_type is stored as a plain String matching the
-        -- Instrument variant discriminator from reference-data.allium
-        -- (e.g. "CASH_EQUITY", "EQUITY_OPTION"). It is a String?
-        -- rather than a typed discriminator because positions predate
-        -- the instrument type model and the persistence layer stores it
-        -- as a nullable VARCHAR.
+        -- instrument_type carries an InstrumentTypeCode value
+        -- (e.g. "CASH_EQUITY", "EQUITY_OPTION") matching the Instrument
+        -- variant discriminator from reference-data.allium. The legacy
+        -- nullable + 'UNKNOWN' sentinel flavour was retired in V27,
+        -- which backfilled remaining rows and added a NOT NULL
+        -- constraint plus a CHECK that excludes 'UNKNOWN' on both
+        -- positions and trade_events. Strict at the domain layer; a
+        -- lenient parser is retained only at wire-format ingress.
 
     strategy_id: String?
     strategy_type: String?
