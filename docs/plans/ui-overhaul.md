@@ -335,6 +335,20 @@ User-approved on 2026-05-18. The work-plan loop is authorised to add the backend
 - [x] FU4 Strip the partial `md:` / `lg:` / `hidden sm:` Tailwind accommodations across the codebase. The §9 small-viewport warning makes them dead code; remove them so future contributors aren't tempted to extend half-responsive patterns.
 - [x] FU5 Investigate and fix the five pre-existing Playwright failures on `main`: `counterparty-risk`, `position-data-rendering` (P&L `+` formatting assertion), `risk-error-states`, `trade-blotter` (CSV export), `ui-resilience` (timing). Each may be a one-line test fix or a real regression — find out per spec. (Note: subagent also flagged 3 OTHER pre-existing failures not on the original list — `book-access-denied`, `risk-sorting`, `risk-tab-dashboard-sections` — for a possible follow-up.)
 
+### Phase 8 — Fix all remaining test failures across the repo (user-requested 2026-05-18)
+
+Survey on 2026-05-18 found these failing on `main`:
+
+- **UI Playwright (5 failures):** `book-access-denied`, `risk-sorting`, `risk-tab-dashboard-sections`, `system-status-banner` (maintenance under DEGRADED), `ui-resilience` (reconnecting elapsed-time context).
+- **Backend unit (3 failures across 2 modules):** `fix-gateway:test FixGatewayServiceImplTest.PlaceOrder returns PENDING_NEW…`; `end2end-tests:test SeedDataConsistencyTest` (2 tests).
+- **position-service:acceptanceTest (8 failures):** `PreTradeCheckAcceptanceTest` (5 tests), `kafka.DualPathParityAcceptanceTest` (1 test), `kafka.ExecutionReportConsumerAcceptanceTest` (2 tests).
+
+- [ ] FX1 Fix the 5 remaining Playwright failures: `book-access-denied`, `risk-sorting`, `risk-tab-dashboard-sections`, `system-status-banner`, `ui-resilience`. Each may be a one-line test fix, a fixture widening, or a real regression — diagnose per spec. Acceptance: `cd ui && npx playwright test ui/e2e/{book-access-denied,risk-sorting,risk-tab-dashboard-sections,system-status-banner,ui-resilience}.spec.ts --reporter=line` ends 0 failed.
+- [ ] FX2 Fix `fix-gateway:test FixGatewayServiceImplTest > "PlaceOrder returns PENDING_NEW with venue_order_id when correlator wakes with PendingNew"`. Acceptance: `./gradlew :fix-gateway:test` green.
+- [ ] FX3 Fix `end2end-tests:test SeedDataConsistencyTest`: "audit event trade IDs match position-service trade IDs" + "audit event count matches trade count". Likely fixture / seed-data drift between audit-service and position-service. Acceptance: `./gradlew :end2end-tests:test` green.
+- [ ] FX4 Fix `position-service:acceptanceTest PreTradeCheckAcceptanceTest` (5 tests). Likely one root cause shared by all five — diagnose first, fix once. Acceptance: `./gradlew :position-service:acceptanceTest --tests "*PreTradeCheckAcceptanceTest*"` green.
+- [ ] FX5 Fix `position-service:acceptanceTest` Kafka regressions: `DualPathParityAcceptanceTest` (1 test) + `ExecutionReportConsumerAcceptanceTest` (2 tests). Likely shared Kafka-fixture or serialization root cause. Acceptance: `./gradlew :position-service:acceptanceTest --tests "*DualPathParity*" --tests "*ExecutionReportConsumer*"` green.
+
 ### Blocked items needing decisions
 
 (none currently — Phase 6/7 above unparked the previous blockers)
