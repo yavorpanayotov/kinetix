@@ -55,6 +55,19 @@ describe('ReportsTab', () => {
     expect(screen.getByTestId('reports-loading')).toBeInTheDocument()
   })
 
+  it('renders a Spinner alongside the loading label while fetching templates', () => {
+    mockFetchTemplates.mockReturnValue(new Promise(() => {}))
+
+    render(<ReportsTab bookId="BOOK-1" />)
+
+    const loading = screen.getByTestId('reports-loading')
+    expect(loading).toBeInTheDocument()
+    // Spinner is a Lucide Loader2 svg with the `animate-spin` class
+    expect(loading.querySelector('.animate-spin')).toBeInTheDocument()
+    // The label text remains visible alongside the spinner
+    expect(loading).toHaveTextContent('Loading report templates...')
+  })
+
   it('renders template options after loading', async () => {
     mockFetchTemplates.mockResolvedValue(TEMPLATES)
 

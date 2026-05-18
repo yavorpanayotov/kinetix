@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { FileText, Download, Play, ChevronDown, ChevronUp } from 'lucide-react'
+import { Spinner } from './ui'
 import {
   fetchReportTemplates,
   generateReport,
@@ -100,7 +101,11 @@ export function ReportsTab({ bookId }: ReportsTabProps) {
 
   if (templatesLoading) {
     return (
-      <div data-testid="reports-loading" className="text-slate-500 text-sm">
+      <div
+        data-testid="reports-loading"
+        className="flex items-center gap-2 text-slate-500 text-sm"
+      >
+        <Spinner size="sm" />
         Loading report templates...
       </div>
     )
