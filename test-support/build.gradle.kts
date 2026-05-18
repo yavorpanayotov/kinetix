@@ -4,6 +4,10 @@ plugins {
 }
 
 dependencies {
+    // `api` so consumers of :test-support can see Trade and its supporting
+    // domain types when using fixture builders like TestTrade.
+    api(project(":common"))
+
     api(libs.kafka.clients)
     api(libs.testcontainers.core)
     api(libs.testcontainers.kafka)
