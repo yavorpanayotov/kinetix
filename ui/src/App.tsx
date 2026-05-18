@@ -557,6 +557,7 @@ function App() {
                     onNavigateToBook={(bid) => hierarchy.setSelection({ level: 'book', divisionId: hierarchy.selection.divisionId, deskId: hierarchy.selection.deskId, bookId: bid })}
                     activeScenario={activeScenario.scenario}
                     marketRegime={marketRegime.regime?.regime ?? null}
+                    onShowAlerts={() => setActiveTab('alerts')}
                   />
                 )}
 

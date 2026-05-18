@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ErrorBoundary, SectionErrorCard } from './ErrorBoundary'
 import { useVaR } from '../hooks/useVaR'
 import { useCrossBookVaR } from '../hooks/useCrossBookVaR'
@@ -23,6 +23,7 @@ import { StressSummaryCard } from './StressSummaryCard'
 import { PnlSummaryCard } from './PnlSummaryCard'
 import { LiquidityRiskPanel } from './LiquidityRiskPanel'
 import { LimitsPanel } from './LimitsPanel'
+import { LimitsBreachHeader } from './LimitsBreachHeader'
 import { MarginPanel } from './MarginPanel'
 import { FactorDecompositionPanel } from './FactorDecompositionPanel'
 import { FactorAttributionHistoryChart } from './FactorAttributionHistoryChart'
@@ -59,6 +60,8 @@ interface RiskTabProps {
   activeScenario?: string | null
   /** Current market regime — used to annotate regime-adjusted VaR / ES numbers. */
   marketRegime?: MarketRegime | null
+  /** Switch to the Alerts tab — wired by the breach-header "recent alerts" chip. */
+  onShowAlerts?: () => void
 }
 
 export function RiskTab({
@@ -76,11 +79,17 @@ export function RiskTab({
   onNavigateToBook,
   activeScenario = null,
   marketRegime = null,
+  onShowAlerts,
 }: RiskTabProps) {
   const [subTab, setSubTab] = useState<RiskSubTab>('dashboard')
   const [valuationDate, setValuationDate] = useState<string | null>(null)
   const [pendingJobCompare, setPendingJobCompare] = useState<{ baseJobId: string; targetJobId: string } | null>(null)
   const [hedgePanelOpen, setHedgePanelOpen] = useState(false)
+  const limitsPanelRef = useRef<HTMLDivElement | null>(null)
+
+  const scrollToLimitsPanel = useCallback(() => {
+    limitsPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [])
   const { recommendation: hedgeRec, loading: hedgeLoading, error: hedgeError, suggest: suggestHedge } = useHedgeRecommendation(bookId)
   const { aggregated: krdAggregated, instruments: krdInstruments, loading: krdLoading, error: krdError } = useKrd(bookId)
 
@@ -232,6 +241,11 @@ export function RiskTab({
 
       {subTab === 'dashboard' && (
         <>
+          <LimitsBreachHeader
+            alerts={alerts}
+            onScrollToLimits={scrollToLimitsPanel}
+            onShowAlerts={onShowAlerts}
+          />
           {aggregatedView && !crossBookResult && !crossBookLoading && (
             <div
               data-testid="aggregated-var-note"
@@ -365,7 +379,7 @@ export function RiskTab({
               <MarginPanel bookId={bookId} />
             </ErrorBoundary>
           </div>
-          <div className="mt-4">
+          <div className="mt-4" ref={limitsPanelRef}>
             <ErrorBoundary fallback={<SectionErrorCard name="Limits" />}>
               <LimitsPanel />
             </ErrorBoundary>

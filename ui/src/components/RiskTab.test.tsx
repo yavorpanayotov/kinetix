@@ -579,6 +579,29 @@ describe('RiskTab', () => {
     expect(screen.queryByTestId('last-updated')).not.toBeInTheDocument()
   })
 
+  it('renders the limits breach header on the Dashboard sub-tab', () => {
+    render(<RiskTab bookId="book-1" {...defaultStressProps} />)
+
+    expect(screen.getByTestId('limits-breach-header')).toBeInTheDocument()
+  })
+
+  it('does not render the limits breach header on the Intraday sub-tab', async () => {
+    const user = userEvent.setup()
+    render(<RiskTab bookId="book-1" {...defaultStressProps} />)
+
+    await user.click(screen.getByTestId('risk-subtab-intraday'))
+
+    expect(screen.queryByTestId('limits-breach-header')).not.toBeInTheDocument()
+  })
+
+  it('renders the limits breach header above the VaR dashboard in the DOM', () => {
+    render(<RiskTab bookId="book-1" {...defaultStressProps} />)
+
+    const header = screen.getByTestId('limits-breach-header')
+    const varEmpty = screen.getByTestId('var-empty')
+    expect(header.compareDocumentPosition(varEmpty) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it('shows P&L summary data when attribution data is available', () => {
     const pnlData: PnlAttributionDto = {
       bookId: 'book-1',
