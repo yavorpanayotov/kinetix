@@ -3,5 +3,18 @@
   "_established": "2026-05-18 (initial Phase 1 measurement)",
   "ui": 80.81,
   "python": 83.00,
-  "kotlin": {}
+  "kotlin": {
+    "common": 78.9,
+    "position-service": 68.8,
+    "price-service": 58.4,
+    "rates-service": 48.5,
+    "volatility-service": 77.7,
+    "correlation-service": 76.9,
+    "reference-data-service": 40.4,
+    "risk-orchestrator": 47.0,
+    "regulatory-service": 53.9,
+    "notification-service": 81.8,
+    "audit-service": 92.7,
+    "gateway": 68.5
+  }
 }
