@@ -109,7 +109,7 @@ That brings in `org.testcontainers.kafka.KafkaContainer` transitively, plus the 
   - Acceptance: `./gradlew :test-support:build :test-support:test`
 - [x] **5.4** Add `test-support/src/main/kotlin/com/kinetix/testsupport/builders/TestPosition.kt`.
   - Acceptance: `./gradlew :test-support:build :test-support:test`
-- [ ] **5.5** Add `test-support/src/main/kotlin/com/kinetix/testsupport/builders/TestCorrelationMatrix.kt` with `identity(n)` and `random(n, seed)` constructors.
+- [x] **5.5** Add `test-support/src/main/kotlin/com/kinetix/testsupport/builders/TestCorrelationMatrix.kt` with `identity(n)` and `random(n, seed)` constructors.
   - Acceptance: `./gradlew :test-support:build :test-support:test`
 - [ ] **5.6** Add `test-support/src/main/kotlin/com/kinetix/testsupport/builders/TestVolSurface.kt` with `flatAt(0.20)` and `withSmile(...)` constructors.
   - Acceptance: `./gradlew :test-support:build :test-support:test`
