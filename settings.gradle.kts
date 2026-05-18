@@ -32,4 +32,5 @@ include(
     "end2end-tests",
     "schema-tests",
     "smoke-tests",
+    "test-support",
 )

@@ -7,7 +7,7 @@ plugins {
 
 dependencies {
     subprojects
-        .filter { it.name != "proto" }
+        .filter { it.name !in setOf("proto", "test-support") }
         .forEach { kover(project(":${it.name}")) }
 }
 
