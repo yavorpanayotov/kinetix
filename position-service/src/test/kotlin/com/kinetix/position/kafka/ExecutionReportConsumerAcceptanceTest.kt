@@ -40,13 +40,18 @@ import java.time.Instant
 import java.util.Properties
 import java.util.UUID
 
+// Use a book that exists in DemoTraderRoster.BOOK_TO_DESK — the FIX fill
+// processor calls `requirePrimaryTraderFor(bookId)` and errors out on
+// unknown books (ADR-0035 phase 2, demo-follow-up Gap 6).
+private const val ROSTER_BOOK_ID = "equity-growth"
+
 private fun newOrder(
     orderId: String,
     quantity: BigDecimal = BigDecimal("100"),
     status: OrderStatus = OrderStatus.SENT,
 ) = Order(
     orderId = orderId,
-    bookId = "book-acc-1",
+    bookId = ROSTER_BOOK_ID,
     instrumentId = "AAPL",
     side = Side.BUY,
     quantity = quantity,
@@ -147,7 +152,7 @@ class ExecutionReportConsumerAcceptanceTest : FunSpec({
                     delay(150)
                 }
             }
-            val position = positionRepo.findByKey(BookId("book-acc-1"), InstrumentId("AAPL"))
+            val position = positionRepo.findByKey(BookId(ROSTER_BOOK_ID), InstrumentId("AAPL"))
             position shouldNotBe null
             position!!.quantity.compareTo(BigDecimal("100")) shouldBe 0
             registry.find("execution_report_consumer_dispatched_total")

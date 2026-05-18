@@ -90,7 +90,10 @@ class DualPathParityAcceptanceTest : FunSpec({
         )
         val dispatcher = ExecutionReportDispatcher(processor, registry)
 
-        val bookId = "book-parity-${UUID.randomUUID()}"
+        // FIXExecutionReportProcessor resolves the trader via
+        // DemoTraderRoster.requirePrimaryTraderFor(bookId); use a roster-known
+        // book so the fill path doesn't fail at trader resolution.
+        val bookId = "equity-growth"
         val instrumentId = "AAPL"
 
         // Two orders so the fills don't collide on the position update — one routed via
