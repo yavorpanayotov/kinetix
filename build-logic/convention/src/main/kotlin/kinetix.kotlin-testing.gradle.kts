@@ -14,9 +14,15 @@ dependencies {
 
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
+    // Keep test JVMs single-forked so module-level Gradle parallelism doesn't
+    // multiply with intra-task parallelism on a developer laptop.
+    maxParallelForks = 1
+    jvmArgs("-XX:+UseG1GC", "-XX:MaxMetaspaceSize=256m")
 }
 
 tasks.named<Test>("test") {
+    // Pure unit tests — bounded heap to keep `gradle test` cheap on a laptop.
+    maxHeapSize = "768m"
     filter {
         excludeTestsMatching("*IntegrationTest")
         excludeTestsMatching("*AcceptanceTest")
@@ -30,6 +36,7 @@ val testSourceSets = the<JavaPluginExtension>().sourceSets
 val integrationTest by tasks.registering(Test::class) {
     description = "Runs integration tests."
     group = "verification"
+    maxHeapSize = "1g"
     testClassesDirs = testSourceSets["test"].output.classesDirs
     classpath = testSourceSets["test"].runtimeClasspath
     filter {
@@ -41,6 +48,7 @@ val integrationTest by tasks.registering(Test::class) {
 val acceptanceTest by tasks.registering(Test::class) {
     description = "Runs acceptance tests."
     group = "verification"
+    maxHeapSize = "1g"
     testClassesDirs = testSourceSets["test"].output.classesDirs
     classpath = testSourceSets["test"].runtimeClasspath
     filter {
