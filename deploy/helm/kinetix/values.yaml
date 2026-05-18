@@ -223,6 +223,20 @@ risk-engine:
       cpu: "2"
       memory: 4Gi
 
+ai-insights-service:
+  replicaCount: 1
+  image:
+    repository: kinetix/ai-insights-service
+  service:
+    port: 8095
+  env:
+    PORT: "8095"
+    DEMO_MODE: "false"
+    PYTHONPATH: "/app/src"
+  claudeAuth:
+    enabled: true
+    hostPath: /root/.claude
+
 ui:
   replicaCount: 1
   image:

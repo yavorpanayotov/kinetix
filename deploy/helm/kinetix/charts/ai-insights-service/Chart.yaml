@@ -1,0 +1,6 @@
+apiVersion: v2
+name: ai-insights-service
+description: Kinetix AI Insights Service (FastAPI + Claude Agent SDK)
+version: 0.1.0
+appVersion: "0.1.0"
+type: application

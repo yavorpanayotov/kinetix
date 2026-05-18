@@ -1,0 +1,50 @@
+# Defaults inherited from the parent chart at deploy time; declared here so
+# `helm lint` can render the chart standalone.
+global:
+  imageRegistry: ""
+  imageTag: ""
+
+replicaCount: 1
+
+image:
+  repository: kinetix/ai-insights-service
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8095
+
+env:
+  PORT: "8095"
+  DEMO_MODE: "false"
+  PYTHONPATH: "/app/src"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://kinetix-opentelemetry-collector:4317"
+  OTEL_SERVICE_NAME: "ai-insights-service"
+
+claudeAuth:
+  enabled: true
+  hostPath: /root/.claude
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 70
+
+probes:
+  path: /health
+  readinessPath: /ready
+
+minReadySeconds: 10
+
+pdb:
+  enabled: false
+  minAvailable: 1
