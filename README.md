@@ -1,151 +1,189 @@
 # Kinetix
 
-**Real-time portfolio risk management platform for institutional trading desks.**
+**Institutional-grade portfolio risk management platform.**
 
-A production-grade system covering the full risk lifecycle: trade capture, position management, live P&L, VaR/ES/Greeks computation, options pricing, stress testing, FRTB regulatory capital, counterparty exposure, and model governance. Built as a polyglot microservices monorepo with 11 Kotlin services, a Python quantitative engine, and a React trading dashboard.
+Kinetix covers the full risk lifecycle for a multi-asset trading desk — trade capture, hierarchical pre-trade limits, mark-to-market, live intraday P&L with Greek attribution, VaR/ES across three methodologies, options pricing, scenario and reverse-stress testing, regime-adaptive risk parameters, counterparty exposure with PFE and CVA, FRTB Standardised Approach capital, model governance with four-eyes approval, and a SHA-256 hash-chained audit trail. Built as a polyglot microservices monorepo: 12 Kotlin/Ktor services, a Python quantitative engine, and a React trading dashboard, glued together by Kafka, gRPC, and PostgreSQL/TimescaleDB.
 
-## Platform at a Glance
+## At a glance
 
 | | |
 |---|---|
-| **Backend** | 11 Kotlin/Ktor microservices on JVM 21 |
-| **Risk engine** | Python 3.12 (NumPy, SciPy, PyTorch), gRPC server |
-| **Frontend** | React 19 + TypeScript dashboard with 11 trader/risk tabs |
+| **Services** | 12 Kotlin/Ktor microservices on JVM 21 + 1 Python risk engine |
+| **Risk engine** | Python 3.12 — NumPy, SciPy, PyTorch — exposes 11 gRPC services |
+| **Frontend** | React 19 + TypeScript dashboard, 11 trader/risk tabs |
+| **Datastores** | PostgreSQL 17 / TimescaleDB (database-per-service), Redis 7 |
+| **Messaging** | Apache Kafka 3.9 (KRaft) — 20 production topics with per-topic DLQs |
+| **Schema** | 173 Flyway migrations across 11 service schemas |
 | **Behavioural specs** | 24 [Allium v3](https://github.com/juxt/allium) specifications |
-| **Architecture decisions** | 30 ADRs in [`docs/adr/`](docs/adr/) |
-| **Reference docs** | Domain glossary in [`docs/glossary/`](docs/glossary/) |
-| **Datastores** | PostgreSQL 17 / TimescaleDB (per-service schemas), Redis 7 |
-| **Messaging** | Apache Kafka 3.9 (KRaft) — 13 topics with per-topic DLQs |
+| **Architecture decisions** | 35 ADRs in [`docs/adr/`](docs/adr/) |
+| **Tests** | 915 — 561 Kotlin (Kotest) · 79 Python (pytest) · 191 Vitest · 84 Playwright |
 | **Observability** | Prometheus, Grafana, Loki, Tempo, OpenTelemetry |
-| **Quality gates** | Kotest, pytest, Vitest, Playwright, Gatling, Testcontainers |
+| **Quality gates** | Coverage ratchet, mutation testing (Stryker, mutmut), property-based tests (Hypothesis), Gatling load tests |
 
 ## Architecture
 
 ```
-                            +-------------+
-                            |     UI      |  React + TypeScript
-                            +------+------+
-                                   | REST / WebSocket
-                            +------+------+
-                            |   Gateway   |  JWT auth, rate limiting
-                            +------+------+
-            +-----------+----------+----------+-----------+
-            |           |          |          |           |
-       +----+----+  +---+---+  +---+----+  +--+-----+  +--+-----+
-       |Position |  | Price |  | Risk   |  | Rates  |  |Ref Data|
-       |Service  |  |Service|  |Orchstr |  | Vol    |  |        |
-       +----+----+  +---+---+  +-+----+-+  | Corr   |  +--------+
-            |           |        |    |    +--------+
-            |       +---+---+    |    |  gRPC
-            |       | Redis |    |    +-------+
-            |       +-------+    |            |
-            |                    |       +----+-----+
-            |                    |       |   Risk   |  Python
-            |                    |       |  Engine  |
-            |                    |       +----------+
-            +------------+-------+
-                         |
-            +------------+--------------------------+
-            |              Apache Kafka              |
-            +---+-----------+-----------+------------+
-                |           |           |
-           +----+----+  +---+--------+  +--+----------+
-           |  Audit  |  | Regulatory |  |Notification |
-           | Service |  |  Service   |  |  Service    |
-           +---------+  +------------+  +-------------+
-                              |
-                    PostgreSQL / TimescaleDB
+                                +-------------+
+                                |     UI      |  React 19 + TypeScript
+                                +------+------+
+                                       | REST / WebSocket
+                                +------+------+
+                                |   Gateway   |  Keycloak JWT, rate limit, WS fan-out
+                                +------+------+
+                                       |
+        +-------------+-------------+---+------------+-------------+--------------+
+        |             |             |                |             |              |
+   +----+-----+  +----+-----+  +---+--------+  +-----+------+  +---+------+  +----+-----+
+   | Position |  |  Price   |  |    Risk    |  |   Rates    |  |Reference |  |   Fix    |
+   | Service  |  | Service  |  |Orchestrator|  | Volatility |  |   Data   |  | Gateway  |
+   +----+-----+  +----+-----+  +----+--+----+  | Correlation|  +----+-----+  +----+-----+
+        |             |             |  |       +------------+       |             |
+        |        +----+----+        |  |  gRPC                       |        FIX 4.4
+        |        |  Redis  |        |  +------+                      |   (venue / prime broker)
+        |        +---------+        |         |                      |
+        |                           |    +----+------+               |
+        |                           |    |   Risk    |  Python       |
+        |                           |    |  Engine   |  NumPy/SciPy  |
+        |                           |    +-----------+  PyTorch      |
+        |                           |                                |
+        +--------+------------------+----------------+---------------+
+                 |                                   |
+        +--------+-----------------------------------+---------------+
+        |                       Apache Kafka                         |
+        |  trades.lifecycle · execution.reports · price.updates      |
+        |  risk.results · risk.cross-book-results · risk.pnl.intraday|
+        |  risk.regime.changes · risk.anomalies · risk.official-eod  |
+        |  limits.breaches · governance.audit · kinetix.audit.chain  |
+        +----+------------------+-----------------+------------------+
+             |                  |                 |
+       +-----+-----+    +-------+------+    +-----+--------+
+       |   Audit   |    |  Regulatory  |    | Notification |
+       |  Service  |    |   Service    |    |   Service    |
+       +-----+-----+    +--------------+    +--------------+
+             |
+         PostgreSQL / TimescaleDB
+         (hash-chained, immutable,
+          7-year retention)
 ```
 
-Each service owns its own database schema, communicates asynchronously via Kafka, and exposes REST endpoints through the gateway. The Python risk engine talks to the orchestrator over gRPC for low-latency valuation calls. See [`docs/adr/`](docs/adr/) for the architectural decisions behind these choices.
+Each Kotlin service owns its own PostgreSQL schema (ADR-0011), communicates with peers via Kafka (ADR-0004) or HTTP through the gateway (ADR-0012), and crosses the language boundary to the Python risk engine via a unified valuation gRPC contract (ADR-0024, ADR-0029). The risk engine is a **pure calculator**: the orchestrator owns all market-data discovery and fetching, so risk runs are deterministic, replayable, and free of hidden I/O (ADR-0029, ADR-0018).
 
-## Key Capabilities
+## Engineering hallmarks
 
-### Trading and Position Management
-- **Trade lifecycle** — booking, amendment, cancellation with idempotent processing
-- **Pre-trade limit checks** — position, notional, and concentration limits enforced across a six-level hierarchy (Firm / Division / Desk / Book / Trader / Counterparty) via `LimitHierarchyService`, with temporary limit increases
-- **Multi-currency positions** — FX rate aggregation with live rate caching and database persistence
-- **Realized P&L tracking** — computed on position reduction with full audit trail
-- **Order execution** — FIX protocol integration with fill deduplication, overfill protection, and execution cost analysis (slippage, market impact)
-- **Prime broker reconciliation** — automated break detection with configurable thresholds
+The pieces that took the most thought are documented under [`docs/adr/`](docs/adr/). The ones worth surfacing:
 
-### Risk Analytics
-- **VaR/ES** — parametric, historical simulation, and Monte Carlo (default 10K paths with antithetic variates for variance reduction)
-- **Greeks** — Delta, Gamma, Vega, Theta, Rho via finite differences; cross-Greeks (Vanna, Volga, Charm) via analytical Black-Scholes
-- **Options pricing** — Black-Scholes-Merton with continuous dividend yields
-- **P&L attribution** — intraday streaming with Greek decomposition (delta, gamma, vega, theta, rho, unexplained)
-- **What-if analysis** — hypothetical trade simulation with full risk re-computation
-- **Factor risk decomposition** — five systematic factors (equity beta, rates duration, credit spread, FX delta, vol exposure) with OLS and analytical loading estimation
-- **Cross-book aggregation** — multi-book VaR with shared-cache promotion and scheduled recalculation
+- **Discovery–valuation two-phase contract** ([ADR-0029](docs/adr/0029-discovery-valuation-two-phase-contract.md), [ADR-0024](docs/adr/0024-unified-valuation-rpc.md)) — risk-engine is a stateless function `(positions, market-data, seed) → results`. All data discovery and fetching is orchestrator-side. Combined with run manifests ([ADR-0018](docs/adr/0018-run-reproducibility-via-manifests.md)) this lets us replay any VaR run bit-for-bit from the captured inputs.
+- **Hash-chained, tamper-evident audit trail** ([ADR-0017](docs/adr/0017-hash-chained-audit-trail.md)) — every audit event embeds `SHA-256(payload || previous_hash)`. A row-level `pg_advisory_xact_lock` serialises chain writes so concurrent producers can never fork the chain. Seven-year retention on TimescaleDB hypertables.
+- **Six-level hierarchical limits** ([ADR-0023](docs/adr/0023-hierarchical-limit-management.md)) — pre-trade checks roll up Firm → Division → Desk → Book → Trader → Counterparty in a single pass. Temporary limit increases are first-class entities with their own approval workflow.
+- **EOD promotion governance** ([ADR-0019](docs/adr/0019-official-eod-labeling-with-promotion-governance.md)) — only fully completed runs can become `OFFICIAL_EOD`. Promotion is a separate, audited action with a four-eyes rule. Reports and regulatory submissions reference frozen promoted runs, not whichever scheduled run happened to finish last.
+- **Regime-adaptive VaR parameters** — a rule-based classifier (NORMAL / ELEVATED_VOL / CRISIS / RECOVERY) with debounced transitions auto-selects calculation method, confidence level, and time horizon. Behaviour on degraded inputs is explicitly specified ([ADR-0034](docs/adr/0034-regime-degraded-signal-policy.md)): a transition only fires when both available signals agree.
+- **FIX gateway extraction** ([ADR-0035](docs/adr/0035-fix-gateway-service-extraction.md)) — venue/FIX-protocol concerns isolated in a dedicated service so position-service can stay focused on state. Inbound execution reports flow over Kafka; outbound `NewOrderSingle` is a synchronous gRPC.
+- **Backward-compatible Flyway migrations** ([ADR-0025](docs/adr/0025-flyway-backward-compatible-migrations.md), [ADR-0027](docs/adr/0027-database-migration-practices.md)) — expand-contract split across two releases, transaction-incompatible statements (e.g. `CREATE INDEX CONCURRENTLY`) caught at review, rollback files alongside every migration.
+- **DLQ + circuit breaker resilience** ([ADR-0014](docs/adr/0014-resilience-patterns-dlq-circuit-breaker.md)) — every Kafka consumer wraps in a `RetryableConsumer` with bounded retries and per-topic DLQs. Inter-service HTTP calls are guarded by circuit breakers.
+- **Correlation IDs end-to-end** ([ADR-0022](docs/adr/0022-correlation-id-propagation.md)) — a UUID `correlationId` flows through every Kafka header and HTTP request so a single trace links UI click → API call → Kafka event → risk run → audit row.
 
-### Stress Testing and Scenarios
-- **Historical replay** — apply actual crisis-period returns (GFC 2008, COVID 2020, Taper Tantrum 2013, Euro Crisis 2011) to the current portfolio
-- **Reverse stress testing** — minimum-norm solver (SciPy SLSQP) to find the smallest shock producing a target loss
-- **Custom scenarios** — multi-factor parametric shocks with correlation override and liquidity stress factors
-- **Scenario governance** — version-controlled scenarios with approval workflow (draft / pending approval / approved / retired)
+## Quant & risk methodology
 
-### Regulatory and Compliance
-- **FRTB capital** — Standardised Approach: Sensitivities-Based Method (SBM), Default Risk Charge (DRC with credit-rating PDs, seniority-adjusted LGD, maturity weighting, sector concentration), Residual Risk Add-On (RRAO)
-- **VaR backtesting** — Kupiec POF and Christoffersen independence tests with Basel traffic-light zones
-- **Model governance** — versioned model registry with four-stage lifecycle (draft / validated / approved / retired)
-- **Regulatory submissions** — four-eyes approval workflow (preparer cannot be approver)
-- **Audit trail** — SHA-256 hash-chained immutable events with 7-year TimescaleDB retention
+| Capability | Method | Implementation |
+|---|---|---|
+| **VaR — Parametric** | Delta-Normal | `risk-engine/src/kinetix_risk/var_parametric.py` |
+| **VaR — Historical** | Empirical, sqrt-of-time scaling | `var_historical.py` |
+| **VaR — Monte Carlo** | 10K paths, antithetic variates | `var_monte_carlo.py` |
+| **Expected Shortfall** | CVaR at 97.5% (Basel FRTB) | `expected_shortfall.py` |
+| **Cross-book VaR** | Multi-book aggregation with correlation matrices, hierarchy roll-up | `cross_book_var.py` + `ScheduledCrossBookVaRCalculator.kt` |
+| **Greeks — analytical** | Black-Scholes-Merton (Δ, Γ, ν, Θ, ρ) with continuous dividend yield | `black_scholes.py` |
+| **Cross-Greeks** | Vanna, Volga, Charm — analytical BSM | `greeks.py` |
+| **Bond pricing** | DV01, key rate durations across 4-tenor internal grid; 12-tenor FRTB GIRR extension ([ADR-0028](docs/adr/0028-key-rate-duration-tenor-buckets.md)) | `bond_pricing.py`, `key_rate_duration.py` |
+| **Swap pricing** | Discount-curve based IRS valuation | `swap_pricing.py` |
+| **P&L attribution** | Greek decomposition (Δ, Γ, ν, Θ, ρ, unexplained); pricing-Greek source ([ADR-0032](docs/adr/0032-intraday-pnl-greek-source.md)) | `attribution_server.py`, `PnLAttributionDeriver.kt` |
+| **Brinson attribution** | Allocation vs. selection decomposition | `brinson.py` |
+| **Factor risk** | Five systematic factors (equity β, rates duration, credit spread, FX delta, vol exposure) — OLS and analytical loadings | `factor_model.py`, `factor_server.py` |
+| **Historical replay** | GFC 2008, COVID 2020, Taper Tantrum 2013, Euro Crisis 2011 | `historical_replay.py` |
+| **Reverse stress** | Minimum-norm SLSQP solver — smallest shock producing a target loss | `reverse_stress.py` |
+| **Custom scenarios** | Multi-factor parametric shocks, correlation override, liquidity stress | `stress_server.py`, scenario governance pipeline |
+| **FRTB SBM** | Sensitivities-Based Method — GIRR, equity, FX, commodity, credit spread; bucket correlations per Basel | `frtb/sbm.py`, `frtb/girr_correlations.py` |
+| **FRTB DRC** | Default Risk Charge — credit-rating PDs, seniority LGD, maturity weighting, sector concentration | `frtb/drc.py`, `frtb/drc_enhanced.py` |
+| **FRTB RRAO** | Residual Risk Add-On for exotics | `frtb/rrao.py` |
+| **SA-CCR** | Standardised Approach to Counterparty Credit Risk | `sa_ccr.py`, `sa_ccr_server.py` |
+| **Counterparty PFE** | Monte Carlo, 95th/99th percentile across tenor buckets | `credit_exposure.py`, `counterparty_risk_server.py` |
+| **CVA** | Discrete approximation using CDS-implied or Basel default probabilities | `credit_exposure.py` |
+| **Wrong-way risk** | Sector-match taxonomy ([ADR-0031](docs/adr/0031-wrong-way-risk-sector-taxonomy.md)) | `counterparty_risk_server.py` |
+| **VaR backtesting** | Kupiec POF + Christoffersen independence; Basel traffic-light zones | `backtesting.py` |
+| **Vol surface diff** | Bilinear interpolation in (log K, √T) ([ADR-0033](docs/adr/0033-vol-surface-diff-method.md)) | `volatility.py` |
+| **Regime detection** | Rule-based classifier with debounced transitions; degraded-input policy ([ADR-0034](docs/adr/0034-regime-degraded-signal-policy.md)) | `regime_detector.py`, `ScheduledRegimeDetector.kt` |
+| **Hedge optimisation** | Constrained optimiser minimising target Greeks / VaR, with cost model | `hedge_optimizer.py` |
+| **ML — anomaly detection** | Isolation Forest on price/vol streams | `ml/anomaly_detector.py` |
+| **ML — vol forecasting** | LSTM (PyTorch) | `ml/vol_predictor.py` |
+| **ML — credit PD** | Neural net classifier | `ml/credit_model.py` |
 
-### Market Regime Detection
-- **Rule-based classifier** — four regimes (normal, elevated volatility, crisis, recovery) with debounced transitions
-- **Adaptive VaR parameters** — calculation method, confidence level, and time horizon auto-adjust per regime
-- **Early warning signals** — alerts at 80% of regime transition thresholds
+## Services
 
-### Counterparty Risk
-- **Exposure aggregation** — gross, net, and net-net (post-collateral) exposure per counterparty
-- **Netting sets** — ISDA/GMRA agreement modelling with close-out netting
-- **PFE** — Monte Carlo potential future exposure at 95%/99% confidence across tenor buckets
-- **CVA** — discrete approximation using CDS-implied or Basel II default probabilities
+| Service | Language | Responsibilities |
+|---|---|---|
+| **Gateway** | Kotlin | REST/WebSocket aggregation, Keycloak JWT, rate limiting, role-based access (`ADMIN`, `TRADER`, `RISK_MANAGER`, `COMPLIANCE`, `VIEWER`) |
+| **Position Service** | Kotlin | Trade book/amend/cancel with idempotent processing, six-level hierarchical limits, real-time positions, realised P&L, prime broker reconciliation, counterparty exposure |
+| **Price Service** | Kotlin | Market-data ingestion, TimescaleDB hypertable storage with continuous aggregates, Redis caching, Kafka publishing |
+| **Rates Service** | Kotlin | Risk-free curves, forward curves, yield curve anomaly detection |
+| **Volatility Service** | Kotlin | Volatility surfaces with bilinear (log K, √T) interpolation |
+| **Correlation Service** | Kotlin | Correlation matrices with Ledoit-Wolf shrinkage |
+| **Reference Data Service** | Kotlin | Instruments (11 sealed-interface subtypes), org hierarchy, counterparties, credit ratings, dividend yields, credit spreads |
+| **Risk Orchestrator** | Kotlin | Five-phase risk pipeline (positions → discover → fetch → valuate → publish), cross-book aggregation, P&L attribution, what-if engine, EOD promotion, SOD baselines, scheduled regime detection |
+| **Regulatory Service** | Kotlin | FRTB Standardised Approach, VaR backtesting, model registry with four-stage lifecycle, regulatory submissions with four-eyes approval, XBRL/CSV templates |
+| **Audit Service** | Kotlin | Hash-chained immutable audit trail, DLQ replay, 7-year TimescaleDB retention |
+| **Notification Service** | Kotlin | Alert rule engine (13 alert types), debounced/deduplicated delivery via in-app/email/webhook/PagerDuty, escalation, anomaly subscriptions |
+| **Fix Gateway** | Kotlin | FIX 4.4 venue connectivity, `NewOrderSingle`/`ExecutionReport` lifecycle, session reconciliation, mass-cancel-on-disconnect ([ADR-0035](docs/adr/0035-fix-gateway-service-extraction.md)) |
+| **Risk Engine** | Python | Stateless gRPC calculator: VaR (3 methods), ES, Greeks, BSM/bond/swap pricing, FRTB SBM/DRC/RRAO, SA-CCR, factor model, regime classifier, reverse stress, ML services |
+| **UI** | TypeScript | React 19 trading + risk dashboard — 11 tabs in three clusters (Trading, Risk, Ops), workspaces with saved views, WCAG 2.1 accessibility, dark mode, CSV export, WebSocket streaming |
 
-## Tech Stack
+## Behavioural specifications
+
+The platform's intended behaviour is formally specified in 24 [Allium v3](https://github.com/juxt/allium) files under [`specs/`](specs/). Each spec declares entities with lifecycle transition graphs, state-dependent field presence, rules with pre/post-conditions, and invariants — design documentation and a verifiable contract in one.
+
+| Spec | Domain |
+|---|---|
+| `trading.allium` | Trade booking, amend, cancel; event publishing |
+| `positions.allium` | Position aggregation, MTM, realised P&L |
+| `execution.allium` | Order lifecycle, FIX integration, fill processing |
+| `limits.allium` | Six-level hierarchy, pre-trade checks, temporary increases |
+| `risk.allium` | VaR/ES, Greeks, cross-book aggregation, EOD promotion |
+| `risk-models.allium` | Quantitative model contracts (VaR, BSM, bond/swap, stress, FRTB) |
+| `intraday-pnl.allium` | Streaming intraday P&L with Greek attribution |
+| `discovery-valuation.allium` | Two-phase risk-engine contract |
+| `hierarchy-risk.allium` | Multi-desk roll-up, VaR budgeting, marginal contribution |
+| `factor-model.allium` | Systematic risk decomposition |
+| `scenarios.allium` / `scenario-lifecycle.allium` | Historical replay, reverse stress, governance workflow |
+| `regime.allium` | Market regime detection and adaptation |
+| `regulatory.allium` | Model governance, backtesting, submissions, FRTB |
+| `audit.allium` | Hash-chained audit invariants |
+| `counterparty-risk.allium` | PFE, CVA, netting sets, wrong-way risk |
+| `liquidity.allium` | LVaR, concentration, stressed liquidation |
+| `hedge.allium` | Constrained hedge optimisation |
+| `alerts.allium` / `alert-escalation.allium` | Alert rule engine and escalation |
+| `eod-close.allium` | Automatic EOD trigger and promotion |
+| `market-data.allium` | Price, rate, vol, correlation ingestion |
+| `reference-data.allium` | Instruments, org hierarchy, users, benchmarks |
+| `core.allium` | Shared value types (Money, TimeRange, CurvePoint) |
+
+## Tech stack
 
 | Layer | Technology |
 |---|---|
 | Languages | Kotlin 2.1 (JVM 21), Python 3.12, TypeScript 5.9 |
-| Backend | Ktor 3.1, Exposed ORM, Kotlinx Serialization |
-| Risk engine | NumPy, SciPy, PyTorch, scikit-learn |
+| Backend framework | Ktor 3.1, Koin, Kotlinx Serialization, Exposed 0.58 ORM |
+| Risk engine | NumPy, SciPy, PyTorch 2.2, scikit-learn |
 | Frontend | React 19, Tailwind CSS 4, Vite 7, Recharts |
-| Database | PostgreSQL 17 / TimescaleDB (hypertables, continuous aggregates, retention policies) |
-| Messaging | Apache Kafka 3.9 (KRaft mode), 13 topics with per-topic DLQs |
-| Caching | Redis 7 (Lettuce client) |
+| Datastores | PostgreSQL 17 / TimescaleDB (hypertables, continuous aggregates, retention policies) |
+| Caching | Redis 7 (Lettuce 6.5) |
+| Messaging | Apache Kafka 3.9 (KRaft) — 20 production topics with per-topic DLQs |
 | Inter-service | gRPC 1.70 / Protobuf 4.29 |
 | Auth | Keycloak 24 (OAuth2/OIDC, role-based access) |
 | Observability | Micrometer, OpenTelemetry, Prometheus, Grafana, Loki, Tempo |
 | Build | Gradle 9.3 (Kotlin DSL, convention plugins), uv, npm |
-| Testing | Kotest, Testcontainers, MockK, pytest, Vitest, Playwright, Gatling |
+| Testing | Kotest, Testcontainers, MockK, pytest, Hypothesis, Vitest, Playwright, Gatling, Stryker, mutmut |
 | CI/CD | GitHub Actions (parallel jobs per push) |
 | Deployment | Docker, Helm, Kubernetes |
 
-## Services
-
-| Service | Language | Purpose |
-|---|---|---|
-| **Gateway** | Kotlin | API routing, JWT auth (Keycloak), rate limiting, WebSocket proxy |
-| **Position Service** | Kotlin | Trade booking/amend/cancel, positions, hierarchical limit checks, P&L, order execution, prime broker reconciliation, counterparty exposure |
-| **Price Service** | Kotlin | Price ingestion, TimescaleDB storage, Redis caching, Kafka publishing |
-| **Risk Orchestrator** | Kotlin | VaR/ES/Greeks orchestration, cross-book aggregation, P&L attribution, hedge recommendations, what-if analysis, EOD promotion, SOD baselines |
-| **Audit Service** | Kotlin | Hash-chained immutable audit trail with 7-year retention; DLQ replay |
-| **Regulatory Service** | Kotlin | FRTB capital, model governance, scenario management, backtesting, regulatory submissions |
-| **Notification Service** | Kotlin | Risk breach alerts, suggested actions, anomaly detection, multi-channel delivery (in-app, email, webhook) |
-| **Rates Service** | Kotlin | Yield curves, risk-free rates, forward curves |
-| **Reference Data Service** | Kotlin | Instruments (11 typed subtypes), divisions, desks, counterparties, dividend yields, credit spreads |
-| **Volatility Service** | Kotlin | Volatility surfaces with bilinear interpolation |
-| **Correlation Service** | Kotlin | Correlation matrices with Ledoit-Wolf shrinkage estimation |
-| **Risk Engine** | Python | VaR, Monte Carlo, Black-Scholes, cross-Greeks, FRTB, factor model, regime detection, reverse stress (gRPC server) |
-| **UI** | TypeScript | React trading and risk dashboard — 11 tabs, dark mode, CSV export, WebSocket streaming, WAI-ARIA accessibility |
-
-## Behavioural Specifications
-
-The platform's intended behaviour is formally documented in 24 [Allium v3](https://github.com/juxt/allium) specification files in [`specs/`](specs/), covering trading, positions, risk, alerts, audit, limits, market data, scenarios, regulatory, execution, hedge recommendations, counterparty risk, hierarchy risk, regime detection, intraday P&L, liquidity, factor model, and risk models.
-
-Each spec declares entities with lifecycle transition graphs, state-dependent field presence, rules with pre/post-conditions, and invariants — serving as both design documentation and a verifiable contract between the spec and the implementation.
-
-## Quick Start
+## Quick start
 
 ### Prerequisites
 
@@ -165,12 +203,12 @@ Each spec declares entities with lifecycle transition graphs, state-dependent fi
 Once everything is up:
 
 1. Open the dashboard at <http://localhost:5173> and log in as `trader1` / `trader1`.
-2. Go to the **Trades** tab and book a buy order — for example, 1,000 shares of `AAPL` at the live price.
-3. Switch to **Positions** to see the new position appear with live mark-to-market.
-4. Switch to **Risk** to see VaR, ES, and Greeks recompute on the new exposure within seconds.
-5. The **Alerts** tab will surface any limit warnings or breaches as you keep trading.
+2. Go to **Trades**, place a buy order — e.g. 1,000 shares of `AAPL` at the live mid.
+3. Switch to **Positions** to see the new line mark-to-market in real time.
+4. Switch to **Risk** — VaR, ES, Greeks, and limit utilisation recompute within seconds.
+5. The **Alerts** tab surfaces any limit warnings or breaches.
 
-This exercises the full pipeline end-to-end: gateway → position-service → Kafka (`trades.lifecycle`) → risk-orchestrator → risk-engine (gRPC) → notification-service → UI WebSocket.
+This exercises the full pipeline end-to-end: UI → gateway → position-service → Kafka (`trades.lifecycle`) → risk-orchestrator → risk-engine (gRPC) → notification-service → UI WebSocket.
 
 ### Stop
 
@@ -188,7 +226,7 @@ This exercises the full pipeline end-to-end: gateway → position-service → Ka
 | <http://localhost:9090> | Prometheus |
 | <http://localhost:8180> | Keycloak (admin/admin) |
 
-### Default Users
+### Default users
 
 | Username | Password | Role |
 |---|---|---|
@@ -197,16 +235,16 @@ This exercises the full pipeline end-to-end: gateway → position-service → Ka
 | compliance1 | compliance1 | COMPLIANCE |
 | admin | admin | ADMIN |
 
-## Testing
+## Testing & quality gates
 
-The full quality suite runs as parallel CI jobs on every push.
+Every push runs the full suite as parallel CI jobs. Acceptance tests use real Postgres and Kafka via Testcontainers and a real in-JVM gRPC server bound on a random port — interceptors, serialisation, and channel wiring are all exercised. Transport is never mocked.
 
 ```bash
 # Kotlin
 ./gradlew test                                    # Unit tests (all modules)
-./gradlew acceptanceTest                          # Acceptance tests (route/contract)
+./gradlew acceptanceTest                          # Acceptance tests (route + contract)
 ./gradlew integrationTest                         # Integration tests (Testcontainers)
-./gradlew :end2end-tests:end2EndTest              # End-to-end tests across services
+./gradlew :end2end-tests:end2EndTest              # End-to-end across services
 
 # Python risk engine
 cd risk-engine && uv run pytest                   # Unit + integration
@@ -214,54 +252,80 @@ cd risk-engine && uv run pytest -m unit           # Unit only
 
 # UI
 cd ui && npm run test                             # Vitest unit tests
-cd ui && npx playwright test                      # Playwright E2E (browser)
+cd ui && npx playwright test                      # Playwright browser tests
 
-# Load tests
+# Load
 ./gradlew :load-tests:gatlingRun                  # Gatling performance tests
 ```
 
-See [`CLAUDE.md`](CLAUDE.md) for the testing philosophy (TDD/BDD, coverage expectations, naming conventions).
+A coverage ratchet gates merges, mutation testing (Stryker for UI, mutmut for Python) keeps assertion quality honest, and Hypothesis property-based tests sit alongside example-based pytest for the risk engine. See [`CLAUDE.md`](CLAUDE.md) for the testing philosophy (TDD/BDD, naming, coverage expectations).
 
-## Project Structure
+## Architecture Decision Records
+
+35 ADRs — 32 Accepted, 3 Proposed. Every ADR has an **Applies when** trigger list and an imperative **Rules** section, so the decision *and* the resulting code contract are both explicit. Full index and by-task lookup table in [`docs/adr/`](docs/adr/README.md).
+
+Highlights:
+
+| # | Decision |
+|---|---|
+| [0011](docs/adr/0011-database-per-service-isolation.md) | Database-per-service isolation |
+| [0017](docs/adr/0017-hash-chained-audit-trail.md) | Hash-chained audit trail (SHA-256 + advisory lock) |
+| [0018](docs/adr/0018-run-reproducibility-via-manifests.md) | Run reproducibility via manifests |
+| [0019](docs/adr/0019-official-eod-labeling-with-promotion-governance.md) | Official EOD labeling with promotion governance |
+| [0020](docs/adr/0020-sealed-interface-instrument-type-hierarchy.md) | Sealed-interface instrument hierarchy |
+| [0021](docs/adr/0021-risk-orchestration-architecture.md) | Risk orchestration architecture (five phases) |
+| [0023](docs/adr/0023-hierarchical-limit-management.md) | Six-level hierarchical limit management |
+| [0024](docs/adr/0024-unified-valuation-rpc.md) | Unified valuation RPC |
+| [0028](docs/adr/0028-key-rate-duration-tenor-buckets.md) | KRD tenor buckets — 4 internal, 12 for FRTB GIRR |
+| [0029](docs/adr/0029-discovery-valuation-two-phase-contract.md) | Discovery–valuation two-phase contract |
+| [0031](docs/adr/0031-wrong-way-risk-sector-taxonomy.md) | Wrong-way risk sector taxonomy |
+| [0032](docs/adr/0032-intraday-pnl-greek-source.md) | Greek source for intraday P&L |
+| [0033](docs/adr/0033-vol-surface-diff-method.md) | Vol-surface diff method |
+| [0034](docs/adr/0034-regime-degraded-signal-policy.md) | Regime classifier behaviour on degraded inputs |
+| [0035](docs/adr/0035-fix-gateway-service-extraction.md) | Fix-gateway service extraction |
+
+## Project structure
 
 ```
 kinetix/
-├── gateway/                 API gateway (auth, routing, rate limiting)
-├── position-service/        Trade booking, positions, limits, execution, reconciliation
-├── price-service/           Price ingestion pipeline
-├── rates-service/           Yield curves and risk-free rates
-├── reference-data-service/  Instruments, divisions, desks, counterparties
+├── gateway/                 API gateway (auth, routing, rate limiting, WS fan-out)
+├── position-service/        Trades, positions, limits, execution, reconciliation
+├── price-service/           Price ingestion + TimescaleDB hypertables
+├── rates-service/           Risk-free and forward curves
 ├── volatility-service/      Volatility surfaces
-├── correlation-service/     Correlation matrices
-├── risk-orchestrator/       Risk calculation coordinator
+├── correlation-service/     Correlation matrices (Ledoit-Wolf)
+├── reference-data-service/  Instruments, org hierarchy, counterparties
+├── risk-orchestrator/       Risk pipeline coordinator (5 phases)
 ├── audit-service/           Hash-chained immutable audit trail
 ├── regulatory-service/      FRTB, model governance, scenarios, submissions
-├── notification-service/    Risk breach alerts and anomaly detection
+├── notification-service/    Alert rules and multi-channel delivery
+├── fix-gateway/             FIX 4.4 venue connectivity (ADR-0035)
 ├── risk-engine/             Python quantitative engine (gRPC)
-├── ui/                      React trading and risk dashboard
-├── proto/                   Protobuf/gRPC service contracts
+├── ui/                      React 19 trading and risk dashboard
+├── proto/                   Protobuf / gRPC service contracts
 ├── common/                  Shared Kotlin library
-├── specs/                   Allium v3 behavioural specifications
+├── specs/                   24 Allium v3 behavioural specifications
 ├── end2end-tests/           End-to-end API tests
 ├── schema-tests/            Kafka event schema compatibility tests
+├── smoke-tests/             Post-deploy smoke checks
 ├── load-tests/              Gatling performance tests
 ├── deploy/                  Docker, Helm, Kubernetes configs
 └── docs/                    ADRs, glossary, runbooks, plans
 ```
 
-## Where to Go Next
+## Documentation map
 
-If you're new to the codebase, this is the recommended reading order:
+Recommended reading order for new contributors:
 
-1. **[`CLAUDE.md`](CLAUDE.md)** — project conventions, testing philosophy, design principles, and guardrails. Read this first.
-2. **[`docs/glossary/`](docs/glossary/)** — domain vocabulary. [`kinetix.md`](docs/glossary/kinetix.md) covers platform-specific concepts (limit hierarchy, Kafka topics, audit chain), [`generic.md`](docs/glossary/generic.md) covers finance terminology (VaR, Greeks, FRTB).
-3. **[`docs/adr/`](docs/adr/)** — 30 architecture decision records explaining *why* the platform looks the way it does (Ktor over Spring, gRPC for Python, hash-chained audit, etc.).
-4. **[`specs/`](specs/)** — Allium v3 behavioural contracts. Start with `core.allium`, `trading.allium`, and `risk.allium`.
-5. **[`docs/runbooks/`](docs/runbooks/)** — operational procedures.
-6. **`*/README.md`** — service-level READMEs (`ui/README.md`, `risk-engine/README.md`, etc.) where they exist.
+1. **[`CLAUDE.md`](CLAUDE.md)** — project conventions, testing philosophy, design principles, guardrails. Start here.
+2. **[`docs/adr/README.md`](docs/adr/README.md)** — by-task lookup table maps "I am about to add a Kafka topic" / "I am about to write a Flyway migration" to the ADRs you must read first.
+3. **[`docs/glossary/`](docs/glossary/)** — `kinetix.md` for platform-specific terms (limit hierarchy, Kafka topics, audit chain); `generic.md` for finance terminology (VaR, Greeks, FRTB).
+4. **[`specs/`](specs/)** — Allium behavioural contracts. Start with `core.allium`, `trading.allium`, `risk.allium`.
+5. **[`docs/runbooks/`](docs/runbooks/)** — operational procedures (zero-downtime deploy, etc.).
+6. **`*/README.md`** — service-level READMEs where they exist (`ui/README.md`, `risk-engine/README.md`).
 
-For changes:
+For contributors:
 
 - Follow strict TDD — write a failing test first, then make it pass.
 - Every backend feature needs unit + acceptance tests; every UI feature needs Vitest + Playwright coverage.
-- Don't add libraries, modify CI files, or change architecture without explicit approval — see the **Guardrails** section of `CLAUDE.md`.
+- Don't add libraries, modify CI files, or change architecture without explicit approval — see the **Guardrails** section of [`CLAUDE.md`](CLAUDE.md).
