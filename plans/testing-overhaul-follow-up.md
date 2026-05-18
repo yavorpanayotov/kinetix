@@ -167,7 +167,7 @@ That brings in `org.testcontainers.kafka.KafkaContainer` transitively, plus the 
 
 - [x] **8.1** Tighten the `IMPL_STYLE_KOTEST` regex in `scripts/check-test-naming.py` to match only the Kotest *test description* form: `test("description here") {` followed by a block body. Right now it matches any `test("...")` which is too broad.
   - Acceptance: `python3 scripts/check-test-naming.py` reports fewer hits than before AND fails the build with non-zero exit on a fixture file containing `test("foo") {}` (add a small inline self-test or run the script against a tmp file with one impl-style and one descriptive test).
-- [ ] **8.2** Add a small allow-list in `scripts/check-test-naming.py` of intentional short identifiers (currency codes ISO-4217 majors, instrument types like `BOND`, `EQUITY`, `FX`, `IRS`) that legitimately appear at the start of test descriptions.
+- [x] **8.2** Add a small allow-list in `scripts/check-test-naming.py` of intentional short identifiers (currency codes ISO-4217 majors, instrument types like `BOND`, `EQUITY`, `FX`, `IRS`) that legitimately appear at the start of test descriptions.
   - Acceptance: `python3 scripts/check-test-naming.py` reports zero false positives on the current codebase.
 - [ ] **8.3** Split the "implementation-flavoured" heuristic in `scripts/check-test-naming.py` so it applies separately to `@Test fun ...` (JUnit-style, camelCase functions are idiomatic — be lenient) versus Kotest `test("...")` (descriptive strings expected — be strict). Document the split in a comment at the top of the script.
   - Acceptance: `python3 scripts/check-test-naming.py` exits 0 on the current codebase.
