@@ -101,7 +101,7 @@ That brings in `org.testcontainers.kafka.KafkaContainer` transitively, plus the 
 
 **Status:** Module exists at `test-support/`. Only `KafkaTestSetup` ported. Plan called for builders + Postgres + gRPC + demo migrations. Do NOT big-bang migrate every service — opportunistic migration is fine; the two demo migrations (5.8, 5.9) prove the pattern.
 
-- [ ] **5.1** Add `test-support/src/main/kotlin/com/kinetix/testsupport/database/PostgresTestSetup.kt` — promote from the duplicates at `correlation-service/.../DatabaseTestSetup.kt`, `volatility-service/.../DatabaseTestSetup.kt`, `position-service/.../DatabaseTestSetup.kt`, etc. Must support per-service migration scripts via `migrationLocation: String = "db/migration"`.
+- [x] **5.1** Add `test-support/src/main/kotlin/com/kinetix/testsupport/database/PostgresTestSetup.kt` — promote from the duplicates at `correlation-service/.../DatabaseTestSetup.kt`, `volatility-service/.../DatabaseTestSetup.kt`, `position-service/.../DatabaseTestSetup.kt`, etc. Must support per-service migration scripts via `migrationLocation: String = "db/migration"`.
   - Acceptance: `./gradlew :test-support:build :test-support:test`
 - [ ] **5.2** Add `test-support/src/main/kotlin/com/kinetix/testsupport/grpc/InProcessGrpcServer.kt` — wraps `NettyServerBuilder.forPort(0)` + `ManagedChannelBuilder.usePlaintext()` per the convention in CLAUDE.md ("Acceptance tests use real infrastructure"). Provides `register(serviceImpl)` and `channel()`.
   - Acceptance: `./gradlew :test-support:build :test-support:test`
