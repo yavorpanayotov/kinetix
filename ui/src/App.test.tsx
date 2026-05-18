@@ -205,6 +205,13 @@ function setupDefaults() {
     preferences: DEFAULT_PREFERENCES,
     updatePreference: vi.fn(),
     resetPreferences: vi.fn(),
+    views: [{ id: 'view-default', name: 'Default', prefs: DEFAULT_PREFERENCES }],
+    activeViewId: 'view-default',
+    switchView: vi.fn(),
+    saveAsNewView: vi.fn(() => 'view-new'),
+    updateActiveView: vi.fn(),
+    deleteView: vi.fn(),
+    renameView: vi.fn(),
   })
   mockUseHierarchySummary.mockReturnValue({
     summary: {
@@ -1331,6 +1338,77 @@ describe('App', () => {
       const tabBar = screen.getByTestId('tab-bar')
       const tabs = tabBar.querySelectorAll('[role="tab"]')
       expect(tabs).toHaveLength(EXPECTED_TAB_ORDER.length)
+    })
+  })
+
+  describe('saved views integration (plan §2.3)', () => {
+    it('renders the workspace view picker with the active view name', () => {
+      mockUseWorkspace.mockReturnValue({
+        preferences: { ...DEFAULT_PREFERENCES, defaultTab: 'positions' },
+        updatePreference: vi.fn(),
+        resetPreferences: vi.fn(),
+        views: [
+          { id: 'view-default', name: 'Default', prefs: { ...DEFAULT_PREFERENCES, defaultTab: 'positions' } },
+          { id: 'view-credit', name: 'Credit stress monitor', prefs: { ...DEFAULT_PREFERENCES, defaultTab: 'risk' } },
+        ],
+        activeViewId: 'view-credit',
+        switchView: vi.fn(),
+        saveAsNewView: vi.fn(() => 'view-new'),
+        updateActiveView: vi.fn(),
+        deleteView: vi.fn(),
+        renameView: vi.fn(),
+      })
+
+      render(<App />)
+
+      expect(screen.getByTestId('workspace-view-toggle')).toHaveTextContent('Credit stress monitor')
+    })
+
+    it('switching the active view changes the active tab to that view\'s defaultTab', () => {
+      // Start on Positions tab via "Default" view.
+      const switchView = vi.fn()
+      mockUseWorkspace.mockReturnValue({
+        preferences: { ...DEFAULT_PREFERENCES, defaultTab: 'positions' },
+        updatePreference: vi.fn(),
+        resetPreferences: vi.fn(),
+        views: [
+          { id: 'view-default', name: 'Default', prefs: { ...DEFAULT_PREFERENCES, defaultTab: 'positions' } },
+          { id: 'view-risk', name: 'Risk view', prefs: { ...DEFAULT_PREFERENCES, defaultTab: 'risk' } },
+        ],
+        activeViewId: 'view-default',
+        switchView,
+        saveAsNewView: vi.fn(() => 'view-new'),
+        updateActiveView: vi.fn(),
+        deleteView: vi.fn(),
+        renameView: vi.fn(),
+      })
+
+      const { rerender } = render(<App />)
+
+      // Positions tab is initially active.
+      expect(screen.getByTestId('tab-positions')).toHaveAttribute('aria-selected', 'true')
+
+      // Simulate the hook re-rendering after switchView flips the active view
+      // — this is how the real hook signals view changes downstream.
+      mockUseWorkspace.mockReturnValue({
+        preferences: { ...DEFAULT_PREFERENCES, defaultTab: 'risk' },
+        updatePreference: vi.fn(),
+        resetPreferences: vi.fn(),
+        views: [
+          { id: 'view-default', name: 'Default', prefs: { ...DEFAULT_PREFERENCES, defaultTab: 'positions' } },
+          { id: 'view-risk', name: 'Risk view', prefs: { ...DEFAULT_PREFERENCES, defaultTab: 'risk' } },
+        ],
+        activeViewId: 'view-risk',
+        switchView,
+        saveAsNewView: vi.fn(() => 'view-new'),
+        updateActiveView: vi.fn(),
+        deleteView: vi.fn(),
+        renameView: vi.fn(),
+      })
+      rerender(<App />)
+
+      // After the view switch, the Risk tab is now the active tab.
+      expect(screen.getByTestId('tab-risk')).toHaveAttribute('aria-selected', 'true')
     })
   })
 })

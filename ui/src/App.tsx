@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { Activity, BarChart3, ScrollText, TrendingUp, Shield, FlaskConical, Scale, Bell, Server, FlaskRound, Sun, Moon, Save, CalendarDays, Users, FileText, LogOut } from 'lucide-react'
+import { Activity, BarChart3, ScrollText, TrendingUp, Shield, FlaskConical, Scale, Bell, Server, FlaskRound, Sun, Moon, CalendarDays, Users, FileText, LogOut } from 'lucide-react'
 import { ErrorBoundary, SectionErrorCard } from './components/ErrorBoundary'
 import { PositionGrid } from './components/PositionGrid'
 import { TradeBlotter } from './components/TradeBlotter'
@@ -49,6 +49,7 @@ import { TapeReplayIndicator } from './components/TapeReplayIndicator'
 import { useTraders } from './hooks/useTraders'
 import { TraderSelector } from './components/TraderSelector'
 import { useWorkspace } from './hooks/useWorkspace'
+import { WorkspaceViewPicker } from './components/WorkspaceViewPicker'
 import { useAuth } from './auth/useAuth'
 import { DEMO_MODE } from './auth/demoPersonas'
 import { PersonaSwitcher } from './components/PersonaSwitcher'
@@ -90,6 +91,22 @@ function App() {
   const [activeTab, setActiveTab] = useState<Tab>(
     (workspace.preferences.defaultTab as Tab) || 'positions',
   )
+
+  // Plan §2.3 — When the user switches saved views, swap `activeTab` to the
+  // newly-active view's `defaultTab`. Local UI state is otherwise authoritative
+  // (so manual tab clicks aren't squashed by re-renders); state is reset only
+  // when `activeViewId` transitions.
+  //
+  // Uses the official React "adjust state during render" pattern (see
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes)
+  // rather than an effect, to avoid the cascading-renders lint and the extra
+  // commit it would cost.
+  const [lastViewId, setLastViewId] = useState<string | null>(workspace.activeViewId)
+  if (workspace.activeViewId !== lastViewId) {
+    setLastViewId(workspace.activeViewId)
+    const nextTab = workspace.preferences.defaultTab as Tab
+    if (nextTab) setActiveTab(nextTab)
+  }
   const [whatIfOpen, setWhatIfOpen] = useState(false)
   const [tradesSubTab, setTradesSubTab] = useState<'blotter' | 'place' | 'cost' | 'reconciliation'>('blotter')
   // Cross-tab link (plan §2.4): when the user jumps from a counterparty row
@@ -264,18 +281,30 @@ function App() {
             loading={dataQuality.loading}
           />
           {!DEMO_MODE && (
-            <button
-              data-testid="save-workspace-button"
-              onClick={() => {
+            <WorkspaceViewPicker
+              views={workspace.views}
+              activeViewId={workspace.activeViewId}
+              onSwitchView={workspace.switchView}
+              onSaveAsNewView={(name) => {
+                // Plan §2.3: snapshot the *current* ephemeral UI state into
+                // the brand-new view, without disturbing the existing
+                // active view's prefs.
+                workspace.saveAsNewView(name, {
+                  ...workspace.preferences,
+                  defaultTab: activeTab,
+                  defaultBook: bookId,
+                })
+              }}
+              onUpdateActiveView={() => {
+                // "Update current view" — by contrast — explicitly overwrites
+                // the active view with the current ephemeral state.
                 workspace.updatePreference('defaultTab', activeTab)
                 workspace.updatePreference('defaultBook', bookId)
+                workspace.updateActiveView()
               }}
-              className="hidden sm:block p-1.5 rounded-md hover:bg-surface-800 transition-colors text-slate-300 hover:text-white"
-              aria-label="Save workspace"
-              title="Save current tab and book as defaults"
-            >
-              <Save className="h-4 w-4" />
-            </button>
+              onDeleteView={workspace.deleteView}
+              onRenameView={workspace.renameView}
+            />
           )}
           <button
             data-testid="dark-mode-toggle"

@@ -143,6 +143,13 @@ describe('RiskTab', () => {
       preferences: DEFAULT_PREFERENCES,
       updatePreference: vi.fn(),
       resetPreferences: vi.fn(),
+      views: [{ id: 'view-default', name: 'Default', prefs: DEFAULT_PREFERENCES }],
+      activeViewId: 'view-default',
+      switchView: vi.fn(),
+      saveAsNewView: vi.fn(() => 'view-new'),
+      updateActiveView: vi.fn(),
+      deleteView: vi.fn(),
+      renameView: vi.fn(),
     })
   })
 
@@ -676,6 +683,13 @@ describe('RiskTab', () => {
         preferences: DEFAULT_PREFERENCES,
         updatePreference,
         resetPreferences: vi.fn(),
+        views: [{ id: 'view-default', name: 'Default', prefs: DEFAULT_PREFERENCES }],
+        activeViewId: 'view-default',
+        switchView: vi.fn(),
+        saveAsNewView: vi.fn(() => 'view-new'),
+        updateActiveView: vi.fn(),
+        deleteView: vi.fn(),
+        renameView: vi.fn(),
       })
 
       render(<RiskTab bookId="book-1" {...defaultStressProps} />)
@@ -699,6 +713,13 @@ describe('RiskTab', () => {
         },
         updatePreference: vi.fn(),
         resetPreferences: vi.fn(),
+        views: [{ id: 'view-default', name: 'Default', prefs: DEFAULT_PREFERENCES }],
+        activeViewId: 'view-default',
+        switchView: vi.fn(),
+        saveAsNewView: vi.fn(() => 'view-new'),
+        updateActiveView: vi.fn(),
+        deleteView: vi.fn(),
+        renameView: vi.fn(),
       })
 
       render(<RiskTab bookId="book-1" {...defaultStressProps} />)

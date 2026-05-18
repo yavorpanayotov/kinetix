@@ -6,7 +6,7 @@ test.describe('Keyboard Navigation - Tab Traversal and Focus Management', () => 
     await mockAllApiRoutes(page)
   })
 
-  test('Tab traversal reaches header controls: book selector, save workspace, dark mode toggle', async ({
+  test('Tab traversal reaches header controls: book selector, workspace view picker, dark mode toggle', async ({
     page,
   }) => {
     await page.goto('/')
@@ -31,7 +31,7 @@ test.describe('Keyboard Navigation - Tab Traversal and Focus Management', () => 
 
     expect(visitedTestIds.has('hierarchy-selector-toggle')).toBe(true)
     expect(visitedTestIds.has('dark-mode-toggle')).toBe(true)
-    expect(visitedTestIds.has('save-workspace-button')).toBe(true)
+    expect(visitedTestIds.has('workspace-view-toggle')).toBe(true)
   })
 
   test('ArrowRight moves focus between tabs', async ({ page }) => {
@@ -134,7 +134,7 @@ test.describe('Keyboard Navigation - Tab Traversal and Focus Management', () => 
     const expectedControls = [
       'hierarchy-selector-toggle',
       'dark-mode-toggle',
-      'save-workspace-button',
+      'workspace-view-toggle',
       'csv-export-button',
       'column-settings-button',
     ]
