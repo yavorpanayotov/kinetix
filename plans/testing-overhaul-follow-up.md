@@ -165,7 +165,7 @@ That brings in `org.testcontainers.kafka.KafkaContainer` transitively, plus the 
 
 **Status:** `scripts/check-test-naming.py` exists. Currently produces false positives because `IMPL_STYLE_KOTEST` matches any `test("...")` block, including parameterized tests that pass currency codes (`'USD'`, `'GBP'`) or instrument IDs (`'USD-TREASURY'`) as inline test data.
 
-- [ ] **8.1** Tighten the `IMPL_STYLE_KOTEST` regex in `scripts/check-test-naming.py` to match only the Kotest *test description* form: `test("description here") {` followed by a block body. Right now it matches any `test("...")` which is too broad.
+- [x] **8.1** Tighten the `IMPL_STYLE_KOTEST` regex in `scripts/check-test-naming.py` to match only the Kotest *test description* form: `test("description here") {` followed by a block body. Right now it matches any `test("...")` which is too broad.
   - Acceptance: `python3 scripts/check-test-naming.py` reports fewer hits than before AND fails the build with non-zero exit on a fixture file containing `test("foo") {}` (add a small inline self-test or run the script against a tmp file with one impl-style and one descriptive test).
 - [ ] **8.2** Add a small allow-list in `scripts/check-test-naming.py` of intentional short identifiers (currency codes ISO-4217 majors, instrument types like `BOND`, `EQUITY`, `FX`, `IRS`) that legitimately appear at the start of test descriptions.
   - Acceptance: `python3 scripts/check-test-naming.py` reports zero false positives on the current codebase.
