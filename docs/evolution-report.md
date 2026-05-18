@@ -126,3 +126,10 @@ The `yavorpanayotovdr` GitHub account was suspended on April 13 and the conversa
 - **Demo mode + GitHub recovery:** Apr 3–13 (multiple short sessions)
 
 Built a 12-service institutional risk platform from a single sentence in nine weeks using strict TDD, AI agent teams, and an Allium spec-driven workflow.
+
+---
+
+## Where it stands today (2026-05-18)
+
+Five weeks on from the previous report cut, the platform now reads as a mature codebase rather than a sprint output. The 12 microservices remain the production spine — gateway, position, price, rates, vol, correlation, ref-data, risk-orchestrator, regulatory, notification, audit, and the Python risk-engine — and a thirteenth, `ai-insights-service`, is planned in the AI v1 plan as the home for the first LLM-powered product features: a VaR Explainer that narrates risk moves in plain English, and Report Commentary that drafts the prose around regulatory exports. Both route through a Claude Code subscription via the Claude Agent SDK rather than direct API keys, which keeps the operational model consistent with how the codebase itself was built. Architectural decisions have climbed past 36 ADRs and behavioural specifications now sit at 24 Allium specs, both indexed for navigation. Total commit count is around 2,090. Two large plans completed since 2026-04-14 — demo-v2 (institutional-scale showcase data and book profiles) and the testing-overhaul (property-based tests across risk, P&L, correlation PSD, and volatility surfaces). Process-surface polish landed in early May: an auto-generated ADR index, an auto-generated specs index, a HOW_IT_WAS_BUILT.md narrative of the AI-assisted workflow, and a "Built with Claude Code" hero on the README with auto-computed stats. The next chapter is AI features in v1.
+
