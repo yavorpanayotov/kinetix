@@ -141,7 +141,7 @@ and flag (per `/work-plan` guardrails).
       `createSubmission(CreateSubmissionRequest)`. DTOs in `client/dtos/`.
       MockEngine unit test.
       Acceptance: `./gradlew :demo-orchestrator:test --tests "*RegulatoryServiceClientTest"`
-- [ ] 3.2 Add `schedule/EodCycleObserverJob.kt` — Kafka consumer on
+- [x] 3.2 Add `schedule/EodCycleObserverJob.kt` — Kafka consumer on
       `risk.official-eod` for `OfficialEodPromotedEvent`. On each event: wait
       30s, then call `runBacktest` followed by `createSubmission`
       (`reportType=DAILY_RISK_SUMMARY`, `preparerId="demo-orchestrator"`,
