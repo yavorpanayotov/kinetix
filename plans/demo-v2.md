@@ -70,7 +70,7 @@ and flag (per `/work-plan` guardrails).
       the process starts but every scheduler/consumer is a no-op. Add
       `include("demo-orchestrator")` to `settings.gradle.kts`.
       Acceptance: `./gradlew :demo-orchestrator:build`
-- [ ] 0.2 Add `config/DemoConfig.kt` reading `DEMO_MODE`,
+- [x] 0.2 Add `config/DemoConfig.kt` reading `DEMO_MODE`,
       `POSITION_SERVICE_URL`, `RISK_ORCHESTRATOR_URL`,
       `REGULATORY_SERVICE_URL`, `DEMO_TRADING_HOURS_START` (default `09:00`),
       `DEMO_TRADING_HOURS_END` (default `16:30`),
