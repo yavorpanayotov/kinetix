@@ -100,7 +100,7 @@ Per CLAUDE.md guardrails, the following are explicitly approved in this plan so 
 
 - [x] 3.1 Add `POST /api/v1/insights/explain/report` route in `src/kinetix_insights/routes/report_commentary.py`. Accepts `ReportCommentaryRequest` (template_id, report_date, summary_metrics: dict[str, float], top_drivers: list[{name, contribution_usd}], breaches: list[str]). Returns `InsightResponse`. Acceptance test in DEMO_MODE asserts shape and that bullets mention top drivers and breaches if present.
       Acceptance: `cd ai-insights-service && DEMO_MODE=true uv run pytest tests/test_report_commentary_acceptance.py`
-- [ ] 3.2 Extend `gateway/src/main/kotlin/com/kinetix/gateway/routes/InsightsRoutes.kt` with `POST /api/v1/insights/explain/report` proxying to `ai-insights-service`. Extend the gateway acceptance test to cover both endpoints.
+- [x] 3.2 Extend `gateway/src/main/kotlin/com/kinetix/gateway/routes/InsightsRoutes.kt` with `POST /api/v1/insights/explain/report` proxying to `ai-insights-service`. Extend the gateway acceptance test to cover both endpoints.
       Acceptance: `./gradlew :gateway:acceptanceTest --tests "*InsightsRoutesAcceptanceTest"`
 - [ ] 3.3 Extend `ui/src/api/insights.ts` with `explainReport(payload)`. Vitest unit test for the new method.
       Acceptance: `cd ui && npm run test -- insights.test`
