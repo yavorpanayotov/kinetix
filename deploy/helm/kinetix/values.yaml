@@ -163,6 +163,26 @@ risk-orchestrator:
     PORT: "8083"
     KAFKA_BOOTSTRAP_SERVERS: "kinetix-kafka:9092"
 
+# Disabled by default. Enable via --set demo-orchestrator.enabled=true or use
+# values-demo.yaml overlay. See plans/demo-v2.md for the demo-mode runbook.
+demo-orchestrator:
+  enabled: false
+  replicaCount: 1
+  image:
+    repository: kinetix/demo-orchestrator
+  service:
+    port: 8094
+  env:
+    PORT: "8094"
+    KAFKA_BOOTSTRAP_SERVERS: "kinetix-kafka:9092"
+    DEMO_MODE: "true"
+    POSITION_SERVICE_URL: "http://kinetix-position-service:8081"
+    RISK_ORCHESTRATOR_URL: "http://kinetix-risk-orchestrator:8083"
+    REGULATORY_SERVICE_URL: "http://kinetix-regulatory-service:8085"
+    DEMO_TRADING_HOURS_START: "09:00"
+    DEMO_TRADING_HOURS_END: "16:30"
+    DEMO_TRADE_CADENCE_SECONDS: "90"
+
 audit-service:
   replicaCount: 1
   image:

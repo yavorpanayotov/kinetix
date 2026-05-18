@@ -1,0 +1,17 @@
+# Demo environment overrides
+# Extends values-dev.yaml shape and enables the demo-orchestrator subchart.
+# Use via: helm install kinetix . -f values-dev.yaml -f values-demo.yaml
+
+demo-orchestrator:
+  enabled: true
+  replicaCount: 1
+  env:
+    PORT: "8094"
+    DEMO_MODE: "true"
+    KAFKA_BOOTSTRAP_SERVERS: "kinetix-kafka:9092"
+    POSITION_SERVICE_URL: "http://kinetix-position-service:8081"
+    RISK_ORCHESTRATOR_URL: "http://kinetix-risk-orchestrator:8083"
+    REGULATORY_SERVICE_URL: "http://kinetix-regulatory-service:8085"
+    DEMO_TRADING_HOURS_START: "09:00"
+    DEMO_TRADING_HOURS_END: "16:30"
+    DEMO_TRADE_CADENCE_SECONDS: "90"
