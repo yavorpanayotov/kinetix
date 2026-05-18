@@ -93,7 +93,7 @@ Per CLAUDE.md guardrails, the following are explicitly approved in this plan so 
       Acceptance: `cd ui && npm run test -- VaRDashboard`
 - [x] 2.6 Add `ui/e2e/var-explainer.spec.ts` Playwright test that mocks `/api/v1/insights/explain/var` per `ui/e2e/fixtures.ts` patterns, navigates to Risk tab, clicks "Explain", asserts panel renders with narrative + bullets + "Demo mode" badge. Extend `ui/e2e/fixtures.ts` with an `insightsMock` helper.
       Acceptance: `cd ui && npx playwright test var-explainer`
-- [ ] 2.7 Run `cd ui && npm run lint` to catch ESLint issues (per CLAUDE.md Testing Philosophy). Fix any reported errors.
+- [x] 2.7 Run `cd ui && npm run lint` to catch ESLint issues (per CLAUDE.md Testing Philosophy). Fix any reported errors.
       Acceptance: `cd ui && npm run lint`
 
 ### PR 3 — Report Commentary endpoint + UI
