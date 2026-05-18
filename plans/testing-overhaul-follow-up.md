@@ -156,7 +156,7 @@ That brings in `org.testcontainers.kafka.KafkaContainer` transitively, plus the 
   - Acceptance: `python3 scripts/check-coverage-ratchet.py` exits 0 against the populated baselines.
 - [x] **7.2** Remove `|| echo "::warning::Coverage ratchet breached"` from `.github/workflows/ci.yml` line 606 — let a non-zero exit fail the job. (Approval for this CI edit is granted under "CI/CD approval" above.)
   - Acceptance: `! grep -F '|| echo "::warning::Coverage ratchet' .github/workflows/ci.yml`
-- [ ] **7.3** Document baseline raise/lower procedure in `docs/testing.md`: how to legitimately lower a baseline (deliberate behavioural change, document why in the PR description), how to raise one (after a verified improvement), and the policy that lowering requires explicit reviewer sign-off.
+- [x] **7.3** Document baseline raise/lower procedure in `docs/testing.md`: how to legitimately lower a baseline (deliberate behavioural change, document why in the PR description), how to raise one (after a verified improvement), and the policy that lowering requires explicit reviewer sign-off.
   - Acceptance: `grep -E "lower.*baseline|raise.*baseline" docs/testing.md`
 
 ---
