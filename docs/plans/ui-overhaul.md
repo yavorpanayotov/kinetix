@@ -324,7 +324,7 @@ User-approved on 2026-05-18. The work-plan loop is authorised to add the backend
 - [x] 3.1b.3 Backend — add Snooze support to alert events. Schema: add `snoozed_until: timestamp NULL` column to the alert events table (Flyway migration); repository methods `snooze(id, until)` and a "skip if snoozed" guard in the evaluator. Gateway proxy route. Acceptance + integration test that a snoozed rule does not re-fire until the timestamp passes.
 - [x] 3.1b.4 UI — wire Snooze action in `NotificationCenter`. Presets: 1h / 4h / 24h / until tomorrow.
 - [x] 7.3.1 Backend — Flyway migration in `position-service`: `position_notes` table with `(id uuid pk, book_id text, instrument_id text, note text, author text, created_at timestamp default now())`. Add `PositionNotesRepository` (CRUD) + service + DTO in `common`. Acceptance tests.
-- [ ] 7.3.2 Backend — Kotlin routes in `position-service`: `GET /api/v1/positions/{bookId}/notes` (list), `POST /api/v1/positions/{bookId}/notes` (create with `{instrumentId, note}`), `DELETE /api/v1/positions/notes/{id}` (delete). Gateway proxy. Acceptance tests.
+- [x] 7.3.2 Backend — Kotlin routes in `position-service`: `GET /api/v1/positions/{bookId}/notes` (list), `POST /api/v1/positions/{bookId}/notes` (create with `{instrumentId, note}`), `DELETE /api/v1/positions/notes/{id}` (delete). Gateway proxy. Acceptance tests. (Note: position-service routes commit `fd2f42b9` mislabeled by parallel-worktree collision — actual contents are correct.)
 - [ ] 7.3.3 UI — API client `ui/src/api/positionNotes.ts` + hook `usePositionNotes(bookId)`. Per-row note icon in `PositionGrid` (clickable to open popover); popover shows existing notes for that instrument + a "Add note" form.
 
 ### Phase 7 — UI follow-ups noticed during the main loop
