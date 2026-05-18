@@ -130,6 +130,23 @@ export function formatNum(value: string | number, decimals = 2): string {
   return num.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
 }
 
+// Like formatNum, but for signed P&L values shown without a currency symbol:
+// prefixes "+" on strictly positive values (after rounding to the requested
+// number of decimals). Negative values keep their native minus sign; zero,
+// negative zero, NaN, and infinities are returned unchanged. Mirror of
+// {@link formatSignedMoney} for use wherever pnlColorClass is applied to a
+// formatNum output, so users who cannot distinguish red/green still see a
+// sign cue.
+export function formatSignedNum(value: string | number, decimals = 2): string {
+  const formatted = formatNum(value, decimals)
+  const numeric = typeof value === 'string' ? Number(value) : value
+  if (!Number.isFinite(numeric)) return formatted
+  const factor = 10 ** decimals
+  const rounded = Math.round(numeric * factor) / factor
+  if (rounded > 0) return `+${formatted}`
+  return formatted
+}
+
 export function pnlColorClass(amount: string): string {
   const value = Number(amount)
   if (value > 0) return 'text-green-600 dark:text-green-400'

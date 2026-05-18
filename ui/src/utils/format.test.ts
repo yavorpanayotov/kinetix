@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
-import { formatMoney, formatSignedMoney, formatCurrency, formatQuantity, formatRelativeTime, formatTimestamp, formatTimeOnly, formatChartTime, formatDuration, formatNum, pnlColorClass } from './format'
+import { formatMoney, formatSignedMoney, formatCurrency, formatQuantity, formatRelativeTime, formatTimestamp, formatTimeOnly, formatChartTime, formatDuration, formatNum, formatSignedNum, pnlColorClass } from './format'
 
 describe('formatMoney', () => {
   it('formats USD with dollar sign and commas', () => {
@@ -126,6 +126,65 @@ describe('formatNum', () => {
 
   it('formats zero', () => {
     expect(formatNum(0)).toBe('0.00')
+  })
+})
+
+describe('formatSignedNum', () => {
+  it('prefixes + on positive numeric values', () => {
+    expect(formatSignedNum(1500)).toBe('+1,500.00')
+  })
+
+  it('prefixes + on positive string values', () => {
+    expect(formatSignedNum('1234.56')).toBe('+1,234.56')
+  })
+
+  it('leaves the native minus sign on negative values', () => {
+    expect(formatSignedNum(-1234.56)).toBe('-1,234.56')
+  })
+
+  it('leaves the native minus sign on negative string values', () => {
+    expect(formatSignedNum('-50.00')).toBe('-50.00')
+  })
+
+  it('does not prefix + on zero', () => {
+    expect(formatSignedNum(0)).toBe('0.00')
+  })
+
+  it('does not prefix + on negative zero', () => {
+    expect(formatSignedNum(-0)).toBe(formatNum(-0))
+    expect(formatSignedNum(-0)).not.toMatch(/^\+/)
+  })
+
+  it('does not prefix + when a tiny positive rounds to zero', () => {
+    expect(formatSignedNum(0.001)).toBe('0.00')
+  })
+
+  it('prefixes + when a tiny positive rounds up to the last decimal', () => {
+    expect(formatSignedNum(0.005)).toBe('+0.01')
+  })
+
+  it('honours custom decimals when deciding whether to prefix', () => {
+    expect(formatSignedNum(0.0001, 4)).toBe('+0.0001')
+    expect(formatSignedNum(0.00001, 4)).toBe('0.0000')
+  })
+
+  it('does not prefix + on NaN inputs', () => {
+    expect(formatSignedNum(NaN)).toBe(formatNum(NaN))
+    expect(formatSignedNum(NaN)).not.toMatch(/^\+/)
+  })
+
+  it('does not prefix + on +Infinity inputs', () => {
+    expect(formatSignedNum(Infinity)).toBe(formatNum(Infinity))
+    expect(formatSignedNum(Infinity)).not.toMatch(/^\+/)
+  })
+
+  it('does not prefix + on -Infinity inputs', () => {
+    expect(formatSignedNum(-Infinity)).toBe(formatNum(-Infinity))
+  })
+
+  it('does not prefix + on non-numeric strings', () => {
+    expect(formatSignedNum('not-a-number')).toBe(formatNum('not-a-number'))
+    expect(formatSignedNum('not-a-number')).not.toMatch(/^\+/)
   })
 })
 
