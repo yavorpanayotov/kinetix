@@ -170,7 +170,7 @@ function App() {
   void handleBookChange // used indirectly via hierarchy selection changes
 
   const bookId = hierarchy.effectiveBookId ?? (isAllSelected ? ALL_BOOKS : rawBookId)
-  const notifications = useNotifications()
+  const notifications = useNotifications(auth.username)
   const systemHealth = useSystemHealth()
   const whatIf = useWhatIf(effectiveBookId)
   const rebalancing = useRebalancing()
@@ -606,6 +606,7 @@ function App() {
                     error={notifications.error}
                     onCreateRule={notifications.createRule}
                     onDeleteRule={notifications.deleteRule}
+                    onAcknowledge={notifications.acknowledgeAlert}
                   />
                 )}
           </>

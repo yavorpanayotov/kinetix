@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { AlertRuleDto, AlertEventDto } from '../types'
 import { NotificationCenter } from './NotificationCenter'
@@ -362,6 +362,163 @@ describe('NotificationCenter', () => {
 
       expect(onDeleteRule).toHaveBeenCalledWith('rule-1')
       expect(screen.queryByTestId('confirm-dialog')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('acknowledge action', () => {
+    const triggeredAlert: AlertEventDto = {
+      id: 'ack-evt-1',
+      ruleId: 'rule-1',
+      ruleName: 'VaR Limit',
+      type: 'VAR_BREACH',
+      severity: 'CRITICAL',
+      message: 'VaR exceeded threshold',
+      currentValue: 150000,
+      threshold: 100000,
+      bookId: 'book-1',
+      triggeredAt: '2025-01-15T10:00:00Z',
+      status: 'TRIGGERED',
+    }
+
+    const acknowledgedAlert: AlertEventDto = {
+      ...triggeredAlert,
+      id: 'ack-evt-2',
+      status: 'ACKNOWLEDGED',
+    }
+
+    const resolvedAlert: AlertEventDto = {
+      ...triggeredAlert,
+      id: 'ack-evt-3',
+      status: 'RESOLVED',
+      resolvedAt: '2025-01-15T11:00:00Z',
+    }
+
+    it('renders a lifecycle status badge for each alert', () => {
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[triggeredAlert, acknowledgedAlert, resolvedAlert]}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+          onAcknowledge={async () => {}}
+        />,
+      )
+
+      expect(screen.getByTestId('status-badge-ack-evt-1')).toHaveTextContent('TRIGGERED')
+      expect(screen.getByTestId('status-badge-ack-evt-2')).toHaveTextContent('ACKNOWLEDGED')
+      expect(screen.getByTestId('status-badge-ack-evt-3')).toHaveTextContent('RESOLVED')
+    })
+
+    it('renders an Acknowledge button for TRIGGERED alerts only', () => {
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[triggeredAlert, acknowledgedAlert, resolvedAlert]}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+          onAcknowledge={async () => {}}
+        />,
+      )
+
+      expect(screen.getByTestId('acknowledge-btn-ack-evt-1')).toBeInTheDocument()
+      expect(screen.queryByTestId('acknowledge-btn-ack-evt-2')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('acknowledge-btn-ack-evt-3')).not.toBeInTheDocument()
+    })
+
+    it('clicking Acknowledge opens an inline form with optional note', () => {
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[triggeredAlert]}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+          onAcknowledge={async () => {}}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('acknowledge-btn-ack-evt-1'))
+
+      expect(screen.getByTestId('acknowledge-form-ack-evt-1')).toBeInTheDocument()
+      expect(screen.getByTestId('acknowledge-note-ack-evt-1')).toBeInTheDocument()
+      expect(screen.getByTestId('acknowledge-submit-ack-evt-1')).toBeInTheDocument()
+      expect(screen.getByTestId('acknowledge-cancel-ack-evt-1')).toBeInTheDocument()
+    })
+
+    it('submitting the Acknowledge form calls onAcknowledge with the note', async () => {
+      const onAcknowledge = vi.fn().mockResolvedValue(undefined)
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[triggeredAlert]}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+          onAcknowledge={onAcknowledge}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('acknowledge-btn-ack-evt-1'))
+      fireEvent.change(screen.getByTestId('acknowledge-note-ack-evt-1'), {
+        target: { value: 'investigating' },
+      })
+      fireEvent.click(screen.getByTestId('acknowledge-submit-ack-evt-1'))
+
+      await waitFor(() => {
+        expect(onAcknowledge).toHaveBeenCalledWith('ack-evt-1', 'investigating')
+      })
+    })
+
+    it('submitting with no note passes an empty/undefined note', async () => {
+      const onAcknowledge = vi.fn().mockResolvedValue(undefined)
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[triggeredAlert]}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+          onAcknowledge={onAcknowledge}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('acknowledge-btn-ack-evt-1'))
+      fireEvent.click(screen.getByTestId('acknowledge-submit-ack-evt-1'))
+
+      await waitFor(() => {
+        expect(onAcknowledge).toHaveBeenCalledTimes(1)
+      })
+      const [, note] = onAcknowledge.mock.calls[0]
+      // empty string or undefined is acceptable
+      expect(note === undefined || note === '').toBe(true)
+    })
+
+    it('Cancel closes the Acknowledge form without calling the callback', () => {
+      const onAcknowledge = vi.fn()
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={[triggeredAlert]}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+          onAcknowledge={onAcknowledge}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('acknowledge-btn-ack-evt-1'))
+      fireEvent.click(screen.getByTestId('acknowledge-cancel-ack-evt-1'))
+
+      expect(screen.queryByTestId('acknowledge-form-ack-evt-1')).not.toBeInTheDocument()
+      expect(onAcknowledge).not.toHaveBeenCalled()
     })
   })
 

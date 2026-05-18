@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Bell, Plus, Trash2, AlertTriangle, AlertCircle, Info, Download, CheckCircle } from 'lucide-react'
+import { Bell, Plus, Trash2, AlertTriangle, AlertCircle, Info, Download, CheckCircle, Check } from 'lucide-react'
 import type { AlertRuleDto, AlertEventDto, CreateAlertRuleRequestDto } from '../types'
 import { formatRelativeTime } from '../utils/format'
 import { exportToCsv } from '../utils/exportCsv'
@@ -15,6 +15,23 @@ interface NotificationCenterProps {
   error: string | null
   onCreateRule: (request: CreateAlertRuleRequestDto) => void
   onDeleteRule: (ruleId: string) => void
+  /**
+   * Triage action invoked when the user submits the inline Acknowledge form.
+   * If omitted, the per-alert Acknowledge button is hidden — useful for
+   * read-only embeds.
+   *
+   * Note: Escalate, Resolve, and Snooze are intentionally not exposed yet —
+   * the backend currently only ships an HTTP endpoint for Acknowledge. See
+   * docs/plans/ui-overhaul.md §3.1 follow-ups.
+   */
+  onAcknowledge?: (alertId: string, notes?: string) => Promise<void> | void
+}
+
+const statusBadgeClass: Record<string, string> = {
+  TRIGGERED: 'bg-red-100 text-red-800',
+  ACKNOWLEDGED: 'bg-blue-100 text-blue-800',
+  ESCALATED: 'bg-orange-100 text-orange-800',
+  RESOLVED: 'bg-green-100 text-green-800',
 }
 
 const severityBadgeVariant: Record<string, 'critical' | 'warning' | 'info'> = {
@@ -48,6 +65,7 @@ export function NotificationCenter({
   error,
   onCreateRule,
   onDeleteRule,
+  onAcknowledge,
 }: NotificationCenterProps) {
   const [name, setName] = useState('')
   const [type, setType] = useState('VAR_BREACH')
@@ -57,6 +75,9 @@ export function NotificationCenter({
   const [channels, setChannels] = useState<string[]>(['IN_APP'])
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
+  const [ackOpenId, setAckOpenId] = useState<string | null>(null)
+  const [ackNote, setAckNote] = useState('')
+  const [ackSubmitting, setAckSubmitting] = useState(false)
 
   const sortedAlerts = useMemo(() => {
     const filtered = statusFilter === 'ALL'
@@ -87,6 +108,36 @@ export function NotificationCenter({
     })
     setName('')
     setThreshold('')
+  }
+
+  function openAcknowledge(alertId: string) {
+    setAckOpenId(alertId)
+    setAckNote('')
+  }
+
+  function closeAcknowledge() {
+    setAckOpenId(null)
+    setAckNote('')
+  }
+
+  async function submitAcknowledge(alertId: string) {
+    if (!onAcknowledge) return
+    setAckSubmitting(true)
+    try {
+      const trimmed = ackNote.trim()
+      await onAcknowledge(alertId, trimmed === '' ? undefined : trimmed)
+    } catch {
+      // Parent (useNotifications) surfaces the error and rolls back the
+      // optimistic state. We swallow here so the form can close cleanly —
+      // the rolled-back status badge and the inline error banner give the
+      // user the feedback they need.
+    } finally {
+      setAckSubmitting(false)
+      // Close regardless of outcome so the user sees the rolled-back state
+      // or the new acknowledged status. They can click Acknowledge again
+      // to retry on failure.
+      closeAcknowledge()
+    }
   }
 
   return (
@@ -277,6 +328,9 @@ export function NotificationCenter({
       <div data-testid="alerts-list" className="space-y-2">
         {sortedAlerts.map((alert) => {
           const SevIcon = severityIcon[alert.severity] ?? Info
+          const canAcknowledge =
+            onAcknowledge !== undefined && alert.status === 'TRIGGERED'
+          const ackFormOpen = ackOpenId === alert.id
           return (
             <div
               key={alert.id}
@@ -294,8 +348,16 @@ export function NotificationCenter({
                 {alert.severity}
               </span>
               <div className="flex-1">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-slate-800">{alert.message}</span>
+                  <span
+                    data-testid={`status-badge-${alert.id}`}
+                    className={`px-1.5 py-0.5 text-xs font-semibold rounded ${
+                      statusBadgeClass[alert.status] ?? 'bg-slate-100 text-slate-700'
+                    }`}
+                  >
+                    {alert.status}
+                  </span>
                   {alert.status === 'ESCALATED' && (
                     <span
                       data-testid={`escalation-badge-${alert.id}`}
@@ -303,6 +365,16 @@ export function NotificationCenter({
                     >
                       ESCALATED
                     </span>
+                  )}
+                  {canAcknowledge && !ackFormOpen && (
+                    <button
+                      data-testid={`acknowledge-btn-${alert.id}`}
+                      onClick={() => openAcknowledge(alert.id)}
+                      className="ml-auto inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100 transition-colors"
+                    >
+                      <Check className="h-3 w-3" />
+                      Acknowledge
+                    </button>
                   )}
                 </div>
                 <div className="text-xs text-slate-500">
@@ -330,6 +402,43 @@ export function NotificationCenter({
                     </span>
                   )}
                 </div>
+                {ackFormOpen && canAcknowledge && (
+                  <form
+                    data-testid={`acknowledge-form-${alert.id}`}
+                    onSubmit={(e) => {
+                      e.preventDefault()
+                      submitAcknowledge(alert.id)
+                    }}
+                    className="mt-2 flex items-center gap-2"
+                  >
+                    <Input
+                      data-testid={`acknowledge-note-${alert.id}`}
+                      placeholder="Optional note"
+                      value={ackNote}
+                      onChange={(e) => setAckNote(e.target.value)}
+                      className="flex-1"
+                    />
+                    <Button
+                      data-testid={`acknowledge-submit-${alert.id}`}
+                      type="submit"
+                      variant="primary"
+                      size="sm"
+                      disabled={ackSubmitting}
+                    >
+                      Submit
+                    </Button>
+                    <Button
+                      data-testid={`acknowledge-cancel-${alert.id}`}
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={closeAcknowledge}
+                      disabled={ackSubmitting}
+                    >
+                      Cancel
+                    </Button>
+                  </form>
+                )}
               </div>
             </div>
           )

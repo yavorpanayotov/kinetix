@@ -100,6 +100,7 @@ function setupDefaults() {
     error: null,
     createRule: vi.fn(),
     deleteRule: vi.fn(),
+    acknowledgeAlert: vi.fn(),
   })
   mockUseSystemHealth.mockReturnValue({
     health: {
@@ -433,6 +434,7 @@ describe('App', () => {
       error: null,
       createRule: vi.fn(),
       deleteRule: vi.fn(),
+      acknowledgeAlert: vi.fn(),
     })
 
     render(<App />)
