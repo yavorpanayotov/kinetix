@@ -640,6 +640,43 @@ describe('App', () => {
     })
   })
 
+  describe('keyboard shortcuts overlay', () => {
+    it('pressing ? opens the keyboard shortcuts overlay', () => {
+      render(<App />)
+
+      expect(screen.queryByTestId('keyboard-shortcuts-overlay')).not.toBeInTheDocument()
+
+      fireEvent.keyDown(window, { key: '?', shiftKey: true })
+
+      expect(screen.getByTestId('keyboard-shortcuts-overlay')).toBeInTheDocument()
+    })
+
+    it('pressing Escape closes the keyboard shortcuts overlay', () => {
+      render(<App />)
+
+      fireEvent.keyDown(window, { key: '?', shiftKey: true })
+      expect(screen.getByTestId('keyboard-shortcuts-overlay')).toBeInTheDocument()
+
+      fireEvent.keyDown(document, { key: 'Escape' })
+      expect(screen.queryByTestId('keyboard-shortcuts-overlay')).not.toBeInTheDocument()
+    })
+
+    it('pressing ? while a text input is focused does NOT open the overlay', () => {
+      render(<App />)
+
+      const input = document.createElement('input')
+      input.type = 'text'
+      document.body.appendChild(input)
+      input.focus()
+
+      fireEvent.keyDown(input, { key: '?', shiftKey: true })
+
+      expect(screen.queryByTestId('keyboard-shortcuts-overlay')).not.toBeInTheDocument()
+
+      document.body.removeChild(input)
+    })
+  })
+
   describe('Alerts tab warning indicator', () => {
     it('shows amber warning dot on Alerts tab when notifications.error is set', () => {
       mockUseNotifications.mockReturnValue({

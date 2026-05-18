@@ -46,6 +46,7 @@ import { useAuth } from './auth/useAuth'
 import { DEMO_MODE } from './auth/demoPersonas'
 import { PersonaSwitcher } from './components/PersonaSwitcher'
 import { DemoWelcomeStrip } from './components/DemoWelcomeStrip'
+import { KeyboardShortcutsOverlay } from './components/KeyboardShortcutsOverlay'
 
 type Tab = 'positions' | 'trades' | 'pnl' | 'risk' | 'eod' | 'scenarios' | 'regulatory' | 'counterparty-risk' | 'reports' | 'alerts' | 'system'
 
@@ -71,7 +72,43 @@ function App() {
   )
   const [whatIfOpen, setWhatIfOpen] = useState(false)
   const [tradesSubTab, setTradesSubTab] = useState<'blotter' | 'place' | 'cost' | 'reconciliation'>('blotter')
+  const [shortcutsOverlayOpen, setShortcutsOverlayOpen] = useState(false)
+  const focusBeforeOverlayRef = useRef<HTMLElement | null>(null)
   const tabRefs = useRef<Map<Tab, HTMLButtonElement>>(new Map())
+
+  // Global '?' (Shift+/) opens the keyboard shortcuts overlay.
+  // Mirrors the Shift+H pattern used in RiskTab.tsx: skip when an input/textarea/select is focused.
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key !== '?') return
+      const target = e.target
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      ) {
+        return
+      }
+      e.preventDefault()
+      if (document.activeElement instanceof HTMLElement) {
+        focusBeforeOverlayRef.current = document.activeElement
+      }
+      setShortcutsOverlayOpen(true)
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  const closeShortcutsOverlay = () => {
+    setShortcutsOverlayOpen(false)
+    // Return focus to wherever it was before the overlay opened.
+    const previous = focusBeforeOverlayRef.current
+    if (previous && document.body.contains(previous)) {
+      previous.focus()
+    }
+    focusBeforeOverlayRef.current = null
+  }
 
   const handleTabKeyDown = (e: React.KeyboardEvent) => {
     const tabKeys = TABS.map(t => t.key)
@@ -554,6 +591,11 @@ function App() {
           </>
         )}
       </main>
+
+      <KeyboardShortcutsOverlay
+        open={shortcutsOverlayOpen}
+        onClose={closeShortcutsOverlay}
+      />
 
       <WhatIfPanel
         open={whatIfOpen}
