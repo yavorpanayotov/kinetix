@@ -17,7 +17,11 @@ import { CounterpartyRiskDashboard } from './components/CounterpartyRiskDashboar
 import { ReportsTab } from './components/ReportsTab'
 import { EodTimelineTab } from './components/EodTimelineTab'
 import { BookSummaryCard } from './components/BookSummaryCard'
+import { RiskTickerStrip } from './components/RiskTickerStrip'
 import { usePositions } from './hooks/usePositions'
+import { useVaR } from './hooks/useVaR'
+import { useVarLimit } from './hooks/useVarLimit'
+import { useIntradayPnlStream } from './hooks/useIntradayPnlStream'
 import { useBookSelector, ALL_BOOKS } from './hooks/useBookSelector'
 import { useHierarchySelector } from './hooks/useHierarchySelector'
 import { HierarchySelector } from './components/HierarchySelector'
@@ -173,6 +177,9 @@ function App() {
   const stress = useStressTest(bookId)
   const scenariosAll = useRunAllScenarios(bookId)
   const hierarchySummary = useHierarchySummary(hierarchy.selection)
+  const { varResult, greeksResult } = useVaR(effectiveBookId)
+  const { varLimit } = useVarLimit()
+  const { latest: intradayLatest, connected: intradayConnected } = useIntradayPnlStream(effectiveBookId)
   const { isDark, toggle: toggleTheme } = useTheme()
   const dataQuality = useDataQuality()
   const marketRegime = useMarketRegime()
@@ -399,6 +406,16 @@ function App() {
           Scheduled maintenance in progress. Some features may be temporarily limited.
         </div>
       )}
+
+      <RiskTickerStrip
+        bookId={effectiveBookId ?? bookId}
+        bookSummary={hierarchySummary.summary}
+        intradaySnapshot={intradayLatest}
+        varResult={varResult}
+        greeksResult={greeksResult}
+        varLimit={varLimit}
+        streamConnected={intradayConnected}
+      />
 
       <main className="flex-1 p-4 md:p-6 dark:bg-surface-900" role="tabpanel" aria-labelledby={`tab-${activeTab}`}>
         {(activeTab === 'positions' || activeTab === 'pnl' || activeTab === 'risk') && (

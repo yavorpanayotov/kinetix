@@ -9,8 +9,12 @@ vi.mock('./hooks/useSystemHealth')
 vi.mock('./hooks/useStressTest')
 vi.mock('./hooks/useBookSelector')
 vi.mock('./hooks/useHierarchySelector')
+vi.mock('./hooks/useHierarchySummary')
 vi.mock('./hooks/useDataQuality')
 vi.mock('./hooks/useWorkspace')
+vi.mock('./hooks/useVaR')
+vi.mock('./hooks/useVarLimit')
+vi.mock('./hooks/useIntradayPnlStream')
 vi.mock('./auth/useAuth')
 vi.mock('./components/TradeBlotter', () => ({
   TradeBlotter: () => <div data-testid="trade-blotter-wrapper" />,
@@ -35,6 +39,10 @@ import { useBookSelector } from './hooks/useBookSelector'
 import { useHierarchySelector } from './hooks/useHierarchySelector'
 import { useDataQuality } from './hooks/useDataQuality'
 import { useWorkspace, DEFAULT_PREFERENCES } from './hooks/useWorkspace'
+import { useHierarchySummary } from './hooks/useHierarchySummary'
+import { useVaR } from './hooks/useVaR'
+import { useVarLimit } from './hooks/useVarLimit'
+import { useIntradayPnlStream } from './hooks/useIntradayPnlStream'
 import { useAuth } from './auth/useAuth'
 
 const mockUsePositions = vi.mocked(usePositions)
@@ -45,8 +53,12 @@ const mockUseSystemHealth = vi.mocked(useSystemHealth)
 const mockUseStressTest = vi.mocked(useStressTest)
 const mockUseBookSelector = vi.mocked(useBookSelector)
 const mockUseHierarchySelector = vi.mocked(useHierarchySelector)
+const mockUseHierarchySummary = vi.mocked(useHierarchySummary)
 const mockUseDataQuality = vi.mocked(useDataQuality)
 const mockUseWorkspace = vi.mocked(useWorkspace)
+const mockUseVaR = vi.mocked(useVaR)
+const mockUseVarLimit = vi.mocked(useVarLimit)
+const mockUseIntradayPnlStream = vi.mocked(useIntradayPnlStream)
 
 const position: PositionDto = {
   bookId: 'book-1',
@@ -152,6 +164,46 @@ function setupDefaults() {
     updatePreference: vi.fn(),
     resetPreferences: vi.fn(),
   })
+  mockUseHierarchySummary.mockReturnValue({
+    summary: {
+      bookId: 'book-1',
+      baseCurrency: 'USD',
+      totalNav: { amount: '168850.00', currency: 'USD' },
+      totalUnrealizedPnl: { amount: '3050.00', currency: 'USD' },
+      currencyBreakdown: [],
+    },
+    baseCurrency: 'USD',
+    setBaseCurrency: vi.fn(),
+    loading: false,
+    error: null,
+    summaryLabel: 'Book Summary',
+  })
+  mockUseVaR.mockReturnValue({
+    varResult: null,
+    greeksResult: null,
+    history: [],
+    filteredHistory: [],
+    loading: false,
+    historyLoading: false,
+    refreshing: false,
+    error: null,
+    errorTransient: false,
+    refresh: vi.fn(),
+    timeRange: { from: '', to: '', label: 'Last 24h' },
+    setTimeRange: vi.fn(),
+    selectedConfidenceLevel: 'CL_95',
+    setSelectedConfidenceLevel: vi.fn(),
+    zoomIn: vi.fn(),
+    resetZoom: vi.fn(),
+    zoomDepth: 0,
+    isLive: true,
+  })
+  mockUseVarLimit.mockReturnValue({ varLimit: null, loading: false })
+  mockUseIntradayPnlStream.mockReturnValue({
+    snapshots: [],
+    latest: null,
+    connected: false,
+  })
 }
 
 describe('App', () => {
@@ -165,6 +217,87 @@ describe('App', () => {
 
     expect(screen.getByText('Kinetix')).toBeInTheDocument()
     expect(screen.getByTestId('hierarchy-selector')).toBeInTheDocument()
+  })
+
+  describe('global risk ticker strip', () => {
+    it('renders the strip below the tab bar on the default Positions tab', () => {
+      render(<App />)
+
+      const strip = screen.getByTestId('risk-ticker-strip')
+      expect(strip).toBeInTheDocument()
+
+      // The strip must come after the tab bar and before the tab panel in DOM
+      // order so it sits between them visually on every tab.
+      const tabBar = screen.getByTestId('tab-bar')
+      const tabPanel = screen.getByRole('tabpanel')
+      const order = tabBar.compareDocumentPosition(strip)
+      expect(order & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      const orderToPanel = strip.compareDocumentPosition(tabPanel)
+      expect(orderToPanel & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    })
+
+    it('remains visible when switching to the Risk tab', () => {
+      render(<App />)
+      fireEvent.click(screen.getByTestId('tab-risk'))
+
+      expect(screen.getByTestId('risk-ticker-strip')).toBeInTheDocument()
+    })
+
+    it('remains visible when switching to the P&L tab', () => {
+      render(<App />)
+      fireEvent.click(screen.getByTestId('tab-pnl'))
+
+      expect(screen.getByTestId('risk-ticker-strip')).toBeInTheDocument()
+    })
+
+    it('colour-codes the VaR cell red when VaR exceeds 80% of the configured limit', () => {
+      mockUseVaR.mockReturnValue({
+        varResult: {
+          bookId: 'book-1',
+          calculationType: 'PARAMETRIC',
+          confidenceLevel: 'CL_95',
+          varValue: '85000.00',
+          expectedShortfall: '95000.00',
+          componentBreakdown: [],
+          calculatedAt: '2026-03-24T09:31:00Z',
+        },
+        greeksResult: null,
+        history: [],
+        filteredHistory: [],
+        loading: false,
+        historyLoading: false,
+        refreshing: false,
+        error: null,
+        errorTransient: false,
+        refresh: vi.fn(),
+        timeRange: { from: '', to: '', label: 'Last 24h' },
+        setTimeRange: vi.fn(),
+        selectedConfidenceLevel: 'CL_95',
+        setSelectedConfidenceLevel: vi.fn(),
+        zoomIn: vi.fn(),
+        resetZoom: vi.fn(),
+        zoomDepth: 0,
+        isLive: true,
+      })
+      mockUseVarLimit.mockReturnValue({ varLimit: 100000, loading: false })
+      mockUseHierarchySelector.mockReturnValue({
+        selection: { level: 'book', divisionId: null, deskId: null, bookId: 'book-1' },
+        setSelection: vi.fn(),
+        breadcrumb: [{ level: 'book', id: 'book-1', label: 'book-1' }],
+        effectiveBookId: 'book-1',
+        effectiveBookIds: ['book-1'],
+        divisions: [],
+        desks: [],
+        books: [{ bookId: 'book-1' }],
+        loading: false,
+        error: null,
+      })
+
+      render(<App />)
+
+      expect(screen.getByTestId('ticker-var').className).toMatch(/text-red-600/)
+      expect(screen.getByTestId('ticker-var-breach-icon')).toBeInTheDocument()
+    })
   })
 
   it('shows loading message while fetching', () => {

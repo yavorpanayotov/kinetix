@@ -60,14 +60,15 @@ test.describe('Intraday P&L tab', () => {
     await expect(page.getByTestId('intraday-chart-latest-total')).toContainText('1,500.00')
   })
 
-  test('ticker strip is not shown when there is no live data', async ({ page }) => {
-    // With no WebSocket connection and no data, the strip renders null
+  test('risk ticker strip is always visible (global slot under the tab bar)', async ({ page }) => {
+    // The global ticker strip is rendered below the tab bar regardless of whether
+    // there is any live P&L data — empty cells fall back to em-dashes.
     await goToPnlTab(page)
 
-    await expect(page.getByTestId('pnl-ticker-strip')).not.toBeVisible()
+    await expect(page.getByTestId('risk-ticker-strip')).toBeVisible()
   })
 
-  test('ticker strip appears with live data when WebSocket sends a P&L update', async ({ page }) => {
+  test('ticker strip surfaces intraday P&L when WebSocket sends a P&L update', async ({ page }) => {
     // Inject a WebSocket mock for /ws/pnl that sends a P&L message on connect
     await page.addInitScript(() => {
       const OriginalWebSocket = window.WebSocket
@@ -159,9 +160,10 @@ test.describe('Intraday P&L tab', () => {
 
     await goToPnlTab(page)
 
-    // After the WebSocket sends a message, the ticker strip should appear
-    await expect(page.getByTestId('pnl-ticker-strip')).toBeVisible({ timeout: 3000 })
-    await expect(page.getByTestId('ticker-total-pnl')).toContainText('2,500.00')
+    // The global strip is already mounted; the intraday cell updates from the
+    // WebSocket-driven snapshot.
+    await expect(page.getByTestId('risk-ticker-strip')).toBeVisible({ timeout: 3000 })
+    await expect(page.getByTestId('ticker-intraday-pnl')).toContainText('2,500.00', { timeout: 3000 })
   })
 
   test('ticker strip shows connected indicator when WebSocket is open', async ({ page }) => {
@@ -249,10 +251,10 @@ test.describe('Intraday P&L tab', () => {
 
     await goToPnlTab(page)
 
-    await expect(page.getByTestId('pnl-ticker-strip')).toBeVisible({ timeout: 3000 })
+    await expect(page.getByTestId('risk-ticker-strip')).toBeVisible({ timeout: 3000 })
     // The connection indicator should be green
     const status = page.getByTestId('ticker-connection-status')
-    await expect(status).toHaveClass(/bg-green-500/)
+    await expect(status).toHaveClass(/bg-green-500/, { timeout: 3000 })
   })
 
   test('live chart updates with streamed snapshots', async ({ page }) => {

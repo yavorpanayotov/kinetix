@@ -4,7 +4,6 @@ import { usePnlAttribution } from '../hooks/usePnlAttribution'
 import { useSodBaseline } from '../hooks/useSodBaseline'
 import { useIntradayPnlStream } from '../hooks/useIntradayPnlStream'
 import { useIntradayPnlSeries } from '../hooks/useIntradayPnlSeries'
-import { PnlTickerStrip } from './PnlTickerStrip'
 import { IntradayPnlChart } from './IntradayPnlChart'
 import { PnlWaterfallChart } from './PnlWaterfallChart'
 import { PnlAttributionTable } from './PnlAttributionTable'
@@ -42,7 +41,7 @@ export function PnlTab({ bookId }: PnlTabProps) {
   }, [])
 
   const { snapshots: historicalSnapshots } = useIntradayPnlSeries(bookId, intradayFrom, intradayTo)
-  const { snapshots: liveSnapshots, latest, connected } = useIntradayPnlStream(bookId)
+  const { snapshots: liveSnapshots } = useIntradayPnlStream(bookId)
 
   const intradaySnapshots = liveSnapshots.length > 0 ? liveSnapshots : historicalSnapshots
 
@@ -76,8 +75,6 @@ export function PnlTab({ bookId }: PnlTabProps) {
 
   return (
     <div className="space-y-4">
-      <PnlTickerStrip bookId={bookId} latest={latest} connected={connected} />
-
       <Card header="Intraday P&L" data-testid="intraday-pnl-card">
         <IntradayPnlChart snapshots={intradaySnapshots} />
       </Card>
