@@ -315,12 +315,29 @@ If an item's scope has been partially addressed already (some sub-fixes shipped 
 
 - [x] 9. Adopt desktop-only floor (scope §9) — `min-width: 1280px` on `<body>` or a small-viewport warning page; strip partial `md:` / `lg:` / `hidden sm:` accommodations and the maintenance burden they imply.
 
+### Phase 6 — Unparked: backend work for Workstream 3 + 7 (user-approved)
+
+User-approved on 2026-05-18. The work-plan loop is authorised to add the backend contracts listed here, since the user has explicitly OK'd it. Subagent prompts for these items must include that authorisation note so the guardrail doesn't trip.
+
+- [ ] 3.1b.1 Backend — add `POST /api/v1/notifications/alerts/{id}/escalate` and `POST /api/v1/notifications/alerts/{id}/resolve` HTTP routes in `notification-service`. Repository methods (`escalate`, `resolve`) already exist on `ExposedAlertEventRepository`; just need route handlers + gateway proxy. Body for escalate: `{ reason: string, assignee?: string }`; body for resolve: `{ resolutionText: string }`. Acceptance tests in `notification-service` + gateway acceptance test.
+- [ ] 3.1b.2 UI — wire Escalate + Resolve actions in `NotificationCenter` and `AlertDrillDownPanel`. Pattern mirrors the Acknowledge UI shipped in §3.1a (optimistic update, inline form, lifecycle status badge transitions).
+- [ ] 3.1b.3 Backend — add Snooze support to alert events. Schema: add `snoozed_until: timestamp NULL` column to the alert events table (Flyway migration); repository methods `snooze(id, until)` and a "skip if snoozed" guard in the evaluator. Gateway proxy route. Acceptance + integration test that a snoozed rule does not re-fire until the timestamp passes.
+- [ ] 3.1b.4 UI — wire Snooze action in `NotificationCenter`. Presets: 1h / 4h / 24h / until tomorrow.
+- [ ] 7.3.1 Backend — Flyway migration in `position-service`: `position_notes` table with `(id uuid pk, book_id text, instrument_id text, note text, author text, created_at timestamp default now())`. Add `PositionNotesRepository` (CRUD) + service + DTO in `common`. Acceptance tests.
+- [ ] 7.3.2 Backend — Kotlin routes in `position-service`: `GET /api/v1/positions/{bookId}/notes` (list), `POST /api/v1/positions/{bookId}/notes` (create with `{instrumentId, note}`), `DELETE /api/v1/positions/notes/{id}` (delete). Gateway proxy. Acceptance tests.
+- [ ] 7.3.3 UI — API client `ui/src/api/positionNotes.ts` + hook `usePositionNotes(bookId)`. Per-row note icon in `PositionGrid` (clickable to open popover); popover shows existing notes for that instrument + a "Add note" form.
+
+### Phase 7 — UI follow-ups noticed during the main loop
+
+- [ ] FU1 Extend `ErrorCard` API with optional `retryTestId` and `retryLabel`; convert `VaRDashboard`, `EodTimelineTab`, and `HedgeRecommendationPanel`'s ad-hoc error states to use it. Preserves their existing Playwright test IDs.
+- [ ] FU2 Saved views: when the active view changes at runtime, push the view's hierarchy selection, time range, and column-visibility prefs down into the relevant hooks. Currently only `defaultTab` re-applies. Source files: `useWorkspace`, `App.tsx`, `useHierarchy` (or equivalent).
+- [ ] FU3 Apply `formatSignedMoney`'s `+`-prefix treatment to the `formatNum`-based P&L call sites that pair with `pnlColorClass`: `PnlTickerStrip`, `PnlSummaryCard`, `PnlWaterfallChart`, `PnlAttributionTable`, `IntradayPnlChart`, `StrategyGroupRow`. Add a `formatSignedNum` helper (or extend `formatNum` with a `signed` option) and wire it up.
+- [ ] FU4 Strip the partial `md:` / `lg:` / `hidden sm:` Tailwind accommodations across the codebase. The §9 small-viewport warning makes them dead code; remove them so future contributors aren't tempted to extend half-responsive patterns.
+- [ ] FU5 Investigate and fix the five pre-existing Playwright failures on `main`: `counterparty-risk`, `position-data-rendering` (P&L `+` formatting assertion), `risk-error-states`, `trade-blotter` (CSV export), `ui-resilience` (timing). Each may be a one-line test fix or a real regression — find out per spec.
+
 ### Blocked items needing decisions
 
-These are surfaced for the user to weigh in on. The loop will not re-attempt them automatically — they need an explicit approval to add backend contracts (a guardrail per CLAUDE.md).
-
-- 3.1b **Escalate / Resolve / Snooze per-alert actions** — Plan claimed "alert action endpoints already exist" but only `POST /alerts/{id}/acknowledge` is actually wired in `notification-service`. Repository methods for escalate/resolve exist but no HTTP routes; Snooze has no backend support at all. Decision needed: (a) add the three missing routes (and Snooze backend) in a separate Kotlin/notification-service iteration, or (b) drop Escalate/Resolve/Snooze from scope.
-- 7.3 **Position-level annotations** — Scope §7.3 says "click a position → add a note … new endpoint". No notes table / endpoint exists in `position-service` or `gateway`. Decision needed: (a) add a `position_notes` table + CRUD endpoints in `position-service`, or (b) drop this feature.
+(none currently — Phase 6/7 above unparked the previous blockers)
 
 ---
 
