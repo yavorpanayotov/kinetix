@@ -1,5 +1,7 @@
 package com.kinetix.gateway.client
 
+import com.kinetix.common.dtos.CreatePositionNoteRequest
+import com.kinetix.common.dtos.PositionNoteDto
 import com.kinetix.common.model.*
 import java.math.BigDecimal
 import java.time.Instant
@@ -62,4 +64,17 @@ interface PositionServiceClient {
         counterpartyId: String? = null,
     ): TradeHistoryPage
     suspend fun getBookSummary(bookId: BookId, baseCurrency: String): PortfolioAggregationSummary
+
+    /** Lists position notes for a book, optionally filtered to a single instrument. */
+    suspend fun listPositionNotes(bookId: BookId, instrumentId: String? = null): List<PositionNoteDto>
+
+    /** Creates a position note. The [author] is forwarded to the upstream via X-User. */
+    suspend fun createPositionNote(
+        bookId: BookId,
+        request: CreatePositionNoteRequest,
+        author: String?,
+    ): PositionNoteDto
+
+    /** Returns true when a note was removed, false when no row matched the id. */
+    suspend fun deletePositionNote(id: String): Boolean
 }

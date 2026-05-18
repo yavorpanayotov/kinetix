@@ -1,10 +1,14 @@
 package com.kinetix.gateway.routes
 
+import com.kinetix.common.dtos.CreatePositionNoteRequest
+import com.kinetix.common.dtos.PositionNoteDto
 import com.kinetix.common.model.BookId
+import com.kinetix.gateway.auth.userIdOrDefault
 import com.kinetix.gateway.client.InstrumentServiceClient
 import com.kinetix.gateway.client.InstrumentSummary
 import com.kinetix.gateway.client.PositionServiceClient
 import com.kinetix.gateway.dtos.*
+import io.github.smiley4.ktoropenapi.delete
 import io.github.smiley4.ktoropenapi.get
 import io.github.smiley4.ktoropenapi.post
 import io.ktor.http.*
@@ -16,6 +20,8 @@ import org.slf4j.LoggerFactory
 private val log = LoggerFactory.getLogger("com.kinetix.gateway.routes.PositionRoutes")
 
 fun Route.positionRoutes(client: PositionServiceClient, instrumentClient: InstrumentServiceClient? = null) {
+    positionNotesRoutes(client)
+
     route("/api/v1/books") {
 
         get({
@@ -136,6 +142,75 @@ fun Route.positionRoutes(client: PositionServiceClient, instrumentClient: Instru
                     val summary = client.getBookSummary(bookId, baseCurrency)
                     call.respond(summary.toResponse())
                 }
+            }
+        }
+    }
+}
+
+private fun Route.positionNotesRoutes(client: PositionServiceClient) {
+    route("/api/v1/positions") {
+
+        route("/{bookId}/notes") {
+
+            get({
+                summary = "List position notes for a book"
+                tags = listOf("Position Notes")
+                request {
+                    pathParameter<String>("bookId") { description = "Book identifier" }
+                    queryParameter<String>("instrumentId") {
+                        description = "Restrict to a single (book, instrument) pair"
+                        required = false
+                    }
+                }
+                response {
+                    code(HttpStatusCode.OK) { body<List<PositionNoteDto>>() }
+                }
+            }) {
+                val bookId = BookId(call.requirePathParam("bookId"))
+                val instrumentId = call.request.queryParameters["instrumentId"]?.takeIf { it.isNotBlank() }
+                val notes = client.listPositionNotes(bookId, instrumentId)
+                call.respond(HttpStatusCode.OK, notes)
+            }
+
+            post({
+                summary = "Create a position note"
+                tags = listOf("Position Notes")
+                request {
+                    pathParameter<String>("bookId") { description = "Book identifier" }
+                    body<CreatePositionNoteRequest>()
+                }
+                response {
+                    code(HttpStatusCode.Created) { body<PositionNoteDto>() }
+                }
+            }) {
+                val bookId = BookId(call.requirePathParam("bookId"))
+                val request = call.receive<CreatePositionNoteRequest>()
+                val author = call.userIdOrDefault()
+                val created = client.createPositionNote(bookId, request, author)
+                call.respond(HttpStatusCode.Created, created)
+            }
+        }
+
+        delete("/notes/{id}", {
+            summary = "Delete a position note"
+            tags = listOf("Position Notes")
+            request {
+                pathParameter<String>("id") { description = "Note identifier (UUID)" }
+            }
+            response {
+                code(HttpStatusCode.NoContent) { }
+                code(HttpStatusCode.NotFound) { }
+            }
+        }) {
+            val id = call.requirePathParam("id")
+            val removed = client.deletePositionNote(id)
+            if (removed) {
+                call.respond(HttpStatusCode.NoContent)
+            } else {
+                call.respond(
+                    HttpStatusCode.NotFound,
+                    ErrorResponse("note_not_found", "No position note exists with id $id"),
+                )
             }
         }
     }

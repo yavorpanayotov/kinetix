@@ -1,5 +1,7 @@
 package com.kinetix.gateway.client
 
+import com.kinetix.common.dtos.CreatePositionNoteRequest
+import com.kinetix.common.dtos.PositionNoteDto
 import com.kinetix.common.model.BookId
 import com.kinetix.common.model.Position
 import com.kinetix.common.model.Trade
@@ -118,5 +120,36 @@ class HttpPositionServiceClient(
         if (!response.status.isSuccess()) handleErrorResponse(response)
         val dto: PortfolioAggregationDto = response.body()
         return dto.toDomain()
+    }
+
+    override suspend fun listPositionNotes(bookId: BookId, instrumentId: String?): List<PositionNoteDto> {
+        val response = httpClient.get("$baseUrl/api/v1/positions/${bookId.value}/notes") {
+            if (instrumentId != null) parameter("instrumentId", instrumentId)
+        }
+        if (!response.status.isSuccess()) handleErrorResponse(response)
+        return response.body()
+    }
+
+    override suspend fun createPositionNote(
+        bookId: BookId,
+        request: CreatePositionNoteRequest,
+        author: String?,
+    ): PositionNoteDto {
+        val response = httpClient.post("$baseUrl/api/v1/positions/${bookId.value}/notes") {
+            contentType(ContentType.Application.Json)
+            if (author != null) header("X-User", author)
+            setBody(request)
+        }
+        if (!response.status.isSuccess()) handleErrorResponse(response)
+        return response.body()
+    }
+
+    override suspend fun deletePositionNote(id: String): Boolean {
+        val response = httpClient.delete("$baseUrl/api/v1/positions/notes/$id")
+        return when (response.status) {
+            HttpStatusCode.NoContent -> true
+            HttpStatusCode.NotFound -> false
+            else -> handleErrorResponse(response)
+        }
     }
 }
