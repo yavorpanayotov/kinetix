@@ -122,7 +122,7 @@ jobs:
           java-version: 21
       - uses: gradle/actions/setup-gradle@v4
       - name: Unit tests (${{ matrix.module }})
-        run: ./gradlew :${{ matrix.module }}:test
+        run: ./gradlew :${{ matrix.module }}:test :${{ matrix.module }}:koverXmlReport :${{ matrix.module }}:koverHtmlReport
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -137,6 +137,14 @@ jobs:
           name: unit-test-xml-${{ matrix.module }}
           path: '${{ matrix.module }}/build/test-results/test/**/*.xml'
           retention-days: 1
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kover-coverage-${{ matrix.module }}
+          path: |
+            ${{ matrix.module }}/build/reports/kover/
+          retention-days: 14
 
   kotlin-acceptance-tests:
     needs: kotlin-compile
@@ -313,6 +321,15 @@ jobs:
           name: python-unit-test-reports
           path: risk-engine/reports/
           retention-days: 14
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-coverage
+          path: |
+            risk-engine/reports/coverage.xml
+            risk-engine/reports/htmlcov/
+          retention-days: 14
       - name: Upload test XML
         if: always()
         uses: actions/upload-artifact@v4
@@ -372,15 +389,15 @@ jobs:
         run: npm ci
       - name: Lint
         run: npm run lint
-      - name: Unit tests
-        run: npm run test
+      - name: Unit tests with coverage
+        run: npm run test:coverage
       - name: Build
         run: npm run build
-      - name: Upload test reports
+      - name: Upload coverage report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ui-test-reports
+          name: vitest-coverage
           path: ui/coverage/
           retention-days: 14
       - name: Upload test XML
