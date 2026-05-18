@@ -6,19 +6,28 @@ Scans test files for names that look implementation-flavoured rather than
 specification-flavoured and prints warnings. Designed to be a soft signal
 during PR review, not a hard CI gate (at least initially).
 
-Flagged patterns:
-- `test foo bar`, `test_foo_bar`, `testFooBar` — names that don't read as a
-  specification
-- `testWorks`, `it_works`, `does_thing` — vague names
-- `testHappy`, `testFlow` — placeholder names
+## The split heuristic — Kotest strict, JUnit lenient
+
+Kotlin tests in this codebase are written two ways, and we hold each to
+its own bar:
+
+- Kotest `test("...")` blocks take a literal description string — the
+  whole point of that style is to read as a specification. We apply the
+  strict impl-flavoured classifier here: short / camelCase / two-word
+  descriptions get flagged so people rewrite them as sentences.
+- `@Test fun foo()` style is JUnit, where Kotlin idiom is a camelCase
+  function name. Renaming every such function to a backtick-quoted
+  sentence would be intrusive and isn't a project goal — we only flag
+  these when the name is in the small `VAGUE_NAMES` set (e.g. `works`,
+  `happy`, `flow`). The full impl-flavoured heuristic is NOT applied.
+
+Python `def test_...` and Vitest `it(...)` follow their own rules in
+their respective scanners.
 
 Counter-examples (good):
 - `"rejects a trade when the position limit is exceeded"`
 - `"returns the latest matrix when multiple are present"`
 - `"def test_put_call_parity_holds_for_all_inputs"`
-
-Scoped to Kotlin Kotest `test("...")` blocks, Kotlin `@Test fun ...`,
-Python `def test_...`, and Vitest `it(...)`.
 """
 from __future__ import annotations
 
