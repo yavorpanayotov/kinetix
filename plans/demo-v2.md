@@ -80,7 +80,7 @@ and flag (per `/work-plan` guardrails).
 
 ### PR 1 — Limit seeding
 
-- [ ] 1.1 Add `profile/DemoBookProfile.kt` (data class: `bookId`,
+- [x] 1.1 Add `profile/DemoBookProfile.kt` (data class: `bookId`,
       `tradeProbability`, `instrumentIds`, `notionalRangeUsd`, `assetClass`)
       and `profile/DemoBookProfiles.kt` mapping each of the 8 `DevDataSeeder`
       book ids (`equity-growth`, `tech-momentum`, `emerging-markets`,
