@@ -290,7 +290,7 @@ If an item's scope has been partially addressed already (some sub-fixes shipped 
 - [x] 4.1 Consolidate banners into a single status bar (scope §4.1) — single horizontal bar that swaps content/severity instead of stacking; demo strip stays as its own dismissible row.
 - [x] 4.3 Audit & sweep: standardise loading / empty / error states across every component (scope §4.3) — Quick Win covered `ReportsTab` loading only; full audit remains for empty + error states everywhere else.
 - [x] 8.5 Risk-first PositionGrid default columns (scope §8.5) — default view: Instrument · MV · UPnL · Δ · Γ · Vega · VaR%; quantity / avg cost / market price behind a "Details" toggle.
-- [ ] 2.4 Cross-tab linking (scope §2.4) — Alerts row → affected book on Risk tab; Counterparty row → filtered Trades; Reports output → Risk tab at that valuation date; ScenarioComparisonTable row → ScenarioDetailPanel.
+- [x] 2.4 Cross-tab linking (scope §2.4) — Alerts row → affected book on Risk tab; Counterparty row → filtered Trades; Reports output → Risk tab at that valuation date; ScenarioComparisonTable row → ScenarioDetailPanel.
 - [ ] 2.1 Group 11 top-level tabs into 3 clusters (scope §2.1) — visually group `[Trading]` / `[Risk]` / `[Ops]` in the `TABS` constant.
 - [ ] 2.3 Saved views: named multi-workspace (scope §2.3) — promote single workspace to named views capturing tab + sub-tab + hierarchy + columns + time range + collapse state. Backend persistence exists per plan; extend to multi-row.
 
