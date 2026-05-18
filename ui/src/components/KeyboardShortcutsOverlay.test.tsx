@@ -23,6 +23,12 @@ describe('KeyboardShortcutsOverlay', () => {
     expect(screen.getByText('Suggest Hedge')).toBeInTheDocument()
   })
 
+  it('lists the Cmd+K / Ctrl+K command palette shortcut', () => {
+    render(<KeyboardShortcutsOverlay open={true} onClose={vi.fn()} />)
+    expect(screen.getByText('Cmd+K / Ctrl+K')).toBeInTheDocument()
+    expect(screen.getByText(/open command palette/i)).toBeInTheDocument()
+  })
+
   it('lists the ? shortcut for showing the overlay', () => {
     render(<KeyboardShortcutsOverlay open={true} onClose={vi.fn()} />)
     expect(screen.getByText('?')).toBeInTheDocument()

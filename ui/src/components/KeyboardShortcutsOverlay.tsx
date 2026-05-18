@@ -12,8 +12,9 @@ interface Shortcut {
 }
 
 // Only list shortcuts that ACTUALLY exist in the app today.
-// Cmd+K / Cmd+/ are intentionally omitted — those are future work.
+// Cmd+/ is still future work.
 const SHORTCUTS: Shortcut[] = [
+  { keys: 'Cmd+K / Ctrl+K', description: 'Open command palette' },
   { keys: 'Shift+H', description: 'Suggest Hedge' },
   { keys: 'Arrow keys', description: 'Move focus between tabs (in tab bar)' },
   { keys: 'Home / End', description: 'Jump to first / last tab (in tab bar)' },
