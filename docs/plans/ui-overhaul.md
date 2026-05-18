@@ -265,7 +265,7 @@ S = ~1 day. M = ~3 days. L = ~1 week.
 - [x] Remove or rename `EQUALS` operator in alert rules — "Equal to" for floats never fires.
 - [x] Replace ReportsTab plain-text loading state with `<Spinner>`.
 - [x] Add `role="dialog"` + focus management to DataQualityIndicator dropdown.
-- [ ] Document the existing `Shift+H` shortcut somewhere visible (tooltip on Suggest Hedge button already exists — extend to a `?` overlay).
+- [x] Document the existing `Shift+H` shortcut somewhere visible (tooltip on Suggest Hedge button already exists — extend to a `?` overlay).
 
 ---
 
