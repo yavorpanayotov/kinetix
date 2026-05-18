@@ -2420,6 +2420,61 @@ export async function mockCounterpartyRiskRoutes(
 }
 
 // ---------------------------------------------------------------------------
+// AI insights fixture data and mock helpers
+// ---------------------------------------------------------------------------
+
+export const TEST_INSIGHT_RESPONSE = {
+  narrative: 'VaR is driven by concentrated equity exposure.',
+  bullets: [
+    'AAPL contributes 32% of total VaR.',
+    'MSFT contributes 18%.',
+    'Regime is high-vol; widen confidence bands.',
+  ],
+  model: 'canned',
+  mode: 'canned',
+}
+
+/**
+ * Mocks the AI insights explainer endpoints used by §2 of plans/ai-v1.md.
+ *
+ * - `varResponse`: payload returned for POST /api/v1/insights/explain/var
+ *   (defaults to TEST_INSIGHT_RESPONSE, a "Demo mode" canned answer).
+ * - `reportResponse`: payload returned for POST /api/v1/insights/explain/report
+ *   (defaults to the same canned answer — used by the report explainer in §3).
+ * - `varStatus` / `reportStatus`: override the HTTP status to exercise error paths.
+ *
+ * Call this AFTER mockAllApiRoutes so the routes take priority.
+ */
+export async function insightsMock(
+  page: Page,
+  opts: {
+    varResponse?: object
+    reportResponse?: object
+    varStatus?: number
+    reportStatus?: number
+  } = {},
+): Promise<void> {
+  await page.unroute('**/api/v1/insights/explain/var')
+  await page.unroute('**/api/v1/insights/explain/report')
+
+  await page.route('**/api/v1/insights/explain/var', (route: Route) => {
+    route.fulfill({
+      status: opts.varStatus ?? 200,
+      contentType: 'application/json',
+      body: JSON.stringify(opts.varResponse ?? TEST_INSIGHT_RESPONSE),
+    })
+  })
+
+  await page.route('**/api/v1/insights/explain/report', (route: Route) => {
+    route.fulfill({
+      status: opts.reportStatus ?? 200,
+      contentType: 'application/json',
+      body: JSON.stringify(opts.reportResponse ?? TEST_INSIGHT_RESPONSE),
+    })
+  })
+}
+
+// ---------------------------------------------------------------------------
 // Brinson attribution fixture data and mock helpers
 // ---------------------------------------------------------------------------
 
