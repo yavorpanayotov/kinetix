@@ -6,6 +6,8 @@ import {
   fetchAlerts,
   fetchEscalatedAlerts,
   acknowledgeAlert,
+  escalateAlert,
+  resolveAlert,
 } from './notifications'
 
 describe('notifications API', () => {
@@ -250,6 +252,125 @@ describe('notifications API', () => {
 
       await expect(acknowledgeAlert('evt-1', 'alice')).rejects.toThrow(
         'Failed to acknowledge alert: 409 Conflict',
+      )
+    })
+  })
+
+  describe('escalateAlert', () => {
+    it('sends POST to the escalate endpoint with reason and assignee', async () => {
+      const escalated = { ...sampleAlert, status: 'ESCALATED', escalatedTo: 'risk-manager' }
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(escalated),
+      })
+
+      const result = await escalateAlert('evt-1', 'unack timeout', 'risk-manager')
+
+      expect(result).toEqual(escalated)
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/v1/notifications/alerts/evt-1/escalate',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason: 'unack timeout', assignee: 'risk-manager' }),
+        },
+      )
+    })
+
+    it('omits assignee when not provided', async () => {
+      const escalated = { ...sampleAlert, status: 'ESCALATED' }
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(escalated),
+      })
+
+      await escalateAlert('evt-1', 'urgent')
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/v1/notifications/alerts/evt-1/escalate',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ reason: 'urgent', assignee: undefined }),
+        }),
+      )
+    })
+
+    it('url-encodes the alert id', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(sampleAlert),
+      })
+
+      await escalateAlert('alert with space', 'reason')
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/v1/notifications/alerts/alert%20with%20space/escalate',
+        expect.anything(),
+      )
+    })
+
+    it('throws on non-2xx', async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 409,
+        statusText: 'Conflict',
+      })
+
+      await expect(escalateAlert('evt-1', 'reason')).rejects.toThrow(
+        'Failed to escalate alert: 409 Conflict',
+      )
+    })
+  })
+
+  describe('resolveAlert', () => {
+    it('sends POST to the resolve endpoint with resolutionText', async () => {
+      const resolved = { ...sampleAlert, status: 'RESOLVED', resolvedReason: 'fixed' }
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(resolved),
+      })
+
+      const result = await resolveAlert('evt-1', 'positions reduced')
+
+      expect(result).toEqual(resolved)
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/v1/notifications/alerts/evt-1/resolve',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ resolutionText: 'positions reduced' }),
+        },
+      )
+    })
+
+    it('url-encodes the alert id', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(sampleAlert),
+      })
+
+      await resolveAlert('alert with space', 'done')
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/v1/notifications/alerts/alert%20with%20space/resolve',
+        expect.anything(),
+      )
+    })
+
+    it('throws on non-2xx', async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 409,
+        statusText: 'Conflict',
+      })
+
+      await expect(resolveAlert('evt-1', 'done')).rejects.toThrow(
+        'Failed to resolve alert: 409 Conflict',
       )
     })
   })

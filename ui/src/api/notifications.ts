@@ -82,3 +82,61 @@ export async function acknowledgeAlert(
   }
   return response.json()
 }
+
+/**
+ * Manually escalate an alert via `POST /api/v1/notifications/alerts/{id}/escalate`.
+ *
+ * - `reason` is required and must be non-blank (the backend rejects blank reasons
+ *   with HTTP 400).
+ * - `assignee` is optional; the backend falls back to a severity-based default
+ *   assignee when omitted.
+ *
+ * The server returns the updated alert reflecting the new ESCALATED status and
+ * the populated `escalatedAt` / `escalatedTo` fields.
+ */
+export async function escalateAlert(
+  alertId: string,
+  reason: string,
+  assignee?: string,
+): Promise<AlertEventDto> {
+  const response = await authFetch(
+    `/api/v1/notifications/alerts/${encodeURIComponent(alertId)}/escalate`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason, assignee }),
+    },
+  )
+  if (!response.ok) {
+    throw new Error(
+      `Failed to escalate alert: ${response.status} ${response.statusText}`,
+    )
+  }
+  return response.json()
+}
+
+/**
+ * Resolve an alert via `POST /api/v1/notifications/alerts/{id}/resolve`.
+ *
+ * `resolutionText` is required and must be non-blank — the backend records it
+ * on the alert as `resolvedReason`.
+ */
+export async function resolveAlert(
+  alertId: string,
+  resolutionText: string,
+): Promise<AlertEventDto> {
+  const response = await authFetch(
+    `/api/v1/notifications/alerts/${encodeURIComponent(alertId)}/resolve`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resolutionText }),
+    },
+  )
+  if (!response.ok) {
+    throw new Error(
+      `Failed to resolve alert: ${response.status} ${response.statusText}`,
+    )
+  }
+  return response.json()
+}
