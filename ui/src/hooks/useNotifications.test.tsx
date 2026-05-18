@@ -10,6 +10,8 @@ import {
   deleteRule,
   fetchAlerts,
   acknowledgeAlert,
+  escalateAlert,
+  resolveAlert,
 } from '../api/notifications'
 import { useNotifications } from './useNotifications'
 
@@ -18,6 +20,8 @@ const mockCreateRule = vi.mocked(createRule)
 const mockDeleteRule = vi.mocked(deleteRule)
 const mockFetchAlerts = vi.mocked(fetchAlerts)
 const mockAcknowledgeAlert = vi.mocked(acknowledgeAlert)
+const mockEscalateAlert = vi.mocked(escalateAlert)
+const mockResolveAlert = vi.mocked(resolveAlert)
 
 const rule: AlertRuleDto = {
   id: 'rule-1',
@@ -152,6 +156,121 @@ describe('useNotifications', () => {
     await act(async () => {
       try {
         await result.current.acknowledgeAlert('alert-1')
+      } catch {
+        // expected
+      }
+    })
+
+    expect(result.current.alerts[0].status).toBe('TRIGGERED')
+    expect(result.current.error).toContain('Conflict')
+  })
+
+  it('escalates an alert optimistically and uses the server response', async () => {
+    mockFetchRules.mockResolvedValue([])
+    mockFetchAlerts.mockResolvedValue([alert])
+    const escalated: AlertEventDto = {
+      ...alert,
+      status: 'ESCALATED',
+      escalatedAt: '2025-01-15T11:00:00Z',
+      escalatedTo: 'risk-manager',
+    }
+    mockEscalateAlert.mockResolvedValue(escalated)
+
+    const { result } = renderHook(() => useNotifications('alice'))
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+
+    expect(result.current.alerts[0].status).toBe('TRIGGERED')
+
+    await act(async () => {
+      await result.current.escalateAlert(
+        'alert-1',
+        'unack timeout',
+        'risk-manager',
+      )
+    })
+
+    expect(mockEscalateAlert).toHaveBeenCalledWith(
+      'alert-1',
+      'unack timeout',
+      'risk-manager',
+    )
+    expect(result.current.alerts[0].status).toBe('ESCALATED')
+    expect(result.current.alerts[0].escalatedTo).toBe('risk-manager')
+    expect(result.current.error).toBeNull()
+  })
+
+  it('reverts the alert status on escalate failure and surfaces an error', async () => {
+    mockFetchRules.mockResolvedValue([])
+    mockFetchAlerts.mockResolvedValue([alert])
+    mockEscalateAlert.mockRejectedValue(new Error('Conflict'))
+
+    const { result } = renderHook(() => useNotifications('alice'))
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+
+    await act(async () => {
+      try {
+        await result.current.escalateAlert('alert-1', 'urgent')
+      } catch {
+        // expected
+      }
+    })
+
+    expect(result.current.alerts[0].status).toBe('TRIGGERED')
+    expect(result.current.error).toContain('Conflict')
+  })
+
+  it('resolves an alert optimistically and uses the server response', async () => {
+    mockFetchRules.mockResolvedValue([])
+    mockFetchAlerts.mockResolvedValue([alert])
+    const resolved: AlertEventDto = {
+      ...alert,
+      status: 'RESOLVED',
+      resolvedAt: '2025-01-15T11:00:00Z',
+      resolvedReason: 'positions reduced',
+    }
+    mockResolveAlert.mockResolvedValue(resolved)
+
+    const { result } = renderHook(() => useNotifications('alice'))
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+
+    expect(result.current.alerts[0].status).toBe('TRIGGERED')
+
+    await act(async () => {
+      await result.current.resolveAlert('alert-1', 'positions reduced')
+    })
+
+    expect(mockResolveAlert).toHaveBeenCalledWith(
+      'alert-1',
+      'positions reduced',
+    )
+    expect(result.current.alerts[0].status).toBe('RESOLVED')
+    expect(result.current.alerts[0].resolvedReason).toBe('positions reduced')
+    expect(result.current.error).toBeNull()
+  })
+
+  it('reverts the alert status on resolve failure and surfaces an error', async () => {
+    mockFetchRules.mockResolvedValue([])
+    mockFetchAlerts.mockResolvedValue([alert])
+    mockResolveAlert.mockRejectedValue(new Error('Conflict'))
+
+    const { result } = renderHook(() => useNotifications('alice'))
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+
+    await act(async () => {
+      try {
+        await result.current.resolveAlert('alert-1', 'done')
       } catch {
         // expected
       }

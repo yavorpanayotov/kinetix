@@ -5,6 +5,8 @@ import {
   deleteRule as apiDeleteRule,
   fetchAlerts,
   acknowledgeAlert as apiAcknowledgeAlert,
+  escalateAlert as apiEscalateAlert,
+  resolveAlert as apiResolveAlert,
 } from '../api/notifications'
 import type { AlertRuleDto, AlertEventDto, CreateAlertRuleRequestDto } from '../types'
 
@@ -16,6 +18,12 @@ export interface UseNotificationsResult {
   createRule: (request: CreateAlertRuleRequestDto) => void
   deleteRule: (ruleId: string) => void
   acknowledgeAlert: (alertId: string, notes?: string) => Promise<void>
+  escalateAlert: (
+    alertId: string,
+    reason: string,
+    assignee?: string,
+  ) => Promise<void>
+  resolveAlert: (alertId: string, resolutionText: string) => Promise<void>
 }
 
 /**
@@ -109,6 +117,75 @@ export function useNotifications(username: string | null = null): UseNotificatio
     [alerts, username],
   )
 
+  /**
+   * Manually escalate an alert with optimistic update and rollback on error.
+   *
+   * Mirrors {@link acknowledgeAlert}: flips the matching alert's status to
+   * ESCALATED in local state immediately, reconciles with the server payload
+   * on success, and rolls back to the previous list on failure.
+   */
+  const escalateAlert = useCallback(
+    async (alertId: string, reason: string, assignee?: string) => {
+      const previous = alerts
+      setAlerts((current) =>
+        current.map((a) =>
+          a.id === alertId
+            ? {
+                ...a,
+                status: 'ESCALATED',
+                escalatedTo: assignee ?? a.escalatedTo,
+              }
+            : a,
+        ),
+      )
+      setError(null)
+      try {
+        const updated = await apiEscalateAlert(alertId, reason, assignee)
+        setAlerts((current) =>
+          current.map((a) => (a.id === alertId ? updated : a)),
+        )
+      } catch (err) {
+        setAlerts(previous)
+        const message = err instanceof Error ? err.message : String(err)
+        setError(message)
+        throw err
+      }
+    },
+    [alerts],
+  )
+
+  /**
+   * Resolve an alert with optimistic update and rollback on error.
+   *
+   * Mirrors {@link acknowledgeAlert}: flips status to RESOLVED locally,
+   * reconciles with the server response, rolls back on failure.
+   */
+  const resolveAlert = useCallback(
+    async (alertId: string, resolutionText: string) => {
+      const previous = alerts
+      setAlerts((current) =>
+        current.map((a) =>
+          a.id === alertId
+            ? { ...a, status: 'RESOLVED', resolvedReason: resolutionText }
+            : a,
+        ),
+      )
+      setError(null)
+      try {
+        const updated = await apiResolveAlert(alertId, resolutionText)
+        setAlerts((current) =>
+          current.map((a) => (a.id === alertId ? updated : a)),
+        )
+      } catch (err) {
+        setAlerts(previous)
+        const message = err instanceof Error ? err.message : String(err)
+        setError(message)
+        throw err
+      }
+    },
+    [alerts],
+  )
+
   return {
     rules,
     alerts,
@@ -117,5 +194,7 @@ export function useNotifications(username: string | null = null): UseNotificatio
     createRule,
     deleteRule,
     acknowledgeAlert,
+    escalateAlert,
+    resolveAlert,
   }
 }
