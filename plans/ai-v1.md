@@ -87,7 +87,7 @@ Per CLAUDE.md guardrails, the following are explicitly approved in this plan so 
       Acceptance: `./gradlew :gateway:acceptanceTest --tests "*InsightsRoutesAcceptanceTest"`
 - [x] 2.3 Add `ui/src/api/insights.ts` — typed client (`explainVar(payload)`, `explainReport(payload)`) with `InsightResponse` type. Vitest unit test mocks `fetch` and asserts the request goes to `/api/v1/insights/explain/var` with the correct body shape.
       Acceptance: `cd ui && npm run test -- insights.test`
-- [ ] 2.4 Add `ui/src/components/AIInsightPanel.tsx` — reusable slide-over/card component rendering `narrative`, `bullets`, and a footer with `model` + a "Demo mode" badge when `mode === "canned"`. Vitest unit test covers loading skeleton, error state, demo-mode badge, and live-mode model display.
+- [x] 2.4 Add `ui/src/components/AIInsightPanel.tsx` — reusable slide-over/card component rendering `narrative`, `bullets`, and a footer with `model` + a "Demo mode" badge when `mode === "canned"`. Vitest unit test covers loading skeleton, error state, demo-mode badge, and live-mode model display.
       Acceptance: `cd ui && npm run test -- AIInsightPanel`
 - [ ] 2.5 Wire an "Explain" button into `ui/src/components/VaRDashboard.tsx`'s VaR-gauge header. Click ⇒ fetch via `insights.ts` ⇒ render `AIInsightPanel`. Vitest unit test asserts button visible, click opens panel, loading state shown, narrative renders after resolve.
       Acceptance: `cd ui && npm run test -- VaRDashboard`
