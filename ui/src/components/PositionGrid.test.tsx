@@ -581,7 +581,10 @@ describe('PositionGrid', () => {
       await user.click(screen.getByTestId('position-details-toggle'))
 
       const saved = JSON.parse(localStorage.getItem('kinetix:workspace') ?? '{}')
-      expect(saved.showPositionDetails).toBe(true)
+      // Plan §2.3: workspace is stored as a saved-views envelope; reach into
+      // the active view's prefs.
+      const activeView = saved.views?.find((v: { id: string }) => v.id === saved.activeViewId)
+      expect(activeView?.prefs.showPositionDetails).toBe(true)
     })
 
     it('hydrates Details toggle from workspace preference on mount', () => {
