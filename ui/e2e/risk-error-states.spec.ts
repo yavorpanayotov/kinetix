@@ -50,20 +50,20 @@ test.describe('Risk tab — VaR error state', () => {
   })
 
   test('clicking the VaR Retry button re-triggers the calculation', async ({ page }) => {
-    let callCount = 0
-
     await mockRiskTabRoutes(page, {
       varResult: null,
       jobHistory: TEST_JOB_HISTORY,
     })
 
-    // First call fails, second call succeeds. Pattern is scoped to the specific
-    // bookId so we don't accidentally intercept /risk/var/cross-book — that endpoint
-    // returns a different DTO (with bookContributions) and the broad pattern would
-    // crash BookContributionTable on undefined.length.
+    // Initial GETs (including React StrictMode's double-mount in dev) all fail
+    // with 503 so the error card renders. The Retry button triggers a POST via
+    // useVaR.refresh() / triggerVaRCalculation — that succeeds and the dashboard
+    // renders. Pattern is scoped to the specific bookId so we don't accidentally
+    // intercept /risk/var/cross-book — that endpoint returns a different DTO
+    // (with bookContributions) and the broad pattern would crash
+    // BookContributionTable on undefined.length.
     await page.route('**/api/v1/risk/var/port-1*', (route: Route) => {
-      callCount++
-      if (callCount === 1) {
+      if (route.request().method() === 'GET') {
         route.fulfill({
           status: 503,
           contentType: 'application/json',
