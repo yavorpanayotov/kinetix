@@ -260,7 +260,7 @@ S = ~1 day. M = ~3 days. L = ~1 week.
 
 - [x] Fix `role="alert"` re-fire on reconnecting banner (`App.tsx:344–348`) — split timer into `aria-live="off"` sibling.
 - [x] Light-mode CounterpartyRiskDashboard — replace bare `bg-slate-800` with `dark:` prefix pattern.
-- [ ] Trades sub-tab dark-mode active color — add `dark:text-primary-400`.
+- [x] Trades sub-tab dark-mode active color — add `dark:text-primary-400`.
 - [ ] `+` prefix on positive P&L in `formatMoney` / `formatSignedMoney`.
 - [ ] Remove or rename `EQUALS` operator in alert rules — "Equal to" for floats never fires.
 - [ ] Replace ReportsTab plain-text loading state with `<Spinner>`.
