@@ -89,20 +89,22 @@ test.describe('Escalated Alerts UI', () => {
     await expect(escalatedAt).toBeVisible()
   })
 
-  test('ESCALATED filter shows only escalated alerts', async ({ page }) => {
+  test('ESCALATED filter isolates escalated alerts when others are toggled off', async ({ page }) => {
     await page.goto('/')
     await page.getByTestId('tab-alerts').click()
     await page.waitForSelector('[data-testid="alerts-list"]')
 
-    // Both alerts initially visible
+    // Both alerts initially visible — TRIGGERED + ESCALATED are on by default
+    // under the queue model (§3.2 of docs/plans/ui-overhaul.md).
     const alertsList = page.getByTestId('alerts-list')
     const initialCount = await alertsList.locator('> div').count()
     expect(initialCount).toBe(2)
 
-    // Click ESCALATED filter
-    await page.getByTestId('status-filter-escalated').click()
+    // Multi-select chips: drop TRIGGERED (and ACKNOWLEDGED, which has no
+    // matching alerts here but is on by default) so only ESCALATED remains.
+    await page.getByTestId('status-filter-triggered').click()
+    await page.getByTestId('status-filter-acknowledged').click()
 
-    // Only escalated alert remains
     const filteredCount = await alertsList.locator('> div').count()
     expect(filteredCount).toBe(1)
     await expect(page.getByTestId('escalation-badge-esc-1')).toBeVisible()

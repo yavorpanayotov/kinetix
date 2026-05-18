@@ -240,51 +240,258 @@ describe('NotificationCenter', () => {
       />,
     )
 
+    // Queue ordering puts CRITICAL above WARNING regardless of recency,
+    // so the first card is the CRITICAL alert (red border).
     const alertsList = screen.getByTestId('alerts-list')
     const cards = alertsList.children
-    expect(cards[0].className).toContain('border-yellow-500')
-    expect(cards[1].className).toContain('border-red-500')
+    expect(cards[0].className).toContain('border-red-500')
+    expect(cards[1].className).toContain('border-yellow-500')
 
     vi.useRealTimers()
   })
 
-  it('sorts alerts by recency then severity', () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2025-01-15T12:00:00Z'))
+  describe('alerts queue ordering and filtering', () => {
+    // §3.2 of docs/plans/ui-overhaul.md — Alerts as a queue, not a list.
+    // Reference: 2025-01-15T12:00:00Z system time.
+    const FIXED_NOW = '2025-01-15T12:00:00Z'
 
-    const alerts: AlertEventDto[] = [
-      {
-        ...sampleAlerts[0],
-        id: 'evt-old',
-        triggeredAt: '2025-01-15T09:00:00Z',
-        severity: 'CRITICAL',
-      },
-      {
-        ...sampleAlerts[1],
-        id: 'evt-new',
-        triggeredAt: '2025-01-15T11:00:00Z',
-        severity: 'WARNING',
-      },
-    ]
+    const criticalNew: AlertEventDto = {
+      id: 'q-crit-new',
+      ruleId: 'rule-1',
+      ruleName: 'VaR Critical',
+      type: 'VAR_BREACH',
+      severity: 'CRITICAL',
+      message: 'CRITICAL recent',
+      currentValue: 250000,
+      threshold: 100000,
+      bookId: 'book-1',
+      // 30 minutes before "now"
+      triggeredAt: '2025-01-15T11:30:00Z',
+      status: 'TRIGGERED',
+    }
 
-    render(
-      <NotificationCenter
-        rules={[]}
-        alerts={alerts}
-        loading={false}
-        error={null}
-        onCreateRule={() => {}}
-        onDeleteRule={() => {}}
-      />,
-    )
+    const criticalOld: AlertEventDto = {
+      ...criticalNew,
+      id: 'q-crit-old',
+      message: 'CRITICAL old',
+      // 3 hours before "now"
+      triggeredAt: '2025-01-15T09:00:00Z',
+    }
 
-    const alertsList = screen.getByTestId('alerts-list')
-    const badges = alertsList.querySelectorAll('[data-testid^="severity-badge"]')
-    // Most recent first (WARNING at 11:00), then older (CRITICAL at 09:00)
-    expect(badges[0]).toHaveTextContent('WARNING')
-    expect(badges[1]).toHaveTextContent('CRITICAL')
+    const warningRecent: AlertEventDto = {
+      ...criticalNew,
+      id: 'q-warn',
+      severity: 'WARNING',
+      message: 'WARNING recent',
+      // 5 minutes before "now" — strictly newer than the criticals
+      triggeredAt: '2025-01-15T11:55:00Z',
+      status: 'ACKNOWLEDGED',
+    }
 
-    vi.useRealTimers()
+    const infoRecent: AlertEventDto = {
+      ...criticalNew,
+      id: 'q-info',
+      severity: 'INFO',
+      message: 'INFO recent',
+      // 1 minute before "now" — newest of all
+      triggeredAt: '2025-01-15T11:59:00Z',
+      status: 'TRIGGERED',
+    }
+
+    const resolvedRecent: AlertEventDto = {
+      ...criticalNew,
+      id: 'q-resolved-recent',
+      severity: 'WARNING',
+      message: 'RESOLVED recent',
+      // resolved 6 hours ago — within 24h window
+      triggeredAt: '2025-01-15T05:00:00Z',
+      status: 'RESOLVED',
+      resolvedAt: '2025-01-15T06:00:00Z',
+    }
+
+    const resolvedOld: AlertEventDto = {
+      ...criticalNew,
+      id: 'q-resolved-old',
+      severity: 'CRITICAL',
+      message: 'RESOLVED old',
+      // resolved 36 hours ago — older than the 24h auto-collapse window
+      triggeredAt: '2025-01-13T23:00:00Z',
+      status: 'RESOLVED',
+      resolvedAt: '2025-01-14T00:00:00Z',
+    }
+
+    function renderQueue(alerts: AlertEventDto[]) {
+      return render(
+        <NotificationCenter
+          rules={[]}
+          alerts={alerts}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+        />,
+      )
+    }
+
+    it('sorts CRITICAL above WARNING above INFO regardless of recency', () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date(FIXED_NOW))
+
+      renderQueue([infoRecent, warningRecent, criticalOld])
+
+      const badges = screen
+        .getByTestId('alerts-list')
+        .querySelectorAll('[data-testid^="severity-badge-"]')
+      expect(badges[0]).toHaveTextContent('CRITICAL')
+      expect(badges[1]).toHaveTextContent('WARNING')
+      expect(badges[2]).toHaveTextContent('INFO')
+
+      vi.useRealTimers()
+    })
+
+    it('within a severity bucket, sorts newest first by triggeredAt', () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date(FIXED_NOW))
+
+      renderQueue([criticalOld, criticalNew])
+
+      const cards = screen
+        .getByTestId('alerts-list')
+        .querySelectorAll('[data-testid^="status-badge-"]')
+      // First card should be the newer CRITICAL alert.
+      expect(cards[0].getAttribute('data-testid')).toBe(
+        'status-badge-q-crit-new',
+      )
+      expect(cards[1].getAttribute('data-testid')).toBe(
+        'status-badge-q-crit-old',
+      )
+
+      vi.useRealTimers()
+    })
+
+    it('hides RESOLVED alerts by default', () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date(FIXED_NOW))
+
+      renderQueue([criticalNew, resolvedRecent, resolvedOld])
+
+      const alertsList = screen.getByTestId('alerts-list')
+      // Only the CRITICAL TRIGGERED alert is visible by default.
+      expect(
+        alertsList.querySelectorAll('[data-testid^="status-badge-"]').length,
+      ).toBe(1)
+      expect(screen.queryByTestId('status-badge-q-resolved-recent')).toBeNull()
+      expect(screen.queryByTestId('status-badge-q-resolved-old')).toBeNull()
+
+      vi.useRealTimers()
+    })
+
+    it('renders filter chips with counts per status', () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date(FIXED_NOW))
+
+      renderQueue([
+        criticalNew,
+        criticalOld,
+        warningRecent, // ACKNOWLEDGED
+        infoRecent,
+        resolvedRecent,
+        resolvedOld,
+      ])
+
+      // Counts: TRIGGERED=3 (criticalNew, criticalOld, infoRecent),
+      //         ACKNOWLEDGED=1 (warningRecent), ESCALATED=0, RESOLVED=2.
+      expect(screen.getByTestId('status-filter-triggered')).toHaveTextContent(
+        '3',
+      )
+      expect(
+        screen.getByTestId('status-filter-acknowledged'),
+      ).toHaveTextContent('1')
+      expect(screen.getByTestId('status-filter-escalated')).toHaveTextContent(
+        '0',
+      )
+      expect(screen.getByTestId('status-filter-resolved')).toHaveTextContent(
+        '2',
+      )
+
+      vi.useRealTimers()
+    })
+
+    it('clicking the RESOLVED chip surfaces resolved alerts', () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date(FIXED_NOW))
+
+      renderQueue([criticalNew, resolvedRecent])
+
+      // Initially hidden.
+      expect(screen.queryByTestId('status-badge-q-resolved-recent')).toBeNull()
+
+      fireEvent.click(screen.getByTestId('status-filter-resolved'))
+
+      // Now visible (resolvedRecent is within the 24h window).
+      expect(
+        screen.getByTestId('status-badge-q-resolved-recent'),
+      ).toBeInTheDocument()
+
+      vi.useRealTimers()
+    })
+
+    it('auto-collapses RESOLVED alerts older than 24h into a single summary row', () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date(FIXED_NOW))
+
+      renderQueue([criticalNew, resolvedRecent, resolvedOld])
+      // Show RESOLVED in the filter.
+      fireEvent.click(screen.getByTestId('status-filter-resolved'))
+
+      // Recent RESOLVED is visible directly.
+      expect(
+        screen.getByTestId('status-badge-q-resolved-recent'),
+      ).toBeInTheDocument()
+      // Old RESOLVED is collapsed away from the list.
+      expect(screen.queryByTestId('status-badge-q-resolved-old')).toBeNull()
+      // Summary row exists and reports the count.
+      const summary = screen.getByTestId('older-resolved-summary')
+      expect(summary).toBeInTheDocument()
+      expect(summary).toHaveTextContent('1')
+
+      vi.useRealTimers()
+    })
+
+    it('expanding the older-resolved summary reveals the old RESOLVED alerts', () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date(FIXED_NOW))
+
+      renderQueue([criticalNew, resolvedOld])
+      fireEvent.click(screen.getByTestId('status-filter-resolved'))
+      fireEvent.click(screen.getByTestId('older-resolved-toggle'))
+
+      expect(
+        screen.getByTestId('status-badge-q-resolved-old'),
+      ).toBeInTheDocument()
+
+      vi.useRealTimers()
+    })
+
+    it('toggling a default-on chip removes that status from the visible queue', () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date(FIXED_NOW))
+
+      renderQueue([criticalNew, warningRecent])
+
+      // Initially both visible (TRIGGERED + ACKNOWLEDGED are default-on).
+      expect(
+        screen.getByTestId('status-badge-q-crit-new'),
+      ).toBeInTheDocument()
+      expect(screen.getByTestId('status-badge-q-warn')).toBeInTheDocument()
+
+      // Toggle TRIGGERED off — only the ACKNOWLEDGED warning remains.
+      fireEvent.click(screen.getByTestId('status-filter-triggered'))
+      expect(screen.queryByTestId('status-badge-q-crit-new')).toBeNull()
+      expect(screen.getByTestId('status-badge-q-warn')).toBeInTheDocument()
+
+      vi.useRealTimers()
+    })
   })
 
   describe('CSV export', () => {
@@ -394,6 +601,11 @@ describe('NotificationCenter', () => {
     }
 
     it('renders a lifecycle status badge for each alert', () => {
+      // Pin "now" so the resolvedAlert below stays inside the 24h auto-collapse
+      // window and renders as a normal row once RESOLVED is surfaced.
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2025-01-15T12:00:00Z'))
+
       render(
         <NotificationCenter
           rules={[]}
@@ -405,13 +617,22 @@ describe('NotificationCenter', () => {
           onAcknowledge={async () => {}}
         />,
       )
+
+      // RESOLVED is hidden by default under the queue model — surface it
+      // before asserting on its badge.
+      fireEvent.click(screen.getByTestId('status-filter-resolved'))
 
       expect(screen.getByTestId('status-badge-ack-evt-1')).toHaveTextContent('TRIGGERED')
       expect(screen.getByTestId('status-badge-ack-evt-2')).toHaveTextContent('ACKNOWLEDGED')
       expect(screen.getByTestId('status-badge-ack-evt-3')).toHaveTextContent('RESOLVED')
+
+      vi.useRealTimers()
     })
 
     it('renders an Acknowledge button for TRIGGERED alerts only', () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2025-01-15T12:00:00Z'))
+
       render(
         <NotificationCenter
           rules={[]}
@@ -424,9 +645,15 @@ describe('NotificationCenter', () => {
         />,
       )
 
+      // Surface RESOLVED so we can prove its row also lacks an Acknowledge
+      // button.
+      fireEvent.click(screen.getByTestId('status-filter-resolved'))
+
       expect(screen.getByTestId('acknowledge-btn-ack-evt-1')).toBeInTheDocument()
       expect(screen.queryByTestId('acknowledge-btn-ack-evt-2')).not.toBeInTheDocument()
       expect(screen.queryByTestId('acknowledge-btn-ack-evt-3')).not.toBeInTheDocument()
+
+      vi.useRealTimers()
     })
 
     it('clicking Acknowledge opens an inline form with optional note', () => {
@@ -606,7 +833,7 @@ describe('NotificationCenter', () => {
       vi.useRealTimers()
     })
 
-    it('ESCALATED filter shows only escalated alerts', () => {
+    it('ESCALATED filter isolates escalated alerts when other statuses are toggled off', () => {
       const triggeredAlert: AlertEventDto = { ...sampleAlerts[0], id: 'trig-1', status: 'TRIGGERED' }
 
       render(
@@ -620,7 +847,10 @@ describe('NotificationCenter', () => {
         />,
       )
 
-      fireEvent.click(screen.getByTestId('status-filter-escalated'))
+      // Multi-select chip model: ESCALATED + TRIGGERED + ACKNOWLEDGED are on
+      // by default. Drop the others to isolate ESCALATED.
+      fireEvent.click(screen.getByTestId('status-filter-triggered'))
+      fireEvent.click(screen.getByTestId('status-filter-acknowledged'))
 
       const alertsList = screen.getByTestId('alerts-list')
       expect(alertsList.children.length).toBe(1)

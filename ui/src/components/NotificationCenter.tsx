@@ -1,12 +1,49 @@
 import { useMemo, useState } from 'react'
-import { Bell, Plus, Trash2, AlertTriangle, AlertCircle, Info, Download, CheckCircle, Check } from 'lucide-react'
+import {
+  Bell,
+  Plus,
+  Trash2,
+  AlertTriangle,
+  AlertCircle,
+  Info,
+  Download,
+  CheckCircle,
+  Check,
+  ChevronDown,
+  ChevronRight,
+} from 'lucide-react'
 import type { AlertRuleDto, AlertEventDto, CreateAlertRuleRequestDto } from '../types'
 import { formatRelativeTime } from '../utils/format'
 import { exportToCsv } from '../utils/exportCsv'
 import { Card, Button, Badge, Input, Select, Spinner } from './ui'
 import { ConfirmDialog } from './ui/ConfirmDialog'
 
-type StatusFilter = 'TRIGGERED' | 'ACKNOWLEDGED' | 'ESCALATED' | 'RESOLVED' | 'ALL'
+/**
+ * Lifecycle states the Alerts queue can include/exclude. The 'ALL' chip from
+ * the original single-select filter is replaced by per-status toggles (see
+ * docs/plans/ui-overhaul.md §3.2).
+ */
+type AlertStatus = 'TRIGGERED' | 'ACKNOWLEDGED' | 'ESCALATED' | 'RESOLVED'
+
+const ALL_STATUSES: AlertStatus[] = [
+  'TRIGGERED',
+  'ACKNOWLEDGED',
+  'ESCALATED',
+  'RESOLVED',
+]
+
+/**
+ * Default queue view: unresolved + unacknowledged statuses. RESOLVED is
+ * hidden until the user opts in by clicking the chip — §3.2 of the plan.
+ */
+const DEFAULT_ACTIVE_STATUSES: AlertStatus[] = [
+  'TRIGGERED',
+  'ACKNOWLEDGED',
+  'ESCALATED',
+]
+
+/** Auto-collapse window for RESOLVED alerts — older than 24h. */
+const RESOLVED_COLLAPSE_MS = 24 * 60 * 60 * 1000
 
 interface NotificationCenterProps {
   rules: AlertRuleDto[]
@@ -74,21 +111,90 @@ export function NotificationCenter({
   const [severity, setSeverity] = useState('CRITICAL')
   const [channels, setChannels] = useState<string[]>(['IN_APP'])
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
+  const [activeStatuses, setActiveStatuses] = useState<Set<AlertStatus>>(
+    () => new Set(DEFAULT_ACTIVE_STATUSES),
+  )
+  const [olderResolvedExpanded, setOlderResolvedExpanded] = useState(false)
   const [ackOpenId, setAckOpenId] = useState<string | null>(null)
   const [ackNote, setAckNote] = useState('')
   const [ackSubmitting, setAckSubmitting] = useState(false)
 
+  /**
+   * Count of alerts per status — drives the chip badges so the operator can
+   * see backlog at a glance even when a status is filtered out.
+   */
+  const statusCounts = useMemo(() => {
+    const counts: Record<AlertStatus, number> = {
+      TRIGGERED: 0,
+      ACKNOWLEDGED: 0,
+      ESCALATED: 0,
+      RESOLVED: 0,
+    }
+    for (const a of alerts) {
+      if (a.status in counts) {
+        counts[a.status as AlertStatus] += 1
+      }
+    }
+    return counts
+  }, [alerts])
+
+  /**
+   * Queue ordering (§3.2): CRITICAL > WARNING > INFO first, then newest
+   * triggeredAt within bucket. This is the opposite of a flat time-ordered
+   * list — a trader wants the worst-severity unresolved item at the top.
+   */
   const sortedAlerts = useMemo(() => {
-    const filtered = statusFilter === 'ALL'
-      ? alerts
-      : alerts.filter((a) => a.status === statusFilter)
+    const filtered = alerts.filter((a) =>
+      activeStatuses.has(a.status as AlertStatus),
+    )
     return [...filtered].sort((a, b) => {
-      const timeCompare = new Date(b.triggeredAt).getTime() - new Date(a.triggeredAt).getTime()
-      if (timeCompare !== 0) return timeCompare
-      return (severityOrder[a.severity] ?? 99) - (severityOrder[b.severity] ?? 99)
+      const sevDelta =
+        (severityOrder[a.severity] ?? 99) -
+        (severityOrder[b.severity] ?? 99)
+      if (sevDelta !== 0) return sevDelta
+      return (
+        new Date(b.triggeredAt).getTime() - new Date(a.triggeredAt).getTime()
+      )
     })
-  }, [alerts, statusFilter])
+  }, [alerts, activeStatuses])
+
+  /**
+   * Split the sorted queue into rows that render immediately and a tail of
+   * RESOLVED alerts >24h old that collapse into a single summary row.
+   *
+   * "age" reference: resolvedAt if present (when the alert actually closed),
+   * otherwise triggeredAt as a conservative fallback for old data missing
+   * resolvedAt.
+   */
+  const { visibleAlerts, olderResolved } = useMemo(() => {
+    const now = Date.now()
+    const visible: AlertEventDto[] = []
+    const older: AlertEventDto[] = []
+    for (const a of sortedAlerts) {
+      if (a.status === 'RESOLVED') {
+        const ageRef = a.resolvedAt ?? a.triggeredAt
+        const ageMs = now - new Date(ageRef).getTime()
+        if (ageMs > RESOLVED_COLLAPSE_MS) {
+          older.push(a)
+          continue
+        }
+      }
+      visible.push(a)
+    }
+    return { visibleAlerts: visible, olderResolved: older }
+  }, [sortedAlerts])
+
+  function toggleStatusFilter(status: AlertStatus) {
+    setActiveStatuses((prev) => {
+      const next = new Set(prev)
+      if (next.has(status)) {
+        next.delete(status)
+      } else {
+        next.add(status)
+      }
+      return next
+    })
+  }
 
   function handleChannelToggle(ch: string) {
     setChannels((prev) =>
@@ -138,6 +244,132 @@ export function NotificationCenter({
       // to retry on failure.
       closeAcknowledge()
     }
+  }
+
+  function renderAlertRow(alert: AlertEventDto) {
+    const SevIcon = severityIcon[alert.severity] ?? Info
+    const canAcknowledge =
+      onAcknowledge !== undefined && alert.status === 'TRIGGERED'
+    const ackFormOpen = ackOpenId === alert.id
+    return (
+      <div
+        key={alert.id}
+        className={`flex items-start gap-2 p-2 bg-slate-50 rounded text-sm border-l-4 ${severityBorderColor[alert.severity] ?? 'border-gray-300'}`}
+      >
+        <SevIcon className="h-4 w-4 mt-0.5 shrink-0 text-slate-500" />
+        <span
+          data-testid={`severity-badge-${alert.id}`}
+          className={`px-2 py-0.5 rounded text-xs font-medium ${
+            alert.severity === 'CRITICAL'
+              ? 'bg-red-100 text-red-800'
+              : alert.severity === 'WARNING'
+              ? 'bg-yellow-100 text-yellow-800'
+              : 'bg-blue-100 text-blue-800'
+          }`}
+        >
+          {alert.severity}
+        </span>
+        <div className="flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-slate-800">{alert.message}</span>
+            <span
+              data-testid={`status-badge-${alert.id}`}
+              className={`px-1.5 py-0.5 text-xs font-semibold rounded ${
+                statusBadgeClass[alert.status] ?? 'bg-slate-100 text-slate-700'
+              }`}
+            >
+              {alert.status}
+            </span>
+            {alert.status === 'ESCALATED' && (
+              <span
+                data-testid={`escalation-badge-${alert.id}`}
+                className="px-1.5 py-0.5 text-xs font-semibold bg-orange-100 text-orange-800 rounded"
+              >
+                ESCALATED
+              </span>
+            )}
+            {canAcknowledge && !ackFormOpen && (
+              <button
+                data-testid={`acknowledge-btn-${alert.id}`}
+                onClick={() => openAcknowledge(alert.id)}
+                className="ml-auto inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100 transition-colors"
+              >
+                <Check className="h-3 w-3" />
+                Acknowledge
+              </button>
+            )}
+          </div>
+          <div className="text-xs text-slate-500">
+            Book: {alert.bookId} | {formatRelativeTime(alert.triggeredAt)}
+            {alert.status === 'RESOLVED' && alert.resolvedAt && (
+              <span className="ml-2 text-green-600">
+                <CheckCircle className="inline h-3 w-3 mr-0.5" />
+                Resolved {formatRelativeTime(alert.resolvedAt)}
+              </span>
+            )}
+            {alert.status === 'ACKNOWLEDGED' && (
+              <span className="ml-2 text-slate-500">
+                <CheckCircle className="inline h-3 w-3 mr-0.5" />
+                Acknowledged
+              </span>
+            )}
+            {alert.status === 'ESCALATED' && alert.escalatedTo && (
+              <span className="ml-2 text-orange-700">
+                Escalated to:{' '}
+                <span data-testid={`escalated-to-${alert.id}`}>
+                  {alert.escalatedTo}
+                </span>
+                {alert.escalatedAt && (
+                  <span
+                    data-testid={`escalated-at-${alert.id}`}
+                    className="ml-1"
+                  >
+                    ({formatRelativeTime(alert.escalatedAt)})
+                  </span>
+                )}
+              </span>
+            )}
+          </div>
+          {ackFormOpen && canAcknowledge && (
+            <form
+              data-testid={`acknowledge-form-${alert.id}`}
+              onSubmit={(e) => {
+                e.preventDefault()
+                submitAcknowledge(alert.id)
+              }}
+              className="mt-2 flex items-center gap-2"
+            >
+              <Input
+                data-testid={`acknowledge-note-${alert.id}`}
+                placeholder="Optional note"
+                value={ackNote}
+                onChange={(e) => setAckNote(e.target.value)}
+                className="flex-1"
+              />
+              <Button
+                data-testid={`acknowledge-submit-${alert.id}`}
+                type="submit"
+                variant="primary"
+                size="sm"
+                disabled={ackSubmitting}
+              >
+                Submit
+              </Button>
+              <Button
+                data-testid={`acknowledge-cancel-${alert.id}`}
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={closeAcknowledge}
+                disabled={ackSubmitting}
+              >
+                Cancel
+              </Button>
+            </form>
+          )}
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -283,22 +515,35 @@ export function NotificationCenter({
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-semibold text-slate-700">Recent Alerts</h3>
           <div data-testid="alert-status-filters" className="flex gap-1">
-            {(['ALL', 'TRIGGERED', 'ACKNOWLEDGED', 'ESCALATED', 'RESOLVED'] as StatusFilter[]).map((s) => (
-              <button
-                key={s}
-                data-testid={`status-filter-${s.toLowerCase()}`}
-                onClick={() => setStatusFilter(s)}
-                className={`px-2 py-0.5 text-xs rounded-full transition-colors ${
-                  statusFilter === s
-                    ? s === 'ESCALATED'
-                      ? 'bg-orange-100 text-orange-800 font-medium'
-                      : 'bg-blue-100 text-blue-800 font-medium'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                {s === 'ALL' ? 'All' : s.charAt(0) + s.slice(1).toLowerCase()}
-              </button>
-            ))}
+            {ALL_STATUSES.map((s) => {
+              const active = activeStatuses.has(s)
+              const labelText = s.charAt(0) + s.slice(1).toLowerCase()
+              const activeClass =
+                s === 'ESCALATED'
+                  ? 'bg-orange-100 text-orange-800 font-medium'
+                  : 'bg-blue-100 text-blue-800 font-medium'
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  role="switch"
+                  aria-checked={active}
+                  data-testid={`status-filter-${s.toLowerCase()}`}
+                  onClick={() => toggleStatusFilter(s)}
+                  className={`px-2 py-0.5 text-xs rounded-full transition-colors ${
+                    active ? activeClass : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  <span>{labelText}</span>
+                  <span
+                    data-testid={`status-filter-count-${s.toLowerCase()}`}
+                    className="ml-1 font-mono"
+                  >
+                    {statusCounts[s]}
+                  </span>
+                </button>
+              )
+            })}
           </div>
         </div>
         {sortedAlerts.length > 0 && (
@@ -326,123 +571,36 @@ export function NotificationCenter({
         )}
       </div>
       <div data-testid="alerts-list" className="space-y-2">
-        {sortedAlerts.map((alert) => {
-          const SevIcon = severityIcon[alert.severity] ?? Info
-          const canAcknowledge =
-            onAcknowledge !== undefined && alert.status === 'TRIGGERED'
-          const ackFormOpen = ackOpenId === alert.id
-          return (
-            <div
-              key={alert.id}
-              className={`flex items-start gap-2 p-2 bg-slate-50 rounded text-sm border-l-4 ${severityBorderColor[alert.severity] ?? 'border-gray-300'}`}
+        {visibleAlerts.map((alert) => renderAlertRow(alert))}
+        {olderResolved.length > 0 && (
+          <div
+            data-testid="older-resolved-summary"
+            className="rounded border border-slate-200 bg-slate-50 text-sm"
+          >
+            <button
+              type="button"
+              data-testid="older-resolved-toggle"
+              aria-expanded={olderResolvedExpanded}
+              onClick={() => setOlderResolvedExpanded((v) => !v)}
+              className="flex w-full items-center gap-2 px-2 py-1.5 text-left text-slate-600 hover:bg-slate-100 transition-colors"
             >
-              <SevIcon className="h-4 w-4 mt-0.5 shrink-0 text-slate-500" />
-              <span
-                data-testid={`severity-badge-${alert.id}`}
-                className={`px-2 py-0.5 rounded text-xs font-medium ${
-                  alert.severity === 'CRITICAL' ? 'bg-red-100 text-red-800' :
-                  alert.severity === 'WARNING' ? 'bg-yellow-100 text-yellow-800' :
-                  'bg-blue-100 text-blue-800'
-                }`}
-              >
-                {alert.severity}
+              {olderResolvedExpanded ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
+              <span>
+                Older resolved (<span data-testid="older-resolved-count">{olderResolved.length}</span>)
               </span>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-slate-800">{alert.message}</span>
-                  <span
-                    data-testid={`status-badge-${alert.id}`}
-                    className={`px-1.5 py-0.5 text-xs font-semibold rounded ${
-                      statusBadgeClass[alert.status] ?? 'bg-slate-100 text-slate-700'
-                    }`}
-                  >
-                    {alert.status}
-                  </span>
-                  {alert.status === 'ESCALATED' && (
-                    <span
-                      data-testid={`escalation-badge-${alert.id}`}
-                      className="px-1.5 py-0.5 text-xs font-semibold bg-orange-100 text-orange-800 rounded"
-                    >
-                      ESCALATED
-                    </span>
-                  )}
-                  {canAcknowledge && !ackFormOpen && (
-                    <button
-                      data-testid={`acknowledge-btn-${alert.id}`}
-                      onClick={() => openAcknowledge(alert.id)}
-                      className="ml-auto inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100 transition-colors"
-                    >
-                      <Check className="h-3 w-3" />
-                      Acknowledge
-                    </button>
-                  )}
-                </div>
-                <div className="text-xs text-slate-500">
-                  Book: {alert.bookId} | {formatRelativeTime(alert.triggeredAt)}
-                  {alert.status === 'RESOLVED' && alert.resolvedAt && (
-                    <span className="ml-2 text-green-600">
-                      <CheckCircle className="inline h-3 w-3 mr-0.5" />
-                      Resolved {formatRelativeTime(alert.resolvedAt)}
-                    </span>
-                  )}
-                  {alert.status === 'ACKNOWLEDGED' && (
-                    <span className="ml-2 text-slate-500">
-                      <CheckCircle className="inline h-3 w-3 mr-0.5" />
-                      Acknowledged
-                    </span>
-                  )}
-                  {alert.status === 'ESCALATED' && alert.escalatedTo && (
-                    <span className="ml-2 text-orange-700">
-                      Escalated to: <span data-testid={`escalated-to-${alert.id}`}>{alert.escalatedTo}</span>
-                      {alert.escalatedAt && (
-                        <span data-testid={`escalated-at-${alert.id}`} className="ml-1">
-                          ({formatRelativeTime(alert.escalatedAt)})
-                        </span>
-                      )}
-                    </span>
-                  )}
-                </div>
-                {ackFormOpen && canAcknowledge && (
-                  <form
-                    data-testid={`acknowledge-form-${alert.id}`}
-                    onSubmit={(e) => {
-                      e.preventDefault()
-                      submitAcknowledge(alert.id)
-                    }}
-                    className="mt-2 flex items-center gap-2"
-                  >
-                    <Input
-                      data-testid={`acknowledge-note-${alert.id}`}
-                      placeholder="Optional note"
-                      value={ackNote}
-                      onChange={(e) => setAckNote(e.target.value)}
-                      className="flex-1"
-                    />
-                    <Button
-                      data-testid={`acknowledge-submit-${alert.id}`}
-                      type="submit"
-                      variant="primary"
-                      size="sm"
-                      disabled={ackSubmitting}
-                    >
-                      Submit
-                    </Button>
-                    <Button
-                      data-testid={`acknowledge-cancel-${alert.id}`}
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      onClick={closeAcknowledge}
-                      disabled={ackSubmitting}
-                    >
-                      Cancel
-                    </Button>
-                  </form>
-                )}
+              <span className="text-xs text-slate-400">resolved &gt; 24h ago</span>
+            </button>
+            {olderResolvedExpanded && (
+              <div className="space-y-2 px-2 pb-2 pt-1">
+                {olderResolved.map((alert) => renderAlertRow(alert))}
               </div>
-            </div>
-          )
-        })}
+            )}
+          </div>
+        )}
       </div>
 
       <ConfirmDialog
