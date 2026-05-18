@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { ScenariosTab } from './ScenariosTab'
@@ -61,5 +61,50 @@ describe('ScenariosTab', () => {
 
     await userEvent.click(screen.getByTestId('manage-scenarios-btn'))
     expect(screen.getByTestId('scenario-library-grid')).toBeInTheDocument()
+  })
+
+  describe('cross-tab link: scenario row to ScenarioDetailPanel (plan §2.4)', () => {
+    it('clicking a scenario row calls onSelectScenario with that scenario name', () => {
+      const onSelectScenario = vi.fn()
+      render(
+        <ScenariosTab
+          {...defaultProps}
+          results={ALL_STRESS_RESULTS}
+          onSelectScenario={onSelectScenario}
+        />,
+      )
+
+      const rows = screen.getAllByTestId('scenario-row')
+      fireEvent.click(rows[0])
+
+      expect(onSelectScenario).toHaveBeenCalledWith(ALL_STRESS_RESULTS[0].scenarioName)
+    })
+
+    it('renders the ScenarioDetailPanel for the matched result when selectedScenario is set', () => {
+      const selected = ALL_STRESS_RESULTS[0]
+      render(
+        <ScenariosTab
+          {...defaultProps}
+          results={ALL_STRESS_RESULTS}
+          selectedScenario={selected.scenarioName}
+        />,
+      )
+
+      // ScenarioDetailPanel emits detail-panel only when a result is bound;
+      // its presence proves the row → panel cross-link is wired end to end.
+      expect(screen.getByTestId('detail-panel')).toBeInTheDocument()
+    })
+
+    it('does not render ScenarioDetailPanel when no scenario is selected', () => {
+      render(
+        <ScenariosTab
+          {...defaultProps}
+          results={ALL_STRESS_RESULTS}
+          selectedScenario={null}
+        />,
+      )
+
+      expect(screen.queryByTestId('detail-panel')).not.toBeInTheDocument()
+    })
   })
 })
