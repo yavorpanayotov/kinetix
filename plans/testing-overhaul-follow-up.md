@@ -48,7 +48,7 @@ That brings in `org.testcontainers.kafka.KafkaContainer` transitively, plus the 
 
 **Status:** Black-Scholes invariants are in `risk-engine/tests/test_black_scholes_invariants.py`. Two property files from the original plan are missing. Follow the pattern at `test_black_scholes_invariants.py` — strategies, settings, `@given`, hypothesis seed determinism is automatic in CI.
 
-- [ ] **2.1** Create `risk-engine/tests/test_var_invariants.py`:
+- [x] **2.1** Create `risk-engine/tests/test_var_invariants.py`:
   - VaR magnitude monotone in confidence level: `VaR(0.99) ≥ VaR(0.975) ≥ VaR(0.95)` for any portfolio.
   - VaR scales monotonically with horizon: `sqrt(T)` scaling under the parametric assumption (already implemented in `var_parametric.py` — verify the property holds across random portfolios).
   - VaR is non-negative for any well-formed input (loss magnitude convention).
