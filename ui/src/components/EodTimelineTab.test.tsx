@@ -143,7 +143,10 @@ describe('EodTimelineTab', () => {
 
     render(<EodTimelineTab bookId="BOOK-001" />)
 
-    expect(screen.getByTestId('eod-error-banner')).toHaveTextContent('Failed to load EOD timeline: 500')
+    const banner = screen.getByTestId('eod-error-banner')
+    expect(banner).toHaveTextContent('Failed to load EOD timeline: 500')
+    // Banner is rendered via the shared ErrorCard which carries role="alert".
+    expect(banner.getAttribute('role')).toBe('alert')
 
     fireEvent.click(screen.getByTestId('eod-retry-btn'))
     expect(refresh).toHaveBeenCalledTimes(1)

@@ -120,6 +120,25 @@ describe('VaRDashboard', () => {
     expect(screen.getByTestId('var-error')).toHaveTextContent('Failed to fetch VaR')
   })
 
+  it('renders the error state using the shared ErrorCard (role=alert)', () => {
+    render(
+      <VaRDashboard
+        varResult={null}
+        loading={false}
+        error="Failed to fetch VaR"
+        onRefresh={() => {}}
+        {...defaultZoomProps}
+        filteredHistory={[]}
+      />,
+    )
+
+    const alert = screen.getByRole('alert')
+    expect(alert).toBeInTheDocument()
+    expect(alert).toHaveTextContent('Failed to fetch VaR')
+    // Retry button lives inside ErrorCard and exposes the legacy test ID.
+    expect(alert.querySelector('[data-testid="var-error-retry"]')).not.toBeNull()
+  })
+
   it('shows a Retry button in the error state', () => {
     render(
       <VaRDashboard

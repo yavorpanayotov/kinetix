@@ -168,7 +168,10 @@ describe('HedgeRecommendationPanel', () => {
 
   it('shows error message when error is set', () => {
     renderPanel({ error: 'Greeks are stale' })
-    expect(screen.getByTestId('hedge-error').textContent).toContain('Greeks are stale')
+    const hedgeError = screen.getByTestId('hedge-error')
+    expect(hedgeError.textContent).toContain('Greeks are stale')
+    // Rendered via the shared ErrorCard which carries role="alert".
+    expect(hedgeError.getAttribute('role')).toBe('alert')
   })
 
   it('disables submit button when loading', () => {

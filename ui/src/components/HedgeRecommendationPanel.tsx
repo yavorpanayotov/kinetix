@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { X, TrendingDown, AlertCircle, Loader2 } from 'lucide-react'
 import type { HedgeRecommendationDto, HedgeSuggestionDto, HedgeTarget, GreekImpactDto } from '../types'
 import { formatNum } from '../utils/format'
-import { Button, Card, StalePanelWrapper } from './ui'
+import { Button, Card, ErrorCard, StalePanelWrapper } from './ui'
 
 interface HedgeRecommendationPanelProps {
   open: boolean
@@ -306,13 +306,8 @@ export function HedgeRecommendationPanel({
       {/* Results */}
       <div className="flex-1 overflow-y-auto px-4 py-3">
         {error && (
-          <div
-            className="flex items-start gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-700 dark:text-red-300 mb-3"
-            role="alert"
-            data-testid="hedge-error"
-          >
-            <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-            {error}
+          <div className="mb-3">
+            <ErrorCard message={error} data-testid="hedge-error" />
           </div>
         )}
 

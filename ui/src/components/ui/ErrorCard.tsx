@@ -3,6 +3,8 @@ import { RefreshCw } from 'lucide-react'
 interface ErrorCardProps {
   message: string
   onRetry?: () => void
+  retryLabel?: string
+  retryTestId?: string
   'data-testid'?: string
 }
 
@@ -15,8 +17,18 @@ interface ErrorCardProps {
  * Use this in place of ad-hoc `<p className="text-red-600">{error}</p>`
  * fragments. The container is `role="alert"` so screen readers announce
  * the failure.
+ *
+ * `retryLabel` overrides the default "Retry" button text. `retryTestId`
+ * sets `data-testid` on the retry button — use it to preserve a specific
+ * Playwright selector when migrating an ad-hoc error block to this card.
  */
-export function ErrorCard({ message, onRetry, ...rest }: ErrorCardProps) {
+export function ErrorCard({
+  message,
+  onRetry,
+  retryLabel = 'Retry',
+  retryTestId,
+  ...rest
+}: ErrorCardProps) {
   return (
     <div
       role="alert"
@@ -28,9 +40,10 @@ export function ErrorCard({ message, onRetry, ...rest }: ErrorCardProps) {
         <button
           type="button"
           onClick={onRetry}
+          data-testid={retryTestId}
           className="ml-4 flex items-center gap-1 text-xs font-medium underline hover:no-underline"
         >
-          <RefreshCw className="h-3 w-3" /> Retry
+          <RefreshCw className="h-3 w-3" /> {retryLabel}
         </button>
       )}
     </div>

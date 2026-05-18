@@ -6,7 +6,7 @@ import { EodDateRangePicker } from './EodDateRangePicker'
 import { EodTrendChart } from './EodTrendChart'
 import { EodDailyGrid } from './EodDailyGrid'
 import { EodDrillPanel } from './EodDrillPanel'
-import { EmptyState } from './ui'
+import { EmptyState, ErrorCard } from './ui'
 
 interface EodTimelineTabProps {
   bookId: string | null
@@ -71,20 +71,12 @@ export function EodTimelineTab({ bookId }: EodTimelineTabProps) {
 
       {/* Error state */}
       {error && (
-        <div
+        <ErrorCard
+          message={error}
+          onRetry={refresh}
+          retryTestId="eod-retry-btn"
           data-testid="eod-error-banner"
-          role="alert"
-          className="flex items-center justify-between rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 px-4 py-3 text-sm text-red-700 dark:text-red-400"
-        >
-          <span>{error}</span>
-          <button
-            data-testid="eod-retry-btn"
-            onClick={refresh}
-            className="ml-4 text-xs font-medium underline hover:no-underline"
-          >
-            Retry
-          </button>
-        </div>
+        />
       )}
 
       {/* Trend chart */}

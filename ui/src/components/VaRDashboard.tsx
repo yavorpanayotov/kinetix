@@ -11,7 +11,7 @@ import { useStressWindows } from '../hooks/useStressWindows'
 import { VaRTrendChart } from './VaRTrendChart'
 import { GreeksTrendChart } from './GreeksTrendChart'
 import { TimeRangeSelector } from './TimeRangeSelector'
-import { Card, Button, Spinner, EmptyState } from './ui'
+import { Card, Button, Spinner, EmptyState, ErrorCard } from './ui'
 import { AIInsightPanel } from './AIInsightPanel'
 import { explainVar, type ExplainVarRequest, type InsightResponse } from '../api/insights'
 
@@ -114,20 +114,9 @@ export function VaRDashboard({ varResult, filteredHistory, loading, historyLoadi
 
   if (error) {
     return (
-      <Card data-testid="var-error" className="mb-4">
-        <div className="flex items-center justify-between gap-4">
-          <p className="text-red-600">{error}</p>
-          <Button
-            data-testid="var-error-retry"
-            variant="primary"
-            size="sm"
-            icon={<RefreshCw className="h-3 w-3" />}
-            onClick={onRefresh}
-          >
-            Retry
-          </Button>
-        </div>
-      </Card>
+      <div data-testid="var-error" className="mb-4">
+        <ErrorCard message={error} onRetry={onRefresh} retryTestId="var-error-retry" />
+      </div>
     )
   }
 
