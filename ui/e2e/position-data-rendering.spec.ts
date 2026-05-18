@@ -89,9 +89,9 @@ test.describe('Position Data Rendering', () => {
     await page.goto('/')
     await page.waitForSelector('[data-testid="pnl-AAPL"]')
 
-    await expect(page.getByTestId('pnl-AAPL')).toHaveText('$500.00')
-    await expect(page.getByTestId('pnl-GOOGL')).toHaveText('$2,500.00')
-    await expect(page.getByTestId('pnl-EUR_USD')).toHaveText('$50.00')
+    await expect(page.getByTestId('pnl-AAPL')).toHaveText('+$500.00')
+    await expect(page.getByTestId('pnl-GOOGL')).toHaveText('+$2,500.00')
+    await expect(page.getByTestId('pnl-EUR_USD')).toHaveText('+$50.00')
   })
 
   test('shows all column headers when no columns hidden and Details revealed', async ({ page }) => {
