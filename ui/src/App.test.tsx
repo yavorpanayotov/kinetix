@@ -995,4 +995,105 @@ describe('App', () => {
       expect(screen.getByTestId('alerts-error-dot')).toBeInTheDocument()
     })
   })
+
+  describe('system status banner consolidation', () => {
+    function degradedHealth() {
+      mockUseSystemHealth.mockReturnValue({
+        health: {
+          status: 'DEGRADED',
+          services: {
+            gateway: { status: 'READY' },
+            'position-service': { status: 'DOWN' },
+            'price-service': { status: 'READY' },
+            'risk-orchestrator': { status: 'READY' },
+            'notification-service': { status: 'READY' },
+          },
+        },
+        loading: false,
+        error: null,
+        refresh: vi.fn(),
+      })
+    }
+
+    function reconnectingStream() {
+      mockUsePriceStream.mockReturnValue({
+        positions: [position],
+        connected: false,
+        reconnecting: true,
+        exhausted: false,
+        lastConnectedAt: null,
+        disconnectedSince: null,
+        manualReconnect: vi.fn(),
+      })
+    }
+
+    function exhaustedStream() {
+      mockUsePriceStream.mockReturnValue({
+        positions: [position],
+        connected: false,
+        reconnecting: false,
+        exhausted: true,
+        lastConnectedAt: null,
+        disconnectedSince: null,
+        manualReconnect: vi.fn(),
+      })
+    }
+
+    it('renders a single status banner (not stacked) when only reconnecting is active', () => {
+      reconnectingStream()
+
+      render(<App />)
+
+      expect(screen.getByTestId('reconnecting-banner')).toBeInTheDocument()
+      expect(screen.queryByTestId('connection-lost-banner')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('maintenance-banner')).not.toBeInTheDocument()
+    })
+
+    it('renders a single status banner (not stacked) when only maintenance is active', () => {
+      degradedHealth()
+
+      render(<App />)
+
+      expect(screen.getByTestId('maintenance-banner')).toBeInTheDocument()
+      expect(screen.queryByTestId('reconnecting-banner')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('connection-lost-banner')).not.toBeInTheDocument()
+    })
+
+    it('renders exhausted banner only and suppresses reconnecting/maintenance when exhausted', () => {
+      exhaustedStream()
+      degradedHealth()
+
+      render(<App />)
+
+      expect(screen.getByTestId('connection-lost-banner')).toBeInTheDocument()
+      expect(screen.queryByTestId('reconnecting-banner')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('maintenance-banner')).not.toBeInTheDocument()
+    })
+
+    it('reconnecting takes priority over maintenance — the consolidated bar swaps to reconnecting copy', () => {
+      reconnectingStream()
+      degradedHealth()
+
+      render(<App />)
+
+      const banner = screen.getByTestId('reconnecting-banner')
+      // With DEGRADED health, the reconnecting banner uses the system-update copy.
+      expect(banner).toHaveTextContent('System update in progress')
+      expect(screen.queryByTestId('maintenance-banner')).not.toBeInTheDocument()
+    })
+
+    it('never stacks: at most one banner test-id is present at a time', () => {
+      // Worst case: every state is "on" simultaneously.
+      exhaustedStream()
+      degradedHealth()
+
+      render(<App />)
+
+      const stackedCount =
+        Number(Boolean(screen.queryByTestId('connection-lost-banner'))) +
+        Number(Boolean(screen.queryByTestId('reconnecting-banner'))) +
+        Number(Boolean(screen.queryByTestId('maintenance-banner')))
+      expect(stackedCount).toBe(1)
+    })
+  })
 })

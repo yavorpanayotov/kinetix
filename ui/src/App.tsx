@@ -19,6 +19,7 @@ import { EodTimelineTab } from './components/EodTimelineTab'
 import { BookSummaryCard } from './components/BookSummaryCard'
 import { RiskTickerStrip } from './components/RiskTickerStrip'
 import { BreachBanner } from './components/BreachBanner'
+import { SystemStatusBanner } from './components/SystemStatusBanner'
 import { usePositions } from './hooks/usePositions'
 import { useAlerts } from './hooks/useAlerts'
 import { useVaR } from './hooks/useVaR'
@@ -351,64 +352,14 @@ function App() {
 
       <DemoWelcomeStrip />
 
-      {exhausted && (
-        <div
-          data-testid="connection-lost-banner"
-          className="bg-red-50 border-b border-red-200 text-red-700 px-6 py-2 text-sm font-medium flex items-center justify-between"
-          role="alert"
-        >
-          <span>Connection lost. Live prices are unavailable.</span>
-          <button
-            data-testid="reconnect-button"
-            onClick={manualReconnect}
-            className="ml-4 px-3 py-1 text-sm font-medium bg-red-100 hover:bg-red-200 text-red-800 rounded-md transition-colors"
-          >
-            Reconnect
-          </button>
-        </div>
-      )}
-
-      {!exhausted && reconnecting && (() => {
-        const healthUp = systemHealth.health?.status === 'UP'
-        const healthDegraded = systemHealth.health?.status === 'DEGRADED'
-        const healthUnknown = !systemHealth.health
-        let bannerText: string
-        let bannerClass: string
-        if (healthDegraded) {
-          bannerText = 'System update in progress. Prices paused.'
-          bannerClass = 'bg-blue-50 border-b border-blue-200 text-blue-700'
-        } else if (healthUnknown) {
-          bannerText = 'Unable to reach server. Reconnecting...'
-          bannerClass = 'bg-amber-100 border-b border-amber-300 text-amber-800'
-        } else if (healthUp) {
-          bannerText = 'Price feed interrupted. Reconnecting...'
-          bannerClass = 'bg-amber-100 border-b border-amber-300 text-amber-800'
-        } else {
-          bannerText = 'Reconnecting...'
-          bannerClass = 'bg-amber-100 border-b border-amber-300 text-amber-800'
-        }
-        return (
-          <div data-testid="reconnecting-banner" className={`${bannerClass} px-6 py-2 text-sm font-medium`}>
-            <span role="alert">{bannerText}</span>
-            <span
-              data-testid="reconnecting-banner-elapsed"
-              aria-live="off"
-            >
-              {disconnectElapsed > 0 ? ` (${disconnectElapsed}s)` : ''}
-            </span>
-          </div>
-        )
-      })()}
-
-      {systemHealth.health?.status === 'DEGRADED' && !reconnecting && (
-        <div
-          data-testid="maintenance-banner"
-          className="bg-blue-50 border-b border-blue-200 text-blue-700 px-6 py-2 text-sm font-medium"
-          role="status"
-        >
-          Scheduled maintenance in progress. Some features may be temporarily limited.
-        </div>
-      )}
+      <SystemStatusBanner
+        exhausted={exhausted}
+        reconnecting={reconnecting}
+        maintenance={systemHealth.health?.status === 'DEGRADED'}
+        systemHealthStatus={systemHealth.health?.status ?? null}
+        disconnectElapsed={disconnectElapsed}
+        onReconnect={manualReconnect}
+      />
 
       <RiskTickerStrip
         bookId={effectiveBookId ?? bookId}
