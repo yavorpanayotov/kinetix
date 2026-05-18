@@ -102,7 +102,7 @@ Per CLAUDE.md guardrails, the following are explicitly approved in this plan so 
       Acceptance: `cd ai-insights-service && DEMO_MODE=true uv run pytest tests/test_report_commentary_acceptance.py`
 - [x] 3.2 Extend `gateway/src/main/kotlin/com/kinetix/gateway/routes/InsightsRoutes.kt` with `POST /api/v1/insights/explain/report` proxying to `ai-insights-service`. Extend the gateway acceptance test to cover both endpoints.
       Acceptance: `./gradlew :gateway:acceptanceTest --tests "*InsightsRoutesAcceptanceTest"`
-- [ ] 3.3 Extend `ui/src/api/insights.ts` with `explainReport(payload)`. Vitest unit test for the new method.
+- [x] 3.3 Extend `ui/src/api/insights.ts` with `explainReport(payload)`. Vitest unit test for the new method.
       Acceptance: `cd ui && npm run test -- insights.test`
 - [ ] 3.4 Add an "AI Commentary" card to `ui/src/components/ReportsTab.tsx` that renders below the generated report. Uses the same `AIInsightPanel` component. Card shows a loading skeleton while the report generates, then fetches the commentary. Vitest unit test covers the integration.
       Acceptance: `cd ui && npm run test -- ReportsTab`
