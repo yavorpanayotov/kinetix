@@ -32,7 +32,12 @@ export function useRunAllScenarios(bookId: string | null): UseRunAllScenariosRes
       try {
         const data = await fetchScenarios()
         if (cancelled) return
-        setScenarios(data)
+        // Defensive guard: if the server (or a test mock) returns a non-array
+        // body for /risk/stress/scenarios, treat it as "no scenarios" rather
+        // than letting a downstream `.map` blow up the whole app with a hard
+        // "scenarios.map is not a function" crash. The contract is `string[]`;
+        // any other shape is malformed and should degrade gracefully.
+        setScenarios(Array.isArray(data) ? data : [])
       } catch (err) {
         if (cancelled) return
         setError(err instanceof Error ? err.message : String(err))
