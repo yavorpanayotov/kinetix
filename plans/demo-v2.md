@@ -166,7 +166,7 @@ and flag (per `/work-plan` guardrails).
       `name` and `values.yaml` `image` + `port`. Demo-only — enabled in the
       demo values overlay only.
       Acceptance: `test -f deploy/helm/kinetix/charts/demo-orchestrator/Chart.yaml && grep -q '^name: demo-orchestrator' deploy/helm/kinetix/charts/demo-orchestrator/Chart.yaml`
-- [ ] 4.3 Final module check — full unit + acceptance suite green.
+- [x] 4.3 Final module check — full unit + acceptance suite green.
       Acceptance: `./gradlew :demo-orchestrator:check`
 
 ---
