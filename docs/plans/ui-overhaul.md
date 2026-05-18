@@ -304,7 +304,7 @@ If an item's scope has been partially addressed already (some sub-fixes shipped 
 
 ### Phase 4 — Power-User & Trader Polish (last per plan)
 
-- [ ] 7.1 Cmd+K command palette (scope §7.1) — new `CommandPalette.tsx`, global keydown in `App.tsx`, fuzzy filter over tabs / sub-tabs / books / instruments / counterparties / scenarios.
+- [x] 7.1 Cmd+K command palette (scope §7.1) — new `CommandPalette.tsx`, global keydown in `App.tsx`, fuzzy filter over tabs / sub-tabs / books / instruments / counterparties / scenarios.
 - [ ] 7.3 Position-level annotations (scope §7.3) — **requires new backend endpoint per scope; subagent must flag the architectural decision and stop before adding any contract.**
 - [ ] 8.2 Hedge engine surfacing on breach (scope §8.2) — "Need a hedge?" CTA when VaR utilisation > 80% or any CRITICAL alert is active; reachable from the ticker strip's VaR indicator.
 - [ ] 8.3 Stale data visual unambiguity (scope §8.3) — STALE pill replaced with desaturated overlay / yellow tint over the whole panel + explicit "computed at X, source as of Y" line.
