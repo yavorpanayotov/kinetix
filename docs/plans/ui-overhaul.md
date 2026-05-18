@@ -297,7 +297,7 @@ If an item's scope has been partially addressed already (some sub-fixes shipped 
 ### Phase 3 — Design System & Accessibility (sweeping between feature PRs)
 
 - [x] 5.1 Extract `<SectionHeading>` with one canonical size (scope §5.1) — replace three different `text-sm/base/lg font-semibold` patterns across BookSummaryCard, CounterpartyRiskDashboard, ReportsTab, SystemDashboard.
-- [ ] 5.2 Extract `<SubTabBar>` and consolidate the two inline implementations (scope §5.2) — App.tsx Trades tab + RiskTab.tsx. Quick Win patched the Trades dark-mode class; full extraction remains.
+- [x] 5.2 Extract `<SubTabBar>` and consolidate the two inline implementations (scope §5.2) — App.tsx Trades tab + RiskTab.tsx. Quick Win patched the Trades dark-mode class; full extraction remains.
 - [ ] 5.4 Reserve colour for semantic, not decorative (scope §5.4) — drop CounterpartyRiskDashboard amber / indigo column tints; replace with weight / borders / spacing.
 - [ ] 6.1 Focus trap in WhatIfPanel (scope §6.1) — hand-roll a keydown-cycling trap; the panel claims `role="dialog" aria-modal="true"` but doesn't behave like one for keyboard users.
 - [ ] 6.4 Form error descriptions in NotificationCenter create-rule form (scope §6.4) — `aria-invalid` + `aria-describedby` linked to inline error messages.
