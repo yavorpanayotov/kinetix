@@ -161,7 +161,7 @@ and flag (per `/work-plan` guardrails).
       the three service URLs, trading-hours envs, `depends_on`
       `position-service` / `risk-orchestrator` / `regulatory-service`.
       Acceptance: `grep -q '^[[:space:]]*demo-orchestrator:' docker-compose.services.yml`
-- [ ] 4.2 Copy `deploy/helm/kinetix/charts/risk-orchestrator/` to
+- [x] 4.2 Copy `deploy/helm/kinetix/charts/risk-orchestrator/` to
       `deploy/helm/kinetix/charts/demo-orchestrator/`, updating `Chart.yaml`
       `name` and `values.yaml` `image` + `port`. Demo-only — enabled in the
       demo values overlay only.
