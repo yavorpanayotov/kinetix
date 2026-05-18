@@ -485,11 +485,24 @@ function AppContent() {
   const [disconnectElapsed, setDisconnectElapsed] = useState(0)
   useEffect(() => {
     if (!disconnectedSince) return
-    const update = () => setDisconnectElapsed(Math.floor((Date.now() - disconnectedSince.getTime()) / 1000))
+    // Use a chained setTimeout rather than setInterval so the browser cannot
+    // batch / clamp two ticks together under load. Poll every 250ms (cheap;
+    // the only work is an integer floor + state set) so even when Chrome
+    // clamps background timers to 1s we still observe a state update inside
+    // each Playwright polling window.
+    let cancelled = false
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const update = () => {
+      if (cancelled) return
+      setDisconnectElapsed(
+        Math.floor((Date.now() - disconnectedSince.getTime()) / 1000),
+      )
+      timer = setTimeout(update, 250)
+    }
     update()
-    const timer = setInterval(update, 1000)
     return () => {
-      clearInterval(timer)
+      cancelled = true
+      if (timer !== null) clearTimeout(timer)
       setDisconnectElapsed(0)
     }
   }, [disconnectedSince])

@@ -3,11 +3,19 @@ import { test, expect } from '@playwright/test'
 import { mockAllApiRoutes } from './fixtures'
 
 // Helper: injects a mock WebSocket that connects successfully, then drops after
-// a short delay.  This ensures lastConnectedAt is set before the disconnect,
+// a short delay. This ensures lastConnectedAt is set before the disconnect,
 // which is necessary for tests that assert on the stale-timestamp element.
+//
+// IMPORTANT: only the FIRST instance opens-then-drops. Subsequent constructions
+// (which happen automatically as `usePriceStream` retries with exponential
+// backoff) fail immediately without opening, so the app settles into a stable
+// disconnected state and `disconnectedSince` stops flickering back to null.
+// Without this stability, the elapsed-time counter resets on every reconnect
+// cycle and never observably ticks past 0.
 async function injectConnectThenDropWebSocket(page: import('@playwright/test').Page) {
   await page.addInitScript(() => {
     const OriginalWebSocket = window.WebSocket
+    let instanceCount = 0
 
     class ConnectThenDropWebSocket extends EventTarget {
       static CONNECTING = 0
@@ -33,26 +41,38 @@ async function injectConnectThenDropWebSocket(page: import('@playwright/test').P
       constructor(url: string | URL, _protocols?: string | string[]) {
         super()
         this.url = typeof url === 'string' ? url : url.toString()
+        const isFirstInstance = instanceCount === 0
+        instanceCount += 1
 
-        // First: open the connection so lastConnectedAt is recorded by the app
-        setTimeout(() => {
-          this.readyState = 1
-          const openEvent = new Event('open')
-          if (this.onopen) this.onopen.call(this as unknown as WebSocket, openEvent)
-          this.dispatchEvent(openEvent)
-        }, 50)
-
-        // Then: drop after a long enough delay that Playwright reliably observes
-        // the intermediate "Live" state before the disconnect transition. The
-        // socket is constructed during initial mount, so by the time the test
-        // navigates and selects `connection-status` we still need to leave a
-        // window where the status reads "Live".
-        setTimeout(() => {
-          this.readyState = 3
-          const closeEvent = new CloseEvent('close', { code: 1006, reason: 'Simulated drop' })
-          if (this.onclose) this.onclose.call(this as unknown as WebSocket, closeEvent)
-          this.dispatchEvent(closeEvent)
-        }, 1500)
+        if (isFirstInstance) {
+          // First socket: open then drop so lastConnectedAt + disconnectedSince
+          // both get recorded.
+          setTimeout(() => {
+            this.readyState = 1
+            const openEvent = new Event('open')
+            if (this.onopen) this.onopen.call(this as unknown as WebSocket, openEvent)
+            this.dispatchEvent(openEvent)
+          }, 50)
+          setTimeout(() => {
+            this.readyState = 3
+            const closeEvent = new CloseEvent('close', { code: 1006, reason: 'Simulated drop' })
+            if (this.onclose) this.onclose.call(this as unknown as WebSocket, closeEvent)
+            this.dispatchEvent(closeEvent)
+          }, 1500)
+        } else {
+          // Subsequent reconnect attempts fail immediately so the page stays
+          // disconnected and the elapsed-time counter has a stable origin to
+          // tick against.
+          setTimeout(() => {
+            this.readyState = 3
+            const errorEvent = new Event('error')
+            if (this.onerror) this.onerror.call(this as unknown as WebSocket, errorEvent)
+            this.dispatchEvent(errorEvent)
+            const closeEvent = new CloseEvent('close', { code: 1006, reason: 'Reconnect refused' })
+            if (this.onclose) this.onclose.call(this as unknown as WebSocket, closeEvent)
+            this.dispatchEvent(closeEvent)
+          }, 20)
+        }
       }
 
       send(_data: string | ArrayBuffer | Blob | ArrayBufferView): void {}
