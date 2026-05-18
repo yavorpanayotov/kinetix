@@ -1229,4 +1229,108 @@ describe('App', () => {
       expect(stackedCount).toBe(1)
     })
   })
+
+  describe('tab clustering (plan §2.1)', () => {
+    // The 11 top-level tabs are visually grouped into three clusters:
+    //   Trading: Positions · Trades · P&L
+    //   Risk:    Risk · EOD · Scenarios · Counterparty
+    //   Ops:     Regulatory · Reports · Alerts · System
+    // The grouping is communicated by thin presentational dividers between
+    // the cluster boundaries. All tabs remain inside a single tablist so
+    // keyboard navigation continues to work uniformly.
+    const EXPECTED_TAB_ORDER = [
+      'tab-positions',
+      'tab-trades',
+      'tab-pnl',
+      'tab-risk',
+      'tab-eod',
+      'tab-scenarios',
+      'tab-counterparty-risk',
+      'tab-regulatory',
+      'tab-reports',
+      'tab-alerts',
+      'tab-system',
+    ]
+
+    it('renders tabs in the cluster grouping order: Trading, Risk, Ops', () => {
+      render(<App />)
+
+      const tabBar = screen.getByTestId('tab-bar')
+      const renderedIds = Array.from(
+        tabBar.querySelectorAll<HTMLElement>('[role="tab"]'),
+      ).map(el => el.getAttribute('data-testid') ?? '')
+      expect(renderedIds).toEqual(EXPECTED_TAB_ORDER)
+    })
+
+    it('renders presentational dividers at the cluster boundaries', () => {
+      render(<App />)
+
+      // One divider sits before the Risk cluster (between P&L and Risk),
+      // another before the Ops cluster (between Counterparty Risk and
+      // Regulatory). Dividers are presentational, so they carry the
+      // `aria-hidden` attribute and a dedicated `tab-cluster-divider`
+      // test id.
+      const tabBar = screen.getByTestId('tab-bar')
+      const dividers = within(tabBar).getAllByTestId('tab-cluster-divider')
+      expect(dividers).toHaveLength(2)
+      dividers.forEach(divider => {
+        expect(divider).toHaveAttribute('aria-hidden', 'true')
+      })
+    })
+
+    it('places the Risk cluster divider between the P&L tab and the Risk tab', () => {
+      render(<App />)
+
+      const dividers = screen.getAllByTestId('tab-cluster-divider')
+      const riskDivider = dividers[0]
+      const pnl = screen.getByTestId('tab-pnl')
+      const risk = screen.getByTestId('tab-risk')
+
+      // The divider sits after P&L and before Risk in DOM order.
+      expect(
+        pnl.compareDocumentPosition(riskDivider) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
+      expect(
+        riskDivider.compareDocumentPosition(risk) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
+    })
+
+    it('places the Ops cluster divider between the Counterparty Risk tab and the Regulatory tab', () => {
+      render(<App />)
+
+      const dividers = screen.getAllByTestId('tab-cluster-divider')
+      const opsDivider = dividers[1]
+      const counterparty = screen.getByTestId('tab-counterparty-risk')
+      const regulatory = screen.getByTestId('tab-regulatory')
+
+      expect(
+        counterparty.compareDocumentPosition(opsDivider) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
+      expect(
+        opsDivider.compareDocumentPosition(regulatory) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
+    })
+
+    it('every tab still activates its panel when clicked', () => {
+      render(<App />)
+
+      EXPECTED_TAB_ORDER.forEach(testId => {
+        const tab = screen.getByTestId(testId)
+        fireEvent.click(tab)
+        expect(tab).toHaveAttribute('aria-selected', 'true')
+      })
+    })
+
+    it('dividers do not have role="tab" so they are excluded from the tab order', () => {
+      render(<App />)
+
+      const tabBar = screen.getByTestId('tab-bar')
+      const tabs = tabBar.querySelectorAll('[role="tab"]')
+      expect(tabs).toHaveLength(EXPECTED_TAB_ORDER.length)
+    })
+  })
 })

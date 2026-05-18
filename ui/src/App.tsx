@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { Activity, BarChart3, ScrollText, TrendingUp, Shield, FlaskConical, Scale, Bell, Server, FlaskRound, Sun, Moon, Save, CalendarDays, Users, FileText, LogOut } from 'lucide-react'
 import { ErrorBoundary, SectionErrorCard } from './components/ErrorBoundary'
 import { PositionGrid } from './components/PositionGrid'
@@ -57,18 +57,31 @@ import { KeyboardShortcutsOverlay } from './components/KeyboardShortcutsOverlay'
 
 type Tab = 'positions' | 'trades' | 'pnl' | 'risk' | 'eod' | 'scenarios' | 'regulatory' | 'counterparty-risk' | 'reports' | 'alerts' | 'system'
 
-const TABS: { key: Tab; label: string; icon: typeof Activity }[] = [
-  { key: 'positions', label: 'Positions', icon: BarChart3 },
-  { key: 'trades', label: 'Trades', icon: ScrollText },
-  { key: 'pnl', label: 'P&L', icon: TrendingUp },
-  { key: 'risk', label: 'Risk', icon: Shield },
-  { key: 'eod', label: 'EOD History', icon: CalendarDays },
-  { key: 'scenarios', label: 'Scenarios', icon: FlaskConical },
-  { key: 'regulatory', label: 'Regulatory', icon: Scale },
-  { key: 'counterparty-risk', label: 'Counterparty Risk', icon: Users },
-  { key: 'reports', label: 'Reports', icon: FileText },
-  { key: 'alerts', label: 'Alerts', icon: Bell },
-  { key: 'system', label: 'System', icon: Server },
+// Plan §2.1: the 11 top-level tabs are grouped into three visual clusters
+// — Trading, Risk, Ops. The clusters are communicated by thin presentational
+// dividers between cluster boundaries; all tabs remain inside a single
+// `role="tablist"` so keyboard navigation continues to work uniformly.
+//
+// The first tab in each cluster carries `clusterStart: true` so the render
+// loop can inject a divider element immediately before it (skipping the
+// very first tab to avoid a leading divider).
+type TabCluster = 'trading' | 'risk' | 'ops'
+
+const TABS: { key: Tab; label: string; icon: typeof Activity; cluster: TabCluster; clusterStart?: boolean }[] = [
+  // Trading cluster
+  { key: 'positions', label: 'Positions', icon: BarChart3, cluster: 'trading', clusterStart: true },
+  { key: 'trades', label: 'Trades', icon: ScrollText, cluster: 'trading' },
+  { key: 'pnl', label: 'P&L', icon: TrendingUp, cluster: 'trading' },
+  // Risk cluster
+  { key: 'risk', label: 'Risk', icon: Shield, cluster: 'risk', clusterStart: true },
+  { key: 'eod', label: 'EOD History', icon: CalendarDays, cluster: 'risk' },
+  { key: 'scenarios', label: 'Scenarios', icon: FlaskConical, cluster: 'risk' },
+  { key: 'counterparty-risk', label: 'Counterparty Risk', icon: Users, cluster: 'risk' },
+  // Ops cluster
+  { key: 'regulatory', label: 'Regulatory', icon: Scale, cluster: 'ops', clusterStart: true },
+  { key: 'reports', label: 'Reports', icon: FileText, cluster: 'ops' },
+  { key: 'alerts', label: 'Alerts', icon: Bell, cluster: 'ops' },
+  { key: 'system', label: 'System', icon: Server, cluster: 'ops' },
 ]
 
 function App() {
@@ -315,46 +328,57 @@ function App() {
       </header>
 
       <nav className="bg-surface-800 px-4 md:px-6 flex gap-1 border-b border-surface-700 overflow-x-auto" data-testid="tab-bar" role="tablist" onKeyDown={handleTabKeyDown}>
-        {TABS.map(({ key, label, icon: Icon }) => (
-          <button
-            key={key}
-            id={`tab-${key}`}
-            data-testid={`tab-${key}`}
-            ref={(el) => { if (el) tabRefs.current.set(key, el) }}
-            role="tab"
-            aria-selected={activeTab === key}
-            tabIndex={activeTab === key ? 0 : -1}
-            onClick={() => setActiveTab(key)}
-            className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
-              activeTab === key
-                ? 'border-primary-500 text-white'
-                : 'border-transparent text-slate-400 hover:text-white'
-            }`}
-          >
-            <Icon className="h-4 w-4" />
-            <span className="hidden md:inline">{label}</span>
-            {key === 'alerts' && notifications.error && (
+        {TABS.map(({ key, label, icon: Icon, clusterStart }, index) => (
+          <Fragment key={key}>
+            {/* Plan §2.1: cluster divider sits between cluster boundaries.
+                Presentational only — aria-hidden so screen readers ignore it
+                and it does not appear in the tablist's tab order. */}
+            {clusterStart && index > 0 && (
               <span
-                data-testid="alerts-error-dot"
-                className="ml-1 inline-block h-2 w-2 rounded-full bg-amber-400"
-                title="Alert monitoring unavailable"
+                aria-hidden="true"
+                data-testid="tab-cluster-divider"
+                className="self-stretch w-px my-2 ml-2 mr-2 bg-surface-700"
               />
             )}
-            {key === 'alerts' && !notifications.error && notifications.alerts.length > 0 && (
-              <span
-                data-testid="alert-count-badge"
-                className="ml-1 px-1.5 py-0.5 bg-primary-500 text-white text-xs rounded-full"
-              >
-                {notifications.alerts.length}
-              </span>
-            )}
-            {key === 'system' && systemHealth.health?.status === 'DEGRADED' && (
-              <span
-                data-testid="system-degraded-dot"
-                className="ml-1 inline-block h-2 w-2 rounded-full bg-red-500"
-              />
-            )}
-          </button>
+            <button
+              id={`tab-${key}`}
+              data-testid={`tab-${key}`}
+              ref={(el) => { if (el) tabRefs.current.set(key, el) }}
+              role="tab"
+              aria-selected={activeTab === key}
+              tabIndex={activeTab === key ? 0 : -1}
+              onClick={() => setActiveTab(key)}
+              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                activeTab === key
+                  ? 'border-primary-500 text-white'
+                  : 'border-transparent text-slate-400 hover:text-white'
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              <span className="hidden md:inline">{label}</span>
+              {key === 'alerts' && notifications.error && (
+                <span
+                  data-testid="alerts-error-dot"
+                  className="ml-1 inline-block h-2 w-2 rounded-full bg-amber-400"
+                  title="Alert monitoring unavailable"
+                />
+              )}
+              {key === 'alerts' && !notifications.error && notifications.alerts.length > 0 && (
+                <span
+                  data-testid="alert-count-badge"
+                  className="ml-1 px-1.5 py-0.5 bg-primary-500 text-white text-xs rounded-full"
+                >
+                  {notifications.alerts.length}
+                </span>
+              )}
+              {key === 'system' && systemHealth.health?.status === 'DEGRADED' && (
+                <span
+                  data-testid="system-degraded-dot"
+                  className="ml-1 inline-block h-2 w-2 rounded-full bg-red-500"
+                />
+              )}
+            </button>
+          </Fragment>
         ))}
       </nav>
 
