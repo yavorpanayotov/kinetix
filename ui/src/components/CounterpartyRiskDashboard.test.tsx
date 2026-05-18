@@ -491,4 +491,133 @@ describe('CounterpartyRiskDashboard', () => {
     expect(heading.className).toContain('text-base')
     expect(heading.className).toContain('font-semibold')
   })
+
+  // Plan §5.4 — Reserve colour for semantic, not decorative.
+  // The Peak PFE and CVA columns historically used amber / indigo tints as a
+  // purely decorative "this is a different column" cue. Severity, sign and
+  // status earn colour; mere column identity does not. Decorative grouping
+  // should use weight / borders / spacing instead.
+  describe('decorative column colour removal (plan §5.4)', () => {
+    it('does not tint the Peak PFE cell amber', () => {
+      mockUseCounterpartyRisk.mockReturnValue({
+        ...defaultHook,
+        exposures: [SAMPLE_EXPOSURE],
+      })
+
+      const { container } = render(<CounterpartyRiskDashboard />)
+
+      const row = container.querySelector('[data-testid="counterparty-row-CP-GS"]')!
+      const cells = row.querySelectorAll('td')
+      // 5 columns: counterparty, net exposure, peak pfe, cva, wwr.
+      const peakPfeCell = cells[2]
+      expect(peakPfeCell.className).not.toMatch(/\btext-amber-\d{2,3}\b/)
+    })
+
+    it('does not tint the CVA cell indigo', () => {
+      mockUseCounterpartyRisk.mockReturnValue({
+        ...defaultHook,
+        exposures: [SAMPLE_EXPOSURE],
+      })
+
+      const { container } = render(<CounterpartyRiskDashboard />)
+
+      const row = container.querySelector('[data-testid="counterparty-row-CP-GS"]')!
+      const cells = row.querySelectorAll('td')
+      const cvaCell = cells[3]
+      // The whole CVA cell — including any inner spans — must be free of
+      // decorative indigo tinting. (The italic "estimated" slate variant is
+      // semantic — it signals the value is an approximation — and stays.)
+      expect(cvaCell.innerHTML).not.toMatch(/text-indigo-\d{2,3}/)
+    })
+
+    it('does not tint the detail Peak PFE metric amber', () => {
+      mockUseCounterpartyRisk.mockReturnValue({
+        ...defaultHook,
+        exposures: [SAMPLE_EXPOSURE],
+        selected: SAMPLE_EXPOSURE,
+      })
+
+      render(<CounterpartyRiskDashboard />)
+
+      const peakPfe = screen.getByTestId('detail-peak-pfe')
+      expect(peakPfe.className).not.toMatch(/\btext-amber-\d{2,3}\b/)
+    })
+
+    it('does not tint the detail CVA metric indigo', () => {
+      mockUseCounterpartyRisk.mockReturnValue({
+        ...defaultHook,
+        exposures: [SAMPLE_EXPOSURE],
+        selected: SAMPLE_EXPOSURE,
+      })
+
+      render(<CounterpartyRiskDashboard />)
+
+      const cva = screen.getByTestId('detail-cva')
+      expect(cva.className).not.toMatch(/\btext-indigo-\d{2,3}\b/)
+    })
+
+    it('separates the Peak PFE and CVA column groups with a left border (decorative grouping via border, not colour)', () => {
+      mockUseCounterpartyRisk.mockReturnValue({
+        ...defaultHook,
+        exposures: [SAMPLE_EXPOSURE],
+      })
+
+      const { container } = render(<CounterpartyRiskDashboard />)
+
+      // Both the header cell and the data cell of the Peak PFE column should
+      // carry a left border to visually group the credit-risk columns
+      // (Peak PFE + CVA) apart from the exposure column to its left.
+      const peakPfeHeader = container.querySelector('[data-testid="sort-header-peakPfe"]')!
+      expect(peakPfeHeader.className).toMatch(/\bborder-l\b/)
+
+      const row = container.querySelector('[data-testid="counterparty-row-CP-GS"]')!
+      const peakPfeCell = row.querySelectorAll('td')[2]
+      expect(peakPfeCell.className).toMatch(/\bborder-l\b/)
+    })
+
+    it('keeps the WWR amber flag and badge (semantic — severity)', () => {
+      mockUseCounterpartyRisk.mockReturnValue({
+        ...defaultHook,
+        exposures: buildFleet(),
+      })
+
+      render(<CounterpartyRiskDashboard />)
+
+      // Top-decile counterparty — should still carry the amber severity flag
+      // and badge. Amber here means "high exposure", not "this is the WWR
+      // column", so it stays.
+      const flag = screen.getByTestId('wwf-flag-CP-BIG-3')
+      // The flag is a lucide-react SVG; className is an SVGAnimatedString, so
+      // read the raw attribute instead.
+      expect(flag.getAttribute('class') ?? '').toMatch(/\btext-amber-\d{2,3}\b/)
+      const badge = screen.getByTestId('wwf-badge-CP-BIG-3')
+      expect(badge.className).toMatch(/\btext-amber-\d{2,3}\b/)
+    })
+
+    it('keeps the error banner red (semantic — error)', () => {
+      mockUseCounterpartyRisk.mockReturnValue({
+        ...defaultHook,
+        error: 'boom',
+      })
+
+      render(<CounterpartyRiskDashboard />)
+
+      const errorBanner = screen.getByTestId('counterparty-error')
+      expect(errorBanner.className).toMatch(/\bbg-red-\d{2,3}\b/)
+      expect(errorBanner.className).toMatch(/\btext-red-\d{2,3}\b/)
+    })
+
+    it('keeps the agreement-expired pill red (semantic — status)', () => {
+      mockUseCounterpartyRisk.mockReturnValue({
+        ...defaultHook,
+        exposures: [{ ...SAMPLE_EXPOSURE, agreementStatus: 'EXPIRED' }],
+      })
+
+      render(<CounterpartyRiskDashboard />)
+
+      const pill = screen.getByTestId('agreement-expired-pill-CP-GS')
+      expect(pill.className).toMatch(/\bbg-red-\d{2,3}/)
+      expect(pill.className).toMatch(/\btext-red-\d{2,3}/)
+    })
+  })
 })

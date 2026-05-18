@@ -18,16 +18,22 @@ interface SortableHeaderProps {
   sortColumn: SortColumn
   sortDirection: SortDirection
   onSort: (column: SortColumn) => void
+  /**
+   * Extra utility classes applied to the `<th>`. Used to add light vertical
+   * separators between column groups (plan §5.4 — decorative grouping via
+   * borders, not colour).
+   */
+  className?: string
 }
 
-function SortableHeader({ column, label, align, sortColumn, sortDirection, onSort }: SortableHeaderProps) {
+function SortableHeader({ column, label, align, sortColumn, sortDirection, onSort, className }: SortableHeaderProps) {
   const isActive = sortColumn === column
   const justify = align === 'right' ? 'justify-end' : align === 'center' ? 'justify-center' : 'justify-start'
   return (
     <th
       data-testid={`sort-header-${column}`}
       onClick={() => onSort(column)}
-      className={`px-4 py-2.5 text-${align} text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider cursor-pointer select-none hover:text-slate-700 dark:hover:text-slate-200`}
+      className={`px-4 py-2.5 text-${align} text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider cursor-pointer select-none hover:text-slate-700 dark:hover:text-slate-200${className ? ` ${className}` : ''}`}
       aria-sort={isActive ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
     >
       <span className={`inline-flex items-center gap-1 ${justify}`}>
@@ -218,12 +224,18 @@ function CounterpartyRow({ exposure, isSelected, highThreshold, onSelect, onJump
       <td className="px-4 py-2.5 text-sm text-right font-mono text-slate-700 dark:text-slate-200">
         {formatCurrency(exposure.currentNetExposure)}
       </td>
-      <td className="px-4 py-2.5 text-sm text-right font-mono text-amber-300">
+      {/*
+       * Peak PFE marks the start of the credit-risk column group (Peak PFE
+       * + CVA). The left border is a decorative-but-meaningful separator —
+       * see plan §5.4: column identity is signalled by spacing / borders,
+       * not by tint.
+       */}
+      <td className="px-4 py-2.5 text-sm text-right font-mono text-slate-700 dark:text-slate-200 border-l border-slate-200 dark:border-slate-700">
         {formatCurrency(exposure.peakPfe)}
       </td>
-      <td className="px-4 py-2.5 text-sm text-right font-mono">
+      <td className="px-4 py-2.5 text-sm text-right font-mono text-slate-700 dark:text-slate-200">
         {hasCva ? (
-          <span className={exposure.cvaEstimated ? 'text-slate-500 dark:text-slate-400 italic' : 'text-indigo-300'}>
+          <span className={exposure.cvaEstimated ? 'text-slate-500 dark:text-slate-400 italic' : ''}>
             {formatCurrency(exposure.cva!)}
             {exposure.cvaEstimated && ' *'}
           </span>
@@ -324,7 +336,7 @@ function DetailPanel({ exposure, computing, onComputePFE, onComputeCVA }: Detail
           <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">Peak PFE</div>
           <div
             data-testid="detail-peak-pfe"
-            className="text-lg font-mono font-semibold text-amber-300"
+            className="text-lg font-mono font-semibold text-slate-900 dark:text-slate-100"
           >
             {formatCurrency(exposure.peakPfe)}
           </div>
@@ -334,7 +346,7 @@ function DetailPanel({ exposure, computing, onComputePFE, onComputeCVA }: Detail
           <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">CVA</div>
           <div
             data-testid="detail-cva"
-            className="text-lg font-mono font-semibold text-indigo-300"
+            className="text-lg font-mono font-semibold text-slate-900 dark:text-slate-100"
           >
             {exposure.cva !== null ? (
               <>
@@ -574,6 +586,10 @@ export function CounterpartyRiskDashboard({ onJumpToTrades }: CounterpartyRiskDa
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={handleSort}
+                      // Visually group the credit-risk metrics (Peak PFE +
+                      // CVA) apart from the exposure column to their left.
+                      // Plan §5.4 — borders / spacing for decorative grouping.
+                      className="border-l border-slate-200 dark:border-slate-700"
                     />
                     <SortableHeader
                       column="cva"
