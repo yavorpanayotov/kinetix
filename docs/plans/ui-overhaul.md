@@ -313,7 +313,7 @@ If an item's scope has been partially addressed already (some sub-fixes shipped 
 
 ### Phase 5 — Responsive Strategy
 
-- [ ] 9. Adopt desktop-only floor (scope §9) — `min-width: 1280px` on `<body>` or a small-viewport warning page; strip partial `md:` / `lg:` / `hidden sm:` accommodations and the maintenance burden they imply.
+- [x] 9. Adopt desktop-only floor (scope §9) — `min-width: 1280px` on `<body>` or a small-viewport warning page; strip partial `md:` / `lg:` / `hidden sm:` accommodations and the maintenance burden they imply.
 
 ### Blocked items needing decisions
 
