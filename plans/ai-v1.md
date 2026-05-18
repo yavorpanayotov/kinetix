@@ -72,7 +72,7 @@ Per CLAUDE.md guardrails, the following are explicitly approved in this plan so 
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_claude_agent_client.py`
 - [x] 1.5 Add `src/kinetix_insights/factory.py::build_client()` that returns `ClaudeAgentInsightClient` unless `DEMO_MODE=true` or instantiation raises, in which case it returns `CannedInsightClient`. Wire `app.py` to use the factory at startup. Unit test covers all three branches (`DEMO_MODE=true` ⇒ canned; SDK raises ⇒ canned; SDK ok ⇒ live).
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_factory.py`
-- [ ] 1.6 Add an in-process LRU cache (`functools.lru_cache` wrapper) around `InsightClient.explain` keyed by request hash, size 256. Unit test asserts identical requests return the same response without re-invoking the underlying client.
+- [x] 1.6 Add an in-process LRU cache (`functools.lru_cache` wrapper) around `InsightClient.explain` keyed by request hash, size 256. Unit test asserts identical requests return the same response without re-invoking the underlying client.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_cache.py`
 - [ ] 1.7 Add `ai-insights-service/README.md` documenting the host-auth model: native local dev uses `~/.claude/` automatically; Docker requires `~/.claude:/root/.claude:ro` volume mount; CI uses `DEMO_MODE=true`; no `ANTHROPIC_API_KEY`. Add a "Demo mode vs live mode" section showing the response shape difference (`mode` field) and how to flip.
       Acceptance: `test -f ai-insights-service/README.md && grep -q 'DEMO_MODE' ai-insights-service/README.md && grep -q '/root/.claude' ai-insights-service/README.md`
