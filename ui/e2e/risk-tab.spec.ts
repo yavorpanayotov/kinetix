@@ -754,11 +754,16 @@ test.describe('Alert Banner', () => {
     await goToRiskTab(page)
     await page.waitForSelector('[data-testid="risk-alert-banner"]')
 
+    // CRITICAL alerts also surface in the global BreachBanner (§3.4 — breach
+    // banner follows the user). Scope to the Risk-tab dashboard banner so we
+    // assert on the in-tab instance, not the global one above it.
+    const riskTabBanner = page.getByRole('tabpanel').getByTestId('risk-alert-banner')
+
     // CRITICAL alert has role="alert"
-    await expect(page.getByTestId('alert-item-alert-1')).toHaveAttribute('role', 'alert')
+    await expect(riskTabBanner.getByTestId('alert-item-alert-1')).toHaveAttribute('role', 'alert')
 
     // WARNING alert does NOT have role="alert"
-    const warningRole = await page.getByTestId('alert-item-alert-2').getAttribute('role')
+    const warningRole = await riskTabBanner.getByTestId('alert-item-alert-2').getAttribute('role')
     expect(warningRole).toBeNull()
   })
 
@@ -770,14 +775,19 @@ test.describe('Alert Banner', () => {
     await goToRiskTab(page)
     await page.waitForSelector('[data-testid="alert-item-alert-1"]')
 
+    // CRITICAL alerts also surface in the global BreachBanner. Scope the
+    // dismiss interaction to the Risk-tab dashboard banner so we exercise the
+    // in-tab instance specifically.
+    const riskTabBanner = page.getByRole('tabpanel').getByTestId('risk-alert-banner')
+
     // Dismiss first alert
-    await page.getByTestId('alert-dismiss-alert-1').click()
+    await riskTabBanner.getByTestId('alert-dismiss-alert-1').click()
 
-    // First alert should disappear
-    await expect(page.getByTestId('alert-item-alert-1')).not.toBeVisible()
+    // First alert should disappear from the in-tab banner
+    await expect(riskTabBanner.getByTestId('alert-item-alert-1')).not.toBeVisible()
 
-    // Second alert should remain
-    await expect(page.getByTestId('alert-item-alert-2')).toBeVisible()
+    // Second alert (WARNING) should remain in the in-tab banner
+    await expect(riskTabBanner.getByTestId('alert-item-alert-2')).toBeVisible()
   })
 
   test('no banner when no alerts exist', async ({ page }) => {
@@ -787,7 +797,9 @@ test.describe('Alert Banner', () => {
     // Wait for the risk tab content to load
     await page.waitForSelector('[data-testid="pnl-summary-card"]')
 
-    await expect(page.getByTestId('risk-alert-banner')).not.toBeVisible()
+    // Check the in-tab banner specifically — the global BreachBanner is also
+    // absent here because there's no breach and no CRITICAL alerts.
+    await expect(page.getByRole('tabpanel').getByTestId('risk-alert-banner')).not.toBeVisible()
   })
 })
 
@@ -939,7 +951,9 @@ test.describe('Job History', () => {
     await expect(page.getByTestId('pnl-summary-card')).toBeVisible()
     await expect(page.getByTestId('stress-summary-card')).toBeVisible()
     await expect(page.getByTestId('job-history')).toBeVisible()
-    await expect(page.getByTestId('risk-alert-banner')).toBeVisible()
+    // CRITICAL alerts also surface in the global BreachBanner above the tab;
+    // scope this assertion to the in-tab Risk Dashboard banner.
+    await expect(page.getByRole('tabpanel').getByTestId('risk-alert-banner')).toBeVisible()
   })
 })
 

@@ -5,6 +5,7 @@ import type { PositionDto } from './types'
 vi.mock('./hooks/usePositions')
 vi.mock('./hooks/usePriceStream')
 vi.mock('./hooks/useNotifications')
+vi.mock('./hooks/useAlerts')
 vi.mock('./hooks/useSystemHealth')
 vi.mock('./hooks/useStressTest')
 vi.mock('./hooks/useBookSelector')
@@ -33,6 +34,7 @@ import App from './App'
 import { usePositions } from './hooks/usePositions'
 import { usePriceStream } from './hooks/usePriceStream'
 import { useNotifications } from './hooks/useNotifications'
+import { useAlerts } from './hooks/useAlerts'
 import { useSystemHealth } from './hooks/useSystemHealth'
 import { useStressTest } from './hooks/useStressTest'
 import { useBookSelector } from './hooks/useBookSelector'
@@ -49,6 +51,7 @@ const mockUsePositions = vi.mocked(usePositions)
 const mockUseAuth = vi.mocked(useAuth)
 const mockUsePriceStream = vi.mocked(usePriceStream)
 const mockUseNotifications = vi.mocked(useNotifications)
+const mockUseAlerts = vi.mocked(useAlerts)
 const mockUseSystemHealth = vi.mocked(useSystemHealth)
 const mockUseStressTest = vi.mocked(useStressTest)
 const mockUseBookSelector = vi.mocked(useBookSelector)
@@ -200,6 +203,7 @@ function setupDefaults() {
     isLive: true,
   })
   mockUseVarLimit.mockReturnValue({ varLimit: null, loading: false })
+  mockUseAlerts.mockReturnValue({ alerts: [], dismissAlert: vi.fn() })
   mockUseIntradayPnlStream.mockReturnValue({
     snapshots: [],
     latest: null,
@@ -809,6 +813,133 @@ describe('App', () => {
       expect(screen.queryByTestId('keyboard-shortcuts-overlay')).not.toBeInTheDocument()
 
       document.body.removeChild(input)
+    })
+  })
+
+  describe('global breach banner', () => {
+    const breachVarResult = {
+      bookId: 'book-1',
+      calculationType: 'PARAMETRIC',
+      confidenceLevel: 'CL_95',
+      varValue: '90000.00', // 90% of 100k = 90% > 80% threshold
+      expectedShortfall: '95000.00',
+      componentBreakdown: [],
+      calculatedAt: '2026-03-24T09:31:00Z',
+    } as const
+
+    function withVarBreach() {
+      mockUseVaR.mockReturnValue({
+        varResult: breachVarResult,
+        greeksResult: null,
+        history: [],
+        filteredHistory: [],
+        loading: false,
+        historyLoading: false,
+        refreshing: false,
+        error: null,
+        errorTransient: false,
+        refresh: vi.fn(),
+        timeRange: { from: '', to: '', label: 'Last 24h' },
+        setTimeRange: vi.fn(),
+        selectedConfidenceLevel: 'CL_95',
+        setSelectedConfidenceLevel: vi.fn(),
+        zoomIn: vi.fn(),
+        resetZoom: vi.fn(),
+        zoomDepth: 0,
+        isLive: true,
+      })
+      mockUseVarLimit.mockReturnValue({ varLimit: 100_000, loading: false })
+    }
+
+    it('shows the breach banner on the default Positions tab when VaR utilisation exceeds 80%', () => {
+      withVarBreach()
+      render(<App />)
+
+      expect(screen.getByTestId('breach-banner')).toBeInTheDocument()
+    })
+
+    it('keeps the breach banner visible when navigating between Positions, Risk, and P&L tabs', () => {
+      withVarBreach()
+      render(<App />)
+
+      expect(screen.getByTestId('breach-banner')).toBeInTheDocument()
+
+      fireEvent.click(screen.getByTestId('tab-risk'))
+      expect(screen.getByTestId('breach-banner')).toBeInTheDocument()
+
+      fireEvent.click(screen.getByTestId('tab-pnl'))
+      expect(screen.getByTestId('breach-banner')).toBeInTheDocument()
+
+      fireEvent.click(screen.getByTestId('tab-positions'))
+      expect(screen.getByTestId('breach-banner')).toBeInTheDocument()
+    })
+
+    it('hides the breach banner on tabs outside the trading-day flow (e.g. Reports)', () => {
+      withVarBreach()
+      render(<App />)
+
+      expect(screen.getByTestId('breach-banner')).toBeInTheDocument()
+
+      fireEvent.click(screen.getByTestId('tab-reports'))
+      expect(screen.queryByTestId('breach-banner')).not.toBeInTheDocument()
+    })
+
+    it('hides the breach banner on the Trades tab', () => {
+      withVarBreach()
+      render(<App />)
+
+      fireEvent.click(screen.getByTestId('tab-trades'))
+      expect(screen.queryByTestId('breach-banner')).not.toBeInTheDocument()
+    })
+
+    it('does not show the breach banner when VaR is within limit and no CRITICAL alerts', () => {
+      mockUseVarLimit.mockReturnValue({ varLimit: 1_000_000, loading: false })
+      mockUseAlerts.mockReturnValue({ alerts: [], dismissAlert: vi.fn() })
+
+      render(<App />)
+
+      expect(screen.queryByTestId('breach-banner')).not.toBeInTheDocument()
+    })
+
+    it('shows the breach banner when a CRITICAL alert is active even though VaR is well within limit', () => {
+      mockUseVarLimit.mockReturnValue({ varLimit: 1_000_000, loading: false })
+      mockUseAlerts.mockReturnValue({
+        alerts: [
+          {
+            id: 'crit-1',
+            ruleId: 'rule-1',
+            ruleName: 'PnL drawdown',
+            type: 'PNL_THRESHOLD',
+            severity: 'CRITICAL',
+            message: 'Drawdown -5%',
+            currentValue: -500_000,
+            threshold: -300_000,
+            bookId: 'book-1',
+            triggeredAt: '2026-03-24T09:30:00Z',
+            status: 'TRIGGERED',
+          },
+        ],
+        dismissAlert: vi.fn(),
+      })
+
+      render(<App />)
+
+      expect(screen.getByTestId('breach-banner')).toBeInTheDocument()
+    })
+
+    it('does not duplicate the banner inside <main> — it sits above the tab content', () => {
+      withVarBreach()
+      render(<App />)
+
+      const banner = screen.getByTestId('breach-banner')
+      const ticker = screen.getByTestId('risk-ticker-strip')
+      const tabPanel = screen.getByRole('tabpanel')
+
+      // Banner should sit AFTER the ticker strip and BEFORE the tab panel.
+      const order = ticker.compareDocumentPosition(banner)
+      expect(order & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      const orderToPanel = banner.compareDocumentPosition(tabPanel)
+      expect(orderToPanel & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     })
   })
 

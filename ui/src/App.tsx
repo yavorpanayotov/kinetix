@@ -18,7 +18,9 @@ import { ReportsTab } from './components/ReportsTab'
 import { EodTimelineTab } from './components/EodTimelineTab'
 import { BookSummaryCard } from './components/BookSummaryCard'
 import { RiskTickerStrip } from './components/RiskTickerStrip'
+import { BreachBanner } from './components/BreachBanner'
 import { usePositions } from './hooks/usePositions'
+import { useAlerts } from './hooks/useAlerts'
 import { useVaR } from './hooks/useVaR'
 import { useVarLimit } from './hooks/useVarLimit'
 import { useIntradayPnlStream } from './hooks/useIntradayPnlStream'
@@ -179,6 +181,7 @@ function App() {
   const hierarchySummary = useHierarchySummary(hierarchy.selection)
   const { varResult, greeksResult } = useVaR(effectiveBookId)
   const { varLimit } = useVarLimit()
+  const { alerts: breachAlerts, dismissAlert: dismissBreachAlert } = useAlerts()
   const { latest: intradayLatest, connected: intradayConnected } = useIntradayPnlStream(effectiveBookId)
   const { isDark, toggle: toggleTheme } = useTheme()
   const dataQuality = useDataQuality()
@@ -415,6 +418,14 @@ function App() {
         greeksResult={greeksResult}
         varLimit={varLimit}
         streamConnected={intradayConnected}
+      />
+
+      <BreachBanner
+        activeTab={activeTab}
+        varValue={varResult ? Number(varResult.varValue) : null}
+        varLimit={varLimit}
+        alerts={breachAlerts}
+        onDismiss={dismissBreachAlert}
       />
 
       <main className="flex-1 p-4 md:p-6 dark:bg-surface-900" role="tabpanel" aria-labelledby={`tab-${activeTab}`}>
