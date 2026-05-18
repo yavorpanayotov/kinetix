@@ -277,7 +277,7 @@ If an item's scope has been partially addressed already (some sub-fixes shipped 
 
 ### Phase 1 — Always-On Risk State (Workstream 1 first per plan recommendation)
 
-- [ ] 1.1 Persistent P&L + VaR ticker strip (scope §1.1) — promote `PnlTickerStrip` to a global slot below the tab bar; XL impact, ~3d effort.
+- [x] 1.1 Persistent P&L + VaR ticker strip (scope §1.1) — promote `PnlTickerStrip` to a global slot below the tab bar; XL impact, ~3d effort.
 - [ ] 1.2 Active scenario / regime annotation on affected risk panels (scope §1.2) — pass `activeScenario` / `marketRegime` context through `RiskTab` and `VaRDashboard`, annotate per-number not just header.
 - [ ] 1.3 Limits-and-utilisation header atop Risk Dashboard (scope §1.3) — promote `LimitsPanel` summary to a sticky band above the Dashboard scroll.
 
