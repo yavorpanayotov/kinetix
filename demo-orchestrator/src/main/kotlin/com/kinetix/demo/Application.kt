@@ -1,13 +1,17 @@
 package com.kinetix.demo
 
 import com.kinetix.demo.client.PositionServiceHttpClient
+import com.kinetix.demo.client.RegulatoryServiceHttpClient
 import com.kinetix.demo.client.RiskOrchestratorHttpClient
 import com.kinetix.demo.config.DemoConfig
+import com.kinetix.demo.kafka.OfficialEodConsumer
 import com.kinetix.demo.schedule.DefaultPriceBook
 import com.kinetix.demo.schedule.DefaultStrategyIdResolver
+import com.kinetix.demo.schedule.EodCycleObserverJob
 import com.kinetix.demo.schedule.LimitSeedJob
 import com.kinetix.demo.schedule.SchedulingHelpers
 import com.kinetix.demo.schedule.SimulatedTraderJob
+import com.kinetix.demo.schedule.StubBacktestInputProvider
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
@@ -29,7 +33,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
+import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.kafka.clients.consumer.KafkaConsumer
+import org.apache.kafka.common.serialization.StringDeserializer
 import java.time.LocalTime
+import java.util.Properties
 import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration.Companion.seconds
 
@@ -101,6 +109,48 @@ private fun Application.wireDemoSchedulers(config: DemoConfig) {
     )
     launch {
         runSimulatedTraderLoop(simulatedTraderJob, config.tradeCadenceSeconds)
+    }
+
+    val regulatoryClient = RegulatoryServiceHttpClient(httpClient, config.regulatoryServiceUrl)
+    val eodObserverJob = EodCycleObserverJob(
+        regulatoryClient = regulatoryClient,
+        backtestInputProvider = StubBacktestInputProvider(),
+    )
+    val officialEodConsumer = OfficialEodConsumer(
+        consumer = buildOfficialEodKafkaConsumer(config.kafkaBootstrapServers),
+        job = eodObserverJob,
+    )
+    launch {
+        runOfficialEodConsumerSafely(officialEodConsumer)
+    }
+}
+
+private const val OFFICIAL_EOD_CONSUMER_GROUP_ID = "demo-orchestrator-eod-observer"
+
+private fun buildOfficialEodKafkaConsumer(bootstrapServers: String): KafkaConsumer<String, String> {
+    val props = Properties().apply {
+        put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers)
+        put(ConsumerConfig.GROUP_ID_CONFIG, OFFICIAL_EOD_CONSUMER_GROUP_ID)
+        put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer::class.java.name)
+        put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer::class.java.name)
+        put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+        put(
+            ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG,
+            "org.apache.kafka.clients.consumer.CooperativeStickyAssignor",
+        )
+        put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false")
+    }
+    return KafkaConsumer(props)
+}
+
+private suspend fun Application.runOfficialEodConsumerSafely(consumer: OfficialEodConsumer) {
+    try {
+        consumer.start()
+    } catch (cancellation: CancellationException) {
+        log.info("OfficialEodConsumer cancelled — exiting")
+        throw cancellation
+    } catch (failure: Throwable) {
+        log.error("OfficialEodConsumer terminated unexpectedly", failure)
     }
 }
 

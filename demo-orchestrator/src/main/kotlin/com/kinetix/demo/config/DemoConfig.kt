@@ -8,6 +8,7 @@ data class DemoConfig(
     val positionServiceUrl: String,
     val riskOrchestratorUrl: String,
     val regulatoryServiceUrl: String,
+    val kafkaBootstrapServers: String,
     val tradingHoursStart: LocalTime,
     val tradingHoursEnd: LocalTime,
     val tradeCadenceSeconds: Long,
@@ -16,6 +17,7 @@ data class DemoConfig(
         private const val DEFAULT_POSITION_SERVICE_URL = "http://position-service:8080"
         private const val DEFAULT_RISK_ORCHESTRATOR_URL = "http://risk-orchestrator:8080"
         private const val DEFAULT_REGULATORY_SERVICE_URL = "http://regulatory-service:8080"
+        private const val DEFAULT_KAFKA_BOOTSTRAP_SERVERS = "kafka:9092"
         private const val DEFAULT_TRADING_HOURS_START = "09:00"
         private const val DEFAULT_TRADING_HOURS_END = "16:30"
         private const val DEFAULT_TRADE_CADENCE_SECONDS = 90L
@@ -25,6 +27,7 @@ data class DemoConfig(
             val positionServiceUrl = env("POSITION_SERVICE_URL") ?: DEFAULT_POSITION_SERVICE_URL
             val riskOrchestratorUrl = env("RISK_ORCHESTRATOR_URL") ?: DEFAULT_RISK_ORCHESTRATOR_URL
             val regulatoryServiceUrl = env("REGULATORY_SERVICE_URL") ?: DEFAULT_REGULATORY_SERVICE_URL
+            val kafkaBootstrapServers = env("KAFKA_BOOTSTRAP_SERVERS") ?: DEFAULT_KAFKA_BOOTSTRAP_SERVERS
             val tradingHoursStart = parseTime("DEMO_TRADING_HOURS_START", env("DEMO_TRADING_HOURS_START") ?: DEFAULT_TRADING_HOURS_START)
             val tradingHoursEnd = parseTime("DEMO_TRADING_HOURS_END", env("DEMO_TRADING_HOURS_END") ?: DEFAULT_TRADING_HOURS_END)
             val tradeCadenceSeconds = parseCadence(env("DEMO_TRADE_CADENCE_SECONDS"))
@@ -34,6 +37,7 @@ data class DemoConfig(
                 positionServiceUrl = positionServiceUrl,
                 riskOrchestratorUrl = riskOrchestratorUrl,
                 regulatoryServiceUrl = regulatoryServiceUrl,
+                kafkaBootstrapServers = kafkaBootstrapServers,
                 tradingHoursStart = tradingHoursStart,
                 tradingHoursEnd = tradingHoursEnd,
                 tradeCadenceSeconds = tradeCadenceSeconds,

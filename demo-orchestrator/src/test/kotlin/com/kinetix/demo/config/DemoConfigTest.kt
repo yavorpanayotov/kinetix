@@ -14,9 +14,15 @@ class DemoConfigTest : FunSpec({
         config.positionServiceUrl shouldBe "http://position-service:8080"
         config.riskOrchestratorUrl shouldBe "http://risk-orchestrator:8080"
         config.regulatoryServiceUrl shouldBe "http://regulatory-service:8080"
+        config.kafkaBootstrapServers shouldBe "kafka:9092"
         config.tradingHoursStart shouldBe LocalTime.of(9, 0)
         config.tradingHoursEnd shouldBe LocalTime.of(16, 30)
         config.tradeCadenceSeconds shouldBe 90L
+    }
+
+    test("reads KAFKA_BOOTSTRAP_SERVERS from env") {
+        val env = mapOf("KAFKA_BOOTSTRAP_SERVERS" to "kafka.example:9093")
+        DemoConfig.fromEnv { env[it] }.kafkaBootstrapServers shouldBe "kafka.example:9093"
     }
 
     test("reads DEMO_MODE from env") {
@@ -60,6 +66,7 @@ class DemoConfigTest : FunSpec({
             "POSITION_SERVICE_URL" to "http://positions.example:9000",
             "RISK_ORCHESTRATOR_URL" to "http://risk.example:9001",
             "REGULATORY_SERVICE_URL" to "http://reg.example:9002",
+            "KAFKA_BOOTSTRAP_SERVERS" to "kafka.example:9093",
             "DEMO_TRADING_HOURS_START" to "07:30",
             "DEMO_TRADING_HOURS_END" to "18:15",
             "DEMO_TRADE_CADENCE_SECONDS" to "45",
@@ -71,6 +78,7 @@ class DemoConfigTest : FunSpec({
         config.positionServiceUrl shouldBe "http://positions.example:9000"
         config.riskOrchestratorUrl shouldBe "http://risk.example:9001"
         config.regulatoryServiceUrl shouldBe "http://reg.example:9002"
+        config.kafkaBootstrapServers shouldBe "kafka.example:9093"
         config.tradingHoursStart shouldBe LocalTime.of(7, 30)
         config.tradingHoursEnd shouldBe LocalTime.of(18, 15)
         config.tradeCadenceSeconds shouldBe 45L
