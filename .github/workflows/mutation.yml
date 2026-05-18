@@ -72,8 +72,33 @@ jobs:
             ui/reports/mutation/
           retention-days: 30
 
-  # Kotlin mutation testing (PIT) is deferred — the gradle-pitest-plugin
-  # versions currently published are incompatible with Gradle 9 (a
-  # reporting.baseDir API was removed). Re-add when a Gradle 9-compatible
-  # version of info.solidsoft.gradle.pitest:gradle-pitest-plugin is released,
-  # or evaluate an alternative such as direct PIT CLI invocation.
+  kotlin-mutation:
+    name: Kotlin PIT mutation testing
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        module:
+          - risk-orchestrator
+          - position-service
+          - correlation-service
+          - volatility-service
+          - regulatory-service
+          - audit-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Run PIT on ${{ matrix.module }}
+        run: ./gradlew :${{ matrix.module }}:pitest
+      - name: Upload PIT report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pit-report-${{ matrix.module }}
+          path: ${{ matrix.module }}/build/reports/pitest/
+          retention-days: 30
