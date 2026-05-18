@@ -1,5 +1,5 @@
 import type { BookAggregationDto } from '../types'
-import { formatMoney, pnlColorClass } from '../utils/format'
+import { formatMoney, formatSignedMoney, pnlColorClass } from '../utils/format'
 import { Card, Spinner } from './ui'
 
 const CURRENCIES = ['USD', 'EUR', 'GBP', 'JPY']
@@ -61,7 +61,7 @@ export function BookSummaryCard({
             data-testid="total-unrealized-pnl"
             className={`text-lg font-bold ${pnlColorClass(summary.totalUnrealizedPnl.amount)}`}
           >
-            {formatMoney(summary.totalUnrealizedPnl.amount, summary.totalUnrealizedPnl.currency)}
+            {formatSignedMoney(summary.totalUnrealizedPnl.amount, summary.totalUnrealizedPnl.currency)}
           </div>
         </div>
       </div>

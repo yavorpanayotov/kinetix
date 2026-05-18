@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
-import { formatMoney, formatCurrency, formatQuantity, formatRelativeTime, formatTimestamp, formatTimeOnly, formatChartTime, formatDuration, formatNum, pnlColorClass } from './format'
+import { formatMoney, formatSignedMoney, formatCurrency, formatQuantity, formatRelativeTime, formatTimestamp, formatTimeOnly, formatChartTime, formatDuration, formatNum, pnlColorClass } from './format'
 
 describe('formatMoney', () => {
   it('formats USD with dollar sign and commas', () => {
@@ -28,6 +28,55 @@ describe('formatMoney', () => {
 
   it('rounds to 2 decimal places', () => {
     expect(formatMoney('150.999', 'USD')).toBe('$151.00')
+  })
+})
+
+describe('formatSignedMoney', () => {
+  it('prefixes + on positive USD amounts', () => {
+    expect(formatSignedMoney('1500.00', 'USD')).toBe('+$1,500.00')
+  })
+
+  it('prefixes + on positive EUR amounts', () => {
+    expect(formatSignedMoney('2500.50', 'EUR')).toBe('+€2,500.50')
+  })
+
+  it('leaves the native minus sign on negative amounts', () => {
+    expect(formatSignedMoney('-1234.56', 'USD')).toBe('-$1,234.56')
+  })
+
+  it('does not prefix + on zero', () => {
+    expect(formatSignedMoney('0.00', 'USD')).toBe('$0.00')
+  })
+
+  it('does not prefix + on negative zero', () => {
+    expect(formatSignedMoney('-0', 'USD')).toBe(formatMoney('-0', 'USD'))
+    expect(formatSignedMoney('-0', 'USD')).not.toMatch(/^\+/)
+  })
+
+  it('does not prefix + when the value rounds to zero', () => {
+    expect(formatSignedMoney('0.001', 'USD')).toBe('$0.00')
+  })
+
+  it('prefixes + when the value rounds up to a positive cent', () => {
+    expect(formatSignedMoney('0.005', 'USD')).toBe('+$0.01')
+  })
+
+  it('falls back to the formatMoney unknown-currency form without a + prefix', () => {
+    expect(formatSignedMoney('100.00', 'XYZ')).toBe('100.00 XYZ')
+  })
+
+  it('does not prefix + on NaN inputs', () => {
+    expect(formatSignedMoney('not-a-number', 'USD')).toBe(formatMoney('not-a-number', 'USD'))
+    expect(formatSignedMoney('not-a-number', 'USD')).not.toMatch(/^\+/)
+  })
+
+  it('does not prefix + on +Infinity inputs', () => {
+    expect(formatSignedMoney('Infinity', 'USD')).toBe(formatMoney('Infinity', 'USD'))
+    expect(formatSignedMoney('Infinity', 'USD')).not.toMatch(/^\+/)
+  })
+
+  it('does not prefix + on -Infinity inputs', () => {
+    expect(formatSignedMoney('-Infinity', 'USD')).toBe(formatMoney('-Infinity', 'USD'))
   })
 })
 

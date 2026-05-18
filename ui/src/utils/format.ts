@@ -22,6 +22,23 @@ export function formatMoney(amount: string, currency: string): string {
   }).format(rounded)
 }
 
+// Like formatMoney, but for signed P&L values: prefixes "+" on strictly
+// positive amounts (after rounding to the cent). Negative amounts keep their
+// native minus sign; zero, negative zero, NaN, and infinities are returned
+// unchanged. Intended for use wherever pnlColorClass is applied, so users who
+// cannot distinguish red/green still see a sign cue.
+export function formatSignedMoney(amount: string, currency: string): string {
+  const formatted = formatMoney(amount, currency)
+  if (!(currency in KNOWN_CURRENCIES)) {
+    return formatted
+  }
+  const rounded = Math.round(Number(amount) * 100) / 100
+  if (Number.isFinite(rounded) && rounded > 0) {
+    return `+${formatted}`
+  }
+  return formatted
+}
+
 export function formatQuantity(amount: string): string {
   const num = Number(amount)
   if (!Number.isFinite(num)) return amount

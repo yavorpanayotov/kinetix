@@ -52,7 +52,7 @@ describe('PositionGrid', () => {
     expect(within(row).getByText('$150.00')).toBeInTheDocument()
     expect(within(row).getByText('$155.00')).toBeInTheDocument()
     expect(within(row).getByText('$15,500.00')).toBeInTheDocument()
-    expect(within(row).getByText('$500.00')).toBeInTheDocument()
+    expect(within(row).getByText('+$500.00')).toBeInTheDocument()
   })
 
   it('applies green color to positive P&L', () => {

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Wifi, WifiOff, Inbox, Settings, Download } from 'lucide-react'
 import type { PositionDto, PositionRiskDto } from '../types'
-import { formatMoney, formatNum, formatQuantity, pnlColorClass } from '../utils/format'
+import { formatMoney, formatSignedMoney, formatNum, formatQuantity, pnlColorClass } from '../utils/format'
 import { formatCompactCurrency } from '../utils/formatCompactCurrency'
 import { exportToCsv } from '../utils/exportCsv'
 import { Card, EmptyState } from './ui'
@@ -312,7 +312,7 @@ export function PositionGrid({ positions, connected, reconnecting, lastConnected
         <Card>
           <div className="text-center -my-1">
             <div className="text-xs text-slate-500">Unrealized P&amp;L</div>
-            <div className={`text-lg font-bold ${pnlColorClass(String(totalPnl))}`} title={formatMoney(String(totalPnl), currency)}>
+            <div className={`text-lg font-bold ${pnlColorClass(String(totalPnl))}`} title={formatSignedMoney(String(totalPnl), currency)}>
               {formatCompactCurrency(totalPnl)}
             </div>
           </div>
@@ -519,7 +519,7 @@ export function PositionGrid({ positions, connected, reconnecting, lastConnected
                       data-testid={`pnl-${pos.instrumentId}`}
                       className={`px-4 py-2 text-sm text-right ${pnlColorClass(pos.unrealizedPnl.amount)} ${reconnecting ? 'opacity-60' : ''}`}
                     >
-                      {formatMoney(pos.unrealizedPnl.amount, pos.unrealizedPnl.currency)}
+                      {formatSignedMoney(pos.unrealizedPnl.amount, pos.unrealizedPnl.currency)}
                     </td>
                   ),
                   realizedPnl: (
@@ -527,7 +527,7 @@ export function PositionGrid({ positions, connected, reconnecting, lastConnected
                       key="realizedPnl"
                       className={`px-4 py-2 text-sm text-right ${pnlColorClass(pos.realizedPnl?.amount ?? '0')}`}
                     >
-                      {formatMoney(pos.realizedPnl?.amount ?? '0', pos.realizedPnl?.currency ?? pos.unrealizedPnl.currency)}
+                      {formatSignedMoney(pos.realizedPnl?.amount ?? '0', pos.realizedPnl?.currency ?? pos.unrealizedPnl.currency)}
                     </td>
                   ),
                 }

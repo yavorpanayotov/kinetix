@@ -107,6 +107,18 @@ describe('BookSummaryCard', () => {
     expect(screen.getByTestId('total-unrealized-pnl').className).toContain('text-green-600')
   })
 
+  it('prefixes positive P&L with a + sign', () => {
+    render(
+      <BookSummaryCard
+        summary={summary}
+        baseCurrency="USD"
+        onBaseCurrencyChange={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByTestId('total-unrealized-pnl')).toHaveTextContent('+$1,500.00')
+  })
+
   it('applies red colour to negative P&L', () => {
     const negativeSummary: BookAggregationDto = {
       ...summary,
