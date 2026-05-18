@@ -107,7 +107,7 @@ That brings in `org.testcontainers.kafka.KafkaContainer` transitively, plus the 
   - Acceptance: `./gradlew :test-support:build :test-support:test`
 - [x] **5.3** Add `test-support/src/main/kotlin/com/kinetix/testsupport/builders/TestTrade.kt` — chainable builder with sensible defaults: `TestTrade.aTrade().withSymbol("AAPL").withQuantity(100).build()`.
   - Acceptance: `./gradlew :test-support:build :test-support:test`
-- [ ] **5.4** Add `test-support/src/main/kotlin/com/kinetix/testsupport/builders/TestPosition.kt`.
+- [x] **5.4** Add `test-support/src/main/kotlin/com/kinetix/testsupport/builders/TestPosition.kt`.
   - Acceptance: `./gradlew :test-support:build :test-support:test`
 - [ ] **5.5** Add `test-support/src/main/kotlin/com/kinetix/testsupport/builders/TestCorrelationMatrix.kt` with `identity(n)` and `random(n, seed)` constructors.
   - Acceptance: `./gradlew :test-support:build :test-support:test`
