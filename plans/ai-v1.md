@@ -81,7 +81,7 @@ Per CLAUDE.md guardrails, the following are explicitly approved in this plan so 
 
 ### PR 2 — VaR Explainer endpoint + UI
 
-- [ ] 2.1 Add `POST /api/v1/insights/explain/var` route in `src/kinetix_insights/routes/var_explainer.py`. Accepts `VarExplainerRequest` (method, confidence, horizon_days, value_usd, top_contributors: list[{instrument, contribution_pct}], regime: str). Returns `InsightResponse`. Acceptance test in DEMO_MODE asserts the response shape, that bullets cover the top contributors, and that `mode == "canned"`.
+- [x] 2.1 Add `POST /api/v1/insights/explain/var` route in `src/kinetix_insights/routes/var_explainer.py`. Accepts `VarExplainerRequest` (method, confidence, horizon_days, value_usd, top_contributors: list[{instrument, contribution_pct}], regime: str). Returns `InsightResponse`. Acceptance test in DEMO_MODE asserts the response shape, that bullets cover the top contributors, and that `mode == "canned"`.
       Acceptance: `cd ai-insights-service && DEMO_MODE=true uv run pytest tests/test_var_explainer_acceptance.py`
 - [ ] 2.2 Add `gateway/src/main/kotlin/com/kinetix/gateway/routes/InsightsRoutes.kt` exposing `POST /api/v1/insights/explain/var` that proxies the request body to `ai-insights-service` via Ktor `HttpClient` (mirror how `gateway` proxies to other backends — grep `gateway/src/main/kotlin/com/kinetix/gateway/` for an existing proxy route to copy from). Add `INSIGHTS_SERVICE_URL` env var with a sensible local default. Acceptance test stubs `ai-insights-service` with a fake HTTP server on a random port and asserts the proxy preserves request body and response body.
       Acceptance: `./gradlew :gateway:acceptanceTest --tests "*InsightsRoutesAcceptanceTest"`
