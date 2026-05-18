@@ -114,7 +114,7 @@ and flag (per `/work-plan` guardrails).
       mirrors `position-service`'s `StrategyTradeRequest` field-for-field.
       MockEngine unit test.
       Acceptance: `./gradlew :demo-orchestrator:test --tests "*PositionServiceClientTest"`
-- [ ] 2.2 Add `schedule/SimulatedTraderJob.kt`. Each tick (every
+- [x] 2.2 Add `schedule/SimulatedTraderJob.kt`. Each tick (every
       `DEMO_TRADE_CADENCE_SECONDS`): if current UTC clock is inside trading
       hours AND Mon–Fri, then for each book roll `profile.tradeProbability`;
       on hit generate 1–3 trades drawn from the profile's `instrumentIds` and
