@@ -12,4 +12,6 @@ dependencies {
     api(libs.flyway.core)
     api(libs.flyway.postgresql)
     api(libs.hikari)
+    api(libs.grpc.netty)
+    api(libs.grpc.stub)
 }
