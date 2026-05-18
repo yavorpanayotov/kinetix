@@ -57,9 +57,16 @@ Coverage measurement is live across all stacks:
 | Python | pytest-cov | `cd risk-engine && uv run pytest` | `risk-engine/reports/htmlcov/` |
 | UI | @vitest/coverage-v8 | `cd ui && npm run test:coverage` | `ui/coverage/` |
 
-CI uploads all three as artifacts on every PR. **Coverage is measured, not gated** — but tests *should* exercise the code they're meant to verify. A new feature with zero coverage will be flagged in review.
+CI uploads all three as artifacts on every PR. **Coverage is measured AND gated** — the ratchet at `scripts/check-coverage-ratchet.py` fails CI when any per-module/per-stack coverage drops more than 0.5pp below its baseline in `coverage-baselines.json`.
 
-Ratchet enforcement (fail CI on coverage drop > 0.5%) is the Phase 6 sustain mechanism — see `scripts/check-coverage-ratchet.py` and the post-test CI step.
+### Baselines: when to raise, when to lower
+
+Baselines in `coverage-baselines.json` track the per-module floor we promise not to regress past. Two operations on them:
+
+- **Raise a baseline** *after* a verified improvement: run the suite locally, confirm coverage really is sustained at the higher level (not just a flaky spike), then bump the entry in `coverage-baselines.json` upward. Raises are routine and don't need special review beyond normal PR review.
+- **Lower a baseline** *only* for a deliberate behavioural change that legitimately removes covered code (e.g. deleting a feature, removing a code path, deprecating a service). Lowering a baseline requires **explicit reviewer sign-off** — the PR description must explain *why* coverage is being lowered, what changed, and that the drop is intentional. A lower baseline that's "just because tests got slower / flakier / harder to write" is not an acceptable rationale; either fix the tests or push back on the change.
+
+The ratchet's 0.5pp tolerance is for normal coverage noise (test ordering, flaky assertions, intermittent network in integration tests) — not for "we just don't feel like writing the test." If a PR triggers the ratchet, the first move is to add the missing test coverage; lowering the baseline is the last resort.
 
 ## Property-based testing
 
