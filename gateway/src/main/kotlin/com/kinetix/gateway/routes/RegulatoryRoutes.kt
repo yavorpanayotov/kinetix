@@ -9,6 +9,17 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 
+// Path words that look like book identifiers but are actually verbs or
+// reserved RPC-style segments. If a caller posts to
+// `/api/v1/regulatory/frtb/calculate` the router happily captures
+// "calculate" as `{bookId}` and the downstream service returns an
+// all-zero FRTB result for the non-existent book — a confusing
+// foot-gun for clients written against an earlier `/frtb/calculate`
+// verb-style API. Reject these explicitly with a 400 so the bug
+// surfaces immediately instead of masquerading as a successful
+// empty calculation.
+private val RESERVED_FRTB_PATH_WORDS = setOf("calculate")
+
 fun Route.regulatoryRoutes(client: RiskServiceClient) {
     route("/api/v1/regulatory/frtb/{bookId}") {
         post({
@@ -19,6 +30,9 @@ fun Route.regulatoryRoutes(client: RiskServiceClient) {
             }
         }) {
             val bookId = call.requirePathParam("bookId")
+            require(bookId !in RESERVED_FRTB_PATH_WORDS) {
+                "'$bookId' is a reserved path word, not a book id"
+            }
             val result = client.calculateFrtb(bookId)
             if (result != null) {
                 call.respond(result.toResponse())
