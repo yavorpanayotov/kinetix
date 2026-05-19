@@ -118,7 +118,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
 
 ### PR 3 — Chat endpoint: streaming SSE, citation contract, policy guards
 
-- [ ] 3.1 Add `ChatRequest` and `ChatChunk` pydantic models in `src/kinetix_insights/chat/models.py`. `ChatRequest`: `{message, page_context, session_id?, conversation_id?}`. `ChatChunk`: `{delta?, done, citations?, model?, mode?, error_code?}`. Unit-test serialisation.
+- [x] 3.1 Add `ChatRequest` and `ChatChunk` pydantic models in `src/kinetix_insights/chat/models.py`. `ChatRequest`: `{message, page_context, session_id?, conversation_id?}`. `ChatChunk`: `{delta?, done, citations?, model?, mode?, error_code?}`. Unit-test serialisation.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_chat_models.py -m unit`
 - [ ] 3.2 Add `_FakeStreamingSdk` shared test fake in `tests/fakes/streaming_sdk.py` — yields multi-message responses with configurable per-message delays and content; usable across chat, brief, and queries tests.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_streaming_sdk_fake.py -m unit`
