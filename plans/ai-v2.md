@@ -124,7 +124,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_streaming_sdk_fake.py -m unit`
 - [x] 3.3 Add `ConversationStore` protocol in `src/kinetix_insights/chat/conversation_store.py` + `InMemoryConversationStore` impl. TTL 24h via `OrderedDict` + timestamp eviction. Unit-tested for add/get/expire.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_conversation_store_in_memory.py -m unit`
-- [ ] 3.4 Add `CopilotChatClient` protocol + `CannedCopilotChatClient` in `src/kinetix_insights/chat/canned.py`. Replays a multi-turn fixture from `src/kinetix_insights/fixtures/chat_transcripts/*.json` as SSE chunks with 20 ms artificial delay. Selects transcript by hash of `(message + page_context.page)`.
+- [x] 3.4 Add `CopilotChatClient` protocol + `CannedCopilotChatClient` in `src/kinetix_insights/chat/canned.py`. Replays a multi-turn fixture from `src/kinetix_insights/fixtures/chat_transcripts/*.json` as SSE chunks with 20 ms artificial delay. Selects transcript by hash of `(message + page_context.page)`.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_canned_chat_client.py -m unit`
 - [ ] 3.5 Add `ClaudeAgentCopilotChatClient` in `src/kinetix_insights/chat/claude_agent_chat_client.py` — wraps SDK `query()` with MCP tools enabled, accumulates conversation history from `ConversationStore`, applies citation_verifier + policy_guard before yielding final chunk. Uses `_FakeStreamingSdk` in unit tests; never calls live SDK.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_claude_agent_chat_client.py -m unit`
