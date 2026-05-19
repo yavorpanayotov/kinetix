@@ -138,3 +138,23 @@ Follow TDD (Test-Driven Development) and BDD (Behaviour-Driven Development) prac
 - **Commit frequently during implementation.** After completing each logical, working unit of change, create a commit. Do not wait until the entire task is finished to commit.
 - **Each commit should be self-contained.** The codebase must build and tests must pass after every commit. Never commit half-finished work that breaks the build.
 - **Don't batch unrelated changes.** Keep commits focused — one concern per commit. If a plan involves multiple steps, each step should typically be its own commit.
+
+## Plans
+
+Multi-step plans live in `plans/` and should be loop-ready so they can be advanced autonomously by `/work-plan` (usually wrapped in `/loop`). When you author or substantially edit a plan:
+
+- **Use literal `- [ ]` markdown checkboxes for every executable unit.** `/work-plan` advances exactly one checkbox per iteration; sections without checkboxes are inert prose. One checkbox = one independently committable change.
+- **Order checkboxes top-to-bottom by dependency.** The first unchecked box is what runs next. Don't bury blocking work later in the file.
+- **Pair every checkbox with an acceptance command.** Put `Acceptance: ./gradlew …` (or `cd risk-engine && uv run pytest …`, `python3 scripts/…`, etc.) on the line directly under the checkbox. `/work-plan` re-runs it independently before ticking the box — if you can't name a command, the unit isn't loop-ready.
+- **Resolve decisions up front in a "Decisions applied" section at the top.** Don't leave open questions inside checkbox bodies. If a decision is genuinely user-blocking, state the default, mark it overridable, and proceed — never bury an unanswered question in the middle of executable work.
+- **Pre-approve guardrail edits at the top of the plan.** If any checkbox touches a CI/CD file, adds a dependency, or otherwise crosses a `## Guardrails` line, grant the approval in a "CI/CD approval" (or equivalent) section near the top so subagents don't stop mid-loop.
+- **Don't checkbox out-of-scope follow-ups.** Items deferred to a future quarter, blocked on external signals, or explicitly out of scope go in prose under an "Out of scope" callout, not in a checkbox — otherwise the loop will try to do them.
+
+### Running `/loop /work-plan` (dynamic mode)
+
+When invoked as `/loop /work-plan <plan>` with no explicit interval, the runtime expects me to schedule the next iteration via `ScheduleWakeup` between iterations. To keep the plan advancing without idle time:
+
+- **Always re-schedule at the minimum interval — `delaySeconds: 60`.** The runtime clamps to `[60, 3600]`; 60 is the floor. There is nothing external to wait for between checkboxes — the next unit of work is ready immediately — so never pick a larger delay "to be safe."
+- **Never end the loop by omitting `ScheduleWakeup` unless the plan has no remaining unchecked boxes.** If a checkbox failed or a guardrail blocks progress, surface the problem in the response and still schedule the next tick at 60s so the user sees the loop is alive and can intervene.
+- **Don't ask clarifying questions mid-loop.** Plans should resolve decisions up front (see the "Decisions applied" rule above); if something is genuinely ambiguous, pick the default documented in the plan, note the choice, and keep looping.
+- **Pass the original `/loop /work-plan <plan>` invocation back as the `prompt` argument verbatim** so the next firing re-enters `/work-plan` against the same plan file.
