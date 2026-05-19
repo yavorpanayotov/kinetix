@@ -106,7 +106,7 @@ checkbox already captured this.
 
 - [x] 2.1 Diagnose: see `## Diagnosis log` entry 2.1 below.
       Acceptance: `grep -q "^### 2.1 " plans/ui-fix-v1.md`
-- [ ] 2.2 TDD pair (test + fix in one commit): fix
+- [x] 2.2 TDD pair (test + fix in one commit): fix
       `GET /api/v1/risk/hierarchy/firm/firm` returning zeros. Add an
       acceptance test in `gateway/src/test/kotlin/com/kinetix/gateway/routes/HierarchyRiskRoutesAcceptanceTest.kt`
       (or extend the existing one) that POSTs cross-book VaR first to
