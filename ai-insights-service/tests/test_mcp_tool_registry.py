@@ -315,7 +315,7 @@ async def test_calls_get_vol_surface_via_mcp_without_book_scope() -> None:
 @pytest.mark.asyncio
 async def test_calls_get_active_alerts_propagates_acl_failure() -> None:
     """Book-scoped tool surfaces ``UNAUTHORIZED`` via MCP when out of scope."""
-    mcp, _fake, _ = _build_registered_server()
+    mcp, _, _ = _build_registered_server()
 
     # ``out-of-scope`` is NOT in _DEFAULT_USER.books — the tool fails closed.
     from mcp.server.fastmcp.exceptions import ToolError
