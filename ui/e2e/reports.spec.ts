@@ -129,4 +129,37 @@ test.describe('Reports Tab', () => {
       'Failed to generate report',
     )
   })
+
+  // Plan §4.3 — when the gateway returns its canonical 500 with
+  // `{error:'upstream_error', message:'Report generation failed'}` (the
+  // exact shape the live deploy emits for the §4.1 Reports 500), the
+  // toast must render the upstream `message` field, not just the HTTP
+  // status. This pins the M4 contract end-to-end through the browser.
+  test('renders the upstream gateway message in the toast on a 500 upstream_error', async ({
+    page,
+  }) => {
+    await page.unroute('**/api/v1/reports/generate')
+    await page.route('**/api/v1/reports/generate', (route) => {
+      route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          error: 'upstream_error',
+          message: 'Report generation failed',
+        }),
+      })
+    })
+
+    await page.getByTestId('report-template-select').selectOption('tpl-risk-summary')
+    await page.getByTestId('report-book-input').fill('BOOK-1')
+    await page.getByTestId('report-generate-button').click()
+
+    const toast = page.getByTestId('report-generate-error')
+    await expect(toast).toBeVisible()
+    // The upstream message field MUST appear verbatim — the operator
+    // needs the actual cause, not a generic "500".
+    await expect(toast).toContainText('Report generation failed')
+    // a11y: the toast is announced as an alert.
+    await expect(toast).toHaveAttribute('role', 'alert')
+  })
 })

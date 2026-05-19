@@ -269,6 +269,37 @@ describe('ReportsTab', () => {
     expect(screen.getByTestId('report-generate-error')).toHaveTextContent('Template not found')
   })
 
+  // Plan §4.3 — the toast must render the gateway's upstream `message`
+  // field on a 500 (the live deploy returns
+  // `{"error":"upstream_error","message":"Report generation failed"}`).
+  // The api layer threads that message into the thrown Error so the
+  // component's error UI just needs to render the Error.message.
+  it('renders the upstream message field in the generate-error toast when the api throws with the gateway ErrorResponse message', async () => {
+    const user = userEvent.setup()
+    mockFetchTemplates.mockResolvedValue(TEMPLATES)
+    // This is the exact Error the api layer throws after parsing the
+    // gateway's `{error, message}` body for a 500 response.
+    mockGenerate.mockRejectedValue(
+      new Error('Failed to generate report: Report generation failed'),
+    )
+
+    render(<ReportsTab bookId="BOOK-1" />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('report-template-select')).toBeInTheDocument()
+    })
+
+    await user.selectOptions(screen.getByTestId('report-template-select'), 'tpl-risk-summary')
+    await user.click(screen.getByTestId('report-generate-button'))
+
+    const toast = await screen.findByTestId('report-generate-error')
+    // The visible toast must include the upstream `message` field
+    // verbatim so the operator sees the real cause, not just "500".
+    expect(toast).toHaveTextContent('Report generation failed')
+    // The toast is an a11y alert so screen readers announce it.
+    expect(toast).toHaveAttribute('role', 'alert')
+  })
+
   it('adds generated report to history', async () => {
     const user = userEvent.setup()
     mockFetchTemplates.mockResolvedValue(TEMPLATES)

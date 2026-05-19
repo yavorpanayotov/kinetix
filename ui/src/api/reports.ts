@@ -41,11 +41,27 @@ export async function generateReport(request: GenerateReportRequest): Promise<Re
     body: JSON.stringify(request),
   })
   if (!response.ok) {
-    throw new Error(
-      `Failed to generate report: ${response.status} ${response.statusText}`,
-    )
+    // Plan §4.3 — surface the upstream gateway `{error, message}` body
+    // so the ReportsTab toast can render the actual cause (e.g. the
+    // exact "Report generation failed" upstream message) rather than
+    // the opaque "500 Internal Server Error" status text. Falls back
+    // to the HTTP status if the body isn't a parseable ErrorResponse.
+    const upstream = await readErrorMessage(response)
+    throw new Error(`Failed to generate report: ${upstream}`)
   }
   return response.json()
+}
+
+async function readErrorMessage(response: Response): Promise<string> {
+  try {
+    const body = (await response.clone().json()) as { message?: unknown }
+    if (typeof body?.message === 'string' && body.message.length > 0) {
+      return body.message
+    }
+  } catch {
+    // Fall through to the status text on JSON parse failure.
+  }
+  return `${response.status} ${response.statusText}`
 }
 
 export async function fetchReportOutput(outputId: string): Promise<ReportOutput | null> {

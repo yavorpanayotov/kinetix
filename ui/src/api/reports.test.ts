@@ -120,6 +120,45 @@ describe('reports API', () => {
         'Failed to generate report: 500 Internal Server Error',
       )
     })
+
+    // Plan §4.3 — when the gateway returns its canonical ErrorResponse
+    // `{error, message}` body (the live deploy emits exactly that
+    // `{"error":"upstream_error","message":"Report generation failed"}`
+    // shape for the Reports 500), the api layer must extract the
+    // `message` field so the ReportsTab toast can render it verbatim.
+    it('includes the upstream message field from the gateway ErrorResponse body in the thrown error', async () => {
+      const errorBody = {
+        error: 'upstream_error',
+        message: 'Report generation failed',
+      }
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
+        clone: () => ({
+          json: () => Promise.resolve(errorBody),
+        }),
+      })
+
+      await expect(
+        generateReport({ templateId: 'tpl-risk-summary', bookId: 'BOOK-1' }),
+      ).rejects.toThrow('Failed to generate report: Report generation failed')
+    })
+
+    it('falls back to the HTTP status when the upstream body is not a valid ErrorResponse', async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 502,
+        statusText: 'Bad Gateway',
+        clone: () => ({
+          json: () => Promise.reject(new SyntaxError('Unexpected token <')),
+        }),
+      })
+
+      await expect(
+        generateReport({ templateId: 'tpl-risk-summary', bookId: 'BOOK-1' }),
+      ).rejects.toThrow('Failed to generate report: 502 Bad Gateway')
+    })
   })
 
   describe('fetchReportOutput', () => {
