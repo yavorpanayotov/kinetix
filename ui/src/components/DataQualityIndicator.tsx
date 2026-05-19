@@ -6,9 +6,36 @@ import type { DataQualityStatus } from '../types'
 interface DataQualityIndicatorProps {
   status: DataQualityStatus | null
   loading: boolean
+  // Plan §10.2 — In FROZEN replay mode the demo intentionally pins prices at
+  // the snapshot timestamp, so the price-service "stale instrument" warning
+  // is expected-not-pathological. Suppress it from the displayed checks AND
+  // from the `overall` derivation so the header indicator doesn't flash
+  // amber for the wrong reason.
+  replayFrozen?: boolean
 }
 
-export function DataQualityIndicator({ status, loading }: DataQualityIndicatorProps) {
+function applyReplayFilter(
+  status: DataQualityStatus,
+  replayFrozen: boolean,
+): DataQualityStatus {
+  if (!replayFrozen) return status
+  const filteredChecks = status.checks.filter(
+    (c) =>
+      !(
+        c.name === 'Price Freshness' &&
+        c.status === 'WARNING' &&
+        c.message.toLowerCase().includes('stale')
+      ),
+  )
+  const overall: DataQualityStatus['overall'] = filteredChecks.some((c) => c.status === 'CRITICAL')
+    ? 'CRITICAL'
+    : filteredChecks.some((c) => c.status === 'WARNING')
+      ? 'WARNING'
+      : 'OK'
+  return { ...status, overall, checks: filteredChecks }
+}
+
+export function DataQualityIndicator({ status, loading, replayFrozen = false }: DataQualityIndicatorProps) {
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -47,17 +74,19 @@ export function DataQualityIndicator({ status, loading }: DataQualityIndicatorPr
 
   if (!status) return null
 
+  const effectiveStatus = applyReplayFilter(status, replayFrozen)
+
   const colorClass =
-    status.overall === 'CRITICAL'
+    effectiveStatus.overall === 'CRITICAL'
       ? 'text-red-500'
-      : status.overall === 'WARNING'
+      : effectiveStatus.overall === 'WARNING'
         ? 'text-amber-500'
         : 'text-green-500'
 
   const statusTestId =
-    status.overall === 'CRITICAL'
+    effectiveStatus.overall === 'CRITICAL'
       ? 'dq-status-critical'
-      : status.overall === 'WARNING'
+      : effectiveStatus.overall === 'WARNING'
         ? 'dq-status-warning'
         : 'dq-status-ok'
 
@@ -70,9 +99,9 @@ export function DataQualityIndicator({ status, loading }: DataQualityIndicatorPr
         aria-haspopup="dialog"
         aria-expanded={open}
       >
-        {status.overall === 'CRITICAL' ? (
+        {effectiveStatus.overall === 'CRITICAL' ? (
           <AlertCircle data-testid={statusTestId} className="h-4 w-4" />
-        ) : status.overall === 'WARNING' ? (
+        ) : effectiveStatus.overall === 'WARNING' ? (
           <AlertTriangle data-testid={statusTestId} className="h-4 w-4" />
         ) : (
           <CheckCircle data-testid={statusTestId} className="h-4 w-4" />
@@ -90,7 +119,7 @@ export function DataQualityIndicator({ status, loading }: DataQualityIndicatorPr
         >
           <div className="text-sm font-medium text-white mb-2">Data Quality</div>
           <div className="space-y-2">
-            {status.checks.map((check) => (
+            {effectiveStatus.checks.map((check) => (
               <div
                 key={check.name}
                 className="flex items-start gap-2 text-sm"

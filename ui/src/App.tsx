@@ -544,6 +544,7 @@ function AppContent() {
               return baseStatus
             })()}
             loading={dataQuality.loading}
+            replayFrozen={tapeReplay.status === 'FROZEN'}
           />
           {!DEMO_MODE && (
             <WorkspaceViewPicker

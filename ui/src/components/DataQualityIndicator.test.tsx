@@ -46,6 +46,33 @@ describe('DataQualityIndicator', () => {
     expect(indicator.querySelector('[data-testid="dq-status-warning"]')).toBeDefined()
   })
 
+  // Plan §10.2 — in FROZEN replay mode the demo intentionally pins prices,
+  // so price-staleness is expected and must not surface as a header warning.
+  it('hides stale-price WARNING and downgrades overall to OK when replayFrozen', () => {
+    render(<DataQualityIndicator status={warningStatus} loading={false} replayFrozen />)
+
+    const indicator = screen.getByTestId('data-quality-indicator')
+    // overall recomputed → green/OK because the only WARNING was the stale-price one.
+    expect(indicator.querySelector('[data-testid="dq-status-ok"]')).toBeDefined()
+    expect(indicator.querySelector('[data-testid="dq-status-warning"]')).toBeNull()
+
+    // Open the dropdown and confirm the stale-price row is filtered out.
+    fireEvent.click(indicator)
+    const dropdown = screen.getByTestId('data-quality-dropdown')
+    expect(dropdown.textContent).not.toContain('Price staleness detected')
+    expect(dropdown.textContent).toContain('Position Count')
+    expect(dropdown.textContent).toContain('Risk Result Completeness')
+  })
+
+  it('keeps a CRITICAL price check even when replayFrozen (only WARNINGs are suppressed)', () => {
+    render(<DataQualityIndicator status={criticalStatus} loading={false} replayFrozen />)
+
+    const indicator = screen.getByTestId('data-quality-indicator')
+    // CRITICAL price freshness must still surface in frozen mode — a true
+    // outage shouldn't hide behind the replay-mode filter.
+    expect(indicator.querySelector('[data-testid="dq-status-critical"]')).toBeDefined()
+  })
+
   it('shows red alert when critical issues found', () => {
     render(<DataQualityIndicator status={criticalStatus} loading={false} />)
 

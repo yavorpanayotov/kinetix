@@ -305,7 +305,7 @@ checkbox already captured this.
       Then patch the hook + the Risk > Intraday sub-tab to always send both
       query params.
       Acceptance: `cd ui && npm run test -- useIntradayVaRTimeline && cd ui && npm run lint`
-- [ ] 10.2 TDD pair (Vitest + impl in one commit): hide the IDX-SPX
+- [x] 10.2 TDD pair (Vitest + impl in one commit): hide the IDX-SPX
       2067h-stale warning in `DataQualityIndicator` when
       `tapeReplay.status === "FROZEN"`. Vitest covering the conditional
       renders.
