@@ -95,7 +95,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
 
 - [x] 2.1 `get_book_var(book_id, as_of?, method?)` — reads risk-orchestrator latest `valuation_jobs` or by jobId; returns `{total_var, var_by_asset_class[], confidence_level, lookback_days, citation}`. Single-book scope, fails closed on book not in user's `X-User-Books`.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_tool_get_book_var.py -m unit`
-- [ ] 2.2 `get_positions(book_id, instrument_id?, asset_class?, top_n?)` — reads position-service `positions`; returns positions with delta, mtm, pnl_today; flags positions where `updatedAt` is stale relative to latest price timestamp.
+- [x] 2.2 `get_positions(book_id, instrument_id?, asset_class?, top_n?)` — reads position-service `positions`; returns positions with delta, mtm, pnl_today; flags positions where `updatedAt` is stale relative to latest price timestamp.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_tool_get_positions.py -m unit`
 - [ ] 2.3 `get_greeks_summary(book_id, as_of?, underlier?)` — reads risk-orchestrator `sod_greek_snapshots` + latest `valuation_jobs` Greeks; returns aggregate + by-underlier.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_tool_get_greeks_summary.py -m unit`
