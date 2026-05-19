@@ -81,6 +81,32 @@ test.describe('Global risk ticker strip', () => {
     await expect(page.getByTestId('ticker-nav')).toBeVisible()
   })
 
+  // Lock-in regression test for B2 (firm-hierarchy-returns-zeros). Before
+  // commit c9902266 the ticker strip showed NAV $0.00 and em-dashes for
+  // every Greek on every tab because position-service didn't seed
+  // book_hierarchy → risk-orchestrator aggregated zero books. This test
+  // asserts the four headline cells (NAV, VAR 1D 95%, NET DELTA, NET VEGA)
+  // each render a non-em-dash value within 5s of load when the backend
+  // returns populated VaR + Greeks (mocked here, real after the live
+  // redeploy lands the 2.2 fix).
+  test('headline cells render non-em-dash values when hierarchy is populated', async ({ page }) => {
+    await overrideVarRoute(page, SAMPLE_VAR_RESULT_BELOW_LIMIT)
+    await page.goto('/')
+
+    await expect(page.getByTestId('risk-ticker-strip')).toBeVisible()
+
+    const nav = page.getByTestId('ticker-nav')
+    const varCell = page.getByTestId('ticker-var')
+    const delta = page.getByTestId('ticker-net-delta')
+    const vega = page.getByTestId('ticker-net-vega')
+
+    for (const cell of [nav, varCell, delta, vega]) {
+      await expect(cell).toBeVisible({ timeout: 5000 })
+      await expect(cell).not.toHaveText('—', { timeout: 5000 })
+      await expect(cell).not.toHaveText('$0.00', { timeout: 5000 })
+    }
+  })
+
   test('stays visible when switching between Positions, Risk, and P&L tabs', async ({ page }) => {
     await page.goto('/')
 

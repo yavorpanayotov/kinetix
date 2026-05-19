@@ -153,7 +153,7 @@ checkbox already captured this.
       durable smoke; the deploy refresh is a separate operational gate
       owned by the user.
 
-- [ ] 2.6 TDD pair (Playwright + targeted UI fixes in one commit): a
+- [x] 2.6 TDD pair (Playwright + targeted UI fixes in one commit): a
       Playwright spec in `ui/e2e/risk-ticker-strip.spec.ts` confirms
       `NAV`, `VAR 1D 95%`, `NET DELTA`, `NET VEGA` are all non-empty
       within 5s of load; a Playwright spec in `ui/e2e/book-summary-card.spec.ts`
