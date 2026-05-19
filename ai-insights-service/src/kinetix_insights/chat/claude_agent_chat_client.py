@@ -2,20 +2,37 @@
 
 This client wraps ``claude_agent_sdk.query()`` (or an injected fake)
 and streams ``ChatChunk`` frames as the model emits text. Before the
-terminal frame it runs two safety nets:
+terminal frame it runs four server-side safety nets:
 
+* ``sanitise_message`` from
+  :mod:`kinetix_insights.chat.sanitiser` — the inbound user message
+  is filtered for prompt-injection patterns BEFORE the SDK is called
+  so the literal injection phrase never reaches the model.
+* ``check_narrative`` from
+  :mod:`kinetix_insights.policy.banned_phrases` — any banned-phrase
+  match surfaces as ``error_code="POLICY_VIOLATION"``.
 * ``find_uncited_tokens`` from
   :mod:`kinetix_insights.citations.verifier` — any numeric token in
   the accumulated narrative that lacks a matching citation surfaces
   as ``error_code="CITATION_UNVERIFIABLE"``.
-* ``check_narrative`` from
-  :mod:`kinetix_insights.policy.banned_phrases` — any banned-phrase
-  match surfaces as ``error_code="POLICY_VIOLATION"``.
+* ``find_uncited_symbols`` from
+  :mod:`kinetix_insights.citations.symbol_verifier` — any
+  ticker-shaped token (uppercase 3-6 chars) not backed by a citation
+  params value ALSO surfaces as ``error_code="CITATION_UNVERIFIABLE"``.
+  Numeric and symbol checks are OR'd: either firing aborts the stream.
 
 Policy beats citation: a narrative that is both off-policy and
 uncited surfaces as ``POLICY_VIOLATION`` (and carries no citations on
 the terminal frame). Both error paths skip persistence — only a
 clean response is written back to the :class:`ConversationStore`.
+
+Per-message timeout — if ``per_message_timeout_seconds`` is set, the
+client wraps each pull from the SDK's async iterator in
+``asyncio.wait_for``. When that fires, the loop exits cleanly,
+appends a synthetic :class:`Citation` with ``quality_flags=["TIMEOUT"]``
+and ``result_value="timeout"``, and emits the terminal frame —
+ensuring the stream NEVER hangs on a stalled upstream tool. Timed-out
+turns are NOT persisted (same treatment as policy/citation errors).
 
 Conversation history (the prior user/assistant turns) is fetched
 from a :class:`ConversationStore` and threaded into the SDK prompt;
@@ -41,6 +58,8 @@ the factory wiring and never by these unit tests.
 
 from __future__ import annotations
 
+import asyncio
+import logging
 from collections.abc import AsyncIterator
 from datetime import datetime, timezone
 from typing import Any, ClassVar
@@ -50,7 +69,9 @@ from kinetix_insights.chat.conversation_store import (
     ConversationTurn,
 )
 from kinetix_insights.chat.models import ChatChunk, ChatRequest
-from kinetix_insights.citations.models import Citation
+from kinetix_insights.chat.sanitiser import sanitise_message
+from kinetix_insights.citations.models import TIMEOUT_FLAG, Citation
+from kinetix_insights.citations.symbol_verifier import find_uncited_symbols
 from kinetix_insights.citations.verifier import find_uncited_tokens
 from kinetix_insights.claude_agent_client import (
     InsightClientUnavailable,
@@ -63,6 +84,8 @@ from kinetix_insights.policy.banned_phrases import (
 
 _UPSTREAM_ERROR = "UPSTREAM_ERROR"
 _CITATION_UNVERIFIABLE = "CITATION_UNVERIFIABLE"
+
+_LOGGER = logging.getLogger("kinetix_insights.chat")
 
 
 def _extract_citations(message: Any) -> list[Citation]:
@@ -128,10 +151,12 @@ class ClaudeAgentCopilotChatClient:
         conversation_store: ConversationStore,
         sdk: Any | None = None,
         model: str = DEFAULT_MODEL,
+        per_message_timeout_seconds: float | None = None,
     ) -> None:
         self._conversation_store = conversation_store
         self._sdk = sdk
         self.model = model
+        self._per_message_timeout = per_message_timeout_seconds
 
     def chat(
         self,
@@ -192,7 +217,21 @@ class ClaudeAgentCopilotChatClient:
         """
 
         history = await self._resolve_history(request, history_arg)
-        prompt = _format_history(history) + request.message
+        sanitised_message, detected_patterns = sanitise_message(request.message)
+        if detected_patterns:
+            # Structured WARNING so attempted injections are observable in
+            # logs without leaking the raw payload (the sanitiser already
+            # stripped the offending span). The chat continues with the
+            # redacted message — sanitisation is a filter, not a gate.
+            _LOGGER.warning(
+                "prompt_injection_redacted",
+                extra={
+                    "conversation_id": request.conversation_id,
+                    "session_id": request.session_id,
+                    "patterns": detected_patterns,
+                },
+            )
+        prompt = _format_history(history) + sanitised_message
 
         try:
             query = self._resolve_query()
@@ -202,9 +241,20 @@ class ClaudeAgentCopilotChatClient:
 
         accumulated: list[str] = []
         citations: list[Citation] = []
+        timed_out = False
+
+        stream = query(prompt=prompt)
+        iterator = stream.__aiter__() if hasattr(stream, "__aiter__") else stream
 
         try:
-            async for message in query(prompt=prompt):
+            while True:
+                try:
+                    message = await self._next_message(iterator)
+                except StopAsyncIteration:
+                    break
+                except asyncio.TimeoutError:
+                    timed_out = True
+                    break
                 text = _extract_text(message)
                 citations.extend(_extract_citations(message))
                 if text:
@@ -212,6 +262,21 @@ class ClaudeAgentCopilotChatClient:
                     yield ChatChunk(delta=text, done=False)
         except Exception:
             yield self._upstream_error_frame()
+            return
+
+        if timed_out:
+            # A per-message timeout is a structured signal, not an error
+            # in the upstream sense — the stream completes with whatever
+            # citations have been gathered, plus one synthetic TIMEOUT
+            # citation marking the stalled tool. Persistence is skipped
+            # so a partial / aborted turn never leaks into history.
+            citations.append(self._timeout_citation())
+            yield ChatChunk(
+                done=True,
+                citations=citations,
+                mode="live",
+                model=self.model,
+            )
             return
 
         narrative = "".join(accumulated)
@@ -228,8 +293,12 @@ class ClaudeAgentCopilotChatClient:
             )
             return
 
-        uncited = find_uncited_tokens(narrative, citations)
-        if uncited:
+        # Two-pass citation check: numeric tokens AND ticker-shaped
+        # symbols. Either firing surfaces ``CITATION_UNVERIFIABLE``;
+        # both run unconditionally so logs can attribute the cause.
+        uncited_numbers = find_uncited_tokens(narrative, citations)
+        uncited_symbols = find_uncited_symbols(narrative, citations)
+        if uncited_numbers or uncited_symbols:
             yield ChatChunk(
                 done=True,
                 error_code=_CITATION_UNVERIFIABLE,
@@ -254,6 +323,45 @@ class ClaudeAgentCopilotChatClient:
                 user_message=request.message,
                 assistant_message=narrative,
             )
+
+    async def _next_message(self, iterator: Any) -> Any:
+        """Pull the next SDK message, applying the per-message timeout if set.
+
+        ``StopAsyncIteration`` is re-raised so the caller exits the loop
+        naturally; ``asyncio.TimeoutError`` is re-raised so the caller
+        can branch into the timeout-citation path. Any other exception
+        propagates to the surrounding ``except Exception`` so it becomes
+        an ``UPSTREAM_ERROR`` terminal frame.
+        """
+
+        if self._per_message_timeout is None:
+            return await iterator.__anext__()
+        return await asyncio.wait_for(
+            iterator.__anext__(), timeout=self._per_message_timeout
+        )
+
+    def _timeout_citation(self) -> Citation:
+        """Synthesise a sentinel citation for a per-message timeout.
+
+        Uses the existing :class:`Citation` schema (no field additions)
+        — the ``quality_flags=["TIMEOUT"]`` entry combined with
+        ``result_value="timeout"`` is the wire signal a tool call did
+        not complete within its budget. ``data_source="chat-stream"``
+        identifies the synthesis site so downstream consumers know it
+        was minted server-side rather than emitted by a tool.
+        """
+
+        return Citation(
+            tool="<unknown>",
+            params={},
+            result_field="status",
+            result_value="timeout",
+            result_currency=None,
+            as_of_timestamp=datetime.now(timezone.utc),
+            data_source="chat-stream",
+            freshness_seconds=0,
+            quality_flags=[TIMEOUT_FLAG],
+        )
 
     async def _resolve_history(
         self,

@@ -14,9 +14,18 @@ in-flight mutation.
 """
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Final
 
 from pydantic import BaseModel, ConfigDict, Field
+
+# Sentinel ``quality_flags`` entry signalling that the tool call backing
+# this citation did not complete within its per-message budget. Used by
+# the chat client (see :mod:`kinetix_insights.chat.claude_agent_chat_client`)
+# to surface a timeout WITHOUT growing the :class:`Citation` schema —
+# the existing ``quality_flags`` list is the channel for these
+# non-blocking caveats. A timeout citation pairs ``TIMEOUT_FLAG`` with
+# ``result_value="timeout"`` so consumers can detect either signal.
+TIMEOUT_FLAG: Final[str] = "TIMEOUT"
 
 
 class Citation(BaseModel):
