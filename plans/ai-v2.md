@@ -103,7 +103,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_tool_get_limit_utilisation.py -m unit`
 - [x] 2.5 `get_pnl_attribution(book_id, date?, period?)` — reads risk-orchestrator `pnl_attributions` + `intraday_pnl_snapshots` for sub-daily; surfaces `dataQualityFlag` in citation `quality_flags`.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_tool_get_pnl_attribution.py -m unit`
-- [ ] 2.6 `get_vol_surface(underlier, as_of?)` — reads volatility-service; detects inversions (short-dated ATM > long-dated by >2 vol points); returns surface + inversion flags.
+- [x] 2.6 `get_vol_surface(underlier, as_of?)` — reads volatility-service; detects inversions (short-dated ATM > long-dated by >2 vol points); returns surface + inversion flags.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_tool_get_vol_surface.py -m unit`
 - [ ] 2.7 `get_stress_scenarios(book_id, scenarios?)` — reads risk-orchestrator precomputed named-scenario cache (GFC, EUR-crisis, Fed+25bps); returns `{scenarios[{name, pnl_impact, var_impact, key_driver}]}`. Ad-hoc scenarios out of scope for v2.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_tool_get_stress_scenarios.py -m unit`
