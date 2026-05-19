@@ -120,7 +120,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
 
 - [x] 3.1 Add `ChatRequest` and `ChatChunk` pydantic models in `src/kinetix_insights/chat/models.py`. `ChatRequest`: `{message, page_context, session_id?, conversation_id?}`. `ChatChunk`: `{delta?, done, citations?, model?, mode?, error_code?}`. Unit-test serialisation.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_chat_models.py -m unit`
-- [ ] 3.2 Add `_FakeStreamingSdk` shared test fake in `tests/fakes/streaming_sdk.py` — yields multi-message responses with configurable per-message delays and content; usable across chat, brief, and queries tests.
+- [x] 3.2 Add `_FakeStreamingSdk` shared test fake in `tests/fakes/streaming_sdk.py` — yields multi-message responses with configurable per-message delays and content; usable across chat, brief, and queries tests.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_streaming_sdk_fake.py -m unit`
 - [ ] 3.3 Add `ConversationStore` protocol in `src/kinetix_insights/chat/conversation_store.py` + `InMemoryConversationStore` impl. TTL 24h via `OrderedDict` + timestamp eviction. Unit-tested for add/get/expire.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_conversation_store_in_memory.py -m unit`
