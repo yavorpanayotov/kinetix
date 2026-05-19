@@ -107,7 +107,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_tool_get_vol_surface.py -m unit`
 - [x] 2.7 `get_stress_scenarios(book_id, scenarios?)` — reads risk-orchestrator precomputed named-scenario cache (GFC, EUR-crisis, Fed+25bps); returns `{scenarios[{name, pnl_impact, var_impact, key_driver}]}`. Ad-hoc scenarios out of scope for v2.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_tool_get_stress_scenarios.py -m unit`
-- [ ] 2.8 `get_correlation_matrix(asset_pair?, as_of?, lookback_days?)` — reads correlation-service; flags pairs that moved >0.15 from prior day (correlation breaks).
+- [x] 2.8 `get_correlation_matrix(asset_pair?, as_of?, lookback_days?)` — reads correlation-service; flags pairs that moved >0.15 from prior day (correlation breaks).
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_tool_get_correlation_matrix.py -m unit`
 - [ ] 2.9 `get_active_alerts(book_id, severity?, since?)` — reads notification-service active alerts; single-book unless caller has risk-manager role (out of scope v2; defaults to single-book).
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_tool_get_active_alerts.py -m unit`
