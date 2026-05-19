@@ -192,7 +192,7 @@ checkbox already captured this.
       regulatory-service producing the upstream_error). Append a dated entry
       to `## Diagnosis log` with the root-cause line.
       Acceptance: `grep -q "^### 4.1 " plans/ui-fix-v1.md`
-- [ ] 4.2 TDD pair (test + fix in one commit): add
+- [x] 4.2 TDD pair (test + fix in one commit): add
       `gateway/.../routes/ReportsGenerateAcceptanceTest.kt` POSTing
       `/api/v1/reports/generate` with `{templateId:"tpl-risk-summary",
       bookId:"balanced-income"}` against a fake upstream report-service,
@@ -201,7 +201,7 @@ checkbox already captured this.
       serialization bug; if it lives in regulatory-service rather than
       gateway, fix it there). Existing reports tests stay green.
       Acceptance: `./gradlew :gateway:acceptanceTest --tests "*Reports*"`
-- [ ] 4.3 TDD pair (Vitest + Playwright + impl in one commit): wire a
+- [x] 4.3 TDD pair (Vitest + Playwright + impl in one commit): wire a
       visible error toast in `ui/src/components/ReportsTab.tsx` when
       `POST /api/v1/reports/generate` returns non-2xx (M4). Vitest covering
       the toast renders on 500 and shows the upstream `message` field.
@@ -267,6 +267,32 @@ checkbox already captured this.
       instrument/book constants per `plans/demo-v2.md`. No new tables, no
       new API contracts.
       Acceptance: `./gradlew :demo-orchestrator:integrationTest --tests "*ReconExecution*"`
+
+      Blocked: 2026-05-19 — position-service has GET-only endpoints for
+      `/api/v1/execution/cost/{bookId}` and
+      `/api/v1/execution/reconciliation/{bookId}`. There is no POST surface
+      to insert an arbitrary `ExecutionCostAnalysis` from outside the FIX
+      consumer; production rows only come from
+      `FIXExecutionReportProcessor.processFill(...)` driven by Kafka topic
+      `execution.reports`. Reconciliation has the upload-statement endpoint
+      `POST /api/v1/execution/reconciliation/{bookId}/statements` which
+      could be used; execution-cost has no equivalent.
+
+      Three unblocking options (each requires user approval per CLAUDE.md
+      "Ask before changing architecture"):
+        a) Add `POST /api/v1/execution/cost/{bookId}` to position-service —
+           additive REST route delegating to `ExecutionCostRepository.save`.
+           Lowest-risk; smallest surface area. Recommended.
+        b) Demo-orchestrator publishes `ExecutionReportEvent` to the
+           existing `execution.reports` Kafka topic to drive the existing
+           FIX fill processor. New producer of a fix-gateway-only topic;
+           requires Kafka Testcontainer for the integration test.
+        c) Drop execution-cost from M2 scope; do only the reconciliation
+           half via the existing upload-statement endpoint. Leaves the
+           Trades > Execution Cost subtab empty.
+
+      Resume by picking one of the above and re-dispatching. Subagent
+      report: `/private/tmp/.../aa584db4ed0c87d83.output`.
 - [ ] 7.2 Re-run the Playwright spec `trades-blotter.spec.ts` and add
       `ui/e2e/trades-recon-execution-cost.spec.ts` asserting both subtabs
       render non-empty grids.
@@ -274,7 +300,7 @@ checkbox already captured this.
 
 ### PR 8 — P&L SOD baseline auto-seeded in demo (M3)
 
-- [ ] 8.1 TDD pair (integration test + impl in one commit): add a
+- [x] 8.1 TDD pair (integration test + impl in one commit): add a
       `demo-orchestrator/` integration test confirming a SOD baseline is
       captured at the configured trading-day open and that the P&L
       Waterfall endpoint returns non-zero Gamma/Vega/Theta/Rho components
