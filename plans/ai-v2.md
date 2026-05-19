@@ -122,7 +122,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_chat_models.py -m unit`
 - [x] 3.2 Add `_FakeStreamingSdk` shared test fake in `tests/fakes/streaming_sdk.py` — yields multi-message responses with configurable per-message delays and content; usable across chat, brief, and queries tests.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_streaming_sdk_fake.py -m unit`
-- [ ] 3.3 Add `ConversationStore` protocol in `src/kinetix_insights/chat/conversation_store.py` + `InMemoryConversationStore` impl. TTL 24h via `OrderedDict` + timestamp eviction. Unit-tested for add/get/expire.
+- [x] 3.3 Add `ConversationStore` protocol in `src/kinetix_insights/chat/conversation_store.py` + `InMemoryConversationStore` impl. TTL 24h via `OrderedDict` + timestamp eviction. Unit-tested for add/get/expire.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_conversation_store_in_memory.py -m unit`
 - [ ] 3.4 Add `CopilotChatClient` protocol + `CannedCopilotChatClient` in `src/kinetix_insights/chat/canned.py`. Replays a multi-turn fixture from `src/kinetix_insights/fixtures/chat_transcripts/*.json` as SSE chunks with 20 ms artificial delay. Selects transcript by hash of `(message + page_context.page)`.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_canned_chat_client.py -m unit`
