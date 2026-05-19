@@ -137,7 +137,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
 
 ### PR 4 — Gateway streaming proxy + chat route
 
-- [ ] 4.1 Add `streamProxyToInsights` in `gateway/src/main/kotlin/com/kinetix/gateway/routes/InsightsRoutes.kt` — uses `HttpStatement.execute {}` + `respondBytesWriter` to pipe SSE byte-for-byte. Existing `proxyToInsights` stays untouched for the two v1 explainers.
+- [x] 4.1 Add `streamProxyToInsights` in `gateway/src/main/kotlin/com/kinetix/gateway/routes/InsightsRoutes.kt` — uses `HttpStatement.execute {}` + `respondBytesWriter` to pipe SSE byte-for-byte. Existing `proxyToInsights` stays untouched for the two v1 explainers.
       Acceptance: `./gradlew :gateway:acceptanceTest --tests "*InsightsStreamingProxyAcceptanceTest"`
 - [ ] 4.2 Register `POST /api/v1/insights/chat` route in `gateway/.../routes/InsightsRoutes.kt` using the new streaming proxy. Update HTTP client timeout for this route family to `Long.MAX_VALUE` (or large bound). Acceptance verifies SSE content-type and at least one chunk passes through.
       Acceptance: `./gradlew :gateway:acceptanceTest --tests "*CopilotChatRouteAcceptanceTest"`
