@@ -3,6 +3,7 @@ package com.kinetix.position.routes
 import com.kinetix.common.demo.SeedProfile
 import com.kinetix.common.demo.UnknownScenarioException
 import com.kinetix.position.fix.ExecutionCostRepository
+import com.kinetix.position.persistence.BookHierarchyRepository
 import com.kinetix.position.persistence.LimitDefinitionRepository
 import com.kinetix.position.persistence.PositionRepository
 import com.kinetix.position.persistence.TradeEventRepository
@@ -27,6 +28,7 @@ fun Route.demoResetRoutes(
     executionCostRepo: ExecutionCostRepository? = null,
     tradeEventRepository: TradeEventRepository? = null,
     tradeLifecycleService: TradeLifecycleService? = null,
+    bookHierarchyRepository: BookHierarchyRepository? = null,
     resetToken: String,
 ) {
     route("/api/v1/internal/position") {
@@ -57,6 +59,7 @@ fun Route.demoResetRoutes(
                 exec("TRUNCATE TABLE limit_definitions RESTART IDENTITY CASCADE")
                 exec("TRUNCATE TABLE limit_temporary_increases RESTART IDENTITY CASCADE")
                 exec("TRUNCATE TABLE execution_cost_analysis RESTART IDENTITY CASCADE")
+                exec("TRUNCATE TABLE book_hierarchy RESTART IDENTITY CASCADE")
             }
 
             DevDataSeeder(
@@ -66,6 +69,7 @@ fun Route.demoResetRoutes(
                 executionCostRepo = executionCostRepo,
                 tradeEventRepository = tradeEventRepository,
                 tradeLifecycleService = tradeLifecycleService,
+                bookHierarchyRepository = bookHierarchyRepository,
             ).seed(profile)
 
             call.respond(DemoResetResponse("ok", "Position data reset and reseeded for ${profile.id}"))

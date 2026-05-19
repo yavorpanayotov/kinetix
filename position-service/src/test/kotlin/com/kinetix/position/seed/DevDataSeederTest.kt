@@ -7,6 +7,8 @@ import com.kinetix.common.model.Position
 import com.kinetix.common.model.Side
 import com.kinetix.position.fix.ExecutionCostAnalysis
 import com.kinetix.position.fix.ExecutionCostRepository
+import com.kinetix.position.model.BookHierarchyMapping
+import com.kinetix.position.persistence.BookHierarchyRepository
 import com.kinetix.position.persistence.PositionRepository
 import com.kinetix.position.service.AmendTradeCommand
 import com.kinetix.position.service.BookTradeCommand
@@ -203,6 +205,107 @@ class DevDataSeederTest : FunSpec({
             "equity-growth", "fixed-income", "macro-hedge",
             "multi-asset", "tech-momentum",
         )
+    }
+
+    // ── Book-hierarchy seeding tests ──
+    // Without these mappings, risk-orchestrator's HierarchyRiskService treats
+    // booksUnder as empty and returns zero VaR for FIRM/DIVISION/DESK
+    // aggregations — the visible $0.00 ticker-strip / Firm-Summary bug.
+
+    test("seeds book-hierarchy mappings for all 8 books when repository is empty") {
+        val bookHierarchyRepo = mockk<BookHierarchyRepository>()
+        coEvery { bookHierarchyRepo.findAll() } returns emptyList()
+        coEvery { bookHierarchyRepo.save(any()) } just runs
+
+        val seederWithHierarchy = DevDataSeeder(
+            tradeBookingService = tradeBookingService,
+            positionRepository = positionRepository,
+            executionCostRepo = executionCostRepo,
+            bookHierarchyRepository = bookHierarchyRepo,
+        )
+        coEvery { positionRepository.findDistinctBookIds() } returns emptyList()
+        stubTradeBooking()
+        stubExecutionCostEmpty()
+
+        seederWithHierarchy.seed()
+
+        coVerify(exactly = 8) { bookHierarchyRepo.save(any()) }
+        val savedMappings = DevDataSeeder.BOOK_HIERARCHY_MAPPINGS
+        savedMappings.size shouldBe 8
+        val books = savedMappings.map { it.bookId }.sorted()
+        books shouldBe listOf(
+            "balanced-income", "derivatives-book", "emerging-markets",
+            "equity-growth", "fixed-income", "macro-hedge",
+            "multi-asset", "tech-momentum",
+        )
+    }
+
+    test("BOOK_HIERARCHY_MAPPINGS maps each book to its expected desk") {
+        val byBook: Map<String, BookHierarchyMapping> =
+            DevDataSeeder.BOOK_HIERARCHY_MAPPINGS.associateBy { it.bookId }
+        byBook["balanced-income"]!!.deskId shouldBe "balanced-income"
+        byBook["derivatives-book"]!!.deskId shouldBe "derivatives-trading"
+        byBook["emerging-markets"]!!.deskId shouldBe "emerging-markets"
+        byBook["equity-growth"]!!.deskId shouldBe "equity-growth"
+        byBook["fixed-income"]!!.deskId shouldBe "rates-trading"
+        byBook["macro-hedge"]!!.deskId shouldBe "macro-hedge"
+        byBook["multi-asset"]!!.deskId shouldBe "multi-asset-strategies"
+        byBook["tech-momentum"]!!.deskId shouldBe "tech-momentum"
+    }
+
+    test("skips book-hierarchy seeding when mappings already exist") {
+        val bookHierarchyRepo = mockk<BookHierarchyRepository>()
+        coEvery { bookHierarchyRepo.findAll() } returns DevDataSeeder.BOOK_HIERARCHY_MAPPINGS
+        coEvery { bookHierarchyRepo.save(any()) } just runs
+
+        val seederWithHierarchy = DevDataSeeder(
+            tradeBookingService = tradeBookingService,
+            positionRepository = positionRepository,
+            executionCostRepo = executionCostRepo,
+            bookHierarchyRepository = bookHierarchyRepo,
+        )
+        coEvery { positionRepository.findDistinctBookIds() } returns emptyList()
+        stubTradeBooking()
+        stubExecutionCostEmpty()
+
+        seederWithHierarchy.seed()
+
+        coVerify(exactly = 0) { bookHierarchyRepo.save(any()) }
+    }
+
+    test("seeds book-hierarchy even when trades already exist (warm restart)") {
+        val bookHierarchyRepo = mockk<BookHierarchyRepository>()
+        coEvery { bookHierarchyRepo.findAll() } returns emptyList()
+        coEvery { bookHierarchyRepo.save(any()) } just runs
+
+        val seederWithHierarchy = DevDataSeeder(
+            tradeBookingService = tradeBookingService,
+            positionRepository = positionRepository,
+            executionCostRepo = executionCostRepo,
+            bookHierarchyRepository = bookHierarchyRepo,
+        )
+        coEvery { positionRepository.findDistinctBookIds() } returns listOf(BookId("equity-growth"))
+        stubExecutionCostEmpty()
+
+        seederWithHierarchy.seed()
+
+        coVerify(exactly = 0) { tradeBookingService.handle(any()) }
+        coVerify(exactly = 8) { bookHierarchyRepo.save(any()) }
+    }
+
+    test("book-hierarchy seeding is a no-op when no repository is wired (backward compatibility)") {
+        // The existing module-level seeder is constructed without the
+        // book-hierarchy repository — verify seed() still completes cleanly
+        // without throwing.
+        coEvery { positionRepository.findDistinctBookIds() } returns emptyList()
+        stubTradeBooking()
+        stubExecutionCostEmpty()
+
+        seeder.seed()
+
+        // No exception thrown is sufficient — the mocked seeder does not have
+        // a hierarchy repo, so save() is never invoked.
+        coVerify(exactly = DevDataSeeder.TRADES.size) { tradeBookingService.handle(any()) }
     }
 
     test("each book has at least 3 execution cost entries") {

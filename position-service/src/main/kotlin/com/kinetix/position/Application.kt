@@ -462,6 +462,7 @@ fun Application.moduleWithRoutes() {
                 executionCostRepo = executionCostRepository,
                 tradeEventRepository = tradeEventRepository,
                 tradeLifecycleService = tradeLifecycleService,
+                bookHierarchyRepository = bookHierarchyRepository,
                 resetToken = demoResetToken,
             )
         }
@@ -499,6 +500,7 @@ fun Application.moduleWithRoutes() {
                 limitDefinitionRepo = limitDefinitionRepo,
                 executionCostRepo = executionCostRepository,
                 tradeEventRepository = tradeEventRepository,
+                bookHierarchyRepository = bookHierarchyRepository,
             ).seed()
             seedDone.set(true)
         }

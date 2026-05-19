@@ -6,9 +6,11 @@ import com.kinetix.common.model.*
 import com.kinetix.position.fix.ExecutionCostAnalysis
 import com.kinetix.position.fix.ExecutionCostMetrics
 import com.kinetix.position.fix.ExecutionCostRepository
+import com.kinetix.position.model.BookHierarchyMapping
 import com.kinetix.position.model.LimitDefinition
 import com.kinetix.position.model.LimitLevel
 import com.kinetix.position.model.LimitType
+import com.kinetix.position.persistence.BookHierarchyRepository
 import com.kinetix.position.persistence.LimitDefinitionRepository
 import com.kinetix.position.persistence.PositionRepository
 import com.kinetix.position.persistence.TradeEventRepository
@@ -32,6 +34,7 @@ class DevDataSeeder(
     private val tradeEventRepository: TradeEventRepository? = null,
     private val tapeTradesEnabled: Boolean = true,
     private val tradeLifecycleService: TradeLifecycleService? = null,
+    private val bookHierarchyRepository: BookHierarchyRepository? = null,
 ) {
     private val log = LoggerFactory.getLogger(DevDataSeeder::class.java)
 
@@ -203,7 +206,26 @@ class DevDataSeeder(
             }
         }
 
+        // Book-hierarchy seeding runs independently so it can backfill an
+        // already-populated database (e.g. an existing demo deploy that was
+        // missing the mappings). Without this, risk-orchestrator's
+        // HierarchyRiskService finds no books under FIRM/DIVISION/DESK and
+        // returns zero VaR — the visible $0.00 ticker-strip / Firm-Summary bug.
+        seedBookHierarchy()
+
         log.info("Dev data seeding complete")
+    }
+
+    private suspend fun seedBookHierarchy() {
+        if (bookHierarchyRepository == null) return
+        if (bookHierarchyRepository.findAll().isNotEmpty()) {
+            log.info("Book-hierarchy mappings already present, skipping")
+            return
+        }
+        log.info("Seeding {} book-hierarchy mappings", BOOK_HIERARCHY_MAPPINGS.size)
+        for (mapping in BOOK_HIERARCHY_MAPPINGS) {
+            bookHierarchyRepository.save(mapping)
+        }
     }
 
     private suspend fun seedTapeTrades(repo: TradeEventRepository) {
@@ -260,6 +282,21 @@ class DevDataSeeder(
         //   macro-hedge       → desk: macro-hedge         (div: multi-asset)
         //   balanced-income   → desk: balanced-income     (div: multi-asset)
         //   derivatives-book  → desk: derivatives-trading (div: multi-asset)
+        //
+        // Persisted form consumed by risk-orchestrator's HttpHierarchyDataClient
+        // via GET /api/v1/book-hierarchy. Without these rows the firm/division/
+        // desk aggregation collapses to zero VaR (HierarchyRiskService treats
+        // booksUnder.isEmpty() as "nothing to aggregate").
+        val BOOK_HIERARCHY_MAPPINGS: List<BookHierarchyMapping> = listOf(
+            BookHierarchyMapping(bookId = "balanced-income",   deskId = "balanced-income",        bookName = "Balanced Income",   bookType = null),
+            BookHierarchyMapping(bookId = "derivatives-book",  deskId = "derivatives-trading",    bookName = "Derivatives Book",  bookType = null),
+            BookHierarchyMapping(bookId = "emerging-markets",  deskId = "emerging-markets",       bookName = "Emerging Markets",  bookType = null),
+            BookHierarchyMapping(bookId = "equity-growth",     deskId = "equity-growth",          bookName = "Equity Growth",     bookType = null),
+            BookHierarchyMapping(bookId = "fixed-income",      deskId = "rates-trading",          bookName = "Fixed Income",      bookType = null),
+            BookHierarchyMapping(bookId = "macro-hedge",       deskId = "macro-hedge",            bookName = "Macro Hedge",       bookType = null),
+            BookHierarchyMapping(bookId = "multi-asset",       deskId = "multi-asset-strategies", bookName = "Multi-Asset",       bookType = null),
+            BookHierarchyMapping(bookId = "tech-momentum",     deskId = "tech-momentum",          bookName = "Tech Momentum",     bookType = null),
+        )
 
         // ── Per-book instrument catalogue (reused by generator) ──────────────────
         private data class InstrumentSpec(
