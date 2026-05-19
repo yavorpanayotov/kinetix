@@ -77,7 +77,7 @@ into the citation error contract uniformly.
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any, Callable, cast
+from typing import Any, Callable
 
 from kinetix_insights.citations.models import Citation
 from kinetix_insights.clients.kinetix_http_client import (
@@ -173,15 +173,21 @@ async def get_positions(
             path=path,
         )
 
-    # The upstream endpoint does not accept any query parameters; pass
-    # ``None`` so the fake/transport records exactly what the wire sees.
     raw_payload = await http.get(
         _SERVICE_SHORT_NAME, path, params=None, user=user
     )
-    # The endpoint returns a JSON array, not an object. The client
-    # protocol is typed for the common dict-result shape; cast to the
-    # actual list-of-dicts shape returned here.
-    raw_positions = cast(list[dict[str, Any]], raw_payload)
+    if not isinstance(raw_payload, list):
+        raise KinetixHttpError(
+            status_code=502,
+            code="UPSTREAM_ERROR",
+            message=(
+                f"expected array from {_SERVICE_SHORT_NAME}{path}, "
+                f"got {type(raw_payload).__name__}"
+            ),
+            service=_SERVICE_SHORT_NAME,
+            path=path,
+        )
+    raw_positions: list[dict[str, Any]] = raw_payload
 
     total_count = len(raw_positions)
     mapped: list[dict[str, Any]] = [_map_row(row) for row in raw_positions]

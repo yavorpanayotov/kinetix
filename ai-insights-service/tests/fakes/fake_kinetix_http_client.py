@@ -44,16 +44,16 @@ class FakeKinetixHttpClient:
     """Behaviour-compatible double for :class:`KinetixHttpClient`."""
 
     recorded_calls: list[RecordedCall] = field(default_factory=list)
-    _responses: dict[tuple[str, str, str], dict[str, Any] | Exception] = field(
-        default_factory=dict
-    )
+    _responses: dict[
+        tuple[str, str, str], dict[str, Any] | list[Any] | Exception
+    ] = field(default_factory=dict)
 
     def register_response(
         self,
         method: str,
         service: str,
         path: str,
-        response: dict[str, Any] | Exception,
+        response: dict[str, Any] | list[Any] | Exception,
     ) -> None:
         """Seed a payload or exception for a future ``(method, service, path)``."""
 
@@ -61,7 +61,7 @@ class FakeKinetixHttpClient:
 
     def _resolve(
         self, method: str, service: str, path: str
-    ) -> dict[str, Any]:
+    ) -> dict[str, Any] | list[Any]:
         key = (method.upper(), service, path)
         if key not in self._responses:
             raise KinetixHttpError(
@@ -83,7 +83,7 @@ class FakeKinetixHttpClient:
         *,
         params: dict[str, Any] | None,
         user: UserContext,
-    ) -> dict[str, Any]:
+    ) -> dict[str, Any] | list[Any]:
         self.recorded_calls.append(
             RecordedCall(
                 method="GET",
@@ -102,7 +102,7 @@ class FakeKinetixHttpClient:
         *,
         json: dict[str, Any],
         user: UserContext,
-    ) -> dict[str, Any]:
+    ) -> dict[str, Any] | list[Any]:
         self.recorded_calls.append(
             RecordedCall(
                 method="POST",

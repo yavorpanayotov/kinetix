@@ -126,7 +126,7 @@ class KinetixHttpClient(Protocol):
         *,
         params: dict[str, Any] | None,
         user: UserContext,
-    ) -> dict[str, Any]: ...  # pragma: no cover - structural only
+    ) -> dict[str, Any] | list[Any]: ...  # pragma: no cover - structural only
 
     async def post(
         self,
@@ -135,7 +135,7 @@ class KinetixHttpClient(Protocol):
         *,
         json: dict[str, Any],
         user: UserContext,
-    ) -> dict[str, Any]: ...  # pragma: no cover - structural only
+    ) -> dict[str, Any] | list[Any]: ...  # pragma: no cover - structural only
 
 
 class HttpxKinetixHttpClient:
@@ -176,7 +176,7 @@ class HttpxKinetixHttpClient:
         user: UserContext,
         params: dict[str, Any] | None = None,
         json: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
+    ) -> dict[str, Any] | list[Any]:
         base = self._resolve(service)
         url = f"{base}{path}"
         headers = user.to_headers()
@@ -207,7 +207,7 @@ class HttpxKinetixHttpClient:
         *,
         params: dict[str, Any] | None,
         user: UserContext,
-    ) -> dict[str, Any]:
+    ) -> dict[str, Any] | list[Any]:
         return await self._request(
             "GET", service, path, user=user, params=params
         )
@@ -219,7 +219,7 @@ class HttpxKinetixHttpClient:
         *,
         json: dict[str, Any],
         user: UserContext,
-    ) -> dict[str, Any]:
+    ) -> dict[str, Any] | list[Any]:
         return await self._request(
             "POST", service, path, user=user, json=json
         )

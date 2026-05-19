@@ -144,7 +144,16 @@ async def get_book_var(
     if as_of is not None:
         params = {"valuationDate": as_of}
 
-    payload = await http.get(_SERVICE, path, params=params, user=user)
+    raw = await http.get(_SERVICE, path, params=params, user=user)
+    if not isinstance(raw, dict):
+        raise KinetixHttpError(
+            status_code=502,
+            code="UPSTREAM_ERROR",
+            message=f"expected object from {_SERVICE}{path}, got {type(raw).__name__}",
+            service=_SERVICE,
+            path=path,
+        )
+    payload: dict[str, Any] = raw
 
     total_var = float(payload["varValue"])
     breakdown_raw = payload.get("componentBreakdown") or []
