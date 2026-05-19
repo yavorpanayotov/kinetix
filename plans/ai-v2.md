@@ -146,7 +146,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
 
 ### PR 5 — UI chat surface: ⌘K + StreamingNarrative + citations
 
-- [ ] 5.1 Add `ExplainPayload` discriminated-union type + new `ui/src/api/copilot.ts` with `chat()` returning a `ReadableStream<ChatChunk>` (uses `EventSource` + reader pump). Vitest covers happy-path stream consumption + abort behaviour.
+- [x] 5.1 Add `ExplainPayload` discriminated-union type + new `ui/src/api/copilot.ts` with `chat()` returning a `ReadableStream<ChatChunk>` (uses `EventSource` + reader pump). Vitest covers happy-path stream consumption + abort behaviour.
       Acceptance: `cd ui && npm run test -- copilot.test`
 - [ ] 5.2 Add `<StreamingNarrative>` component in `ui/src/components/StreamingNarrative.tsx`: accepts a `ReadableStream<ChatChunk>` prop, owns token accumulation via `useRef` + `requestAnimationFrame` batching (50 ms), renders skeleton → blinking-cursor → token-flow → complete. Reduced-motion fallback. Vitest covers all four states.
       Acceptance: `cd ui && npm run test -- StreamingNarrative`
