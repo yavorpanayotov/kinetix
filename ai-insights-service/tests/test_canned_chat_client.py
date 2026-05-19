@@ -223,7 +223,7 @@ async def test_transcript_selection_varies_with_message(
     _two_transcripts(tmp_path)
     client = CannedCopilotChatClient(fixtures_dir=tmp_path, delay_seconds=0.0)
 
-    def _by_message(message: str, page: str, modulus: int) -> int:
+    def _by_message(message: str, _page: str, _modulus: int) -> int:
         return 0 if message.startswith("alpha") else 1
 
     monkeypatch.setattr(canned_module, "_select_transcript_index", _by_message)
@@ -255,7 +255,7 @@ async def test_transcript_selection_varies_with_page_context_page(
     _two_transcripts(tmp_path)
     client = CannedCopilotChatClient(fixtures_dir=tmp_path, delay_seconds=0.0)
 
-    def _by_page(message: str, page: str, modulus: int) -> int:
+    def _by_page(_message: str, page: str, _modulus: int) -> int:
         return 0 if page == "dashboard" else 1
 
     monkeypatch.setattr(canned_module, "_select_transcript_index", _by_page)
