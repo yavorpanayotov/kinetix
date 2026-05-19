@@ -166,7 +166,7 @@ checkbox already captured this.
 
 ### PR 3 — Stop showing three identical stale breach banners (G3)
 
-- [ ] 3.1 TDD pair (Vitest + impl in one commit): extend
+- [x] 3.1 TDD pair (Vitest + impl in one commit): extend
       `ui/src/components/BreachBanner.test.tsx` with a case asserting that
       given 3 alerts of the same `severity` + `bookId` + matching message
       template within a 24h window, the component renders a single rollup
@@ -179,7 +179,7 @@ checkbox already captured this.
       `onOpenHedgePanel` props unchanged. Existing BreachBanner tests must
       stay green.
       Acceptance: `cd ui && npm run test -- BreachBanner`
-- [ ] 3.2 Playwright spec `ui/e2e/breach-banner-rollup.spec.ts` that mocks
+- [x] 3.2 Playwright spec `ui/e2e/breach-banner-rollup.spec.ts` that mocks
       three matching VaR breaches via `page.route` (pattern from
       `ui/e2e/fixtures.ts`) and asserts exactly one banner with a count
       badge renders.
@@ -231,7 +231,7 @@ checkbox already captured this.
 
 ### PR 6 — Regulatory tab UI completeness (M1)
 
-- [ ] 6.1 TDD pair (Vitest + impl in one commit): extend
+- [x] 6.1 TDD pair (Vitest + impl in one commit): extend
       `ui/src/components/RegulatoryTab.test.tsx` to assert that after a
       successful FRTB calc the component renders: a SBM-charges-by-risk-class
       table (GIRR, CSR_NON_SEC, EQUITY, FX, COMMODITY) with delta/vega/
@@ -241,7 +241,7 @@ checkbox already captured this.
       `ui/src/components/RegulatoryTab.tsx`. Reuse the existing
       `Calculate FRTB` / `Download CSV` / `Download XBRL` buttons unchanged.
       Acceptance: `cd ui && npm run test -- RegulatoryTab`
-- [ ] 6.2 Playwright spec `ui/e2e/regulatory-tab.spec.ts` exercising the
+- [x] 6.2 Playwright spec `ui/e2e/regulatory-tab.spec.ts` exercising the
       full flow: click Calculate FRTB → wait for table → assert the EQUITY
       row contains both delta and total values formatted with thousands
       separators → click Download CSV and verify a file download starts.
@@ -284,7 +284,7 @@ checkbox already captured this.
 
 ### PR 9 — Remove the broken /regulatory/frtb/calculate route (G2)
 
-- [ ] 9.1 TDD pair (test + fix in one commit): add a case to
+- [x] 9.1 TDD pair (test + fix in one commit): add a case to
       `RegulatoryFrtbRoutesAcceptanceTest` asserting
       `POST /api/v1/regulatory/frtb/calculate` returns 404 (route removed)
       or 400 (route refuses the literal string "calculate" as a bookId) —
