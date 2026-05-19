@@ -2,15 +2,22 @@ package com.kinetix.demo.client
 
 import com.kinetix.demo.client.dtos.BookExposureSnapshot
 import com.kinetix.demo.client.dtos.CreateRiskBudgetRequest
+import com.kinetix.demo.client.dtos.EodPromotionResponseDto
 import com.kinetix.demo.client.dtos.EodTimelineResponse
 import com.kinetix.demo.client.dtos.HierarchyRiskResponse
+import com.kinetix.demo.client.dtos.PaginatedJobsResponseDto
+import com.kinetix.demo.client.dtos.PromoteEodRequest
+import com.kinetix.demo.client.dtos.VaRCalculationRequestBody
+import com.kinetix.demo.client.dtos.ValuationJobSummary
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
+import io.ktor.client.request.patch
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import kotlinx.serialization.json.Json
@@ -88,6 +95,88 @@ class RiskOrchestratorHttpClient(
         }
     }
 
+    override suspend fun calculateVaR(bookId: String) {
+        val url = "$baseUrl/api/v1/risk/var/$bookId"
+        val request = VaRCalculationRequestBody(
+            calculationType = "PARAMETRIC",
+            confidenceLevel = "CL_95",
+            timeHorizonDays = "1",
+            numSimulations = "10000",
+        )
+        val body = json.encodeToString(VaRCalculationRequestBody.serializer(), request)
+        val response = httpClient.post(url) {
+            contentType(ContentType.Application.Json)
+            setBody(body)
+        }
+        if (!response.status.isSuccess()) {
+            failLoudly("POST", url, response)
+        }
+        // We deliberately discard the VaR response body — the job ID is
+        // retrieved via findLatestCompletedJob, and the VaR figures will be
+        // observed downstream through the EOD timeline read path.
+    }
+
+    override suspend fun findLatestCompletedJob(bookId: String): ValuationJobSummary? {
+        val url = "$baseUrl/api/v1/risk/jobs/$bookId?limit=1&offset=0"
+        val response = httpClient.get(url)
+        if (!response.status.isSuccess()) {
+            failLoudly("GET", url, response)
+        }
+        val body = response.bodyAsText()
+        val parsed = try {
+            json.decodeFromString(PaginatedJobsResponseDto.serializer(), body)
+        } catch (e: Exception) {
+            throw IllegalStateException(
+                "Failed to decode PaginatedJobsResponse from $url: body=${body.take(BODY_EXCERPT_LIMIT)}",
+                e,
+            )
+        }
+        return parsed.items.firstOrNull { it.status == "COMPLETED" }
+            ?: parsed.items.firstOrNull()
+    }
+
+    override suspend fun findOfficialEod(bookId: String, valuationDate: LocalDate): EodPromotionResponseDto? {
+        val url = "$baseUrl/api/v1/risk/jobs/$bookId/official-eod?date=$valuationDate"
+        val response = httpClient.get(url)
+        if (response.status == HttpStatusCode.NotFound) {
+            return null
+        }
+        if (!response.status.isSuccess()) {
+            failLoudly("GET", url, response)
+        }
+        val body = response.bodyAsText()
+        return try {
+            json.decodeFromString(EodPromotionResponseDto.serializer(), body)
+        } catch (e: Exception) {
+            throw IllegalStateException(
+                "Failed to decode EodPromotionResponseDto from $url: body=${body.take(BODY_EXCERPT_LIMIT)}",
+                e,
+            )
+        }
+    }
+
+    override suspend fun promoteJobToOfficialEod(jobId: String, promotedBy: String): EodPromotionResponseDto {
+        val url = "$baseUrl/api/v1/risk/jobs/$jobId/label"
+        val request = PromoteEodRequest(label = OFFICIAL_EOD_LABEL, promotedBy = promotedBy)
+        val body = json.encodeToString(PromoteEodRequest.serializer(), request)
+        val response = httpClient.patch(url) {
+            contentType(ContentType.Application.Json)
+            setBody(body)
+        }
+        if (!response.status.isSuccess()) {
+            failLoudly("PATCH", url, response)
+        }
+        val responseBody = response.bodyAsText()
+        return try {
+            json.decodeFromString(EodPromotionResponseDto.serializer(), responseBody)
+        } catch (e: Exception) {
+            throw IllegalStateException(
+                "Failed to decode EodPromotionResponseDto from $url: body=${responseBody.take(BODY_EXCERPT_LIMIT)}",
+                e,
+            )
+        }
+    }
+
     override suspend fun seedLimit(bookId: String, limitType: LimitType, threshold: BigDecimal) {
         val url = "$baseUrl/api/v1/risk/budgets"
         val request = CreateRiskBudgetRequest(
@@ -123,5 +212,6 @@ class RiskOrchestratorHttpClient(
 
     private companion object {
         const val BODY_EXCERPT_LIMIT = 200
+        const val OFFICIAL_EOD_LABEL = "OFFICIAL_EOD"
     }
 }

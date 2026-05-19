@@ -8,6 +8,7 @@ import com.kinetix.demo.kafka.OfficialEodConsumer
 import com.kinetix.demo.schedule.DefaultPriceBook
 import com.kinetix.demo.schedule.DefaultStrategyIdResolver
 import com.kinetix.demo.schedule.EodCycleObserverJob
+import com.kinetix.demo.schedule.EodPromotionJob
 import com.kinetix.demo.schedule.LimitSeedJob
 import com.kinetix.demo.schedule.RiskOrchestratorBacktestInputProvider
 import com.kinetix.demo.schedule.SchedulingHelpers
@@ -123,6 +124,11 @@ private fun Application.wireDemoSchedulers(config: DemoConfig) {
     launch {
         runOfficialEodConsumerSafely(officialEodConsumer)
     }
+
+    val eodPromotionJob = EodPromotionJob(client = riskClient)
+    launch {
+        scheduleDailyEodPromotion(eodPromotionJob, config.tradingHoursEnd)
+    }
 }
 
 private const val OFFICIAL_EOD_CONSUMER_GROUP_ID = "demo-orchestrator-eod-observer"
@@ -207,5 +213,37 @@ private suspend fun Application.runLimitSeedSafely(job: LimitSeedJob, reason: St
         throw cancellation
     } catch (failure: Exception) {
         log.warn("LimitSeedJob run ({}) failed — continuing", reason, failure)
+    }
+}
+
+private suspend fun Application.scheduleDailyEodPromotion(
+    job: EodPromotionJob,
+    closeTimeUtc: LocalTime,
+) {
+    while (true) {
+        val wait = SchedulingHelpers.durationUntilNext(closeTimeUtc)
+        log.info(
+            "Next EodPromotionJob run scheduled in {}s (target {} UTC)",
+            wait.seconds,
+            closeTimeUtc,
+        )
+        try {
+            delay(wait.toMillis())
+        } catch (cancellation: CancellationException) {
+            log.info("EodPromotionJob scheduling loop cancelled — exiting")
+            throw cancellation
+        }
+        runEodPromotionSafely(job, reason = "$closeTimeUtc UTC schedule")
+    }
+}
+
+private suspend fun Application.runEodPromotionSafely(job: EodPromotionJob, reason: String) {
+    try {
+        log.info("Running EodPromotionJob ({})", reason)
+        job.runOnce()
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (failure: Exception) {
+        log.warn("EodPromotionJob run ({}) failed — continuing", reason, failure)
     }
 }

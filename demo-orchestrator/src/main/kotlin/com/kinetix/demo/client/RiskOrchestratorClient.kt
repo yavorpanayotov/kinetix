@@ -1,7 +1,9 @@
 package com.kinetix.demo.client
 
 import com.kinetix.demo.client.dtos.BookExposureSnapshot
+import com.kinetix.demo.client.dtos.EodPromotionResponseDto
 import com.kinetix.demo.client.dtos.EodTimelineResponse
+import com.kinetix.demo.client.dtos.ValuationJobSummary
 import java.math.BigDecimal
 import java.time.LocalDate
 
@@ -40,4 +42,40 @@ interface RiskOrchestratorClient {
      * for backtesting.
      */
     suspend fun eodTimeline(bookId: String, from: LocalDate, to: LocalDate): EodTimelineResponse
+
+    /**
+     * Triggers a fresh VaR calculation for [bookId] via
+     * `POST /api/v1/risk/var/{bookId}`. The upstream service records a new
+     * valuation job as a side effect; this method intentionally discards the
+     * VaR result body since the only thing the demo flow needs is the
+     * "job recorded" outcome — the job ID itself is retrieved separately
+     * through [findLatestCompletedJob].
+     */
+    suspend fun calculateVaR(bookId: String)
+
+    /**
+     * Returns the most recent completed valuation job for [bookId] via
+     * `GET /api/v1/risk/jobs/{bookId}?limit=1`, or `null` if no job has been
+     * recorded yet. Used by the demo EOD scheduler to pick up the job
+     * created by [calculateVaR] so it can be promoted.
+     */
+    suspend fun findLatestCompletedJob(bookId: String): ValuationJobSummary?
+
+    /**
+     * Returns the existing Official EOD designation for [bookId] on
+     * [valuationDate] via `GET /api/v1/risk/jobs/{bookId}/official-eod`, or
+     * `null` if no designation exists yet. Used by the demo EOD scheduler
+     * for idempotency: a re-run on the same simulated day is a no-op.
+     */
+    suspend fun findOfficialEod(bookId: String, valuationDate: LocalDate): EodPromotionResponseDto?
+
+    /**
+     * Promotes the supplied [jobId] to `OFFICIAL_EOD` via
+     * `PATCH /api/v1/risk/jobs/{jobId}/label`. Upstream `risk-orchestrator`
+     * is the owner of the `risk.official-eod` Kafka topic and the
+     * `OfficialEodDesignationsTable`; this call triggers both the event
+     * publication and the persistence write that the
+     * `GET /api/v1/risk/eod-timeline/{bookId}` read path observes.
+     */
+    suspend fun promoteJobToOfficialEod(jobId: String, promotedBy: String): EodPromotionResponseDto
 }
