@@ -87,7 +87,7 @@ pipeline file, STOP and flag.
       `id`). The failing acceptance test from commit `470768df`
       (`DataQualityRoutesAcceptanceTest`) must now go green.
       Acceptance: `./gradlew :gateway:acceptanceTest --tests "*DataQualityRoutesAcceptance*"`
-- [ ] 1.2 Run a hot-rebuild against the live deploy and verify
+- [x] 1.2 Run a hot-rebuild against the live deploy and verify
       `curl https://api.kinetixrisk.ai/api/v1/data-quality/status` reports
       `Position Count` status `OK` with a `N portfolio(s) active` message,
       and the header `DataQualityIndicator` in the live UI no longer shows the
@@ -95,53 +95,64 @@ pipeline file, STOP and flag.
       `ui/e2e/data-quality-reconnect.spec.ts` continues to pass.
       Acceptance: `cd ui && npx playwright test data-quality-reconnect.spec.ts`
 
-### PR 2 — Bring synchronous risk computation back from the dead (B1/B2)
+### PR 2 — Firm aggregation + cross-book VaR + 4xx-on-bad-payloads (B2 + restated B1)
 
-- [ ] 2.1 Diagnose: capture the live gateway error by curling
-      `POST /api/v1/risk/var/balanced-income` against the running deploy and
-      tailing `docker logs kinetix-gateway -f` (or
-      `docker logs kinetix-risk-orchestrator -f` if the gateway is just
-      forwarding an upstream error). Capture the stack trace + the upstream
-      response from `HttpRiskServiceClient`. Append a dated entry to the
-      `## Diagnosis log` heading at the bottom of this plan with one
-      paragraph + the key log line(s).
+Restated after diagnosis 2.1: single-book risk POSTs are healthy when called
+with the UI's actual payload shape. The real bugs are (a) the firm hierarchy
+aggregation returning zeros, (b) the cross-book VaR POST still 500-ing with
+a valid payload, and (c) the gateway flattening every validation throwable
+into a generic 500 instead of a 400 with a field name. The `[x]` 2.1
+checkbox already captured this.
+
+- [x] 2.1 Diagnose: see `## Diagnosis log` entry 2.1 below.
       Acceptance: `grep -q "^### 2.1 " plans/ui-fix-v1.md`
-- [ ] 2.2 TDD pair (test + fix in one commit): add
-      `gateway/src/test/kotlin/com/kinetix/gateway/routes/VaRRoutesPostAcceptanceTest.kt`
-      that POSTs `/api/v1/risk/var/balanced-income` with a valid
-      `VaRRequest` against a Testcontainers-backed gateway + an in-JVM Netty
-      fake of the upstream HTTP risk-orchestrator (per CLAUDE.md
-      acceptance-test conventions — the fake echoes a canonical
-      `VaRResponse` so the gateway-side serialisation is exercised, not the
-      compute). Then apply the production fix identified in 2.1 — most
-      likely in `gateway/.../client/HttpRiskServiceClient.kt`. Commit
-      together. Both the new test and the rest of the gateway acceptance
-      suite must pass.
-      Acceptance: `./gradlew :gateway:acceptanceTest --tests "*VaRRoutesPostAcceptance*"`
-- [ ] 2.3 Regression: every other risk POST route (CrossBookVaRRoutes,
-      StressTestRoutes, WhatIfRoutes, HedgeRecommendationRoutes) must remain
-      green. If the fix in 2.2 was localised in `HttpRiskServiceClient` they
-      all recover for free; if not, extend the fix.
-      Acceptance: `./gradlew :gateway:acceptanceTest --tests "*VaRRoutes* *CrossBookVaR* *StressTest* *WhatIf* *HedgeRecommendation*"`
-- [ ] 2.4 Live-deploy smoke: create `plans/scripts/check-risk-recovery.sh`
-      (~20 lines) that curls
-      `POST /api/v1/risk/var/balanced-income`,
-      `POST /api/v1/risk/stress/balanced-income`,
-      `POST /api/v1/risk/what-if/balanced-income`,
-      `POST /api/v1/risk/hedge-suggest/balanced-income`, and
-      `POST /api/v1/risk/var/cross-book` — every one must return 200. The
-      script must then curl `GET /api/v1/risk/hierarchy/firm/firm` and assert
-      `varValue != "0.00"` AND `childCount > 0`. Exit non-zero on any
-      failure.
+- [ ] 2.2 TDD pair (test + fix in one commit): fix
+      `GET /api/v1/risk/hierarchy/firm/firm` returning zeros. Add an
+      acceptance test in `gateway/src/test/kotlin/com/kinetix/gateway/routes/HierarchyRiskRoutesAcceptanceTest.kt`
+      (or extend the existing one) that POSTs cross-book VaR first to
+      populate the cache (or seeds the cache directly via the test backend)
+      and asserts the hierarchy/firm/firm response has `varValue != "0.00"`,
+      `childCount > 0`, and a populated `topContributors` list. The fix
+      most likely lives in `risk-orchestrator/` (the aggregation read path)
+      or the gateway's `HierarchyRiskRoutes.kt` — diagnose during the work.
+      Acceptance: `./gradlew :gateway:acceptanceTest --tests "*HierarchyRisk*"`
+- [ ] 2.3 TDD pair (test + fix in one commit): fix
+      `POST /api/v1/risk/var/cross-book` returning 500 with a valid UI-shape
+      payload. Add an acceptance test in
+      `gateway/src/test/kotlin/com/kinetix/gateway/routes/CrossBookVaRRoutesAcceptanceTest.kt`
+      (or extend) that POSTs a multi-book cross-book request and asserts
+      200 with the canonical `StressedCrossBookVaRResponse` shape. Fix
+      whichever seam is breaking — gateway DTO, HttpRiskServiceClient call,
+      or risk-orchestrator side.
+      Acceptance: `./gradlew :gateway:acceptanceTest --tests "*CrossBookVaR*"`
+- [ ] 2.4 TDD pair (test + fix in one commit): gateway global error
+      handler returns 400 (not 500) when the request body fails to
+      deserialize or fails a `require(…)` validation. Add an acceptance
+      test that POSTs `/api/v1/risk/var/balanced-income` with
+      `{"confidenceLevel": 0.95}` (numeric, wrong type) and asserts 400
+      with a JSON body containing the offending field name. Fix lives in
+      the gateway's status-pages plugin / global error handler
+      (`gateway/.../Application.kt` or equivalent).
+      Acceptance: `./gradlew :gateway:acceptanceTest --tests "*StatusPagesAcceptance*"`
+- [ ] 2.5 Live-deploy smoke: create `plans/scripts/check-risk-recovery.sh`
+      (~25 lines) that curls each risk POST with the **correct UI-shape
+      payload** and asserts 200 for `/risk/var/{book}`,
+      `/risk/stress/{book}`, `/risk/what-if/{book}`, and
+      `/risk/var/cross-book`; then asserts
+      `GET /api/v1/risk/hierarchy/firm/firm` has `varValue != "0.00"` AND
+      `childCount > 0`. Exit non-zero on any failure. The hedge-suggest
+      endpoint is excluded because it's a pre-condition error (412 once
+      patched), not a recovery check.
       Acceptance: `bash plans/scripts/check-risk-recovery.sh`
-- [ ] 2.5 TDD pair (test + impl in one commit): two Playwright specs in
-      `ui/e2e/`: one for `BookSummaryCard` on the Positions tab confirming
-      non-zero NAV when the firm hierarchy is populated; one for the global
-      `RiskTickerStrip` confirming `NAV`, `VAR 1D 95%`, `NET DELTA`,
-      `NET VEGA` are all non-empty within 5s of load. The specs assume the
-      backend now returns real data (post-2.2 fix). Adjust UI components
-      only if the specs reveal a frontend bug (e.g. missing default
-      formatting).
+- [ ] 2.6 TDD pair (Playwright + targeted UI fixes in one commit): a
+      Playwright spec in `ui/e2e/risk-ticker-strip.spec.ts` confirms
+      `NAV`, `VAR 1D 95%`, `NET DELTA`, `NET VEGA` are all non-empty
+      within 5s of load; a Playwright spec in `ui/e2e/book-summary-card.spec.ts`
+      confirms the Firm Summary NAV is non-zero when the firm hierarchy is
+      populated. Both specs assume the post-2.2 backend produces real
+      data. Tweak only `BookSummaryCard.tsx` / `RiskTickerStrip.tsx` if a
+      frontend gap shows up (e.g. they were hardcoding em-dashes when the
+      hook returned a fresh zero value).
       Acceptance: `cd ui && npx playwright test risk-ticker-strip.spec.ts book-summary-card.spec.ts && cd ui && npm run lint`
 
 ### PR 3 — Stop showing three identical stale breach banners (G3)
@@ -300,6 +311,50 @@ pipeline file, STOP and flag.
 
 ## Diagnosis log
 
-_(Subagents append captured stack traces and root-cause findings here as
-checkboxes 2.2 and 4.2 execute. Keep entries short — one paragraph + the key
-log line.)_
+### 2.1 (2026-05-19) — "B1" was a payload-shape misdiagnosis
+
+The original audit reported "every on-demand risk POST returns 500" by curling
+with `{"calculationType":"PARAMETRIC","confidenceLevel":0.95,"timeHorizonDays":1}`
+— numeric `confidenceLevel`, numeric `timeHorizonDays`. The gateway's
+`VaRCalculationRequest` (see
+`gateway/.../dtos/VaRCalculationRequest.kt`) expects
+`confidenceLevel: String?` constrained to `{CL_95, CL_975, CL_99}` and
+`timeHorizonDays: String?` (parsed via `.toInt()`). kotlinx.serialization
+rejects the numeric-into-String mismatch and the global error handler
+flattens any throwable into a generic 500 `internal_error`.
+
+Re-curl with the UI's actual shape:
+
+  curl -X POST .../api/v1/risk/var/balanced-income \
+    -d '{"calculationType":"PARAMETRIC","confidenceLevel":"CL_95","timeHorizonDays":"1","numSimulations":"10000"}'
+  → HTTP 200, full VaRResponse (varValue $148k, ES $186k, Greeks populated, …)
+
+Same picture for `/risk/stress/{book}` (returns 200 with GFC_2008 stress
+result) and `/risk/what-if/{book}` (returns 200 with base/hypothetical VaR).
+
+So the synchronous single-book risk path is **healthy**. The UI calls these
+endpoints with the correct shape and they work. The audit's "broken" finding
+came from MY curl payloads, not the UI's.
+
+What IS still broken under the correct payload shape:
+- `POST /api/v1/risk/var/cross-book` — still 500 `internal_error` with the
+  UI's payload shape. **Real bug.** Probably a separate code path in
+  `CrossBookVaRRoutes.kt` / `HttpRiskServiceClient.kt`.
+- `POST /api/v1/risk/hedge-suggest/{book}` — returns 500 `upstream_error`
+  with descriptive message `"No VaR result available for book … Run a VaR
+  calculation first."` when no VaR is cached for the book. This is a
+  precondition, not a bug — but the status code should be 412 / 409, not 500.
+- `GET /api/v1/risk/hierarchy/firm/firm` — returns 200 but
+  `varValue: "0.00"`, `childCount: 0`. **B2 is independent of B1** and
+  remains the dominant visible problem ($0.00 in the ticker strip + Firm
+  Summary).
+- `POST /api/v1/reports/generate` — still 500 `upstream_error: "Report
+  generation failed"` with the UI's shape. **Real bug** (B3).
+
+Secondary finding: the gateway's global error handler converts EVERY
+deserialization / validation throwable into an opaque
+`{"error":"internal_error","message":"An unexpected error occurred"}` 500.
+This is what caused the misdiagnosis. A client sending a malformed payload
+should get 400 with the specific field name and constraint — this would
+have made the original audit trivial. Tracked as a new checkbox in the
+restructured PR 2.
