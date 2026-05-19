@@ -59,7 +59,7 @@ interface RiskTabProps {
   onViewPnlTab?: () => void
   aggregatedView?: boolean
   effectiveBookIds?: string[]
-  bookGroupId?: string | null
+  portfolioGroupId?: string | null
   hierarchyLevel?: 'FIRM' | 'DIVISION' | 'DESK' | null
   onNavigateToBook?: (bookId: string) => void
   /** Active demo scenario context — threaded down to per-number annotations (plan §1.2). */
@@ -93,7 +93,7 @@ export function RiskTab({
   onViewPnlTab,
   aggregatedView = false,
   effectiveBookIds = [],
-  bookGroupId = null,
+  portfolioGroupId = null,
   hierarchyLevel = null,
   onNavigateToBook,
   activeScenario = null,
@@ -204,7 +204,7 @@ export function RiskTab({
     refresh: crossBookRefresh,
   } = useCrossBookVaR(
     aggregatedView ? effectiveBookIds : [],
-    aggregatedView ? bookGroupId : null,
+    aggregatedView ? portfolioGroupId : null,
   )
 
   const { varLimit } = useVarLimit()
@@ -232,7 +232,7 @@ export function RiskTab({
   } = useFactorRiskHistory(bookId)
   const { node: hierarchyNode } = useHierarchyNodeRisk(
     aggregatedView ? hierarchyLevel : null,
-    bookGroupId ?? 'FIRM',
+    portfolioGroupId ?? 'FIRM',
   )
 
   const [jobRefreshSignal, setJobRefreshSignal] = useState(0)

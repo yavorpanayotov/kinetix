@@ -14,7 +14,7 @@ const POLL_INTERVAL = 30_000
 
 export function useCrossBookVaR(
   bookIds: string[],
-  bookGroupId: string | null,
+  portfolioGroupId: string | null,
 ): UseCrossBookVaRResult {
   const [result, setResult] = useState<CrossBookVaRResultDto | null>(null)
   const [loading, setLoading] = useState(false)
@@ -30,7 +30,7 @@ export function useCrossBookVaR(
 
   // Fetch cached result
   useEffect(() => {
-    if (!bookGroupId || bookIds.length === 0) {
+    if (!portfolioGroupId || bookIds.length === 0) {
       setResult(null)
       return
     }
@@ -39,7 +39,7 @@ export function useCrossBookVaR(
     const load = async () => {
       setLoading(true)
       try {
-        const data = await fetchCrossBookVaR(bookGroupId)
+        const data = await fetchCrossBookVaR(portfolioGroupId)
         if (!cancelled && mountedRef.current) {
           setResult(data)
           setError(null)
@@ -60,7 +60,7 @@ export function useCrossBookVaR(
     const interval = setInterval(() => {
       if (!pollingRef.current) {
         pollingRef.current = true
-        fetchCrossBookVaR(bookGroupId)
+        fetchCrossBookVaR(portfolioGroupId)
           .then(data => {
             if (!cancelled && mountedRef.current && data) {
               setResult(data)
@@ -76,16 +76,16 @@ export function useCrossBookVaR(
       cancelled = true
       clearInterval(interval)
     }
-  }, [bookGroupId, bookIds.length])
+  }, [portfolioGroupId, bookIds.length])
 
   const refresh = useCallback(async () => {
-    if (!bookGroupId || bookIds.length === 0) return
+    if (!portfolioGroupId || bookIds.length === 0) return
     setRefreshing(true)
     setError(null)
     try {
       const data = await triggerCrossBookVaR({
         bookIds,
-        bookGroupId,
+        portfolioGroupId,
       })
       if (mountedRef.current) {
         setResult(data)
@@ -99,7 +99,7 @@ export function useCrossBookVaR(
         setRefreshing(false)
       }
     }
-  }, [bookIds, bookGroupId])
+  }, [bookIds, portfolioGroupId])
 
   return { result, loading, refreshing, error, refresh }
 }

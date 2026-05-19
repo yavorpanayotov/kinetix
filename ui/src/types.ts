@@ -940,7 +940,7 @@ export interface BookVaRContributionDto {
 
 export interface CrossBookVaRRequestDto {
   bookIds: string[]
-  bookGroupId: string
+  portfolioGroupId: string
   calculationType?: string
   confidenceLevel?: string
   timeHorizonDays?: string
@@ -948,7 +948,7 @@ export interface CrossBookVaRRequestDto {
 }
 
 export interface CrossBookVaRResultDto {
-  bookGroupId: string
+  portfolioGroupId: string
   bookIds: string[]
   calculationType: string
   confidenceLevel: string
