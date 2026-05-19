@@ -308,7 +308,7 @@ checkbox already captured this.
       capture in demo-orchestrator's day-open hook; idempotent within the
       same simulated day.
       Acceptance: `./gradlew :demo-orchestrator:integrationTest --tests "*SodBaseline*"`
-- [ ] 8.2 Playwright spec `ui/e2e/pnl-sod-baseline.spec.ts` asserts that on
+- [x] 8.2 Playwright spec `ui/e2e/pnl-sod-baseline.spec.ts` asserts that on
       a fresh page load, the "No SOD baseline for today" callout is absent
       and the waterfall shows non-zero values across at least three of
       (Delta, Gamma, Vega, Theta, Rho).
