@@ -9,7 +9,10 @@ import com.kinetix.risk.persistence.ExposedValuationJobRecorder
 import com.kinetix.risk.persistence.OfficialEodDesignationsTable
 import com.kinetix.risk.persistence.ValuationJobsTable
 import com.kinetix.risk.routes.dtos.EodTimelineResponse
+import com.kinetix.risk.seed.DevDataSeeder
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldContainAll
+import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
 import io.ktor.client.request.*
@@ -22,8 +25,10 @@ import io.ktor.server.testing.*
 import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.sql.deleteAll
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
+import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneOffset
 import java.util.UUID
 
 private val json = Json { ignoreUnknownKeys = true }
@@ -157,6 +162,59 @@ class EodTimelineAcceptanceTest : FunSpec({
             val response = client.get("/api/v1/risk/eod-timeline/port-1?from=2023-01-01&to=2024-01-03")
 
             response.status shouldBe HttpStatusCode.BadRequest
+        }
+    }
+
+    test("after seeding, route returns every weekday from T-30 to T-1 with no gaps") {
+        DevDataSeeder(jobRecorder).seed()
+
+        val today = LocalDate.now(ZoneOffset.UTC)
+        val expectedWeekdays = (1..30L)
+            .map { today.minusDays(it) }
+            .filter { it.dayOfWeek != DayOfWeek.SATURDAY && it.dayOfWeek != DayOfWeek.SUNDAY }
+            .sorted()
+
+        testApp {
+            val from = today.minusDays(30).toString()
+            val to = today.minusDays(1).toString()
+            val response = client.get("/api/v1/risk/eod-timeline/equity-growth?from=$from&to=$to")
+
+            response.status shouldBe HttpStatusCode.OK
+
+            val body = json.decodeFromString<EodTimelineResponse>(response.bodyAsText())
+            body.bookId shouldBe "equity-growth"
+            val returnedDates = body.entries.map { LocalDate.parse(it.valuationDate) }
+            returnedDates shouldContainExactly expectedWeekdays
+        }
+    }
+
+    test("after seeding, every demo book has a full EOD timeline (no per-book gaps)") {
+        DevDataSeeder(jobRecorder).seed()
+
+        val today = LocalDate.now(ZoneOffset.UTC)
+        val expectedWeekdays = (1..30L)
+            .map { today.minusDays(it) }
+            .filter { it.dayOfWeek != DayOfWeek.SATURDAY && it.dayOfWeek != DayOfWeek.SUNDAY }
+            .toSet()
+
+        // Mirror the 8 demo books used by DevDataSeeder's BOOK_VAR_PROFILES.
+        val demoBooks = setOf(
+            "equity-growth", "tech-momentum", "emerging-markets", "fixed-income",
+            "multi-asset", "macro-hedge", "balanced-income", "derivatives-book",
+        )
+
+        testApp {
+            val from = today.minusDays(30).toString()
+            val to = today.minusDays(1).toString()
+
+            demoBooks.forEach { bookId ->
+                val response = client.get("/api/v1/risk/eod-timeline/$bookId?from=$from&to=$to")
+                response.status shouldBe HttpStatusCode.OK
+
+                val body = json.decodeFromString<EodTimelineResponse>(response.bodyAsText())
+                val returnedDates = body.entries.map { LocalDate.parse(it.valuationDate) }.toSet()
+                returnedDates.shouldContainAll(expectedWeekdays)
+            }
         }
     }
 })

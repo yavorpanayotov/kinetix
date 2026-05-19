@@ -217,8 +217,10 @@ class DevDataSeeder(
             val jobs = mutableListOf<ValuationJob>()
 
             BOOK_VAR_PROFILES.forEachIndexed { bookIdx, profile ->
-                // Daily entries for the past 30 days (one per day at 09:30 UTC)
-                for (dayOffset in HISTORY_DAYS downTo 2) {
+                // Daily entries for the past 30 days (one per day at 09:30 UTC).
+                // Range is T-30..T-1 so yesterday is covered; today (T) is
+                // owned by ScheduledAutoCloseJob at 17:30 UTC.
+                for (dayOffset in HISTORY_DAYS downTo 1) {
                     val date = today.minusDays(dayOffset.toLong())
                     val startedAt = date.atTime(9, 30).toInstant(ZoneOffset.UTC)
                     val jitter = deterministicJitter(bookIdx, dayOffset, 0)
