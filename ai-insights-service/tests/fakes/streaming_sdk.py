@@ -43,6 +43,8 @@ from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import Any
 
+from kinetix_insights.citations.models import Citation
+
 
 class FakeSdkError(Exception):
     """Exception type for tests that want to simulate SDK transport failures."""
@@ -55,10 +57,15 @@ class FakeMessage:
     ``content`` is the text the message should yield. ``delay_seconds`` is
     the wall-clock delay applied *before* the message is yielded — set it
     to model first-token latency or per-token streaming pacing.
+    ``citations`` carries provenance the chat client's extraction helper
+    reads off the yielded message's ``.citations`` attribute; the default
+    empty tuple keeps the contract backwards-compatible for tests that do
+    not care about citations.
     """
 
     content: str
     delay_seconds: float = 0.0
+    citations: tuple[Citation, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -73,11 +80,15 @@ class _FakeMessage:
     """Concrete yielded object exposing both extraction paths.
 
     Has ``text`` (for direct extraction) and ``content`` (for block-list
-    extraction). Frozen so tests can compare instances safely.
+    extraction). ``citations`` mirrors the scripted ``FakeMessage`` so
+    citation-aware clients can pull provenance straight off the yielded
+    message — defaults to an empty list so existing tests are unaffected.
+    Frozen so tests can compare instances safely.
     """
 
     text: str
     content: list[FakeTextBlock]
+    citations: list[Citation] = field(default_factory=list)
 
 
 @dataclass
@@ -150,4 +161,5 @@ class _FakeStreamingSdk:
             yield _FakeMessage(
                 text=scripted.content,
                 content=[FakeTextBlock(text=scripted.content)],
+                citations=list(scripted.citations),
             )
