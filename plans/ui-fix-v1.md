@@ -134,7 +134,7 @@ checkbox already captured this.
       the gateway's status-pages plugin / global error handler
       (`gateway/.../Application.kt` or equivalent).
       Acceptance: `./gradlew :gateway:acceptanceTest --tests "*StatusPagesAcceptance*"`
-- [ ] 2.5 Live-deploy smoke: create `plans/scripts/check-risk-recovery.sh`
+- [x] 2.5 Live-deploy smoke: create `plans/scripts/check-risk-recovery.sh`
       (~25 lines) that curls each risk POST with the **correct UI-shape
       payload** and asserts 200 for `/risk/var/{book}`,
       `/risk/stress/{book}`, `/risk/what-if/{book}`, and
@@ -144,6 +144,15 @@ checkbox already captured this.
       endpoint is excluded because it's a pre-condition error (412 once
       patched), not a recovery check.
       Acceptance: `bash plans/scripts/check-risk-recovery.sh`
+
+      Status (2026-05-19): script lands and the four risk-POST checks pass
+      against the live deploy. The hierarchy check correctly reports the
+      pre-2.2-binary state as a failure — it will turn green after the next
+      `./deploy/redeploy.sh` rolls position-service forward to commit
+      c9902266 (the `book_hierarchy` seed). The script's job is to *be* the
+      durable smoke; the deploy refresh is a separate operational gate
+      owned by the user.
+
 - [ ] 2.6 TDD pair (Playwright + targeted UI fixes in one commit): a
       Playwright spec in `ui/e2e/risk-ticker-strip.spec.ts` confirms
       `NAV`, `VAR 1D 95%`, `NET DELTA`, `NET VEGA` are all non-empty
