@@ -24,22 +24,42 @@ import io.ktor.utils.io.toByteArray
 /**
  * Gateway proxy routes for AI insight endpoints.
  *
- * Forwards `POST /api/v1/insights/explain/var` (PR 2 — VaR Explainer) and
- * `POST /api/v1/insights/explain/report` (PR 3 — Risk Report Generator) to
- * the `ai-insights-service` backend without transforming the body. The
- * gateway does not own the insight schema — request and response bodies
- * pass through as raw bytes so downstream schema evolution does not
- * require redeploying the gateway.
+ * Forwards `POST /api/v1/insights/explain/var` (PR 2 — VaR Explainer),
+ * `POST /api/v1/insights/explain/report` (PR 3 — Risk Report Generator), and
+ * `POST /api/v1/insights/chat` (PR 4 — Copilot streaming chat) to the
+ * `ai-insights-service` backend without transforming the body. The gateway
+ * does not own the insight schema — request and response bodies pass through
+ * as raw bytes so downstream schema evolution does not require redeploying
+ * the gateway.
+ *
+ * The buffered v1 explainer routes share the standard short-deadline
+ * [httpClient]. The chat route is SSE — long-lived, frame-by-frame — and
+ * therefore uses a dedicated [streamingHttpClient] whose `requestTimeoutMillis`
+ * is configured to `Long.MAX_VALUE` so the gateway does not kill an open
+ * stream after the default 5 s budget. Tests that don't care pass the same
+ * client for both; production wiring in `Application.devModule` constructs
+ * a distinct streaming client.
  *
  * The configured `insightsBaseUrl` is sourced from `services.insights.url` in
  * `application.conf`, which honours the `INSIGHTS_SERVICE_URL` env override.
  */
-fun Route.insightsRoutes(httpClient: HttpClient, insightsBaseUrl: String) {
+fun Route.insightsRoutes(
+    httpClient: HttpClient,
+    insightsBaseUrl: String,
+    streamingHttpClient: HttpClient = httpClient,
+) {
     post("/api/v1/insights/explain/var") {
         proxyToInsights(httpClient, "$insightsBaseUrl/api/v1/insights/explain/var", call)
     }
     post("/api/v1/insights/explain/report") {
         proxyToInsights(httpClient, "$insightsBaseUrl/api/v1/insights/explain/report", call)
+    }
+    post("/api/v1/insights/chat") {
+        streamProxyToInsights(
+            streamingHttpClient,
+            "$insightsBaseUrl/api/v1/insights/chat",
+            call,
+        )
     }
 }
 

@@ -392,10 +392,14 @@ fun Application.moduleWithYieldCurveProxy(httpClient: HttpClient, ratesBaseUrl: 
     }
 }
 
-fun Application.moduleWithInsightsProxy(httpClient: HttpClient, insightsBaseUrl: String) {
+fun Application.moduleWithInsightsProxy(
+    httpClient: HttpClient,
+    insightsBaseUrl: String,
+    streamingHttpClient: HttpClient = httpClient,
+) {
     module()
     routing {
-        insightsRoutes(httpClient, insightsBaseUrl)
+        insightsRoutes(httpClient, insightsBaseUrl, streamingHttpClient)
     }
 }
 
@@ -429,6 +433,21 @@ fun Application.devModule() {
         }
         install(HttpTimeout) {
             requestTimeoutMillis = 5_000
+            connectTimeoutMillis = 2_000
+        }
+    }
+
+    // Dedicated client for long-lived SSE / streaming proxies (e.g. the
+    // Copilot chat route). The shared `httpClient` above caps every request
+    // at 5 s, which would kill an open chat stream mid-conversation; this
+    // client disables the request timeout entirely. Connect timeout stays
+    // bounded so the gateway still fails fast when the upstream is down.
+    val streamingHttpClient = HttpClient(CIO) {
+        install(ClientContentNegotiation) {
+            json(jsonConfig)
+        }
+        install(HttpTimeout) {
+            requestTimeoutMillis = Long.MAX_VALUE
             connectTimeoutMillis = 2_000
         }
     }
@@ -552,7 +571,7 @@ fun Application.devModule() {
                 saCcrRoutes(riskClient)
                 volSurfaceRoutes(volatilityClient)
                 yieldCurveProxyRoutes(httpClient, ratesUrl)
-                insightsRoutes(httpClient, insightsUrl)
+                insightsRoutes(httpClient, insightsUrl, streamingHttpClient)
                 demoStressWindowsRoutes()
                 demoScenarioRoutes()
                 tapeReplayStatusRoutes()
