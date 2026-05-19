@@ -42,7 +42,7 @@ describe('RegulatoryDashboard', () => {
     expect(screen.getByTestId('regulatory-results')).toBeInTheDocument()
   })
 
-  it('renders SbM breakdown table filtering zero-value rows', () => {
+  it('renders the SbM breakdown table with all seven FRTB risk classes', () => {
     render(
       <RegulatoryDashboard
         result={frtbResult}
@@ -54,11 +54,12 @@ describe('RegulatoryDashboard', () => {
       />,
     )
 
-    const table = screen.getByTestId('sbm-breakdown-table')
+    const table = screen.getByTestId('frtb-sbm-table')
     expect(table).toBeInTheDocument()
-    // 5 non-zero risk class rows (CSR_SEC_CTP and CSR_SEC_NON_CTP filtered out)
+    // The table reads as a fixed regulatory schedule — all seven SbM risk
+    // classes appear, even those that net to zero.
     const rows = table.querySelectorAll('tbody tr')
-    expect(rows.length).toBe(5)
+    expect(rows.length).toBe(7)
   })
 
   it('renders report download buttons', () => {

@@ -1,6 +1,6 @@
 import { Calculator, Download, FileText } from 'lucide-react'
 import type { FrtbResultDto } from '../types'
-import { formatCurrency } from '../utils/format'
+import { formatCurrency, formatTimestamp } from '../utils/format'
 import { Card, Button, Spinner } from './ui'
 
 interface RegulatoryDashboardProps {
@@ -11,6 +11,18 @@ interface RegulatoryDashboardProps {
   onDownloadCsv: () => void
   onDownloadXbrl: () => void
 }
+
+// FRTB SbM risk classes always rendered in this order so the table reads as a
+// fixed regulatory schedule rather than a sparse list keyed off the response.
+const FRTB_RISK_CLASSES = [
+  'GIRR',
+  'CSR_NON_SEC',
+  'CSR_SEC_CTP',
+  'CSR_SEC_NON_CTP',
+  'EQUITY',
+  'COMMODITY',
+  'FX',
+] as const
 
 export function RegulatoryDashboard({
   result,
@@ -24,6 +36,12 @@ export function RegulatoryDashboard({
   const totalDrc = result ? Number(result.netDrc) : 0
   const totalRrao = result ? Number(result.totalRrao) : 0
   const grandTotal = totalSbm + totalDrc + totalRrao
+
+  // Index the SbM charges by risk class so we can render the full schedule
+  // even when the backend omits zero-charge rows.
+  const chargesByRiskClass = new Map(
+    (result?.sbmCharges ?? []).map((charge) => [charge.riskClass, charge]),
+  )
 
   return (
     <Card
@@ -73,6 +91,15 @@ export function RegulatoryDashboard({
         </div>
       )}
 
+      {!result && !loading && !error && (
+        <div
+          data-testid="frtb-empty-state"
+          className="text-sm text-slate-500 dark:text-slate-400 py-6"
+        >
+          Click Calculate FRTB to compute risk charges.
+        </div>
+      )}
+
       {result && !loading && (
         <div data-testid="regulatory-results">
           <div data-testid="capital-summary" className="grid grid-cols-4 gap-3 mb-4">
@@ -119,8 +146,11 @@ export function RegulatoryDashboard({
             )}
           </div>
 
-          <h3 className="text-sm font-semibold text-slate-700 mb-2">SbM Breakdown by Risk Class</h3>
-          <table data-testid="sbm-breakdown-table" className="w-full text-sm mb-4">
+          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">SbM Breakdown by Risk Class</h3>
+          <table
+            data-testid="frtb-sbm-table"
+            className="w-full text-sm mb-4"
+          >
             <thead>
               <tr className="border-b text-left text-slate-600">
                 <th className="py-2">Risk Class</th>
@@ -131,19 +161,63 @@ export function RegulatoryDashboard({
               </tr>
             </thead>
             <tbody>
-              {result.sbmCharges
-                .filter((charge) => Number(charge.totalCharge) !== 0)
-                .map((charge) => (
-                <tr key={charge.riskClass} className="border-b hover:bg-slate-50 transition-colors">
-                  <td className="py-1.5">{charge.riskClass}</td>
-                  <td className="py-1.5 text-right">{formatCurrency(charge.deltaCharge)}</td>
-                  <td className="py-1.5 text-right">{formatCurrency(charge.vegaCharge)}</td>
-                  <td className="py-1.5 text-right">{formatCurrency(charge.curvatureCharge)}</td>
-                  <td className="py-1.5 text-right font-medium">{formatCurrency(charge.totalCharge)}</td>
-                </tr>
-              ))}
+              {FRTB_RISK_CLASSES.map((riskClass) => {
+                const charge = chargesByRiskClass.get(riskClass) ?? {
+                  riskClass,
+                  deltaCharge: '0',
+                  vegaCharge: '0',
+                  curvatureCharge: '0',
+                  totalCharge: '0',
+                }
+                return (
+                  <tr
+                    key={riskClass}
+                    data-testid={`frtb-row-${riskClass}`}
+                    className="border-b hover:bg-slate-50 transition-colors"
+                  >
+                    <td className="py-1.5">{riskClass}</td>
+                    <td className="py-1.5 text-right">{formatCurrency(charge.deltaCharge)}</td>
+                    <td className="py-1.5 text-right">{formatCurrency(charge.vegaCharge)}</td>
+                    <td className="py-1.5 text-right">{formatCurrency(charge.curvatureCharge)}</td>
+                    <td className="py-1.5 text-right font-medium">{formatCurrency(charge.totalCharge)}</td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
+
+          <div
+            data-testid="frtb-totals"
+            className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3 text-sm"
+          >
+            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-2">
+              <div className="text-xs text-slate-500 dark:text-slate-400">Total SBM</div>
+              <div className="font-semibold text-slate-800 dark:text-slate-100">{formatCurrency(result.totalSbmCharge)}</div>
+            </div>
+            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-2">
+              <div className="text-xs text-slate-500 dark:text-slate-400">Gross JTD</div>
+              <div className="font-semibold text-slate-800 dark:text-slate-100">{formatCurrency(result.grossJtd)}</div>
+            </div>
+            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-2">
+              <div className="text-xs text-slate-500 dark:text-slate-400">Net DRC</div>
+              <div className="font-semibold text-slate-800 dark:text-slate-100">{formatCurrency(result.netDrc)}</div>
+            </div>
+            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-2">
+              <div className="text-xs text-slate-500 dark:text-slate-400">Total RRAO</div>
+              <div className="font-semibold text-slate-800 dark:text-slate-100">{formatCurrency(result.totalRrao)}</div>
+            </div>
+            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-2">
+              <div className="text-xs text-slate-500 dark:text-slate-400">Total Capital Charge</div>
+              <div className="font-semibold text-slate-800 dark:text-slate-100">{formatCurrency(result.totalCapitalCharge)}</div>
+            </div>
+          </div>
+
+          <div
+            data-testid="frtb-calculated-at"
+            className="text-xs text-slate-500 dark:text-slate-400"
+          >
+            Calculated at {formatTimestamp(result.calculatedAt)}
+          </div>
         </div>
       )}
     </Card>
