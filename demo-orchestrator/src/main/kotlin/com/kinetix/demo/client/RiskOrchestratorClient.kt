@@ -3,6 +3,7 @@ package com.kinetix.demo.client
 import com.kinetix.demo.client.dtos.BookExposureSnapshot
 import com.kinetix.demo.client.dtos.EodPromotionResponseDto
 import com.kinetix.demo.client.dtos.EodTimelineResponse
+import com.kinetix.demo.client.dtos.SodBaselineStatusDto
 import com.kinetix.demo.client.dtos.ValuationJobSummary
 import java.math.BigDecimal
 import java.time.LocalDate
@@ -78,4 +79,24 @@ interface RiskOrchestratorClient {
      * `GET /api/v1/risk/eod-timeline/{bookId}` read path observes.
      */
     suspend fun promoteJobToOfficialEod(jobId: String, promotedBy: String): EodPromotionResponseDto
+
+    /**
+     * Returns the SOD baseline status for [bookId] on the current trading day
+     * via `GET /api/v1/risk/sod-snapshot/{bookId}/status`. Implementations
+     * surface `exists=false` when no baseline has been captured. Used by the
+     * SOD baseline capture scheduler for idempotency: re-running on the same
+     * simulated day is a no-op.
+     */
+    suspend fun getSodBaselineStatus(bookId: String): SodBaselineStatusDto
+
+    /**
+     * Captures the start-of-day baseline for [bookId] via
+     * `POST /api/v1/risk/sod-snapshot/{bookId}`. Upstream `risk-orchestrator`
+     * owns the `SodBaselinesTable` and `DailyRiskSnapshotsTable` persistence
+     * writes plus the optional pricing-Greek snapshot — this call simply
+     * triggers them. Without a fresh baseline the P&L attribution endpoint
+     * returns `412 Precondition Failed` and the UI shows the "No SOD baseline
+     * for today" callout.
+     */
+    suspend fun createSodSnapshot(bookId: String): SodBaselineStatusDto
 }

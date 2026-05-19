@@ -13,6 +13,7 @@ import com.kinetix.demo.schedule.LimitSeedJob
 import com.kinetix.demo.schedule.RiskOrchestratorBacktestInputProvider
 import com.kinetix.demo.schedule.SchedulingHelpers
 import com.kinetix.demo.schedule.SimulatedTraderJob
+import com.kinetix.demo.schedule.SodBaselineCaptureJob
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
@@ -128,6 +129,14 @@ private fun Application.wireDemoSchedulers(config: DemoConfig) {
     val eodPromotionJob = EodPromotionJob(client = riskClient)
     launch {
         scheduleDailyEodPromotion(eodPromotionJob, config.tradingHoursEnd)
+    }
+
+    val sodBaselineJob = SodBaselineCaptureJob(client = riskClient)
+    launch {
+        runSodBaselineSafely(sodBaselineJob, reason = "startup")
+    }
+    launch {
+        scheduleDailySodBaseline(sodBaselineJob, config.tradingHoursStart)
     }
 }
 
@@ -245,5 +254,37 @@ private suspend fun Application.runEodPromotionSafely(job: EodPromotionJob, reas
         throw cancellation
     } catch (failure: Exception) {
         log.warn("EodPromotionJob run ({}) failed — continuing", reason, failure)
+    }
+}
+
+private suspend fun Application.scheduleDailySodBaseline(
+    job: SodBaselineCaptureJob,
+    openTimeUtc: LocalTime,
+) {
+    while (true) {
+        val wait = SchedulingHelpers.durationUntilNext(openTimeUtc)
+        log.info(
+            "Next SodBaselineCaptureJob run scheduled in {}s (target {} UTC)",
+            wait.seconds,
+            openTimeUtc,
+        )
+        try {
+            delay(wait.toMillis())
+        } catch (cancellation: CancellationException) {
+            log.info("SodBaselineCaptureJob scheduling loop cancelled — exiting")
+            throw cancellation
+        }
+        runSodBaselineSafely(job, reason = "$openTimeUtc UTC schedule")
+    }
+}
+
+private suspend fun Application.runSodBaselineSafely(job: SodBaselineCaptureJob, reason: String) {
+    try {
+        log.info("Running SodBaselineCaptureJob ({})", reason)
+        job.runOnce()
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (failure: Exception) {
+        log.warn("SodBaselineCaptureJob run ({}) failed — continuing", reason, failure)
     }
 }

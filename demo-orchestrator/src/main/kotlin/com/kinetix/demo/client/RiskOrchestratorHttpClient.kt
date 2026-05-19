@@ -7,6 +7,7 @@ import com.kinetix.demo.client.dtos.EodTimelineResponse
 import com.kinetix.demo.client.dtos.HierarchyRiskResponse
 import com.kinetix.demo.client.dtos.PaginatedJobsResponseDto
 import com.kinetix.demo.client.dtos.PromoteEodRequest
+import com.kinetix.demo.client.dtos.SodBaselineStatusDto
 import com.kinetix.demo.client.dtos.VaRCalculationRequestBody
 import com.kinetix.demo.client.dtos.ValuationJobSummary
 import io.ktor.client.HttpClient
@@ -172,6 +173,42 @@ class RiskOrchestratorHttpClient(
         } catch (e: Exception) {
             throw IllegalStateException(
                 "Failed to decode EodPromotionResponseDto from $url: body=${responseBody.take(BODY_EXCERPT_LIMIT)}",
+                e,
+            )
+        }
+    }
+
+    override suspend fun getSodBaselineStatus(bookId: String): SodBaselineStatusDto {
+        val url = "$baseUrl/api/v1/risk/sod-snapshot/$bookId/status"
+        val response = httpClient.get(url)
+        if (!response.status.isSuccess()) {
+            failLoudly("GET", url, response)
+        }
+        val body = response.bodyAsText()
+        return try {
+            json.decodeFromString(SodBaselineStatusDto.serializer(), body)
+        } catch (e: Exception) {
+            throw IllegalStateException(
+                "Failed to decode SodBaselineStatusDto from $url: body=${body.take(BODY_EXCERPT_LIMIT)}",
+                e,
+            )
+        }
+    }
+
+    override suspend fun createSodSnapshot(bookId: String): SodBaselineStatusDto {
+        val url = "$baseUrl/api/v1/risk/sod-snapshot/$bookId"
+        val response = httpClient.post(url) {
+            contentType(ContentType.Application.Json)
+        }
+        if (!response.status.isSuccess()) {
+            failLoudly("POST", url, response)
+        }
+        val body = response.bodyAsText()
+        return try {
+            json.decodeFromString(SodBaselineStatusDto.serializer(), body)
+        } catch (e: Exception) {
+            throw IllegalStateException(
+                "Failed to decode SodBaselineStatusDto from $url: body=${body.take(BODY_EXCERPT_LIMIT)}",
                 e,
             )
         }
