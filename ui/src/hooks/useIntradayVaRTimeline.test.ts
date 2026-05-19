@@ -73,6 +73,27 @@ describe('useIntradayVaRTimeline', () => {
     expect(result.current.error).toBeNull()
   })
 
+  // Plan §10.1 — the gateway's intraday VaR endpoint returns 400 "Both
+  // 'from' and 'to' query parameters are required" if either is omitted.
+  // Lock the hook's contract: it always passes both to the API. Catches
+  // a future regression where a consumer might pass undefined under
+  // strictNullChecks loopholes.
+  it('always passes from AND to to the API when bookId is supplied', async () => {
+    mockFetch.mockResolvedValueOnce(sampleTimeline)
+
+    renderHook(() =>
+      useIntradayVaRTimeline('book-1', '2026-03-25T09:00:00Z', '2026-03-25T17:00:00Z'),
+    )
+
+    await waitFor(() => expect(mockFetch).toHaveBeenCalled())
+    const [bookIdArg, fromArg, toArg] = mockFetch.mock.calls[0]
+    expect(bookIdArg).toBe('book-1')
+    expect(fromArg).toBe('2026-03-25T09:00:00Z')
+    expect(toArg).toBe('2026-03-25T17:00:00Z')
+    expect(fromArg).toBeTruthy()
+    expect(toArg).toBeTruthy()
+  })
+
   it('sets error state when fetch fails', async () => {
     mockFetch.mockRejectedValueOnce(new Error('upstream failure'))
 

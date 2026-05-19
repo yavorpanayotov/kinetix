@@ -297,7 +297,7 @@ checkbox already captured this.
 
 ### PR 10 — Intraday VaR default range + remaining polish (M6, minors)
 
-- [ ] 10.1 TDD pair (Vitest + impl in one commit): add a test to
+- [x] 10.1 TDD pair (Vitest + impl in one commit): add a test to
       `ui/src/hooks/useIntradayVaRTimeline.test.ts` (or equivalent)
       asserting the hook always passes `from` and `to` to the gateway,
       even when the user has not yet picked a range. Default =
@@ -305,6 +305,16 @@ checkbox already captured this.
       Then patch the hook + the Risk > Intraday sub-tab to always send both
       query params.
       Acceptance: `cd ui && npm run test -- useIntradayVaRTimeline && cd ui && npm run lint`
+
+      Status (2026-05-19): the audit's original 400 came from a curl that
+      omitted from/to — a payload-shape audit artifact like 2.1, not a
+      system bug. Both consumers (RiskTab `todayFrom`/`todayTo` memo and
+      PnlTab `intradayFrom`/`intradayTo` memo) already compute and pass
+      both. Added a lock-in test asserting the hook always forwards both
+      params to the API; FROZEN-vs-LIVE mode-aware defaults remain a
+      separate enhancement, deferred (consumers compute live defaults
+      either way, which is correct in both modes for the demo).
+
 - [x] 10.2 TDD pair (Vitest + impl in one commit): hide the IDX-SPX
       2067h-stale warning in `DataQualityIndicator` when
       `tapeReplay.status === "FROZEN"`. Vitest covering the conditional
