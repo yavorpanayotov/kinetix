@@ -44,74 +44,74 @@ pytestmark = pytest.mark.unit
 
 _DEFAULT_USER = UserContext(user_id="trader-1", books=("fx-main", "rates-emea"))
 
+_DEFAULT_GREEKS: dict[str, Any] = {
+    "bookId": "fx-main",
+    "assetClassGreeks": [
+        {
+            "assetClass": "FX",
+            "delta": "1234.567890",
+            "gamma": "12.345678",
+            "vega": "45.678901",
+        },
+        {
+            "assetClass": "RATES",
+            "delta": "100.000000",
+            "gamma": "0.000000",
+            "vega": "0.000000",
+        },
+    ],
+    "theta": "-50.123456",
+    "rho": "120.654321",
+    "calculatedAt": "2026-05-19T08:00:00Z",
+}
+
+_DEFAULT_POSITION_GREEKS: list[dict[str, Any]] = [
+    {
+        "instrumentId": "EURUSD_CALL_20260601_1.09",
+        "delta": "500.0",
+        "gamma": "5.0",
+        "vega": "20.0",
+        "theta": "-2.5",
+        "rho": "10.0",
+    },
+    {
+        "instrumentId": "EURUSD_PUT_20260601_1.08",
+        "delta": "-200.0",
+        "gamma": "3.0",
+        "vega": "15.0",
+        "theta": "-1.0",
+        "rho": "5.0",
+    },
+    {
+        "instrumentId": "GBPUSD_CALL_20260701_1.30",
+        "delta": "300.0",
+        "gamma": "2.0",
+        "vega": "10.0",
+        "theta": "-1.5",
+        "rho": "8.0",
+    },
+    {
+        "instrumentId": "EURUSD",
+        "delta": "634.567890",
+        "gamma": "4.345678",
+        "vega": "0.678901",
+        "theta": "-45.6",
+        "rho": "97.6",
+    },
+]
+
 
 def _sample_greeks_response(
     *,
     stale: bool | None = None,
-    position_greeks: list[dict[str, Any]] | None | object = ...,
-    greeks: dict[str, Any] | None | object = ...,
+    position_greeks: list[dict[str, Any]] | None = _DEFAULT_POSITION_GREEKS,
+    greeks: dict[str, Any] | None = _DEFAULT_GREEKS,
 ) -> dict[str, Any]:
     """A representative upstream ``VaRResultResponse`` payload with Greeks.
 
-    ``position_greeks`` and ``greeks`` default to the canonical sample;
-    pass ``None`` to set the field to ``null`` explicitly or omit it by
-    sentinel.
+    ``position_greeks`` and ``greeks`` default to canonical samples;
+    pass ``None`` to set the field to ``null`` explicitly.
     """
-
-    default_greeks: dict[str, Any] = {
-        "bookId": "fx-main",
-        "assetClassGreeks": [
-            {
-                "assetClass": "FX",
-                "delta": "1234.567890",
-                "gamma": "12.345678",
-                "vega": "45.678901",
-            },
-            {
-                "assetClass": "RATES",
-                "delta": "100.000000",
-                "gamma": "0.000000",
-                "vega": "0.000000",
-            },
-        ],
-        "theta": "-50.123456",
-        "rho": "120.654321",
-        "calculatedAt": "2026-05-19T08:00:00Z",
-    }
-    default_position_greeks: list[dict[str, Any]] = [
-        {
-            "instrumentId": "EURUSD_CALL_20260601_1.09",
-            "delta": "500.0",
-            "gamma": "5.0",
-            "vega": "20.0",
-            "theta": "-2.5",
-            "rho": "10.0",
-        },
-        {
-            "instrumentId": "EURUSD_PUT_20260601_1.08",
-            "delta": "-200.0",
-            "gamma": "3.0",
-            "vega": "15.0",
-            "theta": "-1.0",
-            "rho": "5.0",
-        },
-        {
-            "instrumentId": "GBPUSD_CALL_20260701_1.30",
-            "delta": "300.0",
-            "gamma": "2.0",
-            "vega": "10.0",
-            "theta": "-1.5",
-            "rho": "8.0",
-        },
-        {
-            "instrumentId": "EURUSD",
-            "delta": "634.567890",
-            "gamma": "4.345678",
-            "vega": "0.678901",
-            "theta": "-45.6",
-            "rho": "97.6",
-        },
-    ]
 
     payload: dict[str, Any] = {
         "bookId": "fx-main",
@@ -122,11 +122,9 @@ def _sample_greeks_response(
         "componentBreakdown": [],
         "calculatedAt": "2026-05-19T08:00:00Z",
         "marketDataComplete": True,
+        "greeks": greeks,
+        "positionGreeks": position_greeks,
     }
-    payload["greeks"] = default_greeks if greeks is ... else greeks
-    payload["positionGreeks"] = (
-        default_position_greeks if position_greeks is ... else position_greeks
-    )
     if stale is not None:
         payload["stale"] = stale
     return payload
