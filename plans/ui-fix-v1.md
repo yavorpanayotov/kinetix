@@ -125,7 +125,7 @@ checkbox already captured this.
       whichever seam is breaking — gateway DTO, HttpRiskServiceClient call,
       or risk-orchestrator side.
       Acceptance: `./gradlew :gateway:acceptanceTest --tests "*CrossBookVaR*"`
-- [ ] 2.4 TDD pair (test + fix in one commit): gateway global error
+- [x] 2.4 TDD pair (test + fix in one commit): gateway global error
       handler returns 400 (not 500) when the request body fails to
       deserialize or fails a `require(…)` validation. Add an acceptance
       test that POSTs `/api/v1/risk/var/balanced-income` with
