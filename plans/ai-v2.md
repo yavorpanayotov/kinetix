@@ -86,7 +86,7 @@ Verify v1 AI features and existing infra are green before any v2 work lands.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_citation_verifier.py -m unit`
 - [x] 1.6 Add `policy_guard` in `src/kinetix_insights/policy/banned_phrases.py`: compiled regex matching banned phrases (`you should`, `i recommend`, `consider hedging`, `consider reducing`, `you might want to`, `my advice`, `i suggest`, `you ought to`, `verify with your team`, `please confirm with`). Returns `POLICY_VIOLATION` on match. Unit tests cover positive matches and clean narratives.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_policy_guard.py -m unit`
-- [ ] 1.7 Add MCP server scaffold in `src/kinetix_insights/mcp/server.py`: registers a FastMCP instance, mounts on internal port 8096 in `app.py` lifespan, exposes a `/mcp/health` route. No tools yet — scaffold only.
+- [x] 1.7 Add MCP server scaffold in `src/kinetix_insights/mcp/server.py`: registers a FastMCP instance, mounts on internal port 8096 in `app.py` lifespan, exposes a `/mcp/health` route. No tools yet — scaffold only.
       Acceptance: `cd ai-insights-service && DEMO_MODE=true uv run pytest tests/test_mcp_server_scaffold.py -m unit`
 
 ### PR 2 — MCP read tools (one tool per checkbox)
