@@ -1,0 +1,22 @@
+{
+  "id": "var-explainer-default",
+  "deltas": [
+    {"text": "Portfolio VaR is "},
+    {"text": "elevated versus the prior session — "},
+    {"text": "$5.2M at 95% confidence, "},
+    {"text": "driven by rates and FX exposures."}
+  ],
+  "citations": [
+    {
+      "tool": "get_book_var",
+      "params": {"book_id": "fx-main"},
+      "result_field": "total_var",
+      "result_value": 5200000.0,
+      "result_currency": "USD",
+      "as_of_timestamp": "2026-05-19T08:00:00Z",
+      "data_source": "risk-orchestrator",
+      "freshness_seconds": 120,
+      "quality_flags": []
+    }
+  ]
+}
