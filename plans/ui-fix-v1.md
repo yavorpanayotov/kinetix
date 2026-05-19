@@ -116,7 +116,7 @@ checkbox already captured this.
       most likely lives in `risk-orchestrator/` (the aggregation read path)
       or the gateway's `HierarchyRiskRoutes.kt` — diagnose during the work.
       Acceptance: `./gradlew :gateway:acceptanceTest --tests "*HierarchyRisk*"`
-- [ ] 2.3 TDD pair (test + fix in one commit): fix
+- [x] 2.3 TDD pair (test + fix in one commit): fix
       `POST /api/v1/risk/var/cross-book` returning 500 with a valid UI-shape
       payload. Add an acceptance test in
       `gateway/src/test/kotlin/com/kinetix/gateway/routes/CrossBookVaRRoutesAcceptanceTest.kt`
