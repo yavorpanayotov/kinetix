@@ -101,7 +101,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_tool_get_greeks_summary.py -m unit`
 - [x] 2.4 `get_limit_utilisation(book_id, limit_type?)` — reads position-service limit state; returns `{limits[{name, current, limit, utilisation_pct, status: GREEN|AMBER|RED}]}`.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_tool_get_limit_utilisation.py -m unit`
-- [ ] 2.5 `get_pnl_attribution(book_id, date?, period?)` — reads risk-orchestrator `pnl_attributions` + `intraday_pnl_snapshots` for sub-daily; surfaces `dataQualityFlag` in citation `quality_flags`.
+- [x] 2.5 `get_pnl_attribution(book_id, date?, period?)` — reads risk-orchestrator `pnl_attributions` + `intraday_pnl_snapshots` for sub-daily; surfaces `dataQualityFlag` in citation `quality_flags`.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_tool_get_pnl_attribution.py -m unit`
 - [ ] 2.6 `get_vol_surface(underlier, as_of?)` — reads volatility-service; detects inversions (short-dated ATM > long-dated by >2 vol points); returns surface + inversion flags.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_tool_get_vol_surface.py -m unit`
