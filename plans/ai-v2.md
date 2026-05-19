@@ -152,7 +152,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
       Acceptance: `cd ui && npm run test -- StreamingNarrative`
 - [x] 5.3 Add `<CitationFootnote>` and `<CitationList>` in `ui/src/components/CitationFootnote.tsx` and `CitationList.tsx`. Inline superscript + footer list with `<details>` for params. Vitest covers: numeric token wrapped in `<cite>`, uncited token shows `[uncited]` marker, citations rendered in tool-call order.
       Acceptance: `cd ui && npm run test -- Citation`
-- [ ] 5.4 Add `<ExplainButton>` in `ui/src/components/ExplainButton.tsx` with `Sparkles` icon. Refactor `VaRDashboard.tsx`'s inline button to use it (regression: existing Playwright `var-explainer.spec.ts` must still pass).
+- [x] 5.4 Add `<ExplainButton>` in `ui/src/components/ExplainButton.tsx` with `Sparkles` icon. Refactor `VaRDashboard.tsx`'s inline button to use it (regression: existing Playwright `var-explainer.spec.ts` must still pass).
       Acceptance: `cd ui && npm run test -- ExplainButton && cd ui && npx playwright test e2e/var-explainer.spec.ts`
 - [ ] 5.5 Refactor `<AIInsightPanel>` to compose `<StreamingNarrative>` when a stream prop is provided; keep the existing canned/non-streaming path for `ReportsTab` regression. Vitest + existing Playwright must still pass.
       Acceptance: `cd ui && npm run test -- AIInsightPanel && cd ui && npx playwright test e2e/report-commentary.spec.ts`
