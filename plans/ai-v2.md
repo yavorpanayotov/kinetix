@@ -74,7 +74,7 @@ Verify v1 AI features and existing infra are green before any v2 work lands.
 
 ### PR 1 — Foundation: ADR + dependencies + MCP scaffold
 
-- [ ] 1.1 Draft `docs/adr/ADR-0036-ai-copilot-architecture.md`: covers in-process MCP, service-principal auth, SSE for chat, WebSocket for push, conversation state model, demo-mode strategy, and `~/.claude/` credential multi-tenancy limitations. Update `docs/adr/README.md` index.
+- [x] 1.1 Draft `docs/adr/ADR-0036-ai-copilot-architecture.md`: covers in-process MCP, service-principal auth, SSE for chat, WebSocket for push, conversation state model, demo-mode strategy, and `~/.claude/` credential multi-tenancy limitations. Update `docs/adr/README.md` index.
       Acceptance: `test -f docs/adr/ADR-0036-ai-copilot-architecture.md && grep -q 'ADR-0036' docs/adr/README.md`
 - [ ] 1.2 Add Python deps to `ai-insights-service/pyproject.toml`: `mcp`, `aiokafka`, `redis[hiredis]`, `prometheus-client`. Run `uv sync`. No code changes; deps only.
       Acceptance: `cd ai-insights-service && uv sync && uv run python -c "import mcp, aiokafka, redis, prometheus_client"`
