@@ -99,7 +99,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_tool_get_positions.py -m unit`
 - [x] 2.3 `get_greeks_summary(book_id, as_of?, underlier?)` — reads risk-orchestrator `sod_greek_snapshots` + latest `valuation_jobs` Greeks; returns aggregate + by-underlier.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_tool_get_greeks_summary.py -m unit`
-- [ ] 2.4 `get_limit_utilisation(book_id, limit_type?)` — reads position-service limit state; returns `{limits[{name, current, limit, utilisation_pct, status: GREEN|AMBER|RED}]}`.
+- [x] 2.4 `get_limit_utilisation(book_id, limit_type?)` — reads position-service limit state; returns `{limits[{name, current, limit, utilisation_pct, status: GREEN|AMBER|RED}]}`.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_tool_get_limit_utilisation.py -m unit`
 - [ ] 2.5 `get_pnl_attribution(book_id, date?, period?)` — reads risk-orchestrator `pnl_attributions` + `intraday_pnl_snapshots` for sub-daily; surfaces `dataQualityFlag` in citation `quality_flags`.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_tool_get_pnl_attribution.py -m unit`
