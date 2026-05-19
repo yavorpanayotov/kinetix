@@ -150,7 +150,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
       Acceptance: `cd ui && npm run test -- copilot.test`
 - [x] 5.2 Add `<StreamingNarrative>` component in `ui/src/components/StreamingNarrative.tsx`: accepts a `ReadableStream<ChatChunk>` prop, owns token accumulation via `useRef` + `requestAnimationFrame` batching (50 ms), renders skeleton → blinking-cursor → token-flow → complete. Reduced-motion fallback. Vitest covers all four states.
       Acceptance: `cd ui && npm run test -- StreamingNarrative`
-- [ ] 5.3 Add `<CitationFootnote>` and `<CitationList>` in `ui/src/components/CitationFootnote.tsx` and `CitationList.tsx`. Inline superscript + footer list with `<details>` for params. Vitest covers: numeric token wrapped in `<cite>`, uncited token shows `[uncited]` marker, citations rendered in tool-call order.
+- [x] 5.3 Add `<CitationFootnote>` and `<CitationList>` in `ui/src/components/CitationFootnote.tsx` and `CitationList.tsx`. Inline superscript + footer list with `<details>` for params. Vitest covers: numeric token wrapped in `<cite>`, uncited token shows `[uncited]` marker, citations rendered in tool-call order.
       Acceptance: `cd ui && npm run test -- Citation`
 - [ ] 5.4 Add `<ExplainButton>` in `ui/src/components/ExplainButton.tsx` with `Sparkles` icon. Refactor `VaRDashboard.tsx`'s inline button to use it (regression: existing Playwright `var-explainer.spec.ts` must still pass).
       Acceptance: `cd ui && npm run test -- ExplainButton && cd ui && npx playwright test e2e/var-explainer.spec.ts`
