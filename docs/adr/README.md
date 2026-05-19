@@ -39,3 +39,4 @@ Generated programmatically from the H1 title and first prose section of each `XX
 - ADR-0033: Vol-Surface Diff Method — Interpolation vs Nearest-Neighbour — Spec market-data.allium:91-92,244-249 defines the surface diff
 - ADR-0034: Regime Classifier Behaviour on Degraded Inputs — Spec regime.allium:373-387 (HandleDegradedSignals)
 - ADR-0035: Fix-Gateway Service Extraction — Introduce a new microservice, fix-gateway, that owns all FIX/venue-protocol concerns. position-service retains all...
+- ADR-0036: AI Copilot Architecture (v2) — Extend ai-insights-service with an in-process MCP server, service-principal auth (JWT → X-User-Id / X-User-Books), SSE for chat and brief, WebSocket for intraday push, 24h-TTL conversation state, citation contract + policy guards, and demo-mode canned clients. Single host `~/.claude/` credential; per-user billing out of scope.
