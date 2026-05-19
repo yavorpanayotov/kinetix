@@ -706,6 +706,7 @@ function AppContent() {
         alerts={breachAlerts}
         onDismiss={dismissBreachAlert}
         onOpenHedgePanel={openHedgePanel}
+        onViewAllAlerts={() => setActiveTab('alerts')}
       />
 
       <main className="flex-1 p-6 dark:bg-surface-900" role="tabpanel" aria-labelledby={`tab-${activeTab}`}>
