@@ -139,7 +139,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
 
 - [x] 4.1 Add `streamProxyToInsights` in `gateway/src/main/kotlin/com/kinetix/gateway/routes/InsightsRoutes.kt` — uses `HttpStatement.execute {}` + `respondBytesWriter` to pipe SSE byte-for-byte. Existing `proxyToInsights` stays untouched for the two v1 explainers.
       Acceptance: `./gradlew :gateway:acceptanceTest --tests "*InsightsStreamingProxyAcceptanceTest"`
-- [ ] 4.2 Register `POST /api/v1/insights/chat` route in `gateway/.../routes/InsightsRoutes.kt` using the new streaming proxy. Update HTTP client timeout for this route family to `Long.MAX_VALUE` (or large bound). Acceptance verifies SSE content-type and at least one chunk passes through.
+- [x] 4.2 Register `POST /api/v1/insights/chat` route in `gateway/.../routes/InsightsRoutes.kt` using the new streaming proxy. Update HTTP client timeout for this route family to `Long.MAX_VALUE` (or large bound). Acceptance verifies SSE content-type and at least one chunk passes through.
       Acceptance: `./gradlew :gateway:acceptanceTest --tests "*CopilotChatRouteAcceptanceTest"`
 - [ ] 4.3 Add JWT → header bridging in the proxy: extract `sub` claim, write to `X-User-Id`; extract `books` claim (or equivalent ACL), write to `X-User-Books` comma-list. Unit-tested against fixture JWTs.
       Acceptance: `./gradlew :gateway:test --tests "*JwtToHeaderBridgeTest"`
