@@ -132,7 +132,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
       Acceptance: `cd ai-insights-service && DEMO_MODE=true uv run pytest tests/test_chat_acceptance.py -m unit`
 - [x] 3.7 Add negative-test suite `tests/test_chat_guardrails.py`: asserts (a) banned-phrase narrative returns `POLICY_VIOLATION`, (b) uncited numeric token returns `CITATION_UNVERIFIABLE`, (c) hallucinated ticker (not in tool results) is flagged, (d) cross-user prompt-injection in trade comments is sanitised, (e) tool timeout produces a citation entry with `status: timeout` rather than hanging the stream.
       Acceptance: `cd ai-insights-service && DEMO_MODE=true uv run pytest tests/test_chat_guardrails.py -m unit`
-- [ ] 3.8 Add chat latency budget test in `tests/test_chat_latency.py -m performance`: with a `_FakeStreamingSdk` yielding first chunk at 0 ms, assert service overhead from request submit to first SSE chunk is <500 ms.
+- [x] 3.8 Add chat latency budget test in `tests/test_chat_latency.py -m performance`: with a `_FakeStreamingSdk` yielding first chunk at 0 ms, assert service overhead from request submit to first SSE chunk is <500 ms.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_chat_latency.py -m performance`
 
 ### PR 4 — Gateway streaming proxy + chat route
