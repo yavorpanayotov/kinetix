@@ -204,6 +204,8 @@ class BookAccessBolaAcceptanceTest : FunSpec({
             override fun canAccess(principal: com.kinetix.common.security.UserPrincipal, bookId: String): Boolean {
                 return bookId == "book-A"
             }
+
+            override fun booksFor(principal: com.kinetix.common.security.UserPrincipal): Set<String> = setOf("book-A")
         }
         val backend = BackendStubServer { }
         val httpClient = HttpClient(CIO) { install(ContentNegotiation) { json() } }

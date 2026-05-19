@@ -51,4 +51,29 @@ class BookAccessServiceTest : FunSpec({
     test("VIEWER can access any book (read-only access)") {
         service.canAccess(principal("viewer-1", Role.VIEWER), "book-A") shouldBe true
     }
+
+    test("booksFor returns the explicit set for a TRADER with assigned books") {
+        service.booksFor(principal("trader-1", Role.TRADER)) shouldBe setOf("book-A", "book-B")
+        service.booksFor(principal("trader-2", Role.TRADER)) shouldBe setOf("book-C")
+    }
+
+    test("booksFor returns empty set for a TRADER with no assigned books") {
+        service.booksFor(principal("trader-99", Role.TRADER)) shouldBe emptySet()
+    }
+
+    test("booksFor returns null (wildcard) for RISK_MANAGER") {
+        service.booksFor(principal("rm-1", Role.RISK_MANAGER)) shouldBe null
+    }
+
+    test("booksFor returns null (wildcard) for COMPLIANCE") {
+        service.booksFor(principal("comp-1", Role.COMPLIANCE)) shouldBe null
+    }
+
+    test("booksFor returns null (wildcard) for ADMIN") {
+        service.booksFor(principal("admin-1", Role.ADMIN)) shouldBe null
+    }
+
+    test("booksFor returns null (wildcard) for VIEWER") {
+        service.booksFor(principal("viewer-1", Role.VIEWER)) shouldBe null
+    }
 })
