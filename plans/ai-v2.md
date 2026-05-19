@@ -76,7 +76,7 @@ Verify v1 AI features and existing infra are green before any v2 work lands.
 
 - [x] 1.1 Draft `docs/adr/ADR-0036-ai-copilot-architecture.md`: covers in-process MCP, service-principal auth, SSE for chat, WebSocket for push, conversation state model, demo-mode strategy, and `~/.claude/` credential multi-tenancy limitations. Update `docs/adr/README.md` index.
       Acceptance: `test -f docs/adr/ADR-0036-ai-copilot-architecture.md && grep -q 'ADR-0036' docs/adr/README.md`
-- [ ] 1.2 Add Python deps to `ai-insights-service/pyproject.toml`: `mcp`, `aiokafka`, `redis[hiredis]`, `prometheus-client`. Run `uv sync`. No code changes; deps only.
+- [x] 1.2 Add Python deps to `ai-insights-service/pyproject.toml`: `mcp`, `aiokafka`, `redis[hiredis]`, `prometheus-client`. Run `uv sync`. No code changes; deps only.
       Acceptance: `cd ai-insights-service && uv sync && uv run python -c "import mcp, aiokafka, redis, prometheus_client"`
 - [ ] 1.3 Add `KinetixHttpClient` abstraction in `src/kinetix_insights/clients/kinetix_http_client.py` — async httpx wrapper that stamps `X-User-Id` and `X-User-Books` headers from a `UserContext` dataclass on every call. Inject base URLs via env (`POSITION_SERVICE_URL`, `RISK_ORCHESTRATOR_URL`, `PRICE_SERVICE_URL`, etc.). Fake implementation in `tests/fakes/fake_kinetix_http_client.py` for unit tests.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_kinetix_http_client.py -m unit`
