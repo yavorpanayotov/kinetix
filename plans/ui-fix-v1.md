@@ -367,3 +367,60 @@ This is what caused the misdiagnosis. A client sending a malformed payload
 should get 400 with the specific field name and constraint — this would
 have made the original audit trivial. Tracked as a new checkbox in the
 restructured PR 2.
+
+### 4.1 (2026-05-19) — Reports 500 root cause: ungraceful SQL exceptions
+
+The gateway `POST /api/v1/reports/generate` 500 is a flat passthrough of an
+upstream 500 from risk-orchestrator
+(`risk-orchestrator/.../routes/ReportRoutes.kt:68-71`) — the route catches
+every `Exception` from `reportService.generateReport(...)` and returns
+`{"error":"internal_error","message":"Report generation failed"}`. The
+gateway client (`HttpRiskServiceClient.generateReport`) then re-wraps that
+as `UpstreamErrorException`, which the gateway surfaces as
+`{"error":"upstream_error","message":"Report generation failed"}`. So the
+real failure is in the SQL layer inside `JdbcReportQueryExecutor`.
+
+Differential probing against the live deploy isolates two distinct SQL
+faults — only `tpl-pnl-attribution` works:
+
+  POST .../api/v1/reports/generate  body={templateId:tpl-pnl-attribution, …}
+  → HTTP 200, 251 rows of pnl_attributions data
+
+  POST .../api/v1/reports/generate  body={templateId:tpl-risk-summary, …}
+  → HTTP 500 upstream_error  ("Report generation failed")
+
+  POST .../api/v1/reports/generate  body={templateId:tpl-stress-summary, …}
+  → HTTP 500 upstream_error  ("Report generation failed")
+
+  POST .../api/v1/reports/generate  body={templateId:tpl-risk-summary, bookId:BOGUS}
+  → HTTP 500 upstream_error  (same — the failure is below the bookId filter)
+
+Two distinct causes, both flattened into the same opaque 500:
+
+1. `tpl-risk-summary` queries the `risk_positions_flat` materialised view
+   (`V55__create_risk_positions_flat_view.sql:69` — `WITH NO DATA;`). The
+   refresher runs only after EOD promotion
+   (`ScheduledMatViewRefreshJob.kt:16-22`), and EOD promotion is itself
+   broken (B4 in this plan). PostgreSQL throws
+   `ERROR: materialized view "risk_positions_flat" has not been populated`
+   (SQLState `55000` — `object_not_in_prerequisite_state`) on every
+   SELECT until the first refresh lands. The executor lets the
+   `SQLException` propagate, the route flattens it to 500.
+
+2. `tpl-stress-summary` queries `stress_test_results`, which the executor
+   comment explicitly flags
+   (`JdbcReportQueryExecutor.kt:43-46`): *"stress_test_results lives in
+   the regulatory-service database, not risk."* The executor still binds
+   to `RiskDatabaseFactory.dataSource` (`Application.kt:764`), so the
+   query hits the wrong database and PostgreSQL throws
+   `ERROR: relation "stress_test_results" does not exist` (SQLState
+   `42P01` — `undefined_table`). Same flatten-to-500 path.
+
+The minimal fix is to make `JdbcReportQueryExecutor` treat these two
+known-degraded states as "0 rows" rather than letting the SQL exception
+poison the whole endpoint: an unpopulated materialised view IS empty by
+definition, and a missing cross-database table is "no data here for this
+report on this deploy". Catch SQLState `55000` and `42P01`, log at WARN,
+return an empty `JsonArray`. The route then returns a normal 200
+`ReportOutput` with `rowCount: 0`, which the UI already renders as the
+expected "0 rows" empty-report state.
