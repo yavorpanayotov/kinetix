@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Calendar, FlaskRound, Info, RefreshCw, Sparkles, X } from 'lucide-react'
+import { Calendar, FlaskRound, Info, RefreshCw, X } from 'lucide-react'
 import type { VaRResultDto, GreeksResultDto, MarketRegime, TimeRange, TradeAnnotationDto } from '../types'
 import type { VaRHistoryEntry } from '../hooks/useVaR'
 import { useClickOutside } from '../hooks/useClickOutside'
@@ -13,6 +13,7 @@ import { GreeksTrendChart } from './GreeksTrendChart'
 import { TimeRangeSelector } from './TimeRangeSelector'
 import { Card, Button, Spinner, EmptyState, ErrorCard } from './ui'
 import { AIInsightPanel } from './AIInsightPanel'
+import { ExplainButton } from './ExplainButton'
 import { explainVar, type ExplainVarRequest, type InsightResponse } from '../api/insights'
 
 function confidenceLevelToNumber(level: string): number {
@@ -173,15 +174,7 @@ export function VaRDashboard({ varResult, filteredHistory, loading, historyLoadi
         </div>
       )}
       <div className="flex items-center justify-end mb-2">
-        <button
-          type="button"
-          data-testid="explain-var-button"
-          onClick={handleExplain}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-indigo-600 border border-indigo-300 rounded-md hover:bg-indigo-50 transition-colors"
-        >
-          <Sparkles className="h-4 w-4" />
-          Explain
-        </button>
+        <ExplainButton onClick={handleExplain} data-testid="explain-var-button" />
       </div>
       <div className="grid grid-cols-4 gap-6">
         <VaRGauge
