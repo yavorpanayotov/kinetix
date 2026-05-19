@@ -169,6 +169,52 @@ fun Application.module() {
                 ErrorResponse("upstream_error", cause.message ?: "Upstream error"),
             )
         }
+        // Client supplied a JSON body whose shape doesn't match the route's
+        // DTO (wrong field type, missing required field, malformed JSON).
+        // Ktor's content-negotiation surfaces these as JsonConvertException,
+        // wrapping the underlying kotlinx.serialization throwable whose
+        // message names the offending field — pass that message through so
+        // caller engineers can diagnose without needing server logs. These
+        // are caller faults, not server faults: do NOT log at ERROR.
+        exception<io.ktor.serialization.JsonConvertException> { call, cause ->
+            call.respond(
+                HttpStatusCode.BadRequest,
+                ErrorResponse("invalid_request_body", cause.message ?: "Invalid JSON body"),
+            )
+        }
+        exception<kotlinx.serialization.SerializationException> { call, cause ->
+            call.respond(
+                HttpStatusCode.BadRequest,
+                ErrorResponse("invalid_request_body", cause.message ?: "Invalid JSON body"),
+            )
+        }
+        // call.receive<T>() wraps deserialisation failures in
+        // BadRequestException, so the wrapper is what actually propagates
+        // to StatusPages. Walk the cause chain to surface the underlying
+        // serialisation throwable's field-naming message and the richer
+        // `invalid_request_body` error code instead of an opaque
+        // `bad_request`.
+        exception<io.ktor.server.plugins.BadRequestException> { call, cause ->
+            val serializationCause = generateSequence<Throwable>(cause) { it.cause }
+                .firstOrNull {
+                    it is kotlinx.serialization.SerializationException ||
+                        it is io.ktor.serialization.JsonConvertException
+                }
+            if (serializationCause != null) {
+                call.respond(
+                    HttpStatusCode.BadRequest,
+                    ErrorResponse(
+                        "invalid_request_body",
+                        serializationCause.message ?: cause.message ?: "Invalid JSON body",
+                    ),
+                )
+            } else {
+                call.respond(
+                    HttpStatusCode.BadRequest,
+                    ErrorResponse("bad_request", cause.message ?: "Bad request"),
+                )
+            }
+        }
         exception<IllegalArgumentException> { call, cause ->
             call.respond(
                 HttpStatusCode.BadRequest,
