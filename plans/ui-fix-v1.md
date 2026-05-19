@@ -211,7 +211,7 @@ checkbox already captured this.
 
 ### PR 5 — EOD promotion produces a populated timeline (B4)
 
-- [ ] 5.1 TDD pair (integration test + impl in one commit): add a
+- [x] 5.1 TDD pair (integration test + impl in one commit): add a
       `demo-orchestrator/` integration test that boots demo-orchestrator +
       a Postgres Testcontainer, advances the simulated trading-day clock
       past the close, and asserts an EOD job is promoted via the
@@ -223,11 +223,17 @@ checkbox already captured this.
       daily at the configured close time; idempotent on re-run within the
       same simulated day.
       Acceptance: `./gradlew :demo-orchestrator:integrationTest --tests "*EodPromotion*"`
-- [ ] 5.2 Smoke: create `plans/scripts/check-eod-recovery.sh` that curls
+- [x] 5.2 Smoke: create `plans/scripts/check-eod-recovery.sh` that curls
       `GET /api/v1/risk/eod-timeline/balanced-income?from=$(date -d "30 days
       ago" +%F)&to=$(date +%F)` and asserts the JSON `.entries` array
       length is greater than zero.
       Acceptance: `bash plans/scripts/check-eod-recovery.sh`
+
+      Status (2026-05-19): script lands. Currently fails against the live
+      deploy with `0 entries` because demo-orchestrator hasn't been
+      redeployed yet to roll forward to commit `8e88d560` (the EOD
+      promotion scheduler). The script will turn green on the next
+      redeploy that promotes today's risk job to OFFICIAL_EOD.
 
 ### PR 6 — Regulatory tab UI completeness (M1)
 
