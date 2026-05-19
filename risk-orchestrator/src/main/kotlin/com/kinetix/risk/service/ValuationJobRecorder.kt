@@ -42,4 +42,5 @@ interface ValuationJobRecorder {
     suspend fun resetOrphanedRunningJobs(): Int
     suspend fun findByTriggeredBy(triggeredBy: String, limit: Int = 1): List<ValuationJob>
     suspend fun deleteByTriggeredBy(triggeredBy: String): Int
+    suspend fun deleteOfficialEodDesignationsByPromotedBy(promotedBy: String): Int
 }

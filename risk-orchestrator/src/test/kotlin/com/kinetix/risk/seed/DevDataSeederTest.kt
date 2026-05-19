@@ -2,6 +2,7 @@ package com.kinetix.risk.seed
 
 import com.kinetix.risk.model.ChartBucketRow
 import com.kinetix.risk.model.CounterpartyExposureSnapshot
+import com.kinetix.risk.model.EodPromotionException
 import com.kinetix.risk.model.JobPhaseName
 import com.kinetix.risk.model.RunLabel
 import com.kinetix.risk.model.RunStatus
@@ -13,10 +14,13 @@ import io.kotest.matchers.collections.shouldHaveAtLeastSize
 import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.doubles.shouldBeGreaterThan
 import io.kotest.matchers.ints.shouldBeGreaterThan
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldStartWith
+import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
 import java.util.UUID
 
@@ -166,25 +170,129 @@ class DevDataSeederTest : FunSpec({
             attribution.totalPnl.compareTo(summedFromPositions) shouldBe 0
         }
     }
+
+    // ── EOD designation backfill ────────────────────────────────────────
+    // Seed data needs to populate the OFFICIAL_EOD designations table so the
+    // EOD timeline view has history immediately after deploy. Going forward,
+    // ScheduledAutoCloseJob promotes today's EOD at 17:30 UTC.
+
+    test("seed promotes historical weekday jobs to OFFICIAL_EOD") {
+        val recorder = InMemoryValuationJobRecorder()
+        DevDataSeeder(recorder).seed()
+
+        val today = LocalDate.now(ZoneOffset.UTC)
+        val historicalWeekdayJobs = recorder.jobs.filter { job ->
+            job.valuationDate < today &&
+                job.valuationDate.dayOfWeek != DayOfWeek.SATURDAY &&
+                job.valuationDate.dayOfWeek != DayOfWeek.SUNDAY
+        }
+        historicalWeekdayJobs.shouldNotBeEmpty()
+
+        historicalWeekdayJobs.forEach { job ->
+            val designated = recorder.findOfficialEodByDate(job.bookId, job.valuationDate)
+            designated.shouldNotBeNull()
+            designated.jobId shouldBe job.jobId
+            designated.runLabel shouldBe RunLabel.OFFICIAL_EOD
+            designated.promotedBy shouldBe "SEED"
+        }
+    }
+
+    test("seed does NOT promote weekend historical jobs") {
+        val recorder = InMemoryValuationJobRecorder()
+        DevDataSeeder(recorder).seed()
+
+        val weekendJobs = recorder.jobs.filter { job ->
+            job.valuationDate.dayOfWeek == DayOfWeek.SATURDAY ||
+                job.valuationDate.dayOfWeek == DayOfWeek.SUNDAY
+        }
+
+        weekendJobs.forEach { job ->
+            recorder.findOfficialEodByDate(job.bookId, job.valuationDate) shouldBe null
+        }
+    }
+
+    test("seed does NOT promote intraday today jobs (production schedule owns today)") {
+        val recorder = InMemoryValuationJobRecorder()
+        DevDataSeeder(recorder).seed()
+
+        val today = LocalDate.now(ZoneOffset.UTC)
+        val todayJobs = recorder.jobs.filter { it.valuationDate == today }
+        todayJobs.shouldNotBeEmpty()
+
+        // Today must not be designated by the seeder — ScheduledAutoCloseJob
+        // promotes today at 17:30 UTC.
+        recorder.jobs.map { it.bookId }.toSet().forEach { bookId ->
+            recorder.findOfficialEodByDate(bookId, today) shouldBe null
+        }
+    }
+
+    test("re-seed clears prior SEED designations before re-promoting") {
+        val recorder = InMemoryValuationJobRecorder()
+        val seeder = DevDataSeeder(recorder)
+
+        seeder.seed()
+        val firstDesignationCount = recorder.designations.size
+        firstDesignationCount shouldBeGreaterThan 0
+
+        seeder.seed()
+        // The deleteOfficialEodDesignationsByPromotedBy call must purge the
+        // prior set so we don't end up with stale designations pointing at
+        // jobIds that were just deleted.
+        recorder.designations.size shouldBe firstDesignationCount
+        recorder.deleteDesignationCount shouldBe firstDesignationCount
+    }
 })
 
 private class InMemoryValuationJobRecorder : ValuationJobRecorder {
     val jobs = mutableListOf<ValuationJob>()
+    val designations = mutableListOf<Designation>()
     var deleteCount = 0
+    var deleteDesignationCount = 0
+
+    data class Designation(
+        val bookId: String,
+        val valuationDate: LocalDate,
+        val jobId: UUID,
+        val promotedAt: Instant,
+        val promotedBy: String,
+    )
 
     override suspend fun save(job: ValuationJob) { jobs.add(job) }
     override suspend fun update(job: ValuationJob) {}
     override suspend fun updateCurrentPhase(jobId: UUID, phase: JobPhaseName) {}
     override suspend fun findByBookId(bookId: String, limit: Int, offset: Int, from: Instant?, to: Instant?, valuationDate: LocalDate?, runLabel: RunLabel?) = emptyList<ValuationJob>()
     override suspend fun countByBookId(bookId: String, from: Instant?, to: Instant?, valuationDate: LocalDate?, runLabel: RunLabel?) = 0L
-    override suspend fun findByJobId(jobId: UUID): ValuationJob? = null
-    override suspend fun findDistinctBookIds() = emptyList<String>()
+    override suspend fun findByJobId(jobId: UUID): ValuationJob? = jobs.firstOrNull { it.jobId == jobId }
+    override suspend fun findDistinctBookIds() = jobs.map { it.bookId }.distinct()
     override suspend fun findLatestCompletedByDate(bookId: String, valuationDate: LocalDate): ValuationJob? = null
     override suspend fun findLatestCompleted(bookId: String): ValuationJob? = null
     override suspend fun findLatestCompletedBeforeDate(bookId: String, beforeDate: LocalDate): ValuationJob? = null
-    override suspend fun findOfficialEodByDate(bookId: String, valuationDate: LocalDate): ValuationJob? = null
-    override suspend fun findOfficialEodRange(bookId: String, from: LocalDate, to: LocalDate) = emptyList<ValuationJob>()
-    override suspend fun promoteToOfficialEod(jobId: UUID, promotedBy: String, promotedAt: Instant): ValuationJob = throw UnsupportedOperationException()
+    override suspend fun findOfficialEodByDate(bookId: String, valuationDate: LocalDate): ValuationJob? {
+        val designation = designations.firstOrNull {
+            it.bookId == bookId && it.valuationDate == valuationDate
+        } ?: return null
+        val job = jobs.firstOrNull { it.jobId == designation.jobId } ?: return null
+        return job.copy(
+            runLabel = RunLabel.OFFICIAL_EOD,
+            promotedAt = designation.promotedAt,
+            promotedBy = designation.promotedBy,
+        )
+    }
+    override suspend fun findOfficialEodRange(bookId: String, from: LocalDate, to: LocalDate): List<ValuationJob> =
+        designations
+            .filter { it.bookId == bookId && !it.valuationDate.isBefore(from) && !it.valuationDate.isAfter(to) }
+            .mapNotNull { d -> findOfficialEodByDate(d.bookId, d.valuationDate) }
+    override suspend fun promoteToOfficialEod(jobId: UUID, promotedBy: String, promotedAt: Instant): ValuationJob {
+        val job = jobs.firstOrNull { it.jobId == jobId }
+            ?: throw EodPromotionException.JobNotFound(jobId)
+        val exists = designations.any { it.bookId == job.bookId && it.valuationDate == job.valuationDate }
+        if (exists) throw EodPromotionException.ConflictingOfficialEod(job.bookId, job.valuationDate.toString())
+        designations.add(Designation(job.bookId, job.valuationDate, jobId, promotedAt, promotedBy))
+        val idx = jobs.indexOf(job)
+        val updated = job.copy(runLabel = RunLabel.OFFICIAL_EOD, promotedAt = promotedAt, promotedBy = promotedBy)
+        jobs[idx] = updated
+        return updated
+    }
     override suspend fun demoteOfficialEod(jobId: UUID): ValuationJob = throw UnsupportedOperationException()
     override suspend fun supersedeOfficialEod(jobId: UUID): ValuationJob = throw UnsupportedOperationException()
     override suspend fun findChartData(bookId: String, from: Instant, to: Instant, bucketInterval: String) = emptyList<ChartBucketRow>()
@@ -196,6 +304,12 @@ private class InMemoryValuationJobRecorder : ValuationJobRecorder {
         val count = jobs.count { it.triggeredBy == triggeredBy }
         jobs.removeAll { it.triggeredBy == triggeredBy }
         deleteCount += count
+        return count
+    }
+    override suspend fun deleteOfficialEodDesignationsByPromotedBy(promotedBy: String): Int {
+        val count = designations.count { it.promotedBy == promotedBy }
+        designations.removeAll { it.promotedBy == promotedBy }
+        deleteDesignationCount += count
         return count
     }
 }

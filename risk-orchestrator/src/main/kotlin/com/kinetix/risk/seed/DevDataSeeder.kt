@@ -10,6 +10,7 @@ import com.kinetix.risk.persistence.CounterpartyExposureRepository
 import com.kinetix.risk.persistence.PnlAttributionRepository
 import com.kinetix.risk.service.ValuationJobRecorder
 import org.slf4j.LoggerFactory
+import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -39,17 +40,41 @@ class DevDataSeeder(
             // so the UI's default "Last 24h" view always has data.
             log.info("Deleting {} stale SEED entries before re-seeding", existing.size)
             jobRecorder.deleteByTriggeredBy("SEED")
+            // OfficialEodDesignations has no FK cascade from valuation_jobs, so
+            // designations pointing at the deleted SEED jobs would be orphaned.
+            // Purge them before promoting the fresh batch.
+            val purged = jobRecorder.deleteOfficialEodDesignationsByPromotedBy("SEED")
+            if (purged > 0) {
+                log.info("Deleted {} stale SEED EOD designations before re-seeding", purged)
+            }
         }
 
         val jobs = buildSeedJobs()
         log.info("Seeding {} VaR timeline entries across {} books", jobs.size, BOOK_VAR_PROFILES.size)
 
+        val today = LocalDate.now(ZoneOffset.UTC)
+        var promoted = 0
         for (job in jobs) {
             jobRecorder.save(job)
+            // Promote historical weekday jobs to OFFICIAL_EOD so the EOD
+            // timeline view has data immediately after deploy. Today is owned
+            // by ScheduledAutoCloseJob (17:30 UTC), weekends are skipped to
+            // match production semantics.
+            if (job.valuationDate < today && job.valuationDate.isWeekday()) {
+                jobRecorder.promoteToOfficialEod(
+                    jobId = job.jobId,
+                    promotedBy = "SEED",
+                    promotedAt = job.completedAt ?: job.startedAt,
+                )
+                promoted++
+            }
         }
 
-        log.info("VaR timeline seeding complete")
+        log.info("VaR timeline seeding complete — promoted {} historical weekday jobs to OFFICIAL_EOD", promoted)
     }
+
+    private fun LocalDate.isWeekday(): Boolean =
+        dayOfWeek != DayOfWeek.SATURDAY && dayOfWeek != DayOfWeek.SUNDAY
 
     /**
      * Phase 3 — derive per-book daily P&L attribution from positions × tape moves.

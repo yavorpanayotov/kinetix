@@ -660,4 +660,28 @@ class ExposedValuationJobRecorderIntegrationTest : FunSpec({
         found.shouldNotBeNull()
         found.currentPhase.shouldBeNull()
     }
+
+    test("deleteOfficialEodDesignationsByPromotedBy removes matching designations only") {
+        val seedJob1 = completedJob(startedAt = Instant.parse("2025-03-10T10:00:00Z"), valuationDate = LocalDate.of(2025, 3, 10))
+        val seedJob2 = completedJob(bookId = "port-2", startedAt = Instant.parse("2025-03-11T10:00:00Z"), valuationDate = LocalDate.of(2025, 3, 11))
+        val mgrJob = completedJob(bookId = "port-3", startedAt = Instant.parse("2025-03-12T10:00:00Z"), valuationDate = LocalDate.of(2025, 3, 12))
+        recorder.save(seedJob1)
+        recorder.save(seedJob2)
+        recorder.save(mgrJob)
+        recorder.promoteToOfficialEod(seedJob1.jobId, "SEED", Instant.parse("2025-03-10T18:00:00Z"))
+        recorder.promoteToOfficialEod(seedJob2.jobId, "SEED", Instant.parse("2025-03-11T18:00:00Z"))
+        recorder.promoteToOfficialEod(mgrJob.jobId, "risk-mgr", Instant.parse("2025-03-12T18:00:00Z"))
+
+        val deleted = recorder.deleteOfficialEodDesignationsByPromotedBy("SEED")
+
+        deleted shouldBe 2
+        recorder.findOfficialEodByDate("port-1", LocalDate.of(2025, 3, 10)).shouldBeNull()
+        recorder.findOfficialEodByDate("port-2", LocalDate.of(2025, 3, 11)).shouldBeNull()
+        recorder.findOfficialEodByDate("port-3", LocalDate.of(2025, 3, 12)).shouldNotBeNull()
+    }
+
+    test("deleteOfficialEodDesignationsByPromotedBy returns 0 when no matches") {
+        val deleted = recorder.deleteOfficialEodDesignationsByPromotedBy("SEED")
+        deleted shouldBe 0
+    }
 })

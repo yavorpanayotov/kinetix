@@ -650,6 +650,13 @@ class ExposedValuationJobRecorder(private val db: Database? = null) : ValuationJ
             ValuationJobsTable.deleteWhere { ValuationJobsTable.triggeredBy eq triggeredBy }
         }
 
+    override suspend fun deleteOfficialEodDesignationsByPromotedBy(promotedBy: String): Int =
+        newSuspendedTransaction(db = db) {
+            OfficialEodDesignationsTable.deleteWhere {
+                OfficialEodDesignationsTable.promotedBy eq promotedBy
+            }
+        }
+
     companion object {
         fun bucketInterval(from: Instant, to: Instant): String {
             val durationMs = Duration.between(from, to).toMillis()

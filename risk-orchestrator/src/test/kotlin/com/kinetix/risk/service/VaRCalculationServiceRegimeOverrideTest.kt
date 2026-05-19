@@ -354,4 +354,5 @@ private fun capturingJobRecorder(sink: MutableList<ValuationJob>): ValuationJobR
         override suspend fun resetOrphanedRunningJobs(): Int = 0
         override suspend fun findByTriggeredBy(triggeredBy: String, limit: Int): List<ValuationJob> = emptyList()
         override suspend fun deleteByTriggeredBy(triggeredBy: String): Int = 0
+        override suspend fun deleteOfficialEodDesignationsByPromotedBy(promotedBy: String): Int = 0
     }
