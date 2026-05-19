@@ -54,7 +54,7 @@ private data class ConsumerHealthDto(
 )
 
 @Serializable
-private data class PortfolioListItemDto(val id: String)
+private data class PortfolioListItemDto(val bookId: String)
 
 fun Route.dataQualityRoutes(
     httpClient: HttpClient? = null,
