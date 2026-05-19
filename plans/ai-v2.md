@@ -113,7 +113,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_tool_get_active_alerts.py -m unit`
 - [x] 2.10 `get_market_data_snapshot(instruments, fields?)` — reads price-service; returns quotes with change_pct, change_abs, as_of. Resolves counterparty/issuer names via reference-data fuzzy-match utility (`resolve_counterparty`); returns "not found" rather than guessing.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_tool_get_market_data_snapshot.py -m unit`
-- [ ] 2.11 Wire all 10 tools into the MCP server registry in `src/kinetix_insights/mcp/server.py`; assert the SDK can discover each by name. Integration test stands up an in-process MCP client and lists/calls each tool against a fake `KinetixHttpClient`.
+- [x] 2.11 Wire all 10 tools into the MCP server registry in `src/kinetix_insights/mcp/server.py`; assert the SDK can discover each by name. Integration test stands up an in-process MCP client and lists/calls each tool against a fake `KinetixHttpClient`.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_mcp_tool_registry.py -m unit`
 
 ### PR 3 — Chat endpoint: streaming SSE, citation contract, policy guards
