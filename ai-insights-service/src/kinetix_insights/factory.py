@@ -18,6 +18,7 @@ import os
 from .canned import CannedInsightClient
 from .claude_agent_client import ClaudeAgentInsightClient
 from .insights_client import InsightClient
+from .metrics.copilot_metrics import COPILOT_DEMO_MODE_FALLBACK_TOTAL
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,7 @@ def build_client() -> InsightClient:
 
     if os.environ.get("DEMO_MODE", "").strip().lower() == "true":
         logger.info("DEMO_MODE=true — using CannedInsightClient")
+        COPILOT_DEMO_MODE_FALLBACK_TOTAL.inc()
         return CannedInsightClient()
     try:
         return ClaudeAgentInsightClient()
@@ -43,4 +45,5 @@ def build_client() -> InsightClient:
             "ClaudeAgentInsightClient unavailable (%s); falling back to CannedInsightClient",
             exc,
         )
+        COPILOT_DEMO_MODE_FALLBACK_TOTAL.inc()
         return CannedInsightClient()

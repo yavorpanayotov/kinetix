@@ -32,13 +32,22 @@ actually has a consumer. The FastMCP instance is held ready on
 
 from __future__ import annotations
 
+import functools
+import time
 from datetime import datetime
-from typing import Any, Callable, Literal
+from typing import Any, Awaitable, Callable, Literal
 
 from mcp.server.fastmcp import FastMCP
 
-from kinetix_insights.clients.kinetix_http_client import KinetixHttpClient
+from kinetix_insights.clients.kinetix_http_client import (
+    KinetixHttpClient,
+    KinetixHttpError,
+)
 from kinetix_insights.clients.user_context import UserContext
+from kinetix_insights.metrics.copilot_metrics import (
+    COPILOT_TOOL_CALL_DURATION_SECONDS,
+    COPILOT_TOOL_NOT_FOUND_TOTAL,
+)
 from kinetix_insights.mcp.tools.get_active_alerts import get_active_alerts
 from kinetix_insights.mcp.tools.get_book_var import get_book_var
 from kinetix_insights.mcp.tools.get_correlation_matrix import (
@@ -61,6 +70,42 @@ MCP_PORT: int = 8096
 
 MCP_SERVER_NAME: str = "kinetix-copilot"
 """Name advertised by the FastMCP instance to MCP clients."""
+
+
+def _instrument_tool(
+    name: str, fn: Callable[..., Awaitable[dict[str, Any]]]
+) -> Callable[..., Awaitable[dict[str, Any]]]:
+    """Wrap a tool adapter so each call feeds the ``copilot_*`` metrics.
+
+    Every call observes :data:`COPILOT_TOOL_CALL_DURATION_SECONDS`
+    (labelled by tool ``name``) regardless of outcome, and a
+    :class:`~kinetix_insights.clients.kinetix_http_client.
+    KinetixHttpError` with a ``NOT_FOUND`` code bumps
+    :data:`COPILOT_TOOL_NOT_FOUND_TOTAL` before being re-raised
+    unchanged.
+
+    ``functools.wraps`` copies ``__wrapped__`` / ``__doc__`` /
+    ``__annotations__`` so FastMCP — which resolves the tool's input
+    schema via :func:`inspect.signature` (it follows ``__wrapped__``)
+    — sees the original keyword-only signature, not ``*args/**kwargs``.
+    The instrumentation is therefore transparent to the MCP client.
+    """
+
+    @functools.wraps(fn)
+    async def _wrapped(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        started = time.monotonic()
+        try:
+            return await fn(*args, **kwargs)
+        except KinetixHttpError as exc:
+            if exc.code == "NOT_FOUND":
+                COPILOT_TOOL_NOT_FOUND_TOTAL.inc()
+            raise
+        finally:
+            COPILOT_TOOL_CALL_DURATION_SECONDS.labels(tool=name).observe(
+                time.monotonic() - started
+            )
+
+    return _wrapped
 
 
 def build_mcp_server() -> FastMCP:
@@ -336,6 +381,10 @@ def register_tools(
     ]
 
     for name, fn, description in registrations:
-        mcp.add_tool(fn, name=name, description=description.strip())
+        mcp.add_tool(
+            _instrument_tool(name, fn),
+            name=name,
+            description=description.strip(),
+        )
 
     return [name for name, _, _ in registrations]

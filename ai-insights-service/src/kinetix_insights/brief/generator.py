@@ -40,6 +40,7 @@ ACL failures and ``UPSTREAM_ERROR`` — is an ``error`` section.
 
 from __future__ import annotations
 
+import time
 from datetime import datetime, timezone
 from typing import Callable
 
@@ -48,6 +49,9 @@ from kinetix_insights.citations.models import Citation
 from kinetix_insights.clients.kinetix_http_client import (
     KinetixHttpClient,
     KinetixHttpError,
+)
+from kinetix_insights.metrics.copilot_metrics import (
+    COPILOT_BRIEF_GENERATION_DURATION_SECONDS,
 )
 from kinetix_insights.clients.user_context import UserContext
 from kinetix_insights.mcp.tools.get_book_var import get_book_var
@@ -132,13 +136,19 @@ class MorningBriefGenerator:
         the rest.
         """
 
-        sections = [
-            await self._var_section(book_id=book_id, user=user),
-            await self._pnl_section(book_id=book_id, user=user),
-            await self._breaches_section(book_id=book_id, user=user),
-            await self._limits_section(book_id=book_id, user=user),
-            await self._greeks_section(book_id=book_id, user=user),
-        ]
+        started = time.monotonic()
+        try:
+            sections = [
+                await self._var_section(book_id=book_id, user=user),
+                await self._pnl_section(book_id=book_id, user=user),
+                await self._breaches_section(book_id=book_id, user=user),
+                await self._limits_section(book_id=book_id, user=user),
+                await self._greeks_section(book_id=book_id, user=user),
+            ]
+        finally:
+            COPILOT_BRIEF_GENERATION_DURATION_SECONDS.labels(
+                mode=self._mode
+            ).observe(time.monotonic() - started)
         return MorningBrief(
             book_id=book_id,
             sections=sections,

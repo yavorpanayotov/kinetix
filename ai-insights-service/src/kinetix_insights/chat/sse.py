@@ -49,6 +49,10 @@ from kinetix_insights.audit.audit_record import AuditRecord
 from kinetix_insights.audit.token_estimate import estimate_tokens
 from kinetix_insights.chat.canned import CopilotChatClient
 from kinetix_insights.chat.models import ChatChunk, ChatRequest
+from kinetix_insights.metrics.copilot_metrics import (
+    COPILOT_CHAT_SESSION_TOTAL,
+    COPILOT_FIRST_BYTE_LATENCY_SECONDS,
+)
 
 # Shared audit logger for the streaming routes. The logger holds no
 # per-request state, so a module-level singleton is safe.
@@ -149,6 +153,9 @@ def stream_chat_response(
 
     async def event_stream() -> AsyncIterator[bytes]:
         started = time.monotonic()
+        # One streaming response == one Copilot chat session.
+        COPILOT_CHAT_SESSION_TOTAL.inc()
+        first_frame = True
         tool_calls: list[str] = []
         deltas: list[str] = []
         mode: str | None = None
@@ -161,6 +168,11 @@ def stream_chat_response(
             if chunk.mode is not None:
                 mode = chunk.mode
             if chunk.citations:
+                if first_frame:
+                    COPILOT_FIRST_BYTE_LATENCY_SECONDS.observe(
+                        time.monotonic() - started
+                    )
+                    first_frame = False
                 src_data = _serialise_citations(chunk)
                 yield f"event: source\ndata: {src_data}\n\n".encode("utf-8")
             if chunk.done:
@@ -171,6 +183,11 @@ def stream_chat_response(
                 )
             else:
                 data = chunk.model_dump_json(exclude_none=True)
+            if first_frame:
+                COPILOT_FIRST_BYTE_LATENCY_SECONDS.observe(
+                    time.monotonic() - started
+                )
+                first_frame = False
             yield f"data: {data}\n\n".encode("utf-8")
 
         if audit is not None:

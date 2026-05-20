@@ -21,6 +21,8 @@ from __future__ import annotations
 import re
 from typing import Final
 
+from kinetix_insights.metrics.copilot_metrics import COPILOT_POLICY_VIOLATION_TOTAL
+
 POLICY_VIOLATION: Final[str] = "POLICY_VIOLATION"
 
 BANNED_PHRASES: Final[tuple[str, ...]] = (
@@ -60,6 +62,7 @@ def check_narrative(narrative: str) -> str | None:
         return None
     if BANNED_PHRASE_PATTERN.search(narrative) is None:
         return None
+    COPILOT_POLICY_VIOLATION_TOTAL.inc()
     return POLICY_VIOLATION
 
 

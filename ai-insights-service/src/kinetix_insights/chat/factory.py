@@ -18,6 +18,9 @@ import os
 from kinetix_insights.chat.canned import CannedCopilotChatClient, CopilotChatClient
 from kinetix_insights.chat.claude_agent_chat_client import ClaudeAgentCopilotChatClient
 from kinetix_insights.chat.conversation_store import ConversationStore
+from kinetix_insights.metrics.copilot_metrics import (
+    COPILOT_DEMO_MODE_FALLBACK_TOTAL,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +42,7 @@ def build_chat_client(
 
     if os.environ.get("DEMO_MODE", "").strip().lower() == "true":
         logger.info("DEMO_MODE=true — using CannedCopilotChatClient")
+        COPILOT_DEMO_MODE_FALLBACK_TOTAL.inc()
         return CannedCopilotChatClient()
     try:
         return ClaudeAgentCopilotChatClient(conversation_store=conversation_store)
@@ -48,4 +52,5 @@ def build_chat_client(
             "falling back to CannedCopilotChatClient",
             exc,
         )
+        COPILOT_DEMO_MODE_FALLBACK_TOTAL.inc()
         return CannedCopilotChatClient()

@@ -48,6 +48,7 @@ from datetime import datetime, timedelta
 import redis.asyncio as aioredis
 
 from kinetix_insights.chat.conversation_store import ConversationTurn
+from kinetix_insights.metrics.copilot_metrics import COPILOT_REDIS_CACHE_HIT_TOTAL
 
 _DEFAULT_TTL = timedelta(hours=24)
 _KEY_PREFIX = "ai-insights:conversation:"
@@ -155,6 +156,8 @@ class RedisConversationStore:
         raw = await self._redis.get(self._key(conversation_id))
         if raw is None:
             return []
+        # A non-None value is a live conversation key — a cache hit.
+        COPILOT_REDIS_CACHE_HIT_TOTAL.inc()
         return self._decode(raw)
 
     async def clear(self, conversation_id: str) -> None:

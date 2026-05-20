@@ -77,6 +77,7 @@ from kinetix_insights.claude_agent_client import (
     InsightClientUnavailable,
     _extract_text,
 )
+from kinetix_insights.metrics.copilot_metrics import COPILOT_SDK_ERROR_TOTAL
 from kinetix_insights.policy.banned_phrases import (
     POLICY_VIOLATION,
     check_narrative,
@@ -403,8 +404,15 @@ class ClaudeAgentCopilotChatClient:
         )
 
     def _upstream_error_frame(self) -> ChatChunk:
-        """Single terminal frame for any SDK-side failure path."""
+        """Single terminal frame for any SDK-side failure path.
 
+        This method is the one chokepoint every SDK failure path
+        (unavailable ``query`` callable, mid-stream exception) routes
+        through, so :data:`COPILOT_SDK_ERROR_TOTAL` is incremented here
+        exactly once per failure.
+        """
+
+        COPILOT_SDK_ERROR_TOTAL.inc()
         return ChatChunk(
             done=True,
             error_code=_UPSTREAM_ERROR,

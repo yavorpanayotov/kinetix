@@ -13,6 +13,11 @@ Kinetix services which all serve metrics on ``/metrics``.
 from fastapi import APIRouter, Response
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
+# Importing the copilot metrics module registers the ``copilot_*``
+# namespace (checkbox 10.4) on the default registry, so mounting this
+# route always exposes those series — no second ``/metrics`` endpoint.
+from kinetix_insights.metrics import copilot_metrics as _copilot_metrics  # noqa: F401
+
 router = APIRouter(tags=["observability"])
 
 
