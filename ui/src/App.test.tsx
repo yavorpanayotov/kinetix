@@ -526,6 +526,56 @@ describe('App', () => {
     expect(screen.queryByTestId('alert-count-badge')).not.toBeInTheDocument()
   })
 
+  it('feeds live alerts into the notification strip inbox', () => {
+    mockUseNotifications.mockReturnValue({
+      rules: [],
+      alerts: [
+        {
+          id: 'evt-strip-1',
+          ruleId: 'rule-1',
+          ruleName: 'VaR Limit',
+          type: 'VAR_BREACH',
+          severity: 'CRITICAL',
+          message: 'VaR exceeded threshold',
+          currentValue: 150000,
+          threshold: 100000,
+          bookId: 'book-1',
+          triggeredAt: '2025-01-15T10:00:00Z',
+          status: 'TRIGGERED',
+        },
+      ],
+      loading: false,
+      error: null,
+      createRule: vi.fn(),
+      deleteRule: vi.fn(),
+      acknowledgeAlert: vi.fn(),
+    })
+
+    render(<App />)
+
+    // The strip's collapsed bar reflects the live alert.
+    expect(screen.getByTestId('notification-unread-count')).toHaveTextContent(
+      '1',
+    )
+    expect(
+      screen.getByTestId('notification-chip-critical'),
+    ).toHaveTextContent('1')
+
+    // Expanding the inbox surfaces a row for the live alert.
+    fireEvent.click(screen.getByTestId('notification-strip-toggle'))
+    expect(
+      screen.getByTestId('notification-item-evt-strip-1'),
+    ).toBeInTheDocument()
+  })
+
+  it('shows the notification strip empty bar when there are no live alerts', () => {
+    render(<App />)
+
+    expect(
+      screen.getByTestId('notification-strip-empty'),
+    ).toBeInTheDocument()
+  })
+
   it('clicking System tab shows system dashboard', () => {
     render(<App />)
 

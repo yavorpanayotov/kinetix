@@ -25,6 +25,7 @@ import { RiskTickerStrip } from './components/RiskTickerStrip'
 import { BreachBanner } from './components/BreachBanner'
 import { SystemStatusBanner } from './components/SystemStatusBanner'
 import { NotificationStrip } from './components/NotificationStrip'
+import type { NotificationItem } from './components/NotificationStrip'
 import { fetchTodayBrief } from './api/brief'
 import type { MorningBrief } from './api/brief'
 import { usePositions } from './hooks/usePositions'
@@ -400,6 +401,29 @@ function AppContent() {
   const varBreachActive = varUtilisation !== null && varUtilisation > 0.8
   const criticalAlertActive = breachAlerts.some((a) => a.severity === 'CRITICAL')
   const hedgeCtaActive = varBreachActive || criticalAlertActive
+  // Plan §9 — feed the live limit-breach / risk-result / alert events that
+  // <NotificationCenter> already consumes (via `useNotifications`) into the
+  // <NotificationStrip> inbox. The strip's own item vocabulary is a small
+  // subset of `AlertEventDto`; this derives one `NotificationItem` per alert,
+  // narrowing the uppercase wire severity (`CRITICAL`/`WARNING`/`INFO`) to the
+  // strip's lowercase `NotificationSeverity`. A plain `const` (not `useMemo`)
+  // mirrors the other derived data above and the strip re-filters on every
+  // render anyway, so memoisation buys nothing here.
+  const notificationStripItems: NotificationItem[] = notifications.alerts.map(
+    (alert) => ({
+      id: alert.id,
+      severity:
+        alert.severity === 'CRITICAL'
+          ? 'critical'
+          : alert.severity === 'WARNING'
+            ? 'warning'
+            : 'info',
+      title: alert.ruleName,
+      body: alert.message,
+      timestamp: alert.triggeredAt,
+      source: 'Alert',
+    }),
+  )
   const openHedgePanel = () => setHedgePanelOpen(true)
   const { isDark, toggle: toggleTheme } = useTheme()
   const dataQuality = useDataQuality()
@@ -738,7 +762,7 @@ function AppContent() {
         `/ws/copilot` by `useCopilotWebSocket()`.
       */}
       <NotificationStrip
-        items={[]}
+        items={notificationStripItems}
         morningBrief={morningBrief}
         intradayPushes={copilotPushes}
         onRunSavedQuery={(query) => {

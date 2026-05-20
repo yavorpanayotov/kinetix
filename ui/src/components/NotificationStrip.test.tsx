@@ -136,6 +136,32 @@ describe('NotificationStrip', () => {
     expect(screen.getByTestId('notification-item-n-3')).toBeInTheDocument()
   })
 
+  test('renders live notification content — title, body and source — for a non-empty items prop', async () => {
+    // Mirrors the shape App.tsx derives from `useNotifications` alerts: a
+    // limit-breach alert mapped to title (rule name), body (message) and a
+    // "Alert" source label.
+    const liveItems: NotificationItem[] = [
+      {
+        id: 'evt-1',
+        severity: 'critical',
+        title: 'VaR Limit',
+        body: 'VaR exceeded threshold',
+        timestamp: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+        source: 'Alert',
+      },
+    ]
+    const user = userEvent.setup()
+    render(<NotificationStrip items={liveItems} />)
+    // Collapsed bar reflects the live item.
+    expect(screen.getByTestId('notification-unread-count')).toHaveTextContent('1')
+    // Expanded inbox renders the row with its title, body and source.
+    await user.click(screen.getByTestId('notification-strip-toggle'))
+    const row = screen.getByTestId('notification-item-evt-1')
+    expect(within(row).getByText('VaR Limit')).toBeInTheDocument()
+    expect(within(row).getByText('VaR exceeded threshold')).toBeInTheDocument()
+    expect(within(row).getByText('Alert')).toBeInTheDocument()
+  })
+
   test('per-item dismiss removes the item and persists to localStorage', async () => {
     const user = userEvent.setup()
     render(<NotificationStrip items={makeItems()} />)
