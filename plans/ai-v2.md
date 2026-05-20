@@ -154,7 +154,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
       Acceptance: `cd ui && npm run test -- Citation`
 - [x] 5.4 Add `<ExplainButton>` in `ui/src/components/ExplainButton.tsx` with `Sparkles` icon. Refactor `VaRDashboard.tsx`'s inline button to use it (regression: existing Playwright `var-explainer.spec.ts` must still pass).
       Acceptance: `cd ui && npm run test -- ExplainButton && cd ui && npx playwright test e2e/var-explainer.spec.ts`
-- [ ] 5.5 Refactor `<AIInsightPanel>` to compose `<StreamingNarrative>` when a stream prop is provided; keep the existing canned/non-streaming path for `ReportsTab` regression. Vitest + existing Playwright must still pass.
+- [x] 5.5 Refactor `<AIInsightPanel>` to compose `<StreamingNarrative>` when a stream prop is provided; keep the existing canned/non-streaming path for `ReportsTab` regression. Vitest + existing Playwright must still pass.
       Acceptance: `cd ui && npm run test -- AIInsightPanel && cd ui && npx playwright test e2e/report-commentary.spec.ts`
 - [ ] 5.6 Extend `<CommandPalette>` with `copilotMode?: boolean` prop + a streaming-response zone below the input. When ⌘K is opened and the user types free-form, fire `chat()` and render `<StreamingNarrative>` + `<CitationList>`. Add multi-turn follow-up textarea (Shift+Enter newline; Enter sends). Vitest covers the new zone.
       Acceptance: `cd ui && npm run test -- CommandPalette`
