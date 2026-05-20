@@ -80,6 +80,50 @@ Report:
 - Key numbers to mention during demo (total VaR, largest position, P&L)
 - Any setup steps needed (e.g. "start the risk-engine first")
 
+## Step 7 — Pre-stage the v2 Copilot demo artifacts
+
+AI v2 adds the **Kinetix Copilot** — proactive morning brief, intraday push,
+⌘K free-form ask, and saved queries. The 90-second v2 demo must run
+end-to-end with **zero live SDK calls**, so `/demo` pre-stages three
+deterministic artifacts. Because v2's demo mode is driven by `DEMO_MODE=true`
+plus the `Canned*Client`s, "pre-staging" means verifying the canned fixtures
+exist and are wired — no extra seeding API calls are needed.
+
+Run this check as part of `/demo`:
+
+```bash
+# All three v2 demo fixtures must be present and valid JSON.
+for f in \
+  ai-insights-service/src/kinetix_insights/fixtures/demo_brief.json \
+  ai-insights-service/src/kinetix_insights/fixtures/demo_intraday_push.json; do
+  python3 -c "import json,sys; json.load(open('$f')); print('ok: $f')"
+done
+ls ai-insights-service/src/kinetix_insights/fixtures/chat_transcripts/*.json
+ls ai-insights-service/src/kinetix_insights/queries/*.json
+```
+
+The three pre-staged artifacts:
+
+| Artifact | Canned client | Fixture | Surfaced at |
+| -------- | ------------- | ------- | ----------- |
+| Morning brief | `CannedBriefClient` | `fixtures/demo_brief.json` | `GET /api/v1/insights/brief/today` → `<MorningBriefCard>` |
+| Queued intraday push | `CannedIntradayPushGenerator` | `fixtures/demo_intraday_push.json` | `/internal/copilot/push` → `/ws/copilot` → `<IntradayPushItem>` |
+| Sample saved-query result | `CannedCopilotChatClient` | `fixtures/chat_transcripts/*.json` + `queries/*.json` | `POST /api/v1/insights/queries/{id}/run` → `<StreamingNarrative>` |
+
+Then start `ai-insights-service` in canned mode so the factory selects the
+canned clients:
+
+```bash
+cd ai-insights-service && DEMO_MODE=true uv run uvicorn kinetix_insights.app:app --port 8095
+```
+
+With `DEMO_MODE=true`, `factory.build_client()` picks the canned clients and
+all three artifacts become deterministically available — no host `~/.claude/`
+mount, no SDK reachability required. The full demo runbook (the four-beat
+90-second script) lives in `ai-insights-service/README.md` under
+**"v2 demo flow"**, and the browser-level proof is the Playwright spec
+`ui/e2e/copilot-demo-walkthrough.spec.ts`.
+
 ## AI features (VaR Explainer + Report Commentary)
 
 Two LLM-powered features ship in v1, both backed by `ai-insights-service`. Demo mode is on by default in `/demo`-seeded environments; flip `DEMO_MODE=false` and run with a host `~/.claude` mount for live mode.
