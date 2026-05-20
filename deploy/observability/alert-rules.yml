@@ -107,6 +107,20 @@ groups:
           summary: "Dead-letter queue {{ $labels.topic }} is growing"
           description: "New messages have been written to dead-letter topic {{ $labels.topic }} in the last 15m — a consumer has exhausted its retries and is shedding messages that need manual replay."
 
+      # Business-event alert: unprocessed backlog sitting in a dead-letter queue.
+      # DLQ topics follow the `<topic>.dlq` naming convention emitted by
+      # RetryableConsumer (common/.../kafka/RetryableConsumer.kt). Any consumer
+      # group lag on a `.dlq` topic means failed messages have been parked and
+      # nothing is draining them — they need manual triage and replay.
+      - alert: KafkaDlqBacklog
+        expr: kafka_consumergroup_lag{topic=~".+\\.dlq"} > 0
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Dead-letter queue {{ $labels.topic }} has an unprocessed backlog"
+          description: "Consumer group {{ $labels.consumergroup }} has lag of {{ $value }} on dead-letter topic {{ $labels.topic }} — failed messages are parked in the DLQ and need manual triage and replay."
+
   # ---------------------------------------------------------------------------
   - name: kinetix-price
     rules:
@@ -160,6 +174,30 @@ groups:
         annotations:
           summary: "Risk run stale for book {{ $labels.book_id }}"
           description: "No completed VaR calculation has been recorded for book {{ $labels.book_id }} in over an hour — the risk picture for this book is out of date."
+
+      # Business-event alert: failed risk calculations (RISK_CALCULATION_FAILED).
+      # DISABLED — no Prometheus metric for this signal is emitted yet.
+      # When a VaR run fails, risk-orchestrator's VaRCalculationService publishes
+      # a `RISK_CALCULATION_FAILED` GovernanceAuditEvent to Kafka (consumed and
+      # persisted by audit-service); the failure path increments no Micrometer
+      # counter, and `risk_var_calculation_total` is incremented on success only
+      # and carries no status/outcome label. The failure signal therefore lives
+      # only in the audit DB / Loki logs, not in Prometheus.
+      #
+      # To enable this alert, risk-orchestrator must emit a Prometheus counter
+      # — e.g. a `risk_calculation_failed_total` counter (or a `status`/`outcome`
+      # label on the existing `var.calculation.count` counter) — incremented in
+      # the catch block of VaRCalculationService alongside the audit event.
+      # Once that metric exists, uncomment and adjust the rule below:
+      #
+      # - alert: RiskCalculationFailureRate
+      #   expr: rate(risk_calculation_failed_total[10m]) > 0
+      #   for: 5m
+      #   labels:
+      #     severity: critical
+      #   annotations:
+      #     summary: "Risk calculations are failing"
+      #     description: "VaR calculations have been failing over the last 10m ({{ $value }}/s) — the risk picture is incomplete; check risk-orchestrator and risk-engine."
 
   # ---------------------------------------------------------------------------
   - name: kinetix-database

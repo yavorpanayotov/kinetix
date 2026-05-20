@@ -72,6 +72,24 @@ kube-prometheus-stack:
                   annotations:
                     summary: "Risk calculation p95 latency exceeds 30s"
                     description: "P95 VaR calculation duration is {{ $value }}s"
+                # Business-event alert: failed risk calculations (RISK_CALCULATION_FAILED).
+                # DISABLED — no Prometheus metric for this signal is emitted yet.
+                # A failed VaR run publishes a `RISK_CALCULATION_FAILED`
+                # GovernanceAuditEvent to Kafka (persisted by audit-service) but
+                # increments no Micrometer counter; `risk_var_calculation_total`
+                # is incremented on success only with no status/outcome label.
+                # To enable, risk-orchestrator must emit a Prometheus counter
+                # (e.g. `risk_calculation_failed_total`) in the catch block of
+                # VaRCalculationService, then uncomment and adjust:
+                #
+                # - alert: RiskCalculationFailureRate
+                #   expr: rate(risk_calculation_failed_total[10m]) > 0
+                #   for: 5m
+                #   labels:
+                #     severity: critical
+                #   annotations:
+                #     summary: "Risk calculations are failing"
+                #     description: "VaR calculations have been failing over the last 10m ({{ $value }}/s) — the risk picture is incomplete."
             - name: kinetix-price
               rules:
                 - alert: PriceStale
@@ -92,6 +110,18 @@ kube-prometheus-stack:
                   annotations:
                     summary: "Kafka consumer lag is high for {{ $labels.consumergroup }}"
                     description: "Consumer group {{ $labels.consumergroup }} has lag of {{ $value }} on topic {{ $labels.topic }}"
+                # Business-event alert: unprocessed backlog in a dead-letter queue.
+                # DLQ topics follow the `<topic>.dlq` convention emitted by
+                # RetryableConsumer; lag on a `.dlq` topic means failed messages
+                # are parked and nothing is draining them.
+                - alert: KafkaDlqBacklog
+                  expr: kafka_consumergroup_lag{topic=~".+\\.dlq"} > 0
+                  for: 10m
+                  labels:
+                    severity: critical
+                  annotations:
+                    summary: "Dead-letter queue {{ $labels.topic }} has an unprocessed backlog"
+                    description: "Consumer group {{ $labels.consumergroup }} has lag of {{ $value }} on dead-letter topic {{ $labels.topic }} — failed messages are parked in the DLQ and need manual triage and replay."
     resources:
       requests:
         cpu: 200m
