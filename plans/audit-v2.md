@@ -79,7 +79,7 @@ Make `correlationId` a reliable join key across Loki logs, Tempo traces and the 
 
 - [x] 2.1 Add `correlationId: String? = null` to `GovernanceAuditEvent` (`common/src/main/kotlin/com/kinetix/common/audit/GovernanceAuditEvent.kt`).
       Acceptance: `./gradlew :common:test`
-- [ ] 2.2 Add Flyway migration `V13__add_correlation_id.sql` under `audit-service/src/main/resources/db/audit/` adding a nullable `correlation_id` column to `audit_events`; add the `correlationId` field to the `AuditEvent` model and its repository row mapper. **Do not** add it to `AuditHasher`'s hashed-field set (see Decisions).
+- [x] 2.2 Add Flyway migration `V13__add_correlation_id.sql` under `audit-service/src/main/resources/db/audit/` adding a nullable `correlation_id` column to `audit_events`; add the `correlationId` field to the `AuditEvent` model and its repository row mapper. **Do not** add it to `AuditHasher`'s hashed-field set (see Decisions).
       Acceptance: `./gradlew :audit-service:test :audit-service:integrationTest`
 - [ ] 2.3 Populate `correlationId` from the SLF4J MDC when constructing `GovernanceAuditEvent` in every publisher — `risk-orchestrator` (`VaRCalculationService`, `EodPromotionService`, `CrossBookLimitCheckService`), `regulatory-service`, `notification-service`, `gateway` (`RouteAuthorization`).
       Acceptance: `./gradlew :risk-orchestrator:test :regulatory-service:test :notification-service:test :gateway:test`
