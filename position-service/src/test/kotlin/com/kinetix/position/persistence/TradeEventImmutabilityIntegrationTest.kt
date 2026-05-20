@@ -23,19 +23,20 @@ class TradeEventImmutabilityIntegrationTest : FunSpec({
         }
     }
 
-    fun insertTradeEvent(tradeId: String) {
+    fun insertTradeEvent(tradeId: String, traderId: String? = null) {
+        val traderIdLiteral = traderId?.let { "'$it'" } ?: "NULL"
         transaction(db) {
             exec(
                 """
                 INSERT INTO trade_events (
                     trade_id, book_id, instrument_id, asset_class, side,
                     quantity, price_amount, price_currency, traded_at, created_at,
-                    event_type, status, instrument_type
+                    event_type, status, instrument_type, trader_id
                 ) VALUES (
                     '$tradeId', 'port-1', 'AAPL', 'EQUITY', 'BUY',
                     100.00, 150.00, 'USD',
                     '2025-01-15T10:00:00Z', '2025-01-15T10:00:00Z',
-                    'NEW', 'LIVE', 'CASH_EQUITY'
+                    'NEW', 'LIVE', 'CASH_EQUITY', $traderIdLiteral
                 )
                 """.trimIndent()
             )
@@ -48,6 +49,32 @@ class TradeEventImmutabilityIntegrationTest : FunSpec({
         val ex = shouldThrow<Exception> {
             transaction(db) {
                 exec("UPDATE trade_events SET quantity = 999 WHERE trade_id = 'immut-1'")
+            }
+        }
+        val psql = generateSequence<Throwable>(ex) { it.cause }.filterIsInstance<PSQLException>().firstOrNull()
+        val message = psql?.message ?: ex.message ?: ""
+        message shouldContain "immutable"
+    }
+
+    test("rejects update to instrument_type") {
+        insertTradeEvent("immut-itype")
+
+        val ex = shouldThrow<Exception> {
+            transaction(db) {
+                exec("UPDATE trade_events SET instrument_type = 'EQUITY_OPTION' WHERE trade_id = 'immut-itype'")
+            }
+        }
+        val psql = generateSequence<Throwable>(ex) { it.cause }.filterIsInstance<PSQLException>().firstOrNull()
+        val message = psql?.message ?: ex.message ?: ""
+        message shouldContain "immutable"
+    }
+
+    test("rejects update to trader_id") {
+        insertTradeEvent("immut-trader", traderId = "trader-1")
+
+        val ex = shouldThrow<Exception> {
+            transaction(db) {
+                exec("UPDATE trade_events SET trader_id = 'trader-2' WHERE trade_id = 'immut-trader'")
             }
         }
         val psql = generateSequence<Throwable>(ex) { it.cause }.filterIsInstance<PSQLException>().firstOrNull()
