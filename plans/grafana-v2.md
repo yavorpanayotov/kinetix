@@ -234,7 +234,7 @@ not stop mid-loop:
       Correlator — TTL Evictions"; "fix_message_log Partitions Archived" → "FIX Log
       Partitions Archived").
       Acceptance: `node plans/scripts/validate-grafana.mjs`
-- [ ] 3.4 On `risk-overview.json`, `risk-engine.json`, `limit-utilisation.json`
+- [x] 3.4 On `risk-overview.json`, `risk-engine.json`, `limit-utilisation.json`
       and `greeks.json`, make VaR statistically self-describing: every VaR panel
       title/legend states confidence level and holding period (e.g. "VaR (99%,
       1-day)"); add panel `description`s clarifying cumulative-vs-interval for P&L
