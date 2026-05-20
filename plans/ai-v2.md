@@ -204,7 +204,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_gateway_push_client.py -m unit`
 - [x] 7.8 Add `useCopilotWebSocket()` hook in `ui/src/hooks/useCopilotWebSocket.ts` — connects to `/ws/copilot`, exposes push events as a React state stream. Auto-reconnect with backoff. Vitest covers connect/disconnect/reconnect/scope-filter.
       Acceptance: `cd ui && npm run test -- useCopilotWebSocket`
-- [ ] 7.9 Render intraday push events as items in `<NotificationStrip>` with `Zap` icon and time-of-trigger label. Overflow >5 collapses to "N more" badge. Vitest covers overflow + severity color contract.
+- [x] 7.9 Render intraday push events as items in `<NotificationStrip>` with `Zap` icon and time-of-trigger label. Overflow >5 collapses to "N more" badge. Vitest covers overflow + severity color contract.
       Acceptance: `cd ui && npm run test -- NotificationStripIntraday`
 - [ ] 7.10 Add Playwright `ui/e2e/intraday-push.spec.ts` — mock the WebSocket to emit a pre-scripted push payload; assert strip appears with narrative + sources + dismiss. Also assert 50-payload overflow collapses to "45 more".
       Acceptance: `cd ui && npm run lint && npx playwright test e2e/intraday-push.spec.ts`
