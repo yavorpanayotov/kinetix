@@ -79,12 +79,6 @@ export interface NotificationStripProps {
    * empty list.
    */
   intradayPushes?: CopilotPushEvent[]
-  /**
-   * Plan §8.3 — invoked when the user clicks one of the five built-in
-   * saved-query chips rendered at the top of the inbox. When omitted the
-   * chips still render but are inert.
-   */
-  onRunSavedQuery?: (query: SavedQuery) => void
 }
 
 const DISMISSED_KEY = 'kinetix:copilot-inbox:dismissed'
