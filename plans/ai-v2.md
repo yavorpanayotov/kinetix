@@ -243,7 +243,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_prometheus_metrics.py -m unit`
 - [x] 10.5 Add multi-user isolation acceptance test: two stub backends (user A's books, user B's books) on random ports; two concurrent `/chat` requests with different forwarded `X-User-Id`s; assert each session only reaches its own stub and that neither response contains the other user's sentinel string.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_chat_user_isolation_integration.py -m integration`
-- [ ] 10.6 Add UI Playwright latency budget test `ui/e2e/copilot-latency.spec.ts` — `waitForFunction` asserting first non-empty `chat-stream-content` within 3000 ms of submit, with a mocked endpoint that emits first chunk at 50 ms.
+- [x] 10.6 Add UI Playwright latency budget test `ui/e2e/copilot-latency.spec.ts` — `waitForFunction` asserting first non-empty `chat-stream-content` within 3000 ms of submit, with a mocked endpoint that emits first chunk at 50 ms.
       Acceptance: `cd ui && npm run lint && npx playwright test e2e/copilot-latency.spec.ts`
 - [ ] 10.7 Add `ProductionHardeningAcceptanceTest` assertion in the gateway test suite: confirms `DEMO_MODE=true` is the configured value for the `ai-insights-service` container in the test profile, and that `grep -r "verify with your team" ai-insights-service/src/` returns nothing (banned-phrase scrub of canned fallbacks).
       Acceptance: `./gradlew :gateway:acceptanceTest --tests "*ProductionHardeningAcceptanceTest" && ! grep -r "verify with your team" ai-insights-service/src/`
