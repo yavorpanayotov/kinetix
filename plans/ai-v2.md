@@ -226,7 +226,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
       Acceptance: `cd ui && npm run lint && npx playwright test e2e/inline-explainer-pnl.spec.ts`
 - [x] 9.3 Add `<ExplainButton>` to each row in the alerts/breaches panel (`NotificationCenter`). Payload includes alertId, type, currentValue, threshold, severity. Playwright covers alert-row explain.
       Acceptance: `cd ui && npm run lint && npx playwright test e2e/inline-explainer-alerts.spec.ts`
-- [ ] 9.4 Add `<ExplainButton>` to scenario result rows in `StressTestPanel`. Payload includes scenario name, stressed PnL, top stressed positions. Playwright covers scenario-row explain.
+- [x] 9.4 Add `<ExplainButton>` to scenario result rows in `StressTestPanel`. Payload includes scenario name, stressed PnL, top stressed positions. Playwright covers scenario-row explain. (Implemented on `ScenarioComparisonTable` — the live Stress/Scenarios panel; `StressTestPanel` is unmounted dead code with no iterable rows.)
       Acceptance: `cd ui && npm run lint && npx playwright test e2e/inline-explainer-scenarios.spec.ts`
 - [ ] 9.5 Add `<ExplainButton>` to `GreeksPanel` (aggregate Greeks card) and `CorrelationMatrix` (matrix-level explain for correlation breaks). Playwright covers both.
       Acceptance: `cd ui && npm run lint && npx playwright test e2e/inline-explainer-greeks-correlation.spec.ts`
