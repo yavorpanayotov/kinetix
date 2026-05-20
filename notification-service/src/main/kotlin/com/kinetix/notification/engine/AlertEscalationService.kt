@@ -38,7 +38,9 @@ class AlertEscalationService(
                     userId = "system",
                     userRole = "SYSTEM",
                     bookId = alert.bookId,
-                    details = "alertId=${alert.id} severity=${alert.severity}->${promotedSeverity} escalatedTo=$escalatedTo type=${alert.type}",
+                    alertId = alert.id,
+                    details = "Alert ${alert.id} auto-escalated to $escalatedTo after $escalationTimeoutMinutes" +
+                        "min timeout: severity ${alert.severity}->$promotedSeverity type=${alert.type}",
                     correlationId = MDC.get("correlationId"),
                 ),
             )

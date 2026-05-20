@@ -208,6 +208,31 @@ class AlertEscalationServiceTest : FunSpec({
         }
     }
 
+    test("auto-escalation ALERT_ESCALATED audit event carries the alert id in the typed alertId field") {
+        val repo = InMemoryAlertEventRepository()
+        val router = mockk<DeliveryRouter>(relaxed = true)
+        val auditPublisher = mockk<GovernanceAuditPublisher>(relaxed = true)
+        val now = Instant.parse("2025-01-15T12:00:00Z")
+        val acknowledgedAt = now.minusSeconds(31 * 60)
+
+        val alert = warningAlert("alert-typed-id", acknowledgedAt)
+        repo.save(alert)
+
+        val service = AlertEscalationService(repo, router, escalationTimeoutMinutes = 30, auditPublisher = auditPublisher)
+        service.processEscalations(now)
+
+        verify(exactly = 1) {
+            auditPublisher.publish(
+                match { event ->
+                    event.eventType == AuditEventType.ALERT_ESCALATED &&
+                        // alert identity is carried in the typed field, not only free-text details
+                        event.alertId == "alert-typed-id" &&
+                        event.details?.contains("alertId=") != true
+                },
+            )
+        }
+    }
+
     test("ALERT_ESCALATED governance event carries the correlationId from the MDC") {
         val repo = InMemoryAlertEventRepository()
         val router = mockk<DeliveryRouter>(relaxed = true)
