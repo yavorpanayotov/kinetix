@@ -149,7 +149,7 @@ The single biggest "easy to track" win — version-controlled, business-event da
 
 Give users and support a screen — no LogQL required.
 
-- [ ] 8.1 Add `ui/src/api/audit.ts` — a typed client for `/api/v1/audit/events` (incl. the new `tradeId` / `eventType` / `from` / `to` filters) and `/api/v1/audit/verify`.
+- [x] 8.1 Add `ui/src/api/audit.ts` — a typed client for `/api/v1/audit/events` (incl. the new `tradeId` / `eventType` / `from` / `to` filters) and `/api/v1/audit/verify`.
       Acceptance: `cd ui && npm run test -- audit`
 - [ ] 8.2 Add `ui/src/components/AuditLogPanel.tsx` — a paginated, filterable table (book / trade / event-type / time-window), event-type badges, a chain-integrity indicator, and an empty state. Add the Vitest unit test.
       Acceptance: `cd ui && npm run test -- AuditLogPanel`
