@@ -233,7 +233,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
 
 ### PR 10 — Hardening: Redis state, rate limit, audit, telemetry, isolation
 
-- [ ] 10.1 Add `RedisConversationStore` impl of `ConversationStore` protocol; selected when `REDIS_URL` env is set. Testcontainers Redis integration test asserts add/get/expire after 24h TTL.
+- [x] 10.1 Add `RedisConversationStore` impl of `ConversationStore` protocol; selected when `REDIS_URL` env is set. Testcontainers Redis integration test asserts add/get/expire after 24h TTL. (Integration test spins a real `redis:7-alpine` container via the `docker` CLI rather than the `testcontainers` library — that library is not an approved dependency.)
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_conversation_store_redis_integration.py -m integration`
 - [ ] 10.2 Add Ktor `rateLimit` plugin to gateway routes `/api/v1/insights/chat` and `/api/v1/insights/queries/*/run` — 10 req / user / minute keyed by JWT `sub`. 429 on breach. Acceptance test asserts 429 behaviour.
       Acceptance: `./gradlew :gateway:acceptanceTest --tests "*CopilotRateLimitAcceptanceTest"`
