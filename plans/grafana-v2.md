@@ -225,7 +225,7 @@ not stop mid-loop:
       default `time` range `now-1h`, consistent `timezone`, and a folder-aligned
       `tags` entry (`infrastructure`/`overview`/`trading`/`risk`).
       Acceptance: `node plans/scripts/validate-grafana.mjs`
-- [ ] 3.2 Add a `$datasource` template variable (type `datasource`) to every
+- [x] 3.2 Add a `$datasource` template variable (type `datasource`) to every
       dashboard and repoint every panel `datasource` to `${datasource}`, so
       dashboards are portable across Prometheus/Loki instances.
       Acceptance: `node plans/scripts/validate-grafana.mjs`
