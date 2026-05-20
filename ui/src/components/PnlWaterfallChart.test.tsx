@@ -114,13 +114,15 @@ describe('PnlWaterfallChart', () => {
   })
 
   it('attaches the attribution date and top-N drivers to the explain page_context', async () => {
-    const chatFn = vi.fn(() => fakeChatStream())
+    const chatFn = vi.fn<(req: ChatRequest) => ReadableStream<ChatChunk>>(
+      () => fakeChatStream(),
+    )
     render(<PnlWaterfallChart data={attribution} chatFn={chatFn} />)
 
     await userEvent.click(screen.getByTestId('explain-pnl-attribution'))
 
     expect(chatFn).toHaveBeenCalledTimes(1)
-    const request = chatFn.mock.calls[0][0] as ChatRequest
+    const request = chatFn.mock.calls[0][0]
     const ctx = request.page_context as Record<string, unknown>
     expect(ctx.page).toBe('pnl-attribution')
     expect(ctx.date).toBe('2025-01-15')

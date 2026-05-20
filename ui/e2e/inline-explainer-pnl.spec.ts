@@ -200,7 +200,7 @@ test.describe('Inline explainer — P&L attribution chart', () => {
     await expect(page.getByTestId('pnl-explain-panel')).toBeVisible()
 
     expect(captured).not.toBeNull()
-    const ctx = captured as Record<string, unknown>
+    const ctx = (captured ?? {}) as Record<string, unknown>
     expect(ctx.page).toBe('pnl-attribution')
     expect(ctx.date).toBe('2026-05-19')
     expect(ctx.book_id).toBe('port-1')
