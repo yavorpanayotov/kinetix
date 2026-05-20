@@ -169,7 +169,7 @@ not stop mid-loop:
       denominator (`clamp_min(abs(pnl_attribution_total_pnl{...}), 1)`) so a flat
       book shows 0%, not "No data".
       Acceptance: `node plans/scripts/validate-grafana.mjs`
-- [ ] 1.4 Across all 14 dashboards, set `fieldConfig.defaults.noValue` on every
+- [x] 1.4 Across all 14 dashboards, set `fieldConfig.defaults.noValue` on every
       `stat`/`gauge`/`bargauge` panel, and stop service-health stat panels from
       using `lastNotNull` alone (add a companion `up`-based health panel or a
       window-aware reducer) so a service that has gone down is not rendered green
