@@ -31,6 +31,7 @@ from .push.kafka_consumer import IntradayKafkaConsumer
 from .push.threshold_evaluator import IntradayThresholdEvaluator
 from .routes.brief import router as brief_router
 from .routes.chat import router as chat_router
+from .routes.metrics import router as metrics_router
 from .routes.report_commentary import router as report_router
 from .routes.saved_queries import router as saved_queries_router
 from .routes.var_explainer import router as var_router
@@ -149,6 +150,7 @@ app.include_router(mcp_health_router)
 app.include_router(chat_router)
 app.include_router(brief_router)
 app.include_router(saved_queries_router)
+app.include_router(metrics_router)
 
 
 @app.get("/health")
