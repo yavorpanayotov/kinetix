@@ -171,7 +171,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
       Acceptance: `./gradlew :position-service:acceptanceTest --tests "*LimitBreachEventWriterAcceptanceTest"`
 - [x] 6.3 Add MCP tool `get_recent_breaches(book_id, since?)` in `ai-insights-service/.../mcp/tools/` reading from `limit_breach_events` via position-service HTTP API. Unit test against `FakeKinetixHttpClient`.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_tool_get_recent_breaches.py -m unit`
-- [ ] 6.4 Add MCP tool `search_audit_log(query, since?, until?, book_id?)` reading audit-service `audit_events` with mandatory time-range. Unit test asserts time-range default of 7 days when omitted.
+- [x] 6.4 Add MCP tool `search_audit_log(query, since?, until?, book_id?)` reading audit-service `audit_events` with mandatory time-range. Unit test asserts time-range default of 7 days when omitted.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_tool_search_audit_log.py -m unit`
 - [ ] 6.5 Add `MorningBriefGenerator` in `src/kinetix_insights/brief/generator.py`: per-book iteration over `get_book_var`, `get_pnl_attribution`, `get_recent_breaches`, `get_limit_utilisation`, `get_greeks_summary` deltas vs SOD; assembles `MorningBrief{sections[{title, narrative, bullets, sources, severity}], generated_at, mode}`. Per-book errors do NOT abort the batch — surface as `status: timeout/error` sections.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_morning_brief_generator.py -m unit`
