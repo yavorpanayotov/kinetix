@@ -252,7 +252,7 @@ not stop mid-loop:
 Each item instruments the owning service (TDD) where new metrics are needed and
 adds the dashboard in the same commit — one self-contained feature per checkbox.
 
-- [ ] 4.1 Add a dedicated `overview/gateway.json` dashboard built from the ktor
+- [x] 4.1 Add a dedicated `overview/gateway.json` dashboard built from the ktor
       metrics the gateway already exposes: request rate, 4xx/5xx error rate,
       latency percentiles by route, upstream service-call latency, in-flight
       requests. No new instrumentation required.
