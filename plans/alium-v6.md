@@ -130,7 +130,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       `:end2end-tests:end2EndTest`/`:loadTest`/`:gateway:loadTest` and exhausts
       Postgres connections running every module's acceptanceTest in parallel).
 
-- [ ] 1.3 SA-CCR per-netting-set computation. `SaCcrService.kt:44` synthesises one
+- [x] 1.3 SA-CCR per-netting-set computation. `SaCcrService.kt:44` synthesises one
       fake netting set `"$counterpartyId-SA-CCR"`; rewrite to group trades by their
       real ISDA/GMRA netting agreement, mirroring the MC PFE pipeline
       (`CounterpartyRiskOrchestrationService.kt:99-112`). `SaCcrRoutes.kt` gains a
