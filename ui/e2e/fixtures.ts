@@ -2484,6 +2484,57 @@ export async function insightsMock(
   })
 }
 
+/**
+ * Mocks POST /api/v1/insights/chat with a deterministic multi-chunk
+ * Server-Sent Events body so Playwright specs can exercise the v2
+ * copilot surface (CommandPalette copilot zone, StreamingNarrative,
+ * CitationList) without a live ai-insights-service.
+ *
+ * The body emits, in order: two `delta` frames (incremental tokens),
+ * one `event: source` frame carrying a JSON ARRAY of one Citation, and
+ * a terminal `done` frame with `mode:"canned"` so the demo-mode badge
+ * renders. Frame shapes mirror the wire contract parsed by `chat()` in
+ * `ui/src/api/copilot.ts`. Opt-in — only specs that need the copilot
+ * surface should call it.
+ */
+export async function chatMockCanned(page: Page): Promise<void> {
+  const citation = {
+    tool: 'get_book_var',
+    params: { book_id: 'port-1' },
+    result_field: 'total_var',
+    result_value: 5200000,
+    result_currency: 'USD',
+    as_of_timestamp: '2026-05-19T08:00:00Z',
+    data_source: 'risk-orchestrator',
+    freshness_seconds: 120,
+    quality_flags: [],
+  }
+  const body = [
+    'data: {"delta":"Your VaR rose ","done":false}\n\n',
+    'data: {"delta":"on tech beta.","done":false}\n\n',
+    'event: source\ndata: ' + JSON.stringify([citation]) + '\n\n',
+    'data: ' +
+      JSON.stringify({
+        done: true,
+        session_id: 'sess-e2e',
+        conversation_id: 'conv-e2e',
+        model: 'canned-chat',
+        mode: 'canned',
+        citations: [citation],
+      }) +
+      '\n\n',
+  ].join('')
+
+  await page.unroute('**/api/v1/insights/chat')
+  await page.route('**/api/v1/insights/chat', async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/event-stream',
+      body,
+    })
+  })
+}
+
 // ---------------------------------------------------------------------------
 // Brinson attribution fixture data and mock helpers
 // ---------------------------------------------------------------------------

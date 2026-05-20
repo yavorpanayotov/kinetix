@@ -965,6 +965,7 @@ function AppContent() {
         open={commandPaletteOpen}
         onClose={() => setCommandPaletteOpen(false)}
         items={commandPaletteItems}
+        copilotMode
       />
 
       <HedgeRecommendationPanel

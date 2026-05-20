@@ -132,10 +132,25 @@ export function CommandPalette({
   const [copilotStream, setCopilotStream] = useState<ReadableStream<ChatChunk> | null>(null)
   const [copilotCitations, setCopilotCitations] = useState<Citation[]>([])
   const [copilotAnswered, setCopilotAnswered] = useState(false)
+  // `copilotMode'` here is the *completion* mode reported by the terminal
+  // chunk (`live` | `canned`), distinct from the `copilotMode` prop. It
+  // gates the demo-mode badge — a canned (offline) answer is flagged so
+  // the operator knows the response did not come from a live model.
+  const [copilotCompletionMode, setCopilotCompletionMode] = useState<
+    'live' | 'canned' | null
+  >(null)
   const [followup, setFollowup] = useState('')
 
   // Reset state every time the palette opens. The DOM is mounted by the time
   // this effect fires, so focus can move synchronously.
+  //
+  // The copilot stream is also torn down when the palette *closes*. The
+  // component itself stays mounted (it renders `null` while closed), so
+  // `copilotStream` state would otherwise survive a close/reopen cycle —
+  // and the stale, already-consumed `ReadableStream` would be handed to
+  // a freshly-mounted <StreamingNarrative> on the next open's first
+  // render (before this effect re-runs), throwing "stream is locked".
+  // Clearing it on close guarantees the reopen render starts clean.
   useEffect(() => {
     if (open) {
       setQuery('')
@@ -144,8 +159,15 @@ export function CommandPalette({
       setCopilotStream(null)
       setCopilotCitations([])
       setCopilotAnswered(false)
+      setCopilotCompletionMode(null)
       setFollowup('')
       inputRef.current?.focus()
+    } else {
+      setCopilotStream(null)
+      setCopilotCitations([])
+      setCopilotAnswered(false)
+      setCopilotCompletionMode(null)
+      setFollowup('')
     }
   }, [open])
 
@@ -226,6 +248,7 @@ export function CommandPalette({
     if (trimmed.length === 0) return
     setCopilotCitations([])
     setCopilotAnswered(false)
+    setCopilotCompletionMode(null)
     setCopilotStream(chatFn({ message: trimmed, page_context: {} }))
   }
 
@@ -420,11 +443,20 @@ export function CommandPalette({
                 <StreamingNarrative
                   stream={copilotStream}
                   ariaLabel="Copilot answer"
-                  onComplete={({ citations }) => {
+                  onComplete={({ citations, mode }) => {
                     setCopilotCitations(citations)
                     setCopilotAnswered(true)
+                    setCopilotCompletionMode(mode)
                   }}
                 />
+                {copilotCompletionMode === 'canned' && (
+                  <span
+                    data-testid="command-palette-copilot-demo-badge"
+                    className="mt-2 inline-block rounded bg-amber-100 dark:bg-amber-900/30 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:text-amber-300"
+                  >
+                    Demo mode
+                  </span>
+                )}
                 {copilotCitations.length > 0 && (
                   <div data-testid="command-palette-copilot-citations">
                     <CitationList citations={copilotCitations} />

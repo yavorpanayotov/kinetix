@@ -60,6 +60,26 @@ export interface StreamingNarrativeProps {
 const FLUSH_MIN_GAP_MS = 50
 
 /**
+ * The single live pump session for a given stream, used to coordinate
+ * React 18 StrictMode's double-invocation of the stream effect (see the
+ * ``sessionRef`` comment in ``StreamingNarrative``).
+ *
+ * - ``stream`` — identity key; an effect run against the same stream is
+ *   the StrictMode echo and must not start a second pump.
+ * - ``reader`` — the sole reader holding the stream's lock.
+ * - ``cancelled`` — shared (not per-closure) abort flag the pump checks;
+ *   only a real teardown flips it.
+ * - ``teardownScheduled`` — a cleanup deferred its ``reader.cancel()`` to
+ *   a microtask; the immediately-following echo run vetoes it.
+ */
+interface StreamSession {
+  stream: ReadableStream<ChatChunk>
+  reader: ReadableStreamDefaultReader<ChatChunk>
+  cancelled: boolean
+  teardownScheduled: boolean
+}
+
+/**
  * Stable key for a ``Citation`` — combines the three fields that
  * collectively identify a unique "this tool returned this field with
  * this value" provenance record. ``params`` is intentionally not part
@@ -82,6 +102,36 @@ function mergeUniqueCitations(prev: Citation[], next: Citation[]): Citation[] {
     out.push(c)
   }
   return out
+}
+
+/**
+ * Defer a ``StreamSession`` teardown by one microtask.
+ *
+ * React 18 StrictMode runs the stream effect's cleanup, then immediately
+ * (synchronously) re-runs the effect. By deferring the cancel to a
+ * microtask we give that re-run a chance to veto it (by clearing
+ * ``teardownScheduled``) — so the StrictMode echo does not kill the lone
+ * live pump. A genuine unmount has no following re-run, so the microtask
+ * fires and the reader is cancelled. The pending RAF is cancelled
+ * synchronously either way (cheap and idempotent).
+ */
+function scheduleSessionTeardown(
+  sessionRef: React.MutableRefObject<StreamSession | null>,
+  session: StreamSession,
+  rafRef: React.MutableRefObject<number | null>,
+): void {
+  if (rafRef.current !== null) {
+    cancelAnimationFrame(rafRef.current)
+    rafRef.current = null
+  }
+  session.teardownScheduled = true
+  queueMicrotask(() => {
+    // Vetoed by a synchronous re-run of the effect (StrictMode echo).
+    if (!session.teardownScheduled) return
+    session.cancelled = true
+    void session.reader.cancel().catch(() => undefined)
+    if (sessionRef.current === session) sessionRef.current = null
+  })
 }
 
 /**
@@ -157,6 +207,21 @@ export function StreamingNarrative({
   // we keep the guarantee that exactly one invocation happens.
   const completedRef = useRef(false)
 
+  // StrictMode double-mount coordination. React 18 StrictMode runs the
+  // stream effect twice in development: run #1 acquires a reader and
+  // starts the pump, run #1's cleanup fires, then run #2 executes
+  // against the *same* stream prop. A ``ReadableStream`` can only be
+  // read by one reader at a time and ``reader.cancel()`` does not
+  // synchronously release the lock — so naively re-running would throw
+  // "stream is locked" or split chunks across two competing pumps.
+  //
+  // ``sessionRef`` records the single live pump session keyed by stream
+  // identity: the second effect run detects the echo, leaves the first
+  // run's pump untouched, and vetoes the deferred teardown so the lone
+  // pump survives to completion. A genuine unmount (or a new stream)
+  // still tears the session down cleanly.
+  const sessionRef = useRef<StreamSession | null>(null)
+
   useEffect(() => {
     mountedRef.current = true
     return () => {
@@ -177,6 +242,20 @@ export function StreamingNarrative({
       return
     }
 
+    // StrictMode echo: this effect run is the second invocation against
+    // the *same* stream. A pump is already live for it — veto the
+    // previous run's deferred teardown and leave everything else
+    // untouched (no state reset, no second reader, no second pump).
+    const existing = sessionRef.current
+    if (existing && existing.stream === stream) {
+      existing.teardownScheduled = false
+      return () => {
+        // Re-arm the deferred teardown so a genuine later unmount still
+        // cancels the reader.
+        scheduleSessionTeardown(sessionRef, existing, rafRef)
+      }
+    }
+
     setState('skeleton')
     accumulatorRef.current = ''
     citationsBufferRef.current = []
@@ -186,8 +265,14 @@ export function StreamingNarrative({
     setCitations([])
     setErrorCode(undefined)
 
-    let cancelled = false
-    const reader = stream.getReader()
+    const session: StreamSession = {
+      stream,
+      reader: stream.getReader(),
+      cancelled: false,
+      teardownScheduled: false,
+    }
+    sessionRef.current = session
+    const reader = session.reader
 
     /**
      * Schedule a flush of the accumulator into state. Coalesces
@@ -200,7 +285,7 @@ export function StreamingNarrative({
       if (rafRef.current !== null) return
       rafRef.current = requestAnimationFrame(() => {
         rafRef.current = null
-        if (!mountedRef.current || cancelled) return
+        if (!mountedRef.current || session.cancelled) return
         const now = Date.now()
         if (now - lastFlushRef.current < FLUSH_MIN_GAP_MS) {
           // Throttle gate not elapsed — wait one more frame.
@@ -219,7 +304,7 @@ export function StreamingNarrative({
     }
 
     const finishWithError = (code: string) => {
-      if (!mountedRef.current || cancelled) return
+      if (!mountedRef.current || session.cancelled) return
       // Force a final flush so any buffered tokens are visible alongside
       // the error banner.
       setRenderedText(accumulatorRef.current)
@@ -244,7 +329,7 @@ export function StreamingNarrative({
       try {
         for (;;) {
           const { done, value } = await reader.read()
-          if (done || cancelled || !mountedRef.current) return
+          if (done || session.cancelled || !mountedRef.current) return
           if (value.type === 'delta') {
             const wasEmpty = accumulatorRef.current === ''
             accumulatorRef.current += value.delta
@@ -269,7 +354,7 @@ export function StreamingNarrative({
             // citations before any narrative has appeared.
             scheduleFlush()
           } else if (value.type === 'done') {
-            if (!mountedRef.current || cancelled) return
+            if (!mountedRef.current || session.cancelled) return
             // Cancel any pending RAF so we don't race with our final
             // setState below.
             if (rafRef.current !== null) {
@@ -306,12 +391,12 @@ export function StreamingNarrative({
     void pump()
 
     return () => {
-      cancelled = true
-      void reader.cancel().catch(() => undefined)
-      if (rafRef.current !== null) {
-        cancelAnimationFrame(rafRef.current)
-        rafRef.current = null
-      }
+      // Defer the actual teardown by one microtask. Under StrictMode the
+      // re-running effect executes synchronously *before* this microtask
+      // and vetoes ``teardownScheduled`` — so we only cancel the reader
+      // on a real unmount (or a stream swap), never on the StrictMode
+      // echo, keeping the lone pump and its lock intact.
+      scheduleSessionTeardown(sessionRef, session, rafRef)
     }
     // ``onComplete`` is intentionally NOT a dependency — capturing it
     // once per stream is fine and avoids tearing the pump down when

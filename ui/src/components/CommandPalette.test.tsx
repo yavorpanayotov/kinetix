@@ -611,4 +611,61 @@ describe('CommandPalette — copilot mode', () => {
       screen.queryByTestId('command-palette-copilot-zone'),
     ).not.toBeInTheDocument()
   })
+
+  it('renders a Demo mode badge after a canned (offline) stream completes', async () => {
+    const chatFn = vi.fn<ChatFn>(
+      (): ReadableStream<ChatChunk> =>
+        streamOf({ type: 'delta', delta: 'A canned answer.' }, {
+          ...doneChunk,
+          model: 'canned-chat',
+          mode: 'canned',
+        }),
+    )
+    render(
+      <CommandPalette
+        open={true}
+        onClose={vi.fn()}
+        items={buildItems(vi.fn())}
+        copilotMode
+        chatFn={chatFn}
+      />,
+    )
+    const input = screen.getByTestId('command-palette-input')
+    fireEvent.change(input, { target: { value: 'zzznomatch help' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('command-palette-copilot-demo-badge'),
+      ).toHaveTextContent('Demo mode'),
+    )
+  })
+
+  it('does not render the Demo mode badge when the stream completes in live mode', async () => {
+    const chatFn = vi.fn<ChatFn>(
+      (): ReadableStream<ChatChunk> =>
+        streamOf({ type: 'delta', delta: 'A live answer.' }, doneChunk),
+    )
+    render(
+      <CommandPalette
+        open={true}
+        onClose={vi.fn()}
+        items={buildItems(vi.fn())}
+        copilotMode
+        chatFn={chatFn}
+      />,
+    )
+    const input = screen.getByTestId('command-palette-input')
+    fireEvent.change(input, { target: { value: 'zzznomatch help' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('streaming-narrative-text'),
+      ).toHaveTextContent('A live answer.'),
+    )
+    expect(
+      screen.queryByTestId('command-palette-copilot-demo-badge'),
+    ).not.toBeInTheDocument()
+  })
 })
