@@ -257,7 +257,7 @@ adds the dashboard in the same commit — one self-contained feature per checkbo
       latency percentiles by route, upstream service-call latency, in-flight
       requests. No new instrumentation required.
       Acceptance: `node plans/scripts/validate-grafana.mjs && test -f infra/grafana/provisioning/dashboards/overview/gateway.json`
-- [ ] 4.2 Instrument `position-service` with exposure metrics (`position_notional`,
+- [x] 4.2 Instrument `position-service` with exposure metrics (`position_notional`,
       `position_count`, top-N concentration gauges by instrument/book) and add a
       `trading/position-concentration.json` dashboard showing net exposure,
       long/short split, and top-10 concentrations. TDD.
