@@ -20,6 +20,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 from starlette.responses import StreamingResponse
 
+from kinetix_insights.audit.audit_context import AuditContext
 from kinetix_insights.chat.canned import CopilotChatClient
 from kinetix_insights.chat.models import ChatRequest
 from kinetix_insights.chat.sse import ensure_ids, stream_chat_response
@@ -27,10 +28,31 @@ from kinetix_insights.chat.sse import ensure_ids, stream_chat_response
 router = APIRouter(prefix="/api/v1/insights", tags=["chat"])
 
 
+def _user_id_from_request(request: Request) -> str:
+    """Resolve the calling trader id from the ``X-User-Id`` header.
+
+    The gateway forwards the JWT ``sub`` as ``X-User-Id``. A missing
+    header yields ``"anonymous"`` — the unauthenticated demo path — so
+    the audit line always carries a ``user_id``.
+    """
+
+    return request.headers.get("X-User-Id") or "anonymous"
+
+
 @router.post("/chat")
 async def chat(request: Request, body: ChatRequest) -> StreamingResponse:
-    """Stream a conversational chat response as SSE frames."""
+    """Stream a conversational chat response as SSE frames.
+
+    Emits exactly one structured audit log line (checkbox 10.3) once the
+    stream completes — see :func:`kinetix_insights.chat.sse.
+    stream_chat_response`.
+    """
 
     chat_client: CopilotChatClient = request.app.state.chat_client
     body = ensure_ids(body)
-    return stream_chat_response(chat_client, body)
+    audit = AuditContext(
+        user_id=_user_id_from_request(request),
+        endpoint="chat",
+        prompt=body.message,
+    )
+    return stream_chat_response(chat_client, body, audit=audit)

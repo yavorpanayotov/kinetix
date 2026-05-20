@@ -19,18 +19,40 @@ so the framing lives here once rather than being duplicated per route:
 The framing is request-model agnostic: it takes the resolved session and
 conversation ids directly rather than a :class:`ChatRequest`, so any
 route that already owns a chat request can reuse it.
+
+Audit logging
+-------------
+Both streaming routes are audited (checkbox 10.3). When the caller
+passes an :class:`~kinetix_insights.audit.audit_context.AuditContext`,
+the streamer measures wall-clock latency, accumulates the tool calls
+seen in chunk citations, captures the terminal ``mode`` stamp, estimates
+the token count from the prompt plus the streamed text, and emits
+exactly ONE :class:`~kinetix_insights.audit.audit_record.AuditRecord`
+once the stream is fully drained. The audit emission lives here — once —
+so chat and the saved-query run get an identical, single audit line
+without each route duplicating the bookkeeping.
 """
 
 from __future__ import annotations
 
 import json
+import time
 import uuid
 from collections.abc import AsyncIterator
+from datetime import datetime, timezone
 
 from starlette.responses import StreamingResponse
 
+from kinetix_insights.audit.audit_context import AuditContext
+from kinetix_insights.audit.audit_logger import AuditLogger
+from kinetix_insights.audit.audit_record import AuditRecord
+from kinetix_insights.audit.token_estimate import estimate_tokens
 from kinetix_insights.chat.canned import CopilotChatClient
 from kinetix_insights.chat.models import ChatChunk, ChatRequest
+
+# Shared audit logger for the streaming routes. The logger holds no
+# per-request state, so a module-level singleton is safe.
+_AUDIT_LOGGER = AuditLogger()
 
 # Headers that keep nginx / Cloudflare from buffering the stream; the
 # generator yields each frame as soon as it is built.
@@ -85,8 +107,27 @@ def _serialise_citations(chunk: ChatChunk) -> str:
     return json.dumps([c.model_dump(mode="json") for c in citations])
 
 
+def _tool_calls_from_chunk(chunk: ChatChunk) -> list[str]:
+    """Return the distinct MCP tool names cited in a chunk, in order.
+
+    Each :class:`~kinetix_insights.citations.models.Citation` names the
+    tool that produced its value; the audit trail records the set of
+    tools a call touched. Duplicates within one chunk are collapsed.
+    """
+
+    seen: list[str] = []
+    for citation in chunk.citations or []:
+        if citation.tool not in seen:
+            seen.append(citation.tool)
+    return seen
+
+
 def stream_chat_response(
-    chat_client: CopilotChatClient, body: ChatRequest
+    chat_client: CopilotChatClient,
+    body: ChatRequest,
+    *,
+    audit: AuditContext | None = None,
+    audit_logger: AuditLogger | None = None,
 ) -> StreamingResponse:
     """Stream a ``CopilotChatClient`` response as an SSE ``StreamingResponse``.
 
@@ -95,10 +136,30 @@ def stream_chat_response(
     ``data:`` frame; a chunk with citations is preceded by an
     ``event: source`` frame; the terminal chunk's payload is merged with
     the resolved ids.
+
+    When ``audit`` is supplied, exactly one
+    :class:`~kinetix_insights.audit.audit_record.AuditRecord` is emitted
+    once the stream is fully drained — capturing the tool calls seen, the
+    terminal ``mode``, the estimated tokens, and the wall-clock latency.
+    ``audit_logger`` is injectable for tests; production uses the shared
+    module-level logger.
     """
 
+    logger = audit_logger or _AUDIT_LOGGER
+
     async def event_stream() -> AsyncIterator[bytes]:
+        started = time.monotonic()
+        tool_calls: list[str] = []
+        deltas: list[str] = []
+        mode: str | None = None
         async for chunk in chat_client.chat(body):
+            for tool in _tool_calls_from_chunk(chunk):
+                if tool not in tool_calls:
+                    tool_calls.append(tool)
+            if chunk.delta:
+                deltas.append(chunk.delta)
+            if chunk.mode is not None:
+                mode = chunk.mode
             if chunk.citations:
                 src_data = _serialise_citations(chunk)
                 yield f"event: source\ndata: {src_data}\n\n".encode("utf-8")
@@ -111,6 +172,23 @@ def stream_chat_response(
             else:
                 data = chunk.model_dump_json(exclude_none=True)
             yield f"data: {data}\n\n".encode("utf-8")
+
+        if audit is not None:
+            latency_ms = (time.monotonic() - started) * 1000.0
+            logger.emit(
+                AuditRecord(
+                    user_id=audit.user_id,
+                    endpoint=audit.endpoint,
+                    prompt_hash=AuditRecord.hash_prompt(audit.prompt),
+                    tool_calls=tool_calls,
+                    tokens_estimated=estimate_tokens(
+                        audit.prompt, *deltas
+                    ),
+                    mode=mode or "unknown",
+                    latency_ms=latency_ms,
+                    timestamp=datetime.now(timezone.utc),
+                )
+            )
 
     return StreamingResponse(
         event_stream(),

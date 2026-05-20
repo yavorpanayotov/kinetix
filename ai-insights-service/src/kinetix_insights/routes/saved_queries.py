@@ -24,6 +24,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Request
 from starlette.responses import StreamingResponse
 
+from kinetix_insights.audit.audit_context import AuditContext
 from kinetix_insights.chat.canned import CopilotChatClient
 from kinetix_insights.chat.models import ChatRequest
 from kinetix_insights.chat.sse import ensure_ids, stream_chat_response
@@ -66,4 +67,12 @@ async def run_saved_query(
             conversation_id=body.conversation_id,
         )
     )
-    return stream_chat_response(chat_client, chat_request)
+    # Audited as the "query" endpoint (checkbox 10.3) — distinct from a
+    # free-form "chat" call even though both stream through the same
+    # client. The interpolated prompt's hash, not the raw text, is logged.
+    audit = AuditContext(
+        user_id=request.headers.get("X-User-Id") or "anonymous",
+        endpoint="query",
+        prompt=prompt,
+    )
+    return stream_chat_response(chat_client, chat_request, audit=audit)

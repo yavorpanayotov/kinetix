@@ -45,8 +45,12 @@ import asyncio
 import contextlib
 import json
 import logging
+import time
+from datetime import datetime, timezone
 from typing import Any, Protocol, runtime_checkable
 
+from kinetix_insights.audit.audit_logger import AuditLogger
+from kinetix_insights.audit.audit_record import AuditRecord
 from kinetix_insights.clients.kinetix_http_client import KinetixHttpError
 from kinetix_insights.push.threshold_evaluator import (
     IntradayAlert,
@@ -54,6 +58,10 @@ from kinetix_insights.push.threshold_evaluator import (
 )
 
 logger = logging.getLogger("kinetix_insights.push")
+
+# user_id stamped on a push audit line when no caller identity is wired —
+# the intraday pipeline is system-driven, not a per-request user call.
+_SYSTEM_USER_ID = "system-intraday"
 
 # Topics the consumer subscribes to and the (new, pre-approved) group.
 RISK_RESULTS_TOPIC: str = "risk.results"
@@ -117,6 +125,8 @@ class IntradayKafkaConsumer:
         push_generator: PushGenerator,
         consumer: Any | None = None,
         bootstrap_servers: str = "localhost:9092",
+        user_id: str = _SYSTEM_USER_ID,
+        audit_logger: AuditLogger | None = None,
     ) -> None:
         """Construct the consumer.
 
@@ -132,6 +142,12 @@ class IntradayKafkaConsumer:
                 :meth:`start` — tests always inject a fake.
             bootstrap_servers: Kafka bootstrap servers for the lazily
                 built real consumer. Ignored when ``consumer`` is given.
+            user_id: Identity stamped on each push audit line (checkbox
+                10.3). Defaults to ``"system-intraday"`` — the intraday
+                push pipeline is system-driven, not a per-request user
+                call.
+            audit_logger: Injectable :class:`AuditLogger` for tests;
+                production uses a fresh default.
         """
 
         self._evaluator = evaluator
@@ -140,6 +156,8 @@ class IntradayKafkaConsumer:
         self._bootstrap_servers = bootstrap_servers
         self._task: asyncio.Task[None] | None = None
         self._started = False
+        self._user_id = user_id
+        self._audit_logger = audit_logger or AuditLogger()
 
     async def start(self) -> None:
         """Build (if needed) + start the consumer, then run the consume loop.
@@ -230,6 +248,7 @@ class IntradayKafkaConsumer:
             return
 
         for alert in alerts:
+            started = time.monotonic()
             try:
                 await self._push_generator.handle_alert(alert)
             except Exception:  # noqa: BLE001 - one alert's failure must not drop the rest
@@ -238,3 +257,30 @@ class IntradayKafkaConsumer:
                     alert.alert_type,
                     alert.book_id,
                 )
+            self._emit_push_audit(alert, started=started)
+
+    def _emit_push_audit(self, alert: IntradayAlert, *, started: float) -> None:
+        """Emit exactly one structured audit log line for a push call.
+
+        A push has no free-form prompt — the audit trail hashes the
+        ``alert_type:book_id`` marker so repeated alerts for the same
+        book correlate. ``tool_calls`` records the two sources the
+        intraday evaluation reads (the threshold-config tool and the
+        ``risk.results`` event); ``mode`` is ``"push"`` to mark the
+        system-driven origin.
+        """
+
+        latency_ms = (time.monotonic() - started) * 1000.0
+        marker = f"{alert.alert_type}:{alert.book_id}"
+        self._audit_logger.emit(
+            AuditRecord(
+                user_id=self._user_id,
+                endpoint="push",
+                prompt_hash=AuditRecord.hash_prompt(marker),
+                tool_calls=["get_alert_thresholds", "risk.results"],
+                tokens_estimated=0,
+                mode="push",
+                latency_ms=latency_ms,
+                timestamp=datetime.now(timezone.utc),
+            )
+        )

@@ -122,6 +122,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             user=_DEMO_INTRADAY_USER,
         ),
         push_generator=build_intraday_push_generator(sink=push_sink),
+        user_id=_DEMO_INTRADAY_USER.user_id,
     )
     if _kafka_enabled():
         await app.state.kafka_consumer.start()
