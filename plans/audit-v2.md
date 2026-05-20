@@ -155,7 +155,7 @@ Give users and support a screen — no LogQL required.
       Acceptance: `cd ui && npm run test -- AuditLogPanel`
 - [x] 8.3 Add an "Activity" top-level tab to `App.tsx` rendering `<AuditLogPanel>`.
       Acceptance: `cd ui && npm run lint && npm run test -- App`
-- [ ] 8.4 Add a Playwright E2E spec `ui/e2e/audit-log.spec.ts` covering empty state, data rendering, filtering by trade ID, and the API error path (mock routes per `ui/e2e/fixtures.ts`).
+- [x] 8.4 Add a Playwright E2E spec `ui/e2e/audit-log.spec.ts` covering empty state, data rendering, filtering by trade ID, and the API error path (mock routes per `ui/e2e/fixtures.ts`).
       Acceptance: `cd ui && npx playwright test e2e/audit-log.spec.ts`
 
 ### PR 9 — Wire NotificationStrip to live events
