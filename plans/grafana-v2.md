@@ -197,6 +197,28 @@ not stop mid-loop:
       `PendingNewCorrelator`), `fix_message_log_partitions_archived_total`. TDD —
       Kotest assertions that each is registered, wired at the real call sites.
       Acceptance: `./gradlew :fix-gateway:test`
+      Blocked: 2026-05-20 — only 4 of the 5 metrics could be instrumented.
+      `fix_messages_out_total`, `cancel_ack_latency_seconds`, `cancel_failed_total`,
+      and `unacknowledged_outbound_total` were wired at real call sites
+      (`FixGatewayServiceImpl`, `PendingNewCorrelator`) with TDD coverage and are
+      committed to `main` (the code landed in commit `ca756c41`; `./gradlew
+      :fix-gateway:test` is BUILD SUCCESSFUL, 119 tests). The 5th metric,
+      `fix_message_log_partitions_archived_total`, CANNOT be wired: there is no
+      partition-archival code path anywhere in `fix-gateway` — the only reference
+      is an SQL comment in `V2__fix_session_state.sql` describing a hypothetical
+      nightly "detach partitions older than 90 days for S3 archive" job that does
+      not exist. The plan's "FIX Gateway scope" decision assumed message-log
+      archival code already exists; it does not. Instrumenting this metric
+      requires first BUILDING the archival feature — new product work needing
+      explicit architectural approval (CLAUDE.md guardrail). DECISION NEEDED from
+      the plan owner, pick one: (a) descope `fix_message_log_partitions_archived_total`
+      from 2.2 — treat its dashboard panel as a "not yet instrumented" placeholder
+      the same way 2.3 handles the ghost-fill/mTLS panels — then tick 2.2; or
+      (b) approve building FIX message-log partition archival as separate product
+      work and add a checkbox for it before 2.2 can complete. Also note: the
+      `unacknowledged_outbound_total` gauge exports as `unacknowledged_outbound`
+      (Prometheus strips the `_total` suffix from gauges) — the dashboard panel's
+      PromQL needs the `_total` dropped (a 2.3-side JSON edit).
 - [ ] 2.3 `trading/fix-gateway-overview.json` — replace the
       `ghost_fill_detected_total` and `mtls_handshake_failed_total` panels (no
       ghost-fill-detection or mTLS code exists) with clearly-labelled `text`
