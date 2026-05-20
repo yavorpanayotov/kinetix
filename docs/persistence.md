@@ -1518,6 +1518,44 @@ Price Service ──price.updates──▶ Risk Orchestrator (recalculate VaR fo
 
 ---
 
+## Data Retention Policies
+
+All retention policies — for both the per-service databases and the observability
+stack — are listed here so they can be reviewed in one place. Database retention
+is enforced by TimescaleDB `add_retention_policy` calls inside Flyway migrations;
+observability retention is configured in the Helm `observability` sub-chart values
+(`deploy/helm/kinetix/charts/observability/values.yaml`).
+
+### Database retention (PostgreSQL / TimescaleDB)
+
+| Store | Table / data | Retention | Configured in |
+|-------|--------------|-----------|---------------|
+| `kinetix_price` | `prices` raw chunks | 2 years | `db/price/V3` |
+| `kinetix_risk` | `valuation_jobs` | 7 years | `db/risk/V17` |
+| `kinetix_audit` | `audit_events` | 7 years (regulatory requirement) | `db/audit/` |
+| `kinetix_rates` | `yield_curves` | retention policy applied | `db/rates/V2` |
+| `kinetix_volatility` | `volatility_surfaces` | retention policy applied | `db/volatility/V3` |
+| `kinetix_notification` | `alert_events` | retention policy applied | `db/notification/V3` |
+
+Tables not listed above have no automatic retention — they are reference data,
+governance records, or content-addressed stores that are retained indefinitely
+by design.
+
+### Observability retention (Loki / Tempo)
+
+| Store | Data | Retention | Configured in |
+|-------|------|-----------|---------------|
+| Loki | Application logs | 90 days (`2160h`) | `observability/values.yaml` → `loki.loki.limits_config.retention_period` (compactor `retention_enabled`) |
+| Tempo | Distributed traces | 30 days (`720h`) | `observability/values.yaml` → `tempo.tempo.compactor.compaction.block_retention` |
+
+Without explicit retention both Loki and Tempo keep data indefinitely, so the
+filesystem-backed stores grow without bound. Loki retention requires the
+compactor to run with `retention_enabled: true`; Tempo retention is enforced by
+its compactor dropping trace blocks older than `block_retention`. Prometheus
+metrics retention is managed by the `kube-prometheus-stack` umbrella chart.
+
+---
+
 ## Common Patterns
 
 ### DatabaseFactory

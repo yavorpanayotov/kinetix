@@ -152,6 +152,16 @@ loki:
       replication_factor: 1
     storage:
       type: filesystem
+    # Log retention: 90 days. Without this Loki keeps logs indefinitely
+    # and the filesystem store grows without bound. The compactor must be
+    # enabled with retention_enabled for limits_config.retention_period to
+    # take effect. See docs/persistence.md "Data Retention Policies".
+    limits_config:
+      retention_period: 2160h # 90 days
+    compactor:
+      retention_enabled: true
+      retention_delete_delay: 2h
+      delete_request_store: filesystem
   singleBinary:
     replicas: 1
     resources:
@@ -168,6 +178,13 @@ tempo:
     storage:
       trace:
         backend: local
+    # Trace retention: 30 days. The Tempo compactor drops trace blocks
+    # older than block_retention; the default leaves blocks indefinitely.
+    # See docs/persistence.md "Data Retention Policies".
+    retention: 720h # 30 days
+    compactor:
+      compaction:
+        block_retention: 720h # 30 days
     resources:
       requests:
         cpu: 100m
