@@ -188,7 +188,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
 
 ### PR 7 — Intraday push: Kafka consumer + WebSocket + UI
 
-- [ ] 7.1 Flyway migration `risk-orchestrator/.../V???__create_copilot_alert_thresholds.sql` creating `copilot_alert_thresholds(id, scope_type ENUM(GLOBAL,BOOK,USER), scope_id NULL, alert_type, threshold_value, cooldown_minutes)` with composite index `(scope_type, scope_id, alert_type)`. Seed 10 global defaults (VaR 5%, position delta $500K, vol inversion 2vp, gamma 15%, limit 80%, counterparty $10M, price 3σ, unexplained P&L $100K, regime change, diversification 20%).
+- [x] 7.1 Flyway migration `risk-orchestrator/.../V???__create_copilot_alert_thresholds.sql` creating `copilot_alert_thresholds(id, scope_type ENUM(GLOBAL,BOOK,USER), scope_id NULL, alert_type, threshold_value, cooldown_minutes)` with composite index `(scope_type, scope_id, alert_type)`. Seed 10 global defaults (VaR 5%, position delta $500K, vol inversion 2vp, gamma 15%, limit 80%, counterparty $10M, price 3σ, unexplained P&L $100K, regime change, diversification 20%).
       Acceptance: `./gradlew :risk-orchestrator:test --tests "*CopilotAlertThresholdsMigrationTest"`
 - [ ] 7.2 Add `IntradayThresholdEvaluator` in `src/kinetix_insights/push/threshold_evaluator.py`: reads thresholds via new MCP tool `get_alert_thresholds(scope)`; evaluates a `RiskResult` Kafka event against applicable thresholds; emits `(alert_type, severity, book_id, current, threshold, cooldown_key)` or None. Cooldown dedupe via in-memory `cachetools.TTLCache`.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_threshold_evaluator.py -m unit`
