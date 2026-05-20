@@ -177,7 +177,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_morning_brief_generator.py -m unit`
 - [x] 6.6 Add `CannedBriefClient` in `src/kinetix_insights/brief/canned.py` returning a fixture from `fixtures/demo_brief.json`. Add `ClaudeAgentBriefClient` wrapping the generator + SDK summarisation. Factory selects via `DEMO_MODE`.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_brief_factory.py -m unit`
-- [ ] 6.7 Add `GET /api/v1/insights/brief/today` route — returns 200 with brief if generated, 202 with `{status: generating, retry_after}` otherwise. Background lifespan task schedules generation at 06:30 local (cron via `asyncio` sleep loop) and on-demand if not yet generated when first requested today.
+- [x] 6.7 Add `GET /api/v1/insights/brief/today` route — returns 200 with brief if generated, 202 with `{status: generating, retry_after}` otherwise. Background lifespan task schedules generation at 06:30 local (cron via `asyncio` sleep loop) and on-demand if not yet generated when first requested today.
       Acceptance: `cd ai-insights-service && DEMO_MODE=true uv run pytest tests/test_brief_acceptance.py -m unit`
 - [ ] 6.8 Add gateway proxy route for `/api/v1/insights/brief/today` (non-streaming; reuse existing `proxyToInsights`). Acceptance test asserts pass-through with `mode` field preserved.
       Acceptance: `./gradlew :gateway:acceptanceTest --tests "*CopilotBriefRouteAcceptanceTest"`
