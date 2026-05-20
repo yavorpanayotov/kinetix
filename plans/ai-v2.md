@@ -228,7 +228,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
       Acceptance: `cd ui && npm run lint && npx playwright test e2e/inline-explainer-alerts.spec.ts`
 - [x] 9.4 Add `<ExplainButton>` to scenario result rows in `StressTestPanel`. Payload includes scenario name, stressed PnL, top stressed positions. Playwright covers scenario-row explain. (Implemented on `ScenarioComparisonTable` — the live Stress/Scenarios panel; `StressTestPanel` is unmounted dead code with no iterable rows.)
       Acceptance: `cd ui && npm run lint && npx playwright test e2e/inline-explainer-scenarios.spec.ts`
-- [ ] 9.5 Add `<ExplainButton>` to `GreeksPanel` (aggregate Greeks card) and `CorrelationMatrix` (matrix-level explain for correlation breaks). Playwright covers both.
+- [x] 9.5 Add `<ExplainButton>` to `GreeksPanel` (aggregate Greeks card) and `CorrelationMatrix` (matrix-level explain for correlation breaks). Playwright covers both. (Implemented on `RiskSensitivities` + `CorrelationHeatmap` — the actual in-use component names.)
       Acceptance: `cd ui && npm run lint && npx playwright test e2e/inline-explainer-greeks-correlation.spec.ts`
 
 ### PR 10 — Hardening: Redis state, rate limit, audit, telemetry, isolation
