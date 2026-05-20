@@ -180,7 +180,7 @@ Prove the event trail is trustworthy under partial failure.
 
 - [x] 11.1 Add an audit-service acceptance test that inserts a chain with a deliberate sequence-number gap and asserts `/api/v1/audit/gaps` returns the exact missing range.
       Acceptance: `./gradlew :audit-service:acceptanceTest --tests "*AuditGapDetection*"`
-- [ ] 11.2 Add a test asserting duplicate Kafka delivery of the same trade event to the audit consumer does not create two persisted records (idempotency contract).
+- [x] 11.2 Add a test asserting duplicate Kafka delivery of the same trade event to the audit consumer does not create two persisted records (idempotency contract).
       Acceptance: `./gradlew :audit-service:integrationTest`
 - [ ] 11.3 Add a Playwright spec covering the alert WebSocket: a limit breach dispatched during a reconnect window is displayed once the connection recovers (this test documents the current behaviour; if it exposes dropped events, record the gap in the spec).
       Acceptance: `cd ui && npx playwright test e2e/alert-websocket-reconnect.spec.ts`
