@@ -2535,6 +2535,71 @@ export async function chatMockCanned(page: Page): Promise<void> {
   })
 }
 
+/**
+ * Mocks GET /api/v1/insights/brief/today with a deterministic, canned
+ * morning brief so Playwright specs can exercise the §6.10 morning-brief
+ * surface (<MorningBriefCard> inside <NotificationStrip>) without a live
+ * ai-insights-service.
+ *
+ * Fulfils 200 with a `status:"ready"` body carrying a single book brief
+ * (`mode:"canned"` so the "Demo mode" badge renders), with two sections
+ * — each with bullets, and the first with one citation. Opt-in — only
+ * specs that need the morning-brief surface should call it. Call AFTER
+ * mockAllApiRoutes so it takes priority over the catch-all.
+ */
+export async function briefMockCanned(page: Page): Promise<void> {
+  const citation = {
+    tool: 'get_book_var',
+    params: { book_id: 'fx-main' },
+    result_field: 'total_var',
+    result_value: 5_200_000,
+    result_currency: 'USD',
+    as_of_timestamp: '2026-05-20T07:00:00Z',
+    data_source: 'risk-orchestrator',
+    freshness_seconds: 300,
+    quality_flags: [],
+  }
+  const body = {
+    status: 'ready',
+    mode: 'canned',
+    generated_at: '2026-05-20T07:05:00Z',
+    briefs: [
+      {
+        book_id: 'fx-main',
+        generated_at: '2026-05-20T07:05:00Z',
+        mode: 'canned',
+        sections: [
+          {
+            title: 'Overnight VaR move',
+            narrative: 'VaR rose 12% overnight on widening EUR vol.',
+            bullets: ['EURUSD vol up 4 pts', 'Net delta unchanged'],
+            sources: [citation],
+            severity: 'warning',
+            status: 'ok',
+          },
+          {
+            title: 'Top movers',
+            narrative: 'Three positions drove the bulk of the move.',
+            bullets: ['EURUSD', 'GBPUSD', 'USDJPY'],
+            sources: [],
+            severity: 'info',
+            status: 'ok',
+          },
+        ],
+      },
+    ],
+  }
+
+  await page.unroute('**/api/v1/insights/brief/today')
+  await page.route('**/api/v1/insights/brief/today', async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(body),
+    })
+  })
+}
+
 // ---------------------------------------------------------------------------
 // Brinson attribution fixture data and mock helpers
 // ---------------------------------------------------------------------------

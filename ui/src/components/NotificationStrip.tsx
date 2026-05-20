@@ -1,6 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Bell, ChevronDown, ChevronUp, X } from 'lucide-react'
 import { formatRelativeTime } from '../utils/format'
+import type { MorningBrief } from '../api/brief'
+import { MorningBriefCard } from './MorningBriefCard'
 
 /**
  * Plan §6.9 — copilot notification strip.
@@ -36,10 +38,46 @@ export interface NotificationStripProps {
   /** Optional controlled-expansion. When omitted, the strip owns its own open/closed state. */
   expanded?: boolean
   onExpandedChange?: (expanded: boolean) => void
+  /**
+   * Optional morning brief (plan §6.10). When present it renders at the
+   * top of the inbox and — on the first inbox open of the trading day —
+   * auto-expands the strip. A brief alone counts as content: the strip
+   * is expandable and non-empty even with zero notification items.
+   */
+  morningBrief?: MorningBrief | null
 }
 
 const DISMISSED_KEY = 'kinetix:copilot-inbox:dismissed'
+/** localStorage key tracking the last UTC date the brief was auto-shown. */
+const BRIEF_SEEN_KEY = 'kinetix:morning-brief:last-seen-date'
 const INBOX_ID = 'notification-inbox-panel'
+
+/** Today's date as a UTC `YYYY-MM-DD` string. */
+function todayUtcDate(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
+/**
+ * Read the last date the morning brief was auto-shown. Returns null on
+ * a missing value or any localStorage error — mirrors the defensive
+ * `loadDismissed` idiom below.
+ */
+function loadBriefSeenDate(): string | null {
+  try {
+    return window.localStorage.getItem(BRIEF_SEEN_KEY)
+  } catch {
+    return null
+  }
+}
+
+/** Persist today's date as the last brief-seen date. Swallows errors. */
+function saveBriefSeenDate(date: string): void {
+  try {
+    window.localStorage.setItem(BRIEF_SEEN_KEY, date)
+  } catch {
+    // localStorage unavailable — swallow.
+  }
+}
 
 /** Severities rendered in priority order for chips and the dot legend. */
 const SEVERITY_ORDER: NotificationSeverity[] = ['critical', 'warning', 'info']
@@ -94,22 +132,46 @@ export interface NotificationInboxProps {
   items: NotificationItem[] // already-filtered visible items
   onDismiss: (id: string) => void
   onDismissAll: () => void
+  /**
+   * Optional morning brief (plan §6.10). When present it renders at the
+   * top of the inbox, above the notification rows, and counts as
+   * content — the "All caught up" empty state only shows when there are
+   * no items AND no brief. The `briefRef` is forwarded so the parent
+   * strip can scroll the brief into view after an auto-expand.
+   */
+  morningBrief?: MorningBrief | null
+  briefRef?: React.RefObject<HTMLDivElement | null>
 }
 
-export function NotificationInbox({ items, onDismiss, onDismissAll }: NotificationInboxProps) {
+export function NotificationInbox({
+  items,
+  onDismiss,
+  onDismissAll,
+  morningBrief = null,
+  briefRef,
+}: NotificationInboxProps) {
   return (
     <div
       id={INBOX_ID}
       data-testid="notification-inbox"
       className="max-h-80 overflow-y-auto border-b border-slate-200 dark:border-surface-700 bg-white dark:bg-surface-800"
     >
-      {items.length === 0 ? (
-        <div
-          data-testid="notification-inbox-empty"
-          className="px-4 py-6 text-sm text-center text-slate-400 dark:text-slate-500"
-        >
-          All caught up.
+      {morningBrief && (
+        <div data-testid="notification-inbox-brief" ref={briefRef}>
+          <MorningBriefCard brief={morningBrief} />
         </div>
+      )}
+      {items.length === 0 ? (
+        // "All caught up" only when there's nothing at all — a brief
+        // alone is enough content to keep the inbox non-empty.
+        morningBrief ? null : (
+          <div
+            data-testid="notification-inbox-empty"
+            className="px-4 py-6 text-sm text-center text-slate-400 dark:text-slate-500"
+          >
+            All caught up.
+          </div>
+        )
       ) : (
         <>
           <div className="flex items-center justify-end px-3 py-1.5 border-b border-slate-100 dark:border-surface-700">
@@ -176,9 +238,15 @@ export function NotificationStrip({
   error = null,
   expanded,
   onExpandedChange,
+  morningBrief = null,
 }: NotificationStripProps) {
   const [dismissed, setDismissed] = useState<Set<string>>(() => loadDismissed())
   const [internalExpanded, setInternalExpanded] = useState(false)
+  const briefRef = useRef<HTMLDivElement | null>(null)
+  // Guards the once-per-mount auto-expand so a brief that lands
+  // asynchronously (App.tsx fetches it after first paint) still triggers
+  // exactly one auto-expand and never re-triggers on later re-renders.
+  const autoExpandDoneRef = useRef(false)
 
   // Controlled when `expanded` is supplied; uncontrolled otherwise.
   const isControlled = expanded !== undefined
@@ -193,6 +261,37 @@ export function NotificationStrip({
     if (!isControlled) setInternalExpanded(next)
     onExpandedChange?.(next)
   }
+
+  // Auto-expand on the first inbox open of the trading day. When a
+  // morning brief is present and `BRIEF_SEEN_KEY` is not today's date,
+  // open the strip, stamp today's date, and scroll the brief into view.
+  // Subsequent mounts the same day are no-ops. Controlled-expansion
+  // callers own their own state, so the auto-expand is skipped for them.
+  //
+  // The effect depends on `morningBrief` because callers (App.tsx) fetch
+  // the brief asynchronously — it is null on first paint and arrives
+  // later. `autoExpandDoneRef` clamps this to exactly one auto-expand
+  // for the component's lifetime regardless of how often it re-renders.
+  useEffect(() => {
+    if (autoExpandDoneRef.current) return
+    if (!morningBrief || isControlled) return
+    autoExpandDoneRef.current = true
+    if (loadBriefSeenDate() === todayUtcDate()) return
+    saveBriefSeenDate(todayUtcDate())
+    setInternalExpanded(true)
+    onExpandedChange?.(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [morningBrief])
+
+  // After an auto-expand, scroll the brief wrapper into view. Guarded
+  // for jsdom, where `scrollIntoView` is not implemented.
+  useEffect(() => {
+    if (!isExpanded || !morningBrief) return
+    const el = briefRef.current
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ block: 'nearest' })
+    }
+  }, [isExpanded, morningBrief])
 
   const handleDismiss = (id: string) => {
     setDismissed((prev) => {
@@ -240,7 +339,11 @@ export function NotificationStrip({
   // toggle is rendered), but if the strip is *already* expanded — e.g. the
   // last visible item was just dismissed from the open inbox — the inbox
   // stays mounted so the "All caught up" message is visible.
-  if (visible.length === 0) {
+  //
+  // A morning brief counts as content: when one is present the strip
+  // takes the populated path below (expandable, non-empty bar) even
+  // with zero notification items.
+  if (visible.length === 0 && !morningBrief) {
     return (
       <div
         role="region"
@@ -302,6 +405,13 @@ export function NotificationStrip({
           ))}
         </div>
 
+        {/*
+          Unread count is the notification-item count only — a morning
+          brief is not an "unread notification", it is a standing daily
+          digest, so it never inflates this number. With a brief but
+          zero items the bar still reads "0 unread" and remains
+          expandable (the brief is the content behind the toggle).
+        */}
         <span
           data-testid="notification-unread-count"
           className="text-xs font-medium text-slate-600 dark:text-slate-300"
@@ -335,6 +445,8 @@ export function NotificationStrip({
           items={visible}
           onDismiss={handleDismiss}
           onDismissAll={handleDismissAll}
+          morningBrief={morningBrief}
+          briefRef={briefRef}
         />
       )}
     </div>

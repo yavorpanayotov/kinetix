@@ -1,10 +1,34 @@
 import { describe, test, expect, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { NotificationStrip } from './NotificationStrip'
 import type { NotificationItem } from './NotificationStrip'
+import type { MorningBrief } from '../api/brief'
 
 const DISMISSED_KEY = 'kinetix:copilot-inbox:dismissed'
+const BRIEF_SEEN_KEY = 'kinetix:morning-brief:last-seen-date'
+
+function todayUtc(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
+function makeBrief(): MorningBrief {
+  return {
+    book_id: 'fx-main',
+    generated_at: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+    mode: 'canned',
+    sections: [
+      {
+        title: 'Overnight VaR move',
+        narrative: 'VaR rose overnight.',
+        bullets: ['EURUSD vol up'],
+        sources: [],
+        severity: 'warning',
+        status: 'ok',
+      },
+    ],
+  }
+}
 
 function makeItems(): NotificationItem[] {
   return [
@@ -181,5 +205,89 @@ describe('NotificationStrip', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
     await user.click(toggle)
     expect(toggle).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  describe('morning brief', () => {
+    test('renders the brief card inside the inbox when morningBrief is set', async () => {
+      // last-seen is today so auto-expand does not fire — open manually.
+      window.localStorage.setItem(BRIEF_SEEN_KEY, todayUtc())
+      const user = userEvent.setup()
+      render(<NotificationStrip items={makeItems()} morningBrief={makeBrief()} />)
+      await user.click(screen.getByTestId('notification-strip-toggle'))
+      const wrapper = screen.getByTestId('notification-inbox-brief')
+      expect(wrapper).toBeInTheDocument()
+      expect(
+        within(wrapper).getByTestId('morning-brief-card'),
+      ).toBeInTheDocument()
+    })
+
+    test('a brief makes the strip non-empty even with zero items', () => {
+      window.localStorage.setItem(BRIEF_SEEN_KEY, todayUtc())
+      render(<NotificationStrip items={[]} morningBrief={makeBrief()} />)
+      // No "No notifications" empty bar — the brief is content.
+      expect(
+        screen.queryByTestId('notification-strip-empty'),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.getByTestId('notification-strip-toggle'),
+      ).toBeInTheDocument()
+    })
+
+    test('the inbox is not empty when only a brief is present', async () => {
+      window.localStorage.setItem(BRIEF_SEEN_KEY, todayUtc())
+      const user = userEvent.setup()
+      render(<NotificationStrip items={[]} morningBrief={makeBrief()} />)
+      await user.click(screen.getByTestId('notification-strip-toggle'))
+      expect(
+        screen.queryByTestId('notification-inbox-empty'),
+      ).not.toBeInTheDocument()
+      expect(screen.getByTestId('morning-brief-card')).toBeInTheDocument()
+    })
+
+    test('auto-expands on the first inbox open of the trading day', () => {
+      window.localStorage.removeItem(BRIEF_SEEN_KEY)
+      render(<NotificationStrip items={[]} morningBrief={makeBrief()} />)
+      expect(screen.getByTestId('notification-strip')).toHaveAttribute(
+        'data-expanded',
+        'true',
+      )
+      expect(screen.getByTestId('morning-brief-card')).toBeInTheDocument()
+      // The last-seen date is stamped so a re-open today won't re-trigger.
+      expect(window.localStorage.getItem(BRIEF_SEEN_KEY)).toBe(todayUtc())
+    })
+
+    test('does not auto-expand when last-seen-date is today', () => {
+      window.localStorage.setItem(BRIEF_SEEN_KEY, todayUtc())
+      render(<NotificationStrip items={[]} morningBrief={makeBrief()} />)
+      expect(screen.getByTestId('notification-strip')).toHaveAttribute(
+        'data-expanded',
+        'false',
+      )
+      expect(
+        screen.queryByTestId('morning-brief-card'),
+      ).not.toBeInTheDocument()
+    })
+
+    test('does not auto-expand when there is no brief', () => {
+      window.localStorage.removeItem(BRIEF_SEEN_KEY)
+      render(<NotificationStrip items={makeItems()} />)
+      expect(screen.getByTestId('notification-strip')).toHaveAttribute(
+        'data-expanded',
+        'false',
+      )
+    })
+
+    test('dismissing all notifications keeps the brief reachable', async () => {
+      window.localStorage.setItem(BRIEF_SEEN_KEY, todayUtc())
+      const user = userEvent.setup()
+      render(<NotificationStrip items={makeItems()} morningBrief={makeBrief()} />)
+      await user.click(screen.getByTestId('notification-strip-toggle'))
+      await user.click(screen.getByTestId('notification-dismiss-all'))
+      // Notifications gone, but the brief card is still rendered.
+      expect(
+        screen.queryByTestId('notification-item-n-1'),
+      ).not.toBeInTheDocument()
+      expect(screen.getByTestId('morning-brief-card')).toBeInTheDocument()
+    })
   })
 })

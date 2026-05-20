@@ -23,6 +23,9 @@ import { BookSummaryCard } from './components/BookSummaryCard'
 import { RiskTickerStrip } from './components/RiskTickerStrip'
 import { BreachBanner } from './components/BreachBanner'
 import { SystemStatusBanner } from './components/SystemStatusBanner'
+import { NotificationStrip } from './components/NotificationStrip'
+import { fetchTodayBrief } from './api/brief'
+import type { MorningBrief } from './api/brief'
 import { usePositions } from './hooks/usePositions'
 import { usePositionNotes } from './hooks/usePositionNotes'
 import { useAlerts } from './hooks/useAlerts'
@@ -144,6 +147,9 @@ function AppContent() {
   // Plan §7.1 — Cmd+K (or Ctrl+K) opens the command palette. State lives at
   // App.tsx because the palette needs setters across the entire app surface.
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
+  // Plan §6.10 — today's morning brief, surfaced inside <NotificationStrip>.
+  // Null until the fetch lands (or if it fails / is still generating).
+  const [morningBrief, setMorningBrief] = useState<MorningBrief | null>(null)
   const focusBeforeOverlayRef = useRef<HTMLElement | null>(null)
   const tabRefs = useRef<Map<Tab, HTMLButtonElement>>(new Map())
 
@@ -213,6 +219,29 @@ function AppContent() {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  // Plan §6.10 — fetch today's morning brief on mount. Fire-and-forget:
+  // a `ready` response stores the first (demo single-book) brief so the
+  // notification strip can surface it; a `generating` response or any
+  // error leaves `morningBrief` null and the strip simply renders
+  // without a brief. Errors are swallowed — an unavailable endpoint
+  // must never crash the app.
+  useEffect(() => {
+    let cancelled = false
+    fetchTodayBrief()
+      .then((res) => {
+        if (cancelled) return
+        if (res.status === 'ready' && res.briefs && res.briefs.length > 0) {
+          setMorningBrief(res.briefs[0])
+        }
+      })
+      .catch(() => {
+        // Endpoint unavailable / still generating — no brief, no crash.
+      })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const closeShortcutsOverlay = () => {
@@ -687,6 +716,14 @@ function AppContent() {
         disconnectElapsed={disconnectElapsed}
         onReconnect={manualReconnect}
       />
+
+      {/*
+        Plan §6.9 / §6.10 — copilot notification strip. It sits between
+        <SystemStatusBanner> and <RiskTickerStrip> and currently carries
+        only the morning brief; intraday push items populate `items` in
+        a later PR.
+      */}
+      <NotificationStrip items={[]} morningBrief={morningBrief} />
 
       <RiskTickerStrip
         bookId={effectiveBookId ?? bookId}
