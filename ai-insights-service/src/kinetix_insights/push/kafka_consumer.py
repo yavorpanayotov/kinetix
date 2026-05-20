@@ -45,7 +45,7 @@ import asyncio
 import contextlib
 import json
 import logging
-from typing import Any, Protocol, TypeAlias, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from kinetix_insights.clients.kinetix_http_client import KinetixHttpError
 from kinetix_insights.push.threshold_evaluator import (
@@ -74,12 +74,6 @@ class PushGenerator(Protocol):
     async def handle_alert(
         self, alert: IntradayAlert
     ) -> None: ...  # pragma: no cover - structural only
-
-
-# An evaluator only needs an awaitable ``evaluate(event) -> list`` for
-# the consumer — the concrete type is IntradayThresholdEvaluator, but the
-# annotation is widened so tests can inject a lightweight stub.
-_Evaluator: TypeAlias = IntradayThresholdEvaluator
 
 
 def _build_aiokafka_consumer(bootstrap_servers: str) -> Any:
@@ -119,7 +113,7 @@ class IntradayKafkaConsumer:
     def __init__(
         self,
         *,
-        evaluator: _Evaluator,
+        evaluator: IntradayThresholdEvaluator,
         push_generator: PushGenerator,
         consumer: Any | None = None,
         bootstrap_servers: str = "localhost:9092",
