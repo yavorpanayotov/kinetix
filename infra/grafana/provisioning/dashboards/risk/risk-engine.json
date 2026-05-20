@@ -197,15 +197,30 @@
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 16 },
       "targets": [
         {
+          "refId": "A",
           "expr": "rate(stress_test_total[5m])",
           "legendFormat": "{{scenario_name}}"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.95, rate(stress_test_duration_seconds_bucket[5m]))",
+          "legendFormat": "p95 Duration"
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "reqps"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "p95 Duration" },
+            "properties": [
+              { "id": "unit", "value": "s" },
+              { "id": "custom.axisPlacement", "value": "right" },
+              { "id": "custom.axisLabel", "value": "Duration" }
+            ]
+          }
+        ]
       }
     },
     {
@@ -215,17 +230,30 @@
       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 16 },
       "targets": [
         {
+          "refId": "A",
           "expr": "rate(frtb_calculation_total[5m])",
           "legendFormat": "FRTB/s"
         },
         {
+          "refId": "B",
           "expr": "histogram_quantile(0.95, rate(frtb_calculation_duration_seconds_bucket[5m]))",
           "legendFormat": "P95 Duration"
         }
       ],
       "fieldConfig": {
-        "defaults": {},
-        "overrides": []
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "P95 Duration" },
+            "properties": [
+              { "id": "unit", "value": "s" },
+              { "id": "custom.axisPlacement", "value": "right" },
+              { "id": "custom.axisLabel", "value": "Duration" }
+            ]
+          }
+        ]
       }
     },
     {
