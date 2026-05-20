@@ -37,6 +37,7 @@
     {
       "title": "Messages In Per Second",
       "type": "timeseries",
+      "description": "Partition-offset-derived throughput estimate. The only Kafka scrape target is kafka-exporter (no broker JMX target), so there is no native broker messages-in-per-sec metric. This is the conventional proxy: the rate of change of partition end offsets approximates produce throughput per topic.",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
       "targets": [
@@ -108,18 +109,31 @@
       }
     },
     {
-      "title": "DLQ Message Rate",
+      "title": "DLQ Depth",
       "type": "timeseries",
+      "description": "Absolute message count sitting in each dead-letter topic, derived from partition end offsets. A rate-based panel reads zero for a stalled (non-growing) DLQ and looks healthy; absolute depth stays visibly non-zero while messages remain unprocessed. Any non-zero value is a problem — red threshold at 1.",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
       "targets": [
         {
-          "expr": "sum by (topic) (rate(kafka_topic_partition_current_offset{topic=~\".*\\.dlq\"}[5m]))",
+          "expr": "sum by (topic) (kafka_topic_partition_current_offset{topic=~\".*\\.dlq\"})",
           "legendFormat": "{{topic}}"
         }
       ],
       "fieldConfig": {
-        "defaults": { "unit": "reqps" },
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          },
+          "custom": {
+            "thresholdsStyle": { "mode": "line" }
+          }
+        },
         "overrides": []
       }
     }
