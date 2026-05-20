@@ -396,6 +396,13 @@ fun Application.moduleWithYieldCurveProxy(httpClient: HttpClient, ratesBaseUrl: 
     }
 }
 
+fun Application.moduleWithAuditProxy(httpClient: HttpClient, auditBaseUrl: String) {
+    module()
+    routing {
+        auditProxyRoutes(httpClient, auditBaseUrl)
+    }
+}
+
 fun Application.moduleWithInsightsProxy(
     httpClient: HttpClient,
     insightsBaseUrl: String,
