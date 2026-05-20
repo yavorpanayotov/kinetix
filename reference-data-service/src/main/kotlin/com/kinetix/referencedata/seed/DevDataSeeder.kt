@@ -1,14 +1,18 @@
 package com.kinetix.referencedata.seed
 
 import com.kinetix.common.demo.SeedProfile
+import com.kinetix.common.model.BondSeniority
 import com.kinetix.common.model.CreditSpread
 import com.kinetix.common.model.Desk
 import com.kinetix.common.model.DeskId
 import com.kinetix.common.model.Division
 import com.kinetix.common.model.DivisionId
 import com.kinetix.common.model.DividendYield
+import com.kinetix.common.model.ExerciseStyle
 import com.kinetix.common.model.InstrumentId
+import com.kinetix.common.model.OptionType
 import com.kinetix.common.model.ReferenceDataSource
+import com.kinetix.common.model.SwapDirection
 import com.kinetix.common.model.Trader
 import com.kinetix.common.model.TraderId
 import com.kinetix.common.model.instrument.*
@@ -311,15 +315,15 @@ class DevDataSeeder(
             ),
             // ── Equity options ──
             "AAPL-C-200-20260620" to InstrumentConfig(
-                EquityOption(underlyingId = "AAPL", optionType = "CALL", strike = 200.0, expiryDate = "2026-06-20", exerciseStyle = "EUROPEAN", contractMultiplier = 100.0, dividendYield = 0.0055),
+                EquityOption(underlyingId = "AAPL", optionType = OptionType.CALL, strike = 200.0, expiryDate = "2026-06-20", exerciseStyle = ExerciseStyle.EUROPEAN, contractMultiplier = 100.0, dividendYield = 0.0055),
                 "AAPL Call 200 Jun2026", "USD",
             ),
             "SPX-CALL-5000" to InstrumentConfig(
-                EquityOption(underlyingId = "IDX-SPX", optionType = "CALL", strike = 5000.0, expiryDate = "2026-09-18", exerciseStyle = "EUROPEAN", contractMultiplier = 100.0),
+                EquityOption(underlyingId = "IDX-SPX", optionType = OptionType.CALL, strike = 5000.0, expiryDate = "2026-09-18", exerciseStyle = ExerciseStyle.EUROPEAN, contractMultiplier = 100.0),
                 "SPX Call 5000 Sep2026", "USD",
             ),
             "SPX-PUT-4500" to InstrumentConfig(
-                EquityOption(underlyingId = "IDX-SPX", optionType = "PUT", strike = 4500.0, expiryDate = "2026-09-18", exerciseStyle = "EUROPEAN", contractMultiplier = 100.0),
+                EquityOption(underlyingId = "IDX-SPX", optionType = OptionType.PUT, strike = 4500.0, expiryDate = "2026-09-18", exerciseStyle = ExerciseStyle.EUROPEAN, contractMultiplier = 100.0),
                 "SPX Put 4500 Sep2026", "USD",
             ),
             // VIX volatility index — cash-settled against the VIX fixing. Until the
@@ -331,27 +335,27 @@ class DevDataSeeder(
                 "CBOE Volatility Index", "USD",
             ),
             "VIX-PUT-15" to InstrumentConfig(
-                EquityOption(underlyingId = "IDX-VIX", optionType = "PUT", strike = 15.0, expiryDate = "2026-09-18", exerciseStyle = "EUROPEAN", contractMultiplier = 100.0),
+                EquityOption(underlyingId = "IDX-VIX", optionType = OptionType.PUT, strike = 15.0, expiryDate = "2026-09-18", exerciseStyle = ExerciseStyle.EUROPEAN, contractMultiplier = 100.0),
                 "VIX Put 15 Sep2026", "USD",
             ),
             "SPX-PUT-4800" to InstrumentConfig(
-                EquityOption(underlyingId = "IDX-SPX", optionType = "PUT", strike = 4800.0, expiryDate = "2026-09-18", exerciseStyle = "EUROPEAN", contractMultiplier = 100.0),
+                EquityOption(underlyingId = "IDX-SPX", optionType = OptionType.PUT, strike = 4800.0, expiryDate = "2026-09-18", exerciseStyle = ExerciseStyle.EUROPEAN, contractMultiplier = 100.0),
                 "SPX Sep26 4800 Put", "USD",
             ),
             "SPX-CALL-5200" to InstrumentConfig(
-                EquityOption(underlyingId = "IDX-SPX", optionType = "CALL", strike = 5200.0, expiryDate = "2026-09-18", exerciseStyle = "EUROPEAN", contractMultiplier = 100.0),
+                EquityOption(underlyingId = "IDX-SPX", optionType = OptionType.CALL, strike = 5200.0, expiryDate = "2026-09-18", exerciseStyle = ExerciseStyle.EUROPEAN, contractMultiplier = 100.0),
                 "SPX Sep26 5200 Call", "USD",
             ),
             "NVDA-C-950-20260620" to InstrumentConfig(
-                EquityOption(underlyingId = "NVDA", optionType = "CALL", strike = 950.0, expiryDate = "2026-06-20", exerciseStyle = "AMERICAN", contractMultiplier = 100.0),
+                EquityOption(underlyingId = "NVDA", optionType = OptionType.CALL, strike = 950.0, expiryDate = "2026-06-20", exerciseStyle = ExerciseStyle.AMERICAN, contractMultiplier = 100.0),
                 "NVDA Jun26 950 Call", "USD",
             ),
             "NVDA-P-800-20260620" to InstrumentConfig(
-                EquityOption(underlyingId = "NVDA", optionType = "PUT", strike = 800.0, expiryDate = "2026-06-20", exerciseStyle = "AMERICAN", contractMultiplier = 100.0),
+                EquityOption(underlyingId = "NVDA", optionType = OptionType.PUT, strike = 800.0, expiryDate = "2026-06-20", exerciseStyle = ExerciseStyle.AMERICAN, contractMultiplier = 100.0),
                 "NVDA Jun26 800 Put", "USD",
             ),
             "AAPL-P-180-20260620" to InstrumentConfig(
-                EquityOption(underlyingId = "AAPL", optionType = "PUT", strike = 180.0, expiryDate = "2026-06-20", exerciseStyle = "AMERICAN", contractMultiplier = 100.0),
+                EquityOption(underlyingId = "AAPL", optionType = OptionType.PUT, strike = 180.0, expiryDate = "2026-06-20", exerciseStyle = ExerciseStyle.AMERICAN, contractMultiplier = 100.0),
                 "AAPL Jun26 180 Put", "USD",
             ),
             // ── Equity futures ──
@@ -378,12 +382,12 @@ class DevDataSeeder(
             ),
             // ── Corporate bonds ──
             "JPM-BOND-2031" to InstrumentConfig(
-                CorporateBond(currency = "USD", couponRate = 0.045, couponFrequency = 2, maturityDate = "2031-03-15", faceValue = 1000.0, issuer = "JPMorgan Chase", creditRating = "A+", seniority = "SENIOR_UNSECURED"),
+                CorporateBond(currency = "USD", couponRate = 0.045, couponFrequency = 2, maturityDate = "2031-03-15", faceValue = 1000.0, issuer = "JPMorgan Chase", creditRating = "A+", seniority = BondSeniority.SENIOR_UNSECURED),
                 "JPM 4.5% 2031", "USD",
             ),
             // ── Interest rate swaps ──
             "USD-SOFR-5Y" to InstrumentConfig(
-                InterestRateSwap(notional = 10_000_000.0, currency = "USD", fixedRate = 0.035, floatIndex = "SOFR", maturityDate = "2031-03-16", effectiveDate = "2026-03-16", payReceive = "PAY_FIXED"),
+                InterestRateSwap(notional = 10_000_000.0, currency = "USD", fixedRate = 0.035, floatIndex = "SOFR", maturityDate = "2031-03-16", effectiveDate = "2026-03-16", payReceive = SwapDirection.PAY_FIXED),
                 "USD SOFR 5Y IRS", "USD",
             ),
             // ── FX spot ──
@@ -406,7 +410,7 @@ class DevDataSeeder(
             ),
             // ── FX options ──
             "EURUSD-P-1.08-SEP26" to InstrumentConfig(
-                FxOption(baseCurrency = "EUR", quoteCurrency = "USD", optionType = "PUT", strike = 1.08, expiryDate = "2026-09-15"),
+                FxOption(baseCurrency = "EUR", quoteCurrency = "USD", optionType = OptionType.PUT, strike = 1.08, expiryDate = "2026-09-15"),
                 "EUR/USD Put 1.08 Sep2026", "USD",
             ),
             // ── Commodity futures ──
@@ -428,7 +432,7 @@ class DevDataSeeder(
             ),
             // ── Commodity options ──
             "GC-C-2200-DEC26" to InstrumentConfig(
-                CommodityOption(underlyingId = "GC", optionType = "CALL", strike = 2200.0, expiryDate = "2026-12-28", contractMultiplier = 100.0),
+                CommodityOption(underlyingId = "GC", optionType = OptionType.CALL, strike = 2200.0, expiryDate = "2026-12-28", contractMultiplier = 100.0),
                 "Gold Call 2200 Dec2026", "USD",
             ),
             // ── Additional cash equities ──
@@ -498,35 +502,35 @@ class DevDataSeeder(
             ),
             // ── Additional equity options ──
             "MSFT-C-450-20260620" to InstrumentConfig(
-                EquityOption(underlyingId = "MSFT", optionType = "CALL", strike = 450.0, expiryDate = "2026-06-20", exerciseStyle = "EUROPEAN", contractMultiplier = 100.0, dividendYield = 0.0075),
+                EquityOption(underlyingId = "MSFT", optionType = OptionType.CALL, strike = 450.0, expiryDate = "2026-06-20", exerciseStyle = ExerciseStyle.EUROPEAN, contractMultiplier = 100.0, dividendYield = 0.0075),
                 "MSFT Call 450 Jun2026", "USD",
             ),
             "MSFT-P-400-20260620" to InstrumentConfig(
-                EquityOption(underlyingId = "MSFT", optionType = "PUT", strike = 400.0, expiryDate = "2026-06-20", exerciseStyle = "EUROPEAN", contractMultiplier = 100.0, dividendYield = 0.0075),
+                EquityOption(underlyingId = "MSFT", optionType = OptionType.PUT, strike = 400.0, expiryDate = "2026-06-20", exerciseStyle = ExerciseStyle.EUROPEAN, contractMultiplier = 100.0, dividendYield = 0.0075),
                 "MSFT Put 400 Jun2026", "USD",
             ),
             "TSLA-C-280-20260620" to InstrumentConfig(
-                EquityOption(underlyingId = "TSLA", optionType = "CALL", strike = 280.0, expiryDate = "2026-06-20", exerciseStyle = "AMERICAN", contractMultiplier = 100.0),
+                EquityOption(underlyingId = "TSLA", optionType = OptionType.CALL, strike = 280.0, expiryDate = "2026-06-20", exerciseStyle = ExerciseStyle.AMERICAN, contractMultiplier = 100.0),
                 "TSLA Call 280 Jun2026", "USD",
             ),
             "TSLA-P-220-20260620" to InstrumentConfig(
-                EquityOption(underlyingId = "TSLA", optionType = "PUT", strike = 220.0, expiryDate = "2026-06-20", exerciseStyle = "AMERICAN", contractMultiplier = 100.0),
+                EquityOption(underlyingId = "TSLA", optionType = OptionType.PUT, strike = 220.0, expiryDate = "2026-06-20", exerciseStyle = ExerciseStyle.AMERICAN, contractMultiplier = 100.0),
                 "TSLA Put 220 Jun2026", "USD",
             ),
             "GOOGL-C-190-20260620" to InstrumentConfig(
-                EquityOption(underlyingId = "GOOGL", optionType = "CALL", strike = 190.0, expiryDate = "2026-06-20", exerciseStyle = "EUROPEAN", contractMultiplier = 100.0),
+                EquityOption(underlyingId = "GOOGL", optionType = OptionType.CALL, strike = 190.0, expiryDate = "2026-06-20", exerciseStyle = ExerciseStyle.EUROPEAN, contractMultiplier = 100.0),
                 "GOOGL Call 190 Jun2026", "USD",
             ),
             "GOOGL-P-160-20260620" to InstrumentConfig(
-                EquityOption(underlyingId = "GOOGL", optionType = "PUT", strike = 160.0, expiryDate = "2026-06-20", exerciseStyle = "EUROPEAN", contractMultiplier = 100.0),
+                EquityOption(underlyingId = "GOOGL", optionType = OptionType.PUT, strike = 160.0, expiryDate = "2026-06-20", exerciseStyle = ExerciseStyle.EUROPEAN, contractMultiplier = 100.0),
                 "GOOGL Put 160 Jun2026", "USD",
             ),
             "AMZN-C-220-20260620" to InstrumentConfig(
-                EquityOption(underlyingId = "AMZN", optionType = "CALL", strike = 220.0, expiryDate = "2026-06-20", exerciseStyle = "EUROPEAN", contractMultiplier = 100.0),
+                EquityOption(underlyingId = "AMZN", optionType = OptionType.CALL, strike = 220.0, expiryDate = "2026-06-20", exerciseStyle = ExerciseStyle.EUROPEAN, contractMultiplier = 100.0),
                 "AMZN Call 220 Jun2026", "USD",
             ),
             "AMZN-P-190-20260620" to InstrumentConfig(
-                EquityOption(underlyingId = "AMZN", optionType = "PUT", strike = 190.0, expiryDate = "2026-06-20", exerciseStyle = "EUROPEAN", contractMultiplier = 100.0),
+                EquityOption(underlyingId = "AMZN", optionType = OptionType.PUT, strike = 190.0, expiryDate = "2026-06-20", exerciseStyle = ExerciseStyle.EUROPEAN, contractMultiplier = 100.0),
                 "AMZN Put 190 Jun2026", "USD",
             ),
             // ── Additional government bonds ──
@@ -548,15 +552,15 @@ class DevDataSeeder(
             ),
             // ── Additional corporate bonds ──
             "AAPL-BOND-2030" to InstrumentConfig(
-                CorporateBond(currency = "USD", couponRate = 0.0385, couponFrequency = 2, maturityDate = "2030-09-15", faceValue = 1000.0, issuer = "Apple Inc.", creditRating = "AA+", seniority = "SENIOR_UNSECURED"),
+                CorporateBond(currency = "USD", couponRate = 0.0385, couponFrequency = 2, maturityDate = "2030-09-15", faceValue = 1000.0, issuer = "Apple Inc.", creditRating = "AA+", seniority = BondSeniority.SENIOR_UNSECURED),
                 "AAPL 3.85% 2030", "USD",
             ),
             "GS-BOND-2029" to InstrumentConfig(
-                CorporateBond(currency = "USD", couponRate = 0.0525, couponFrequency = 2, maturityDate = "2029-06-15", faceValue = 1000.0, issuer = "Goldman Sachs", creditRating = "A+", seniority = "SENIOR_UNSECURED"),
+                CorporateBond(currency = "USD", couponRate = 0.0525, couponFrequency = 2, maturityDate = "2029-06-15", faceValue = 1000.0, issuer = "Goldman Sachs", creditRating = "A+", seniority = BondSeniority.SENIOR_UNSECURED),
                 "GS 5.25% 2029", "USD",
             ),
             "MSFT-BOND-2032" to InstrumentConfig(
-                CorporateBond(currency = "USD", couponRate = 0.035, couponFrequency = 2, maturityDate = "2032-03-15", faceValue = 1000.0, issuer = "Microsoft Corp.", creditRating = "AAA", seniority = "SENIOR_UNSECURED"),
+                CorporateBond(currency = "USD", couponRate = 0.035, couponFrequency = 2, maturityDate = "2032-03-15", faceValue = 1000.0, issuer = "Microsoft Corp.", creditRating = "AAA", seniority = BondSeniority.SENIOR_UNSECURED),
                 "MSFT 3.5% 2032", "USD",
             ),
             // ── Additional FX spot ──
@@ -591,16 +595,16 @@ class DevDataSeeder(
             ),
             // ── Additional FX options ──
             "USDJPY-C-155-SEP26" to InstrumentConfig(
-                FxOption(baseCurrency = "USD", quoteCurrency = "JPY", optionType = "CALL", strike = 155.0, expiryDate = "2026-09-15"),
+                FxOption(baseCurrency = "USD", quoteCurrency = "JPY", optionType = OptionType.CALL, strike = 155.0, expiryDate = "2026-09-15"),
                 "USD/JPY Call 155 Sep2026", "USD",
             ),
             // ── Additional interest rate swaps ──
             "USD-SOFR-10Y" to InstrumentConfig(
-                InterestRateSwap(notional = 20_000_000.0, currency = "USD", fixedRate = 0.038, floatIndex = "SOFR", maturityDate = "2036-03-16", effectiveDate = "2026-03-16", payReceive = "PAY_FIXED"),
+                InterestRateSwap(notional = 20_000_000.0, currency = "USD", fixedRate = 0.038, floatIndex = "SOFR", maturityDate = "2036-03-16", effectiveDate = "2026-03-16", payReceive = SwapDirection.PAY_FIXED),
                 "USD SOFR 10Y IRS", "USD",
             ),
             "EUR-ESTR-5Y" to InstrumentConfig(
-                InterestRateSwap(notional = 10_000_000.0, currency = "EUR", fixedRate = 0.025, floatIndex = "ESTR", maturityDate = "2031-03-16", effectiveDate = "2026-03-16", payReceive = "PAY_FIXED"),
+                InterestRateSwap(notional = 10_000_000.0, currency = "EUR", fixedRate = 0.025, floatIndex = "ESTR", maturityDate = "2031-03-16", effectiveDate = "2026-03-16", payReceive = SwapDirection.PAY_FIXED),
                 "EUR ESTR 5Y IRS", "EUR",
             ),
             // ── Additional equity futures ──
@@ -631,7 +635,7 @@ class DevDataSeeder(
             ),
             // ── Additional commodity options ──
             "CL-P-70-DEC26" to InstrumentConfig(
-                CommodityOption(underlyingId = "CL", optionType = "PUT", strike = 70.0, expiryDate = "2026-12-28", contractMultiplier = 100.0),
+                CommodityOption(underlyingId = "CL", optionType = OptionType.PUT, strike = 70.0, expiryDate = "2026-12-28", contractMultiplier = 100.0),
                 "Crude Oil Put 70 Dec2026", "USD",
             ),
         )

@@ -2,7 +2,9 @@ package com.kinetix.referencedata.routes
 
 import com.kinetix.common.model.CreditSpread
 import com.kinetix.common.model.DividendYield
+import com.kinetix.common.model.ExerciseStyle
 import com.kinetix.common.model.InstrumentId
+import com.kinetix.common.model.OptionType
 import com.kinetix.common.model.instrument.CashEquity
 import com.kinetix.common.model.instrument.CommodityFuture
 import com.kinetix.common.model.instrument.CorporateBond
@@ -98,8 +100,8 @@ class InstrumentRoutesAcceptanceTest : FunSpec({
         val instrument = Instrument(
             instrumentId = InstrumentId("AAPL-C-150-20260620"),
             instrumentType = EquityOption(
-                underlyingId = "AAPL", optionType = "CALL", strike = 150.0,
-                expiryDate = "2026-06-20", exerciseStyle = "EUROPEAN",
+                underlyingId = "AAPL", optionType = OptionType.CALL, strike = 150.0,
+                expiryDate = "2026-06-20", exerciseStyle = ExerciseStyle.EUROPEAN,
                 contractMultiplier = 100.0, dividendYield = 0.005,
             ),
             displayName = "AAPL Call 150 Jun2026",

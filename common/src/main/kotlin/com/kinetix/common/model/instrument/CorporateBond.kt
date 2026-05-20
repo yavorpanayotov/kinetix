@@ -1,6 +1,7 @@
 package com.kinetix.common.model.instrument
 
 import com.kinetix.common.model.AssetClass
+import com.kinetix.common.model.BondSeniority
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -14,7 +15,7 @@ data class CorporateBond(
     val faceValue: Double,
     val issuer: String,
     val creditRating: String? = null,
-    val seniority: String? = null,
+    val seniority: BondSeniority? = null,
     val dayCountConvention: String? = null,
 ) : InstrumentType {
     override val instrumentTypeName: String get() = "CORPORATE_BOND"

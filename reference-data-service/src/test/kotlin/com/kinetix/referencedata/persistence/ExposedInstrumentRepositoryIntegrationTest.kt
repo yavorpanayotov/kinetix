@@ -1,6 +1,7 @@
 package com.kinetix.referencedata.persistence
 
 import com.kinetix.common.model.AssetClass
+import com.kinetix.common.model.BondSeniority
 import com.kinetix.common.model.InstrumentId
 import com.kinetix.common.model.instrument.CashEquity
 import com.kinetix.common.model.instrument.CorporateBond
@@ -43,7 +44,7 @@ private fun bond(id: String, name: String) = Instrument(
         faceValue = 1000.0,
         issuer = "ACME Corp",
         creditRating = "BBB+",
-        seniority = "SENIOR_UNSECURED",
+        seniority = BondSeniority.SENIOR_UNSECURED,
     ),
     displayName = name,
     currency = "USD",
@@ -133,7 +134,7 @@ class ExposedInstrumentRepositoryIntegrationTest : FunSpec({
         cb.faceValue shouldBe 1000.0
         cb.issuer shouldBe "ACME Corp"
         cb.creditRating shouldBe "BBB+"
-        cb.seniority shouldBe "SENIOR_UNSECURED"
+        cb.seniority shouldBe BondSeniority.SENIOR_UNSECURED
     }
 
     test("GovernmentBond with null optional dayCountConvention round-trips null as null") {

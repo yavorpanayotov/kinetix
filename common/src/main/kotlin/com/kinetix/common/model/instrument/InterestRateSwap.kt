@@ -1,6 +1,7 @@
 package com.kinetix.common.model.instrument
 
 import com.kinetix.common.model.AssetClass
+import com.kinetix.common.model.SwapDirection
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -14,7 +15,7 @@ data class InterestRateSwap(
     val floatSpread: Double = 0.0,
     val maturityDate: String,
     val effectiveDate: String,
-    val payReceive: String,
+    val payReceive: SwapDirection,
     val fixedFrequency: Int = 2,
     val floatFrequency: Int = 4,
     val dayCountConvention: String = "ACT/360",

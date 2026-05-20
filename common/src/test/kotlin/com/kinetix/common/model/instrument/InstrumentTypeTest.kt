@@ -1,6 +1,10 @@
 package com.kinetix.common.model.instrument
 
 import com.kinetix.common.model.AssetClass
+import com.kinetix.common.model.BondSeniority
+import com.kinetix.common.model.ExerciseStyle
+import com.kinetix.common.model.OptionType
+import com.kinetix.common.model.SwapDirection
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.encodeToString
@@ -19,10 +23,10 @@ class InstrumentTypeTest : FunSpec({
     test("EquityOption derives EQUITY asset class") {
         val inst = EquityOption(
             underlyingId = "AAPL",
-            optionType = "CALL",
+            optionType = OptionType.CALL,
             strike = 150.0,
             expiryDate = "2026-06-20",
-            exerciseStyle = "EUROPEAN",
+            exerciseStyle = ExerciseStyle.EUROPEAN,
             contractMultiplier = 100.0,
             dividendYield = 0.005,
         )
@@ -58,7 +62,7 @@ class InstrumentTypeTest : FunSpec({
             faceValue = 1000.0,
             issuer = "JPM",
             creditRating = "A",
-            seniority = "SENIOR_UNSECURED",
+            seniority = BondSeniority.SENIOR_UNSECURED,
         )
         inst.assetClass() shouldBe AssetClass.FIXED_INCOME
         inst.instrumentTypeName shouldBe "CORPORATE_BOND"
@@ -72,7 +76,7 @@ class InstrumentTypeTest : FunSpec({
             floatIndex = "SOFR",
             maturityDate = "2031-06-15",
             effectiveDate = "2026-06-15",
-            payReceive = "PAY_FIXED",
+            payReceive = SwapDirection.PAY_FIXED,
         )
         inst.assetClass() shouldBe AssetClass.DERIVATIVE
         inst.instrumentTypeName shouldBe "INTEREST_RATE_SWAP"
@@ -91,7 +95,7 @@ class InstrumentTypeTest : FunSpec({
     }
 
     test("FxOption derives FX asset class") {
-        val inst = FxOption(baseCurrency = "EUR", quoteCurrency = "USD", optionType = "PUT", strike = 1.10, expiryDate = "2026-09-15")
+        val inst = FxOption(baseCurrency = "EUR", quoteCurrency = "USD", optionType = OptionType.PUT, strike = 1.10, expiryDate = "2026-09-15")
         inst.assetClass() shouldBe AssetClass.FX
         inst.instrumentTypeName shouldBe "FX_OPTION"
     }
@@ -103,7 +107,7 @@ class InstrumentTypeTest : FunSpec({
     }
 
     test("CommodityOption derives COMMODITY asset class") {
-        val inst = CommodityOption(underlyingId = "GC", optionType = "CALL", strike = 2000.0, expiryDate = "2026-08-20")
+        val inst = CommodityOption(underlyingId = "GC", optionType = OptionType.CALL, strike = 2000.0, expiryDate = "2026-08-20")
         inst.assetClass() shouldBe AssetClass.COMMODITY
         inst.instrumentTypeName shouldBe "COMMODITY_OPTION"
     }
@@ -118,10 +122,10 @@ class InstrumentTypeTest : FunSpec({
     test("serialization round-trip preserves EquityOption") {
         val original: InstrumentType = EquityOption(
             underlyingId = "AAPL",
-            optionType = "CALL",
+            optionType = OptionType.CALL,
             strike = 150.0,
             expiryDate = "2026-06-20",
-            exerciseStyle = "EUROPEAN",
+            exerciseStyle = ExerciseStyle.EUROPEAN,
             contractMultiplier = 100.0,
             dividendYield = 0.005,
         )
@@ -151,7 +155,7 @@ class InstrumentTypeTest : FunSpec({
         val original: InstrumentType = CorporateBond(
             currency = "USD", couponRate = 0.045, couponFrequency = 2,
             maturityDate = "2031-03-15", faceValue = 1000.0, issuer = "JPM",
-            creditRating = "A", seniority = "SENIOR_UNSECURED",
+            creditRating = "A", seniority = BondSeniority.SENIOR_UNSECURED,
         )
         val serialized = json.encodeToString(original)
         val deserialized = json.decodeFromString<InstrumentType>(serialized)
@@ -162,7 +166,7 @@ class InstrumentTypeTest : FunSpec({
         val original: InstrumentType = InterestRateSwap(
             notional = 10_000_000.0, currency = "USD", fixedRate = 0.035,
             floatIndex = "SOFR", maturityDate = "2031-06-15", effectiveDate = "2026-06-15",
-            payReceive = "PAY_FIXED", fixedFrequency = 2, floatFrequency = 4,
+            payReceive = SwapDirection.PAY_FIXED, fixedFrequency = 2, floatFrequency = 4,
         )
         val serialized = json.encodeToString(original)
         val deserialized = json.decodeFromString<InstrumentType>(serialized)
@@ -184,7 +188,7 @@ class InstrumentTypeTest : FunSpec({
     }
 
     test("serialization round-trip preserves FxOption") {
-        val original: InstrumentType = FxOption(baseCurrency = "EUR", quoteCurrency = "USD", optionType = "PUT", strike = 1.10, expiryDate = "2026-09-15")
+        val original: InstrumentType = FxOption(baseCurrency = "EUR", quoteCurrency = "USD", optionType = OptionType.PUT, strike = 1.10, expiryDate = "2026-09-15")
         val serialized = json.encodeToString(original)
         val deserialized = json.decodeFromString<InstrumentType>(serialized)
         deserialized shouldBe original
@@ -198,7 +202,7 @@ class InstrumentTypeTest : FunSpec({
     }
 
     test("serialization round-trip preserves CommodityOption") {
-        val original: InstrumentType = CommodityOption(underlyingId = "GC", optionType = "CALL", strike = 2000.0, expiryDate = "2026-08-20")
+        val original: InstrumentType = CommodityOption(underlyingId = "GC", optionType = OptionType.CALL, strike = 2000.0, expiryDate = "2026-08-20")
         val serialized = json.encodeToString(original)
         val deserialized = json.decodeFromString<InstrumentType>(serialized)
         deserialized shouldBe original
@@ -213,16 +217,16 @@ class InstrumentTypeTest : FunSpec({
     test("all 11 instrument types have unique names") {
         val types: List<InstrumentType> = listOf(
             CashEquity(currency = "USD"),
-            EquityOption(underlyingId = "X", optionType = "CALL", strike = 1.0, expiryDate = "2026-01-01", exerciseStyle = "EUROPEAN"),
+            EquityOption(underlyingId = "X", optionType = OptionType.CALL, strike = 1.0, expiryDate = "2026-01-01", exerciseStyle = ExerciseStyle.EUROPEAN),
             EquityFuture(underlyingId = "X", expiryDate = "2026-01-01", contractSize = 1.0, currency = "USD"),
             GovernmentBond(currency = "USD", couponRate = 0.02, couponFrequency = 2, maturityDate = "2036-01-01", faceValue = 1000.0),
             CorporateBond(currency = "USD", couponRate = 0.04, couponFrequency = 2, maturityDate = "2031-01-01", faceValue = 1000.0, issuer = "X"),
-            InterestRateSwap(notional = 1e6, currency = "USD", fixedRate = 0.03, floatIndex = "SOFR", maturityDate = "2031-01-01", effectiveDate = "2026-01-01", payReceive = "PAY_FIXED"),
+            InterestRateSwap(notional = 1e6, currency = "USD", fixedRate = 0.03, floatIndex = "SOFR", maturityDate = "2031-01-01", effectiveDate = "2026-01-01", payReceive = SwapDirection.PAY_FIXED),
             FxSpot(baseCurrency = "EUR", quoteCurrency = "USD"),
             FxForward(baseCurrency = "GBP", quoteCurrency = "USD", deliveryDate = "2026-09-15"),
-            FxOption(baseCurrency = "EUR", quoteCurrency = "USD", optionType = "CALL", strike = 1.10, expiryDate = "2026-09-15"),
+            FxOption(baseCurrency = "EUR", quoteCurrency = "USD", optionType = OptionType.CALL, strike = 1.10, expiryDate = "2026-09-15"),
             CommodityFuture(commodity = "WTI", expiryDate = "2026-08-20", contractSize = 1000.0, currency = "USD"),
-            CommodityOption(underlyingId = "GC", optionType = "CALL", strike = 2000.0, expiryDate = "2026-08-20"),
+            CommodityOption(underlyingId = "GC", optionType = OptionType.CALL, strike = 2000.0, expiryDate = "2026-08-20"),
         )
         val names = types.map { it.instrumentTypeName }
         names.toSet().size shouldBe 11
