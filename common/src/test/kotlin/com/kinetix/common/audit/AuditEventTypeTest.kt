@@ -13,6 +13,7 @@ class AuditEventTypeTest : FunSpec({
             "TRADE_AMENDED",
             "TRADE_CANCELLED",
             "RISK_CALCULATION_COMPLETED",
+            "RISK_CALCULATION_FAILED",
             "STRESS_TEST_RUN",
             "MODEL_STATUS_CHANGED",
             "LIMIT_BREACHED",
@@ -29,6 +30,7 @@ class AuditEventTypeTest : FunSpec({
     test("valueOf resolves each type by name") {
         AuditEventType.valueOf("TRADE_BOOKED") shouldBe AuditEventType.TRADE_BOOKED
         AuditEventType.valueOf("RISK_CALCULATION_COMPLETED") shouldBe AuditEventType.RISK_CALCULATION_COMPLETED
+        AuditEventType.valueOf("RISK_CALCULATION_FAILED") shouldBe AuditEventType.RISK_CALCULATION_FAILED
         AuditEventType.valueOf("MODEL_STATUS_CHANGED") shouldBe AuditEventType.MODEL_STATUS_CHANGED
         AuditEventType.valueOf("RBAC_ACCESS_DENIED") shouldBe AuditEventType.RBAC_ACCESS_DENIED
     }
