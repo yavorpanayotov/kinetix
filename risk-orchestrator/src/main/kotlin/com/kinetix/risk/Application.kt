@@ -414,6 +414,7 @@ fun Application.moduleWithRoutes() {
     val saCcrService = SaCcrService(
         referenceDataClient = effectiveReferenceDataServiceClient,
         saCcrClient = grpcSaCcrClient,
+        positionServiceClient = positionServiceClient,
     )
 
     launch {
