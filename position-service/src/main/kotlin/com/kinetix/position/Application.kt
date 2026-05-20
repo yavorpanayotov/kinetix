@@ -541,6 +541,27 @@ fun Application.moduleWithRoutes() {
         }
     }
 
+    // Publish exposure metrics — `position_notional{book_id,instrument_id,side}`
+    // and `position_count{book_id}` — for every open position. position-service
+    // owns the position book, so it is the authoritative source for the
+    // net-exposure, long/short-split and top-N concentration panels on the
+    // Position Concentration dashboard. Refreshed periodically so trade
+    // bookings and mark-to-market price updates are reflected without a restart.
+    val positionExposureGaugeBinder = com.kinetix.position.metrics.PositionExposureGaugeBinder(
+        positionRepository = positionRepository,
+        registry = attributes[MicrometerRegistryKey],
+    )
+    launch {
+        while (true) {
+            try {
+                positionExposureGaugeBinder.refresh()
+            } catch (e: Exception) {
+                log.warn("Failed to refresh position exposure gauges", e)
+            }
+            kotlinx.coroutines.delay(java.time.Duration.ofSeconds(30).toMillis())
+        }
+    }
+
     val seedEnabled = environment.config.propertyOrNull("seed.enabled")?.getString()?.toBoolean() ?: true
     if (seedEnabled) {
         launch {
