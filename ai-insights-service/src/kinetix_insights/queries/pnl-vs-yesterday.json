@@ -1,0 +1,6 @@
+{
+  "id": "pnl-vs-yesterday",
+  "label": "P&L vs yesterday",
+  "prompt_template": "State the current-day P&L for book {book_id} and compare it to the prior session's closing P&L. Report the absolute change and the percentage change, and break the move down by the largest contributing instruments. Quote only the figures from the book's own P&L attribution data.",
+  "required_params": ["book_id"]
+}

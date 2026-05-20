@@ -1,0 +1,6 @@
+{
+  "id": "var-week-drivers",
+  "label": "VaR drivers this week",
+  "prompt_template": "State the current 95% Value-at-Risk for book {book_id} and how it has changed over the past week. Identify the risk factors and positions that drove the change, quoting the contribution figures for each. Report only the numbers from the book's own VaR results.",
+  "required_params": ["book_id"]
+}

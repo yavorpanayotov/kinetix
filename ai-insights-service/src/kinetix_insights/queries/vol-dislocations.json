@@ -1,0 +1,6 @@
+{
+  "id": "vol-dislocations",
+  "label": "Volatility dislocations",
+  "prompt_template": "Identify the instruments held on book {book_id} where the implied volatility has moved most against its recent range. For each, state the instrument, the current implied volatility, and the size of the move. Report only the figures from the book's own positions and volatility surface data.",
+  "required_params": ["book_id"]
+}

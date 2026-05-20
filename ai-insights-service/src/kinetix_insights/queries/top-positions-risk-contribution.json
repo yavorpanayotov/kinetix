@@ -1,0 +1,6 @@
+{
+  "id": "top-positions-risk-contribution",
+  "label": "Top positions by risk contribution",
+  "prompt_template": "List the top {top_n} positions on book {book_id} ranked by their contribution to total portfolio risk. For each position, state the instrument, the notional or market value, and its risk contribution figure. Report only the figures from the book's own risk results.",
+  "required_params": ["book_id", "top_n"]
+}

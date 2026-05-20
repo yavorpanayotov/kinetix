@@ -1,0 +1,6 @@
+{
+  "id": "limit-breaches",
+  "label": "Limit breaches today",
+  "prompt_template": "List every risk limit on book {book_id} that is in breach today. For each breach, state the limit name, the current utilisation, the limit threshold, and the time the breach was first recorded. Report only the figures from the book's own limit data.",
+  "required_params": ["book_id"]
+}
