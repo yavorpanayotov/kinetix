@@ -164,7 +164,7 @@ Give users and support a screen — no LogQL required.
 
 - [x] 9.1 Feed live limit-breach / risk-result / alert notifications into the `NotificationStrip` `items` prop in `App.tsx` (reuse the existing alert/notification data source that `NotificationCenter` consumes). Update the Vitest test for the non-empty case.
       Acceptance: `cd ui && npm run lint && npm run test -- NotificationStrip App`
-- [ ] 9.2 Add a Playwright E2E spec asserting a limit-breach notification appears in the strip without navigating to the Alerts tab.
+- [x] 9.2 Add a Playwright E2E spec asserting a limit-breach notification appears in the strip without navigating to the Alerts tab.
       Acceptance: `cd ui && npx playwright test e2e/notification-strip.spec.ts`
 
 ### PR 10 — Retention & business-event alerts
