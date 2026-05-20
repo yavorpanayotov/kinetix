@@ -1,5 +1,7 @@
 package com.kinetix.gateway.routes
 
+import com.kinetix.gateway.ratelimit.CopilotRateLimiter
+import com.kinetix.gateway.ratelimit.copilotRateLimited
 import io.ktor.client.HttpClient
 import io.ktor.client.request.header
 import io.ktor.client.request.prepareRequest
@@ -27,7 +29,8 @@ import io.ktor.utils.io.toByteArray
  *
  * Forwards `POST /api/v1/insights/explain/var` (PR 2 — VaR Explainer),
  * `POST /api/v1/insights/explain/report` (PR 3 — Risk Report Generator),
- * `POST /api/v1/insights/chat` (PR 4 — Copilot streaming chat), and
+ * `POST /api/v1/insights/chat` (PR 4 — Copilot streaming chat),
+ * `POST /api/v1/insights/queries/{id}/run` (PR 8 — saved-query runner), and
  * `GET /api/v1/insights/brief/today` (PR 6 — Copilot daily brief) to the
  * `ai-insights-service` backend without transforming the body. The gateway
  * does not own the insight schema — request and response bodies pass through
@@ -35,12 +38,18 @@ import io.ktor.utils.io.toByteArray
  * the gateway.
  *
  * The buffered v1 explainer routes share the standard short-deadline
- * [httpClient]. The chat route is SSE — long-lived, frame-by-frame — and
- * therefore uses a dedicated [streamingHttpClient] whose `requestTimeoutMillis`
- * is configured to `Long.MAX_VALUE` so the gateway does not kill an open
- * stream after the default 5 s budget. Tests that don't care pass the same
- * client for both; production wiring in `Application.devModule` constructs
- * a distinct streaming client.
+ * [httpClient]. The chat and saved-query routes are SSE — long-lived,
+ * frame-by-frame — and therefore use a dedicated [streamingHttpClient] whose
+ * `requestTimeoutMillis` is configured to `Long.MAX_VALUE` so the gateway does
+ * not kill an open stream after the default 5 s budget. Tests that don't care
+ * pass the same client for both; production wiring in `Application.devModule`
+ * constructs a distinct streaming client.
+ *
+ * The two streaming Copilot routes (`/chat` and `/queries/{id}/run`) are
+ * additionally rate-limited per user — 10 requests / user / minute, keyed by
+ * the JWT `sub` claim (AI-v2 PR 10.2). A request beyond the allowance is
+ * rejected with `429 Too Many Requests` before it is proxied upstream. The v1
+ * explainer routes and the daily-brief route are not rate-limited here.
  *
  * The configured `insightsBaseUrl` is sourced from `services.insights.url` in
  * `application.conf`, which honours the `INSIGHTS_SERVICE_URL` env override.
@@ -50,6 +59,10 @@ fun Route.insightsRoutes(
     insightsBaseUrl: String,
     streamingHttpClient: HttpClient = httpClient,
 ) {
+    // One limiter instance per route registration — shared across all calls so
+    // every user's window survives between requests for the lifetime of the app.
+    val copilotRateLimiter = CopilotRateLimiter()
+
     post("/api/v1/insights/explain/var") {
         proxyToInsights(httpClient, "$insightsBaseUrl/api/v1/insights/explain/var", call)
     }
@@ -57,11 +70,23 @@ fun Route.insightsRoutes(
         proxyToInsights(httpClient, "$insightsBaseUrl/api/v1/insights/explain/report", call)
     }
     post("/api/v1/insights/chat") {
-        streamProxyToInsights(
-            streamingHttpClient,
-            "$insightsBaseUrl/api/v1/insights/chat",
-            call,
-        )
+        call.copilotRateLimited(copilotRateLimiter) {
+            streamProxyToInsights(
+                streamingHttpClient,
+                "$insightsBaseUrl/api/v1/insights/chat",
+                this,
+            )
+        }
+    }
+    post("/api/v1/insights/queries/{id}/run") {
+        call.copilotRateLimited(copilotRateLimiter) {
+            val queryId = parameters["id"].orEmpty()
+            streamProxyToInsights(
+                streamingHttpClient,
+                "$insightsBaseUrl/api/v1/insights/queries/$queryId/run",
+                this,
+            )
+        }
     }
     get("/api/v1/insights/brief/today") {
         proxyToInsights(httpClient, "$insightsBaseUrl/api/v1/insights/brief/today", call)
