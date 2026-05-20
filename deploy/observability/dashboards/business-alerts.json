@@ -1,0 +1,466 @@
+{
+  "uid": "kinetix-business-alerts",
+  "title": "Business Alerts & Events",
+  "description": "Limit breaches, anomalies and market-regime changes over time, sourced from notification-service structured logs (limits.breaches, risk.anomalies and risk.regime.changes consumers). Panels carry bookId / tradeId / correlationId drill-throughs to Loki logs and Tempo traces for support search.",
+  "tags": ["kinetix", "alerts", "events", "support"],
+  "timezone": "browser",
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "links": [
+    { "title": "Trade Lifecycle", "type": "link", "url": "/d/kinetix-trade-lifecycle", "icon": "dashboard" },
+    { "title": "Risk Run Health", "type": "link", "url": "/d/kinetix-risk-run-health", "icon": "dashboard" },
+    { "title": "Service Logs", "type": "link", "url": "/d/kinetix-service-logs", "icon": "dashboard" }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "bookId",
+        "type": "query",
+        "label": "Book",
+        "description": "Scope limit-breach panels to one or more books. Populated from the bookId field on notification-service limit-breach logs.",
+        "datasource": { "type": "loki", "uid": "loki" },
+        "query": "label_values({service_name=\"notification-service\"} |= `Limit breach alert` | pattern `<_>bookId=<bookId> limitType=<_>`, bookId)",
+        "includeAll": true,
+        "allValue": ".+",
+        "current": { "text": "All", "value": "$__all" },
+        "multi": true,
+        "refresh": 2,
+        "sort": 1
+      },
+      {
+        "name": "severity",
+        "type": "custom",
+        "label": "Severity",
+        "description": "Filter limit-breach and regime-change alerts by severity.",
+        "query": "INFO,WARNING,CRITICAL",
+        "includeAll": true,
+        "allValue": ".+",
+        "current": { "text": "All", "value": "$__all" },
+        "multi": true
+      },
+      {
+        "name": "tradeId",
+        "type": "textbox",
+        "label": "Trade ID",
+        "description": "Paste a tradeId to find the limit breach raised for one trade in the trade drill-through panel.",
+        "query": "",
+        "current": { "text": "", "value": "" }
+      },
+      {
+        "name": "correlationId",
+        "type": "textbox",
+        "label": "Correlation ID",
+        "description": "Paste a correlationId to follow one alert across every service via the drill-through panel and links.",
+        "query": "",
+        "current": { "text": "", "value": "" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Limit Breaches",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "description": "Total limit-breach alerts raised by notification-service over the dashboard range.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({service_name=\"notification-service\"} |= `Limit breach alert` [$__range]))",
+          "legendFormat": "Limit breaches"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        }
+      },
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" }
+    },
+    {
+      "id": 2,
+      "title": "Anomalies Detected",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "description": "Total anomalies flagged by the risk.anomalies consumer in notification-service over the dashboard range.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({service_name=\"notification-service\"} |= `Anomaly detected` [$__range]))",
+          "legendFormat": "Anomalies"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 }
+            ]
+          }
+        }
+      },
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" }
+    },
+    {
+      "id": 3,
+      "title": "Regime Changes",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "description": "Confirmed market-regime transitions that produced an alert, from the risk.regime.changes consumer in notification-service.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({service_name=\"notification-service\"} |= `Regime change alert` [$__range]))",
+          "legendFormat": "Regime changes"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0",
+          "color": { "mode": "fixed", "fixedColor": "yellow" }
+        }
+      },
+      "options": { "colorMode": "value", "graphMode": "area", "textMode": "value_and_name" }
+    },
+    {
+      "id": 4,
+      "title": "Critical Alerts",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "description": "Limit-breach and regime-change alerts raised at CRITICAL severity over the dashboard range — the headline business-alert SLI.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({service_name=\"notification-service\"} |~ `(Limit breach alert|Regime change alert).*severity=CRITICAL` [$__range]))",
+          "legendFormat": "Critical"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        }
+      },
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" }
+    },
+    {
+      "id": 5,
+      "title": "Limit Breaches Over Time (by severity)",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 5 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "description": "Limit-breach alerts raised by notification-service over time, broken down by severity. Filter by book and severity using the dashboard variables.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (severity) (count_over_time({service_name=\"notification-service\"} |= `Limit breach alert` | pattern `<_>bookId=<bookId> limitType=<_> severity=<severity> message=<_>` | bookId=~\"$bookId\" | severity=~\"$severity\" [$__auto]))",
+          "legendFormat": "{{severity}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 70,
+            "stacking": { "mode": "normal" }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "CRITICAL" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "WARNING" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "yellow" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "INFO" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } }]
+          }
+        ]
+      },
+      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["sum"] } }
+    },
+    {
+      "id": 6,
+      "title": "Limit Breaches by Limit Type",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 5 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "description": "Limit-breach alert volume broken down by limit type (e.g. NOTIONAL, VAR, CONCENTRATION), parsed from the notification-service log line.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (limitType) (count_over_time({service_name=\"notification-service\"} |= `Limit breach alert` | pattern `<_>bookId=<bookId> limitType=<limitType> severity=<_> message=<_>` | bookId=~\"$bookId\" [$__auto]))",
+          "legendFormat": "{{limitType}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "stacking": { "mode": "none" },
+            "lineWidth": 2
+          }
+        }
+      },
+      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["sum"] } }
+    },
+    {
+      "id": 7,
+      "title": "Anomalies Over Time (by metric)",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 14 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "description": "Anomalies flagged by notification-service over time, broken down by the metric that tripped the detector.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (metric) (count_over_time({service_name=\"notification-service\"} |= `Anomaly detected` | pattern `<_>metric=<metric>, score=<_>` [$__auto]))",
+          "legendFormat": "{{metric}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 70,
+            "stacking": { "mode": "normal" },
+            "lineWidth": 1
+          },
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["sum"] } }
+    },
+    {
+      "id": 8,
+      "title": "Regime Changes Over Time",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 14 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "description": "Market-regime transitions over time, broken down by the regime that was entered (ELEVATED_VOL, CRISIS, RECOVERY).",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (to) (count_over_time({service_name=\"notification-service\"} |= `Regime change alert` | pattern `<_>from=<from> to=<to> severity=<_>` [$__auto]))",
+          "legendFormat": "to {{to}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 70,
+            "stacking": { "mode": "normal" },
+            "lineWidth": 1
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "to CRISIS" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "to ELEVATED_VOL" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "to RECOVERY" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }]
+          }
+        ]
+      },
+      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["sum"] } }
+    },
+    {
+      "id": 9,
+      "title": "Critical Breach Ratio",
+      "type": "gauge",
+      "gridPos": { "h": 9, "w": 6, "x": 0, "y": 23 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "description": "CRITICAL limit breaches as a fraction of all limit-breach alerts over the dashboard range — an elevated ratio signals concentrated limit pressure.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({service_name=\"notification-service\"} |~ `Limit breach alert.*severity=CRITICAL` [$__range])) / clamp_min(sum(count_over_time({service_name=\"notification-service\"} |= `Limit breach alert` [$__range])), 1)",
+          "legendFormat": "Critical ratio"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.25 },
+              { "color": "red", "value": 0.5 }
+            ]
+          }
+        }
+      },
+      "options": { "showThresholdLabels": false, "showThresholdMarkers": true }
+    },
+    {
+      "id": 10,
+      "title": "Recent Business Alerts",
+      "type": "logs",
+      "gridPos": { "h": 9, "w": 18, "x": 6, "y": 23 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "description": "Latest limit-breach, anomaly and regime-change alerts from notification-service. Expand a line for the structured fields; click the TraceID derived field to open the trace in Tempo.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service_name=\"notification-service\"} |~ `Limit breach alert|Anomaly detected|Regime change alert`"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": true,
+        "enableLogDetails": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none"
+      }
+    },
+    {
+      "id": 11,
+      "title": "Trade Drill-through (by tradeId)",
+      "type": "logs",
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 32 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "description": "Set the tradeId variable to find the limit breach raised for a single trade. Use the panel links to open the full Loki log stream and the Tempo trace for that trade.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service_name=~\".+\"} | json | tradeId=`$tradeId`"
+        }
+      ],
+      "links": [
+        {
+          "title": "Open all logs for this tradeId in Loki",
+          "url": "/explore?left=%7B%22datasource%22:%22loki%22,%22queries%22:%5B%7B%22datasource%22:%7B%22type%22:%22loki%22,%22uid%22:%22loki%22%7D,%22expr%22:%22%7Bservice_name%3D~%5C%22.%2B%5C%22%7D%20%7C%20json%20%7C%20tradeId%3D%5C%22${tradeId}%5C%22%22%7D%5D,%22range%22:%7B%22from%22:%22now-24h%22,%22to%22:%22now%22%7D%7D",
+          "targetBlank": true
+        },
+        {
+          "title": "Open the trace for this tradeId in Tempo",
+          "url": "/explore?left=%7B%22datasource%22:%22tempo%22,%22queries%22:%5B%7B%22datasource%22:%7B%22type%22:%22tempo%22,%22uid%22:%22tempo%22%7D,%22queryType%22:%22traceql%22,%22query%22:%22%7B%20.tradeId%20%3D%20%5C%22${tradeId}%5C%22%20%7D%22%7D%5D,%22range%22:%7B%22from%22:%22now-24h%22,%22to%22:%22now%22%7D%7D",
+          "targetBlank": true
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": true,
+        "enableLogDetails": true,
+        "sortOrder": "Ascending",
+        "dedupStrategy": "none"
+      }
+    },
+    {
+      "id": 12,
+      "title": "correlationId Drill-through",
+      "type": "logs",
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 41 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "description": "Set the correlationId variable to follow a single alert across every service. Use the panel links to jump to the full Loki log stream and the Tempo trace for that correlationId.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service_name=~\".+\"} | json | correlationId=`$correlationId`"
+        }
+      ],
+      "links": [
+        {
+          "title": "Open all logs for this correlationId in Loki",
+          "url": "/explore?left=%7B%22datasource%22:%22loki%22,%22queries%22:%5B%7B%22datasource%22:%7B%22type%22:%22loki%22,%22uid%22:%22loki%22%7D,%22expr%22:%22%7Bservice_name%3D~%5C%22.%2B%5C%22%7D%20%7C%20json%20%7C%20correlationId%3D%5C%22${correlationId}%5C%22%22%7D%5D,%22range%22:%7B%22from%22:%22now-24h%22,%22to%22:%22now%22%7D%7D",
+          "targetBlank": true
+        },
+        {
+          "title": "Open the trace for this correlationId in Tempo",
+          "url": "/explore?left=%7B%22datasource%22:%22tempo%22,%22queries%22:%5B%7B%22datasource%22:%7B%22type%22:%22tempo%22,%22uid%22:%22tempo%22%7D,%22queryType%22:%22traceql%22,%22query%22:%22%7B%20.correlationId%20%3D%20%5C%22${correlationId}%5C%22%20%7D%22%7D%5D,%22range%22:%7B%22from%22:%22now-24h%22,%22to%22:%22now%22%7D%7D",
+          "targetBlank": true
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": true,
+        "enableLogDetails": true,
+        "sortOrder": "Ascending",
+        "dedupStrategy": "none"
+      }
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "name": "Critical limit breaches",
+        "datasource": { "type": "loki", "uid": "loki" },
+        "enable": true,
+        "iconColor": "red",
+        "target": {
+          "expr": "{service_name=\"notification-service\"} |~ `Limit breach alert.*severity=CRITICAL`",
+          "refId": "Anno"
+        }
+      },
+      {
+        "name": "Regime changes",
+        "datasource": { "type": "loki", "uid": "loki" },
+        "enable": true,
+        "iconColor": "orange",
+        "target": {
+          "expr": "{service_name=\"notification-service\"} |= `Regime change alert`",
+          "refId": "AnnoRegime"
+        }
+      }
+    ]
+  },
+  "schemaVersion": 39,
+  "version": 1
+}
