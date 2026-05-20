@@ -200,7 +200,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
       Acceptance: `./gradlew :gateway:acceptanceTest --tests "*CopilotInternalPushAcceptanceTest"`
 - [x] 7.6 Add `CopilotBroadcaster` in `gateway/.../websocket/CopilotBroadcaster.kt` (mirrors `AlertBroadcaster`) and `/ws/copilot` WebSocket route in `CopilotWebSocketRoute.kt`. JWT auth on connect; scope-filter by `X-User-Books`. Register in `Application.kt` `devModule()`. Test asserts message delivery to scoped users only.
       Acceptance: `./gradlew :gateway:acceptanceTest --tests "*CopilotWebSocketRouteAcceptanceTest"`
-- [ ] 7.7 Wire `ai-insights-service` to POST to the gateway internal endpoint when an intraday alert fires. Add `GatewayPushClient` (httpx wrapper). Unit test asserts the push payload shape and URL.
+- [x] 7.7 Wire `ai-insights-service` to POST to the gateway internal endpoint when an intraday alert fires. Add `GatewayPushClient` (httpx wrapper). Unit test asserts the push payload shape and URL.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_gateway_push_client.py -m unit`
 - [ ] 7.8 Add `useCopilotWebSocket()` hook in `ui/src/hooks/useCopilotWebSocket.ts` — connects to `/ws/copilot`, exposes push events as a React state stream. Auto-reconnect with backoff. Vitest covers connect/disconnect/reconnect/scope-filter.
       Acceptance: `cd ui && npm run test -- useCopilotWebSocket`
