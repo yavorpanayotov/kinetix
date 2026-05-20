@@ -203,7 +203,7 @@ not stop mid-loop:
       hypothetical nightly archival job that was never built). Building archival
       is separate product work requiring its own approval — out of scope here. Its
       dashboard panel is handled as a "not yet instrumented" placeholder in 2.3.
-- [ ] 2.3 `trading/fix-gateway-overview.json` — replace the
+- [x] 2.3 `trading/fix-gateway-overview.json` — replace the
       `ghost_fill_detected_total`, `mtls_handshake_failed_total`, and
       `fix_message_log_partitions_archived_total` panels (no ghost-fill-detection,
       mTLS, or message-log-archival code exists) with clearly-labelled `text`
