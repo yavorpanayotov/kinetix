@@ -17,6 +17,7 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.slf4j.LoggerFactory
+import org.slf4j.MDC
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.Instant
@@ -403,6 +404,7 @@ class VaRCalculationService(
                     userRole = "SYSTEM",
                     bookId = request.bookId.value,
                     details = "${effectiveRequest.calculationType}/${effectiveRequest.confidenceLevel}",
+                    correlationId = MDC.get("correlationId"),
                 )
             )
 

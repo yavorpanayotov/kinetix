@@ -8,6 +8,7 @@ import com.kinetix.notification.model.DeliveryChannel
 import com.kinetix.notification.model.Severity
 import com.kinetix.notification.persistence.AlertEventRepository
 import org.slf4j.LoggerFactory
+import org.slf4j.MDC
 import java.time.Instant
 
 class AlertEscalationService(
@@ -38,6 +39,7 @@ class AlertEscalationService(
                     userRole = "SYSTEM",
                     bookId = alert.bookId,
                     details = "alertId=${alert.id} severity=${alert.severity}->${promotedSeverity} escalatedTo=$escalatedTo type=${alert.type}",
+                    correlationId = MDC.get("correlationId"),
                 ),
             )
 

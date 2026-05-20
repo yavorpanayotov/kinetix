@@ -3,6 +3,7 @@ package com.kinetix.regulatory.submission
 import com.kinetix.common.audit.AuditEventType
 import com.kinetix.common.audit.GovernanceAuditEvent
 import com.kinetix.regulatory.audit.GovernanceAuditPublisher
+import org.slf4j.MDC
 import java.time.Instant
 import java.util.UUID
 
@@ -57,6 +58,7 @@ class SubmissionService(
                 userRole = "APPROVER",
                 submissionId = id,
                 details = submission.reportType,
+                correlationId = MDC.get("correlationId"),
             )
         )
         return updated
@@ -92,6 +94,7 @@ class SubmissionService(
                 userRole = "REGULATOR",
                 submissionId = id,
                 details = submission.reportType,
+                correlationId = MDC.get("correlationId"),
             )
         )
         return updated

@@ -15,6 +15,7 @@ import io.mockk.*
 import kotlinx.serialization.json.Json
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.RecordMetadata
+import org.slf4j.MDC
 import java.time.Instant
 import java.util.concurrent.Future
 
@@ -60,6 +61,11 @@ class CrossBookLimitCheckAuditTest : FunSpec({
 
     beforeEach {
         clearMocks(limitClient, producer)
+        MDC.clear()
+    }
+
+    afterEach {
+        MDC.clear()
     }
 
     test("publishes LIMIT_BREACHED audit event when VaR exceeds limit") {
@@ -117,5 +123,20 @@ class CrossBookLimitCheckAuditTest : FunSpec({
                 .decodeFromString<GovernanceAuditEvent>(it.value()).eventType
         }
         eventTypes.all { it == AuditEventType.LIMIT_BREACHED } shouldBe true
+    }
+
+    test("carries the correlationId from the MDC on the LIMIT_BREACHED governance event") {
+        coEvery { limitClient.getLimits() } returns ClientResponse.Success(
+            listOf(aVarLimit(id = "lim-desk-1", limitValue = "100000")),
+        )
+        val publishedSlot = slot<org.apache.kafka.clients.producer.ProducerRecord<String, String>>()
+        every { producer.send(capture(publishedSlot)) } returns givenFuture()
+
+        MDC.put("correlationId", "corr-xbook-456")
+        service.checkLimits(aCrossBookResult(varValue = 120_000.0))
+
+        val decoded = Json { ignoreUnknownKeys = true }
+            .decodeFromString<GovernanceAuditEvent>(publishedSlot.captured.value())
+        decoded.correlationId shouldBe "corr-xbook-456"
     }
 })

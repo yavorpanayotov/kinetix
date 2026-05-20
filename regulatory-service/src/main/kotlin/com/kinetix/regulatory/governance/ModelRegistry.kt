@@ -3,6 +3,7 @@ package com.kinetix.regulatory.governance
 import com.kinetix.common.audit.AuditEventType
 import com.kinetix.common.audit.GovernanceAuditEvent
 import com.kinetix.regulatory.audit.GovernanceAuditPublisher
+import org.slf4j.MDC
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
@@ -94,6 +95,7 @@ class ModelRegistry(
                 userRole = if (approvedBy != null) "APPROVER" else "SYSTEM",
                 modelName = model.modelName,
                 details = "${model.status}->${targetStatus}",
+                correlationId = MDC.get("correlationId"),
             )
         )
 

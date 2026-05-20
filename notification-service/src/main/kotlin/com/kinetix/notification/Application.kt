@@ -49,6 +49,7 @@ import io.ktor.server.plugins.calllogging.*
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.plugins.statuspages.*
 import io.ktor.server.request.*
+import org.slf4j.MDC
 import org.slf4j.event.Level
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -487,6 +488,7 @@ fun Route.notificationRoutes(
                     userRole = "UNKNOWN",
                     alertId = alertId,
                     details = "Alert $alertId acknowledged: ${request.notes ?: "no notes"}",
+                    correlationId = MDC.get("correlationId"),
                 ),
             )
 
@@ -538,6 +540,7 @@ fun Route.notificationRoutes(
                     alertId = alertId,
                     bookId = alert.bookId,
                     details = "Alert $alertId manually escalated to $assignee: ${request.reason}",
+                    correlationId = MDC.get("correlationId"),
                 ),
             )
 
@@ -586,6 +589,7 @@ fun Route.notificationRoutes(
                     alertId = alertId,
                     bookId = alert.bookId,
                     details = "Alert $alertId resolved: ${request.resolutionText}",
+                    correlationId = MDC.get("correlationId"),
                 ),
             )
 

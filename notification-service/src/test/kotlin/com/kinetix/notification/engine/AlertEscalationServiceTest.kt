@@ -15,6 +15,7 @@ import io.kotest.matchers.shouldNotBe
 import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.verify
+import org.slf4j.MDC
 import java.time.Instant
 
 class AlertEscalationServiceTest : FunSpec({
@@ -203,6 +204,32 @@ class AlertEscalationServiceTest : FunSpec({
                         // WARNING is promoted to CRITICAL, so target is risk-manager,cro
                         event.details?.contains("risk-manager,cro") == true
                 },
+            )
+        }
+    }
+
+    test("ALERT_ESCALATED governance event carries the correlationId from the MDC") {
+        val repo = InMemoryAlertEventRepository()
+        val router = mockk<DeliveryRouter>(relaxed = true)
+        val auditPublisher = mockk<GovernanceAuditPublisher>(relaxed = true)
+        val now = Instant.parse("2025-01-15T12:00:00Z")
+        val acknowledgedAt = now.minusSeconds(31 * 60)
+
+        val alert = warningAlert("alert-corr", acknowledgedAt)
+        repo.save(alert)
+
+        val service = AlertEscalationService(repo, router, escalationTimeoutMinutes = 30, auditPublisher = auditPublisher)
+
+        try {
+            MDC.put("correlationId", "corr-alert-555")
+            service.processEscalations(now)
+        } finally {
+            MDC.clear()
+        }
+
+        verify(exactly = 1) {
+            auditPublisher.publish(
+                match { event -> event.correlationId == "corr-alert-555" },
             )
         }
     }

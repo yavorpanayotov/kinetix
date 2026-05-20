@@ -14,6 +14,7 @@ import io.mockk.verify
 import kotlinx.serialization.json.Json
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.RecordMetadata
+import org.slf4j.MDC
 import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.Future
@@ -29,6 +30,11 @@ class SubmissionAuditTest : FunSpec({
 
     beforeEach {
         clearMocks(repository, producer)
+        MDC.clear()
+    }
+
+    afterEach {
+        MDC.clear()
     }
 
     test("publishes SUBMISSION_APPROVED when submission is approved") {
@@ -66,6 +72,39 @@ class SubmissionAuditTest : FunSpec({
             .decodeFromString<GovernanceAuditEvent>(publishedSlot.captured.value())
         decoded.eventType shouldBe AuditEventType.SUBMISSION_ACKNOWLEDGED
         decoded.submissionId shouldBe id
+    }
+
+    test("carries the correlationId from the MDC on the published governance event") {
+        val id = UUID.randomUUID().toString()
+        val submission = aSubmission(id = id, status = SubmissionStatus.PENDING_REVIEW, preparerId = "preparer-1")
+        coEvery { repository.findById(id) } returns submission
+        coEvery { repository.save(any()) } returns Unit
+
+        val publishedSlot = slot<org.apache.kafka.clients.producer.ProducerRecord<String, String>>()
+        every { producer.send(capture(publishedSlot)) } returns givenFuture()
+
+        MDC.put("correlationId", "corr-submission-321")
+        service.approve(id, approverId = "approver-1")
+
+        val decoded = Json { ignoreUnknownKeys = true }
+            .decodeFromString<GovernanceAuditEvent>(publishedSlot.captured.value())
+        decoded.correlationId shouldBe "corr-submission-321"
+    }
+
+    test("publishes a null correlationId when the MDC has no correlation id") {
+        val id = UUID.randomUUID().toString()
+        val submission = aSubmission(id = id, status = SubmissionStatus.PENDING_REVIEW, preparerId = "preparer-1")
+        coEvery { repository.findById(id) } returns submission
+        coEvery { repository.save(any()) } returns Unit
+
+        val publishedSlot = slot<org.apache.kafka.clients.producer.ProducerRecord<String, String>>()
+        every { producer.send(capture(publishedSlot)) } returns givenFuture()
+
+        service.approve(id, approverId = "approver-1")
+
+        val decoded = Json { ignoreUnknownKeys = true }
+            .decodeFromString<GovernanceAuditEvent>(publishedSlot.captured.value())
+        decoded.correlationId shouldBe null
     }
 
     test("does not publish audit event when submission approval is rejected due to same preparer and approver") {

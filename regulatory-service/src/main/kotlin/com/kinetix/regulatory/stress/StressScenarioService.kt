@@ -5,6 +5,7 @@ import com.kinetix.regulatory.client.RiskOrchestratorClient
 import com.kinetix.common.audit.AuditEventType
 import com.kinetix.common.audit.GovernanceAuditEvent
 import com.kinetix.regulatory.audit.GovernanceAuditPublisher
+import org.slf4j.MDC
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.double
@@ -89,6 +90,7 @@ class StressScenarioService(
                 userRole = "APPROVER",
                 scenarioId = id,
                 details = scenario.name,
+                correlationId = MDC.get("correlationId"),
             )
         )
         return updated
@@ -108,6 +110,7 @@ class StressScenarioService(
                 userRole = "SYSTEM",
                 scenarioId = id,
                 details = scenario.name,
+                correlationId = MDC.get("correlationId"),
             )
         )
         return updated
@@ -175,6 +178,7 @@ class StressScenarioService(
                 scenarioId = scenarioId,
                 bookId = bookId,
                 details = "modelVersion=$modelVersion",
+                correlationId = MDC.get("correlationId"),
             )
         )
         return result

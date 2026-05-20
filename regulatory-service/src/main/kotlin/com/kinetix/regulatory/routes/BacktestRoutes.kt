@@ -18,6 +18,7 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import org.slf4j.LoggerFactory
+import org.slf4j.MDC
 import java.security.MessageDigest
 import java.time.Instant
 import java.time.LocalDate
@@ -87,6 +88,7 @@ fun Route.backtestRoutes(
                     userRole = "SYSTEM",
                     bookId = bookId,
                     details = "BACKTEST",
+                    correlationId = MDC.get("correlationId"),
                 )
             )
             call.respond(HttpStatusCode.Created, record.toResponse())

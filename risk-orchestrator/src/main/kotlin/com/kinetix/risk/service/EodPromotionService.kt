@@ -9,6 +9,7 @@ import io.micrometer.core.instrument.Timer
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import kotlinx.coroutines.delay
 import org.slf4j.LoggerFactory
+import org.slf4j.MDC
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
@@ -137,6 +138,7 @@ class EodPromotionService(
                     userRole = if (promotedBy == "AUTO_CLOSE") "AUTO_CLOSE" else "EOD_OPERATOR",
                     bookId = promoted.bookId,
                     details = "jobId=${promoted.jobId},valuationDate=${promoted.valuationDate}",
+                    correlationId = MDC.get("correlationId"),
                 )
             )
 

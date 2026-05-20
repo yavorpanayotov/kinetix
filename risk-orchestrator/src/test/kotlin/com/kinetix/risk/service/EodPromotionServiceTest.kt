@@ -1,5 +1,7 @@
 package com.kinetix.risk.service
 
+import com.kinetix.common.audit.GovernanceAuditEvent
+import com.kinetix.risk.kafka.GovernanceAuditPublisher
 import com.kinetix.risk.model.*
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
@@ -7,6 +9,7 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.*
+import org.slf4j.MDC
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
@@ -69,6 +72,11 @@ class EodPromotionServiceTest : FunSpec({
 
     beforeEach {
         clearMocks(jobRecorder, eventPublisher)
+        MDC.clear()
+    }
+
+    afterEach {
+        MDC.clear()
     }
 
     test("promotes a completed job to Official EOD") {
@@ -449,5 +457,31 @@ class EodPromotionServiceTest : FunSpec({
                 service.promoteToOfficialEodAutomatically(JOB_ID)
             }
         }
+    }
+
+    test("EOD_PROMOTED governance event carries the correlationId from the MDC") {
+        val governanceAuditPublisher = mockk<GovernanceAuditPublisher>(relaxed = true)
+        val serviceWithGovernance = EodPromotionService(
+            jobRecorder = jobRecorder,
+            eventPublisher = eventPublisher,
+            governanceAuditPublisher = governanceAuditPublisher,
+        )
+        val job = completedJob()
+        val promoted = job.copy(
+            runLabel = RunLabel.OFFICIAL_EOD,
+            promotedAt = Instant.parse("2026-03-13T18:00:00Z"),
+            promotedBy = "user-b",
+        )
+        coEvery { jobRecorder.findByJobId(JOB_ID) } returns job
+        coEvery { jobRecorder.findOfficialEodByDate("port-1", VALUATION_DATE) } returns null
+        coEvery { jobRecorder.promoteToOfficialEod(JOB_ID, "user-b", any()) } returns promoted
+        coEvery { eventPublisher.publish(any()) } just Runs
+
+        MDC.put("correlationId", "corr-eod-789")
+        serviceWithGovernance.promoteToOfficialEod(JOB_ID, "user-b")
+
+        val captured = slot<GovernanceAuditEvent>()
+        verify { governanceAuditPublisher.publish(capture(captured)) }
+        captured.captured.correlationId shouldBe "corr-eod-789"
     }
 })

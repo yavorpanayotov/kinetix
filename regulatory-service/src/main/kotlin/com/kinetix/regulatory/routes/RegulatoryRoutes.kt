@@ -16,6 +16,7 @@ import io.ktor.http.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import org.slf4j.LoggerFactory
+import org.slf4j.MDC
 import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
@@ -75,6 +76,7 @@ fun Route.regulatoryRoutes(
                         userRole = "SYSTEM",
                         bookId = bookId,
                         details = "FRTB",
+                        correlationId = MDC.get("correlationId"),
                     )
                 )
                 call.respond(HttpStatusCode.Created, record.toResponse())

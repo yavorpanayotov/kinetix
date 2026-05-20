@@ -7,6 +7,7 @@ import com.kinetix.risk.client.LimitServiceClient
 import com.kinetix.risk.kafka.GovernanceAuditPublisher
 import com.kinetix.risk.model.CrossBookValuationResult
 import org.slf4j.LoggerFactory
+import org.slf4j.MDC
 import java.math.BigDecimal
 import java.math.RoundingMode
 
@@ -67,6 +68,7 @@ class CrossBookLimitCheckService(
                             limitId = limit.id,
                             bookId = groupId,
                             details = "VaR $aggregatedVaR > ${limit.level} limit $limitValue",
+                            correlationId = MDC.get("correlationId"),
                         )
                     )
                 }

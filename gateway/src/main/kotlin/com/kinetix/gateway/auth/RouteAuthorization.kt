@@ -9,6 +9,7 @@ import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import org.slf4j.MDC
 
 fun Route.requirePermission(
     permission: Permission,
@@ -32,6 +33,7 @@ fun Route.requirePermission(
                                 userId = principal.user.userId,
                                 userRole = principal.user.roles.joinToString(",") { it.name },
                                 details = "Denied permission ${permission.name} for ${call.request.local.uri}",
+                                correlationId = MDC.get("correlationId"),
                             )
                         )
                         call.respond(HttpStatusCode.Forbidden, mapOf("error" to "forbidden", "message" to "Insufficient permissions"))

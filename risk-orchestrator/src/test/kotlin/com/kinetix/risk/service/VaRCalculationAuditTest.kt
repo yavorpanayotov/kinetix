@@ -21,6 +21,7 @@ import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import kotlinx.serialization.json.Json
+import org.slf4j.MDC
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.RecordMetadata
 import java.math.BigDecimal
@@ -69,6 +70,11 @@ class VaRCalculationAuditTest : FunSpec({
 
     beforeEach {
         clearMocks(positionProvider, riskEngineClient, producer)
+        MDC.clear()
+    }
+
+    afterEach {
+        MDC.clear()
     }
 
     test("publishes RISK_CALCULATION_COMPLETED when VaR calculation succeeds") {
@@ -93,5 +99,50 @@ class VaRCalculationAuditTest : FunSpec({
             .decodeFromString<GovernanceAuditEvent>(publishedSlot.captured.value())
         decoded.eventType shouldBe AuditEventType.RISK_CALCULATION_COMPLETED
         decoded.bookId shouldBe "book-1"
+    }
+
+    test("carries the correlationId from the MDC on the published governance event") {
+        val bookId = BookId("book-1")
+        coEvery { positionProvider.getPositions(bookId) } returns listOf(aPosition(bookId.value))
+        coEvery { riskEngineClient.valuate(any(), any(), any(), any()) } returns aValuationResult(bookId.value)
+
+        val publishedSlot = slot<org.apache.kafka.clients.producer.ProducerRecord<String, String>>()
+        every { producer.send(capture(publishedSlot)) } returns givenFuture()
+
+        MDC.put("correlationId", "corr-var-123")
+        service.calculateVaR(
+            VaRCalculationRequest(
+                bookId = bookId,
+                calculationType = CalculationType.PARAMETRIC,
+                confidenceLevel = ConfidenceLevel.CL_99,
+                timeHorizonDays = 1,
+            )
+        )
+
+        val decoded = Json { ignoreUnknownKeys = true }
+            .decodeFromString<GovernanceAuditEvent>(publishedSlot.captured.value())
+        decoded.correlationId shouldBe "corr-var-123"
+    }
+
+    test("publishes a null correlationId when the MDC has no correlation id") {
+        val bookId = BookId("book-1")
+        coEvery { positionProvider.getPositions(bookId) } returns listOf(aPosition(bookId.value))
+        coEvery { riskEngineClient.valuate(any(), any(), any(), any()) } returns aValuationResult(bookId.value)
+
+        val publishedSlot = slot<org.apache.kafka.clients.producer.ProducerRecord<String, String>>()
+        every { producer.send(capture(publishedSlot)) } returns givenFuture()
+
+        service.calculateVaR(
+            VaRCalculationRequest(
+                bookId = bookId,
+                calculationType = CalculationType.PARAMETRIC,
+                confidenceLevel = ConfidenceLevel.CL_99,
+                timeHorizonDays = 1,
+            )
+        )
+
+        val decoded = Json { ignoreUnknownKeys = true }
+            .decodeFromString<GovernanceAuditEvent>(publishedSlot.captured.value())
+        decoded.correlationId shouldBe null
     }
 })

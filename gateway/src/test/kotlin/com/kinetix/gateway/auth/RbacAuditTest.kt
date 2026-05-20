@@ -59,6 +59,32 @@ class RbacAuditTest : FunSpec({
         decoded.userId shouldBe "user-viewer"
     }
 
+    test("RBAC_ACCESS_DENIED audit event carries the X-Correlation-ID from the request MDC") {
+        val token = TestJwtHelper.generateToken(userId = "user-viewer", roles = listOf(Role.VIEWER))
+        val publishedSlot = slot<org.apache.kafka.clients.producer.ProducerRecord<String, String>>()
+        every { producer.send(capture(publishedSlot)) } returns givenFuture()
+
+        testApplication {
+            application {
+                module(jwtConfig, positionClient = positionClient, auditPublisher = auditPublisher, jwkProvider = jwkProvider)
+            }
+            val response = client.post("/api/v1/books/port-1/trades") {
+                header(HttpHeaders.Authorization, "Bearer $token")
+                header("X-Correlation-ID", "corr-gateway-999")
+                contentType(ContentType.Application.Json)
+                setBody("""{"tradeId":"t-1","instrumentId":"AAPL","assetClass":"EQUITY","side":"BUY","quantity":"100","priceAmount":"150.00","priceCurrency":"USD","tradedAt":"2025-01-15T10:00:00Z"}""")
+            }
+
+            response.status shouldBe HttpStatusCode.Forbidden
+        }
+
+        verify(atLeast = 1) { producer.send(any()) }
+        val decoded = Json { ignoreUnknownKeys = true }
+            .decodeFromString<GovernanceAuditEvent>(publishedSlot.captured.value())
+        decoded.eventType shouldBe AuditEventType.RBAC_ACCESS_DENIED
+        decoded.correlationId shouldBe "corr-gateway-999"
+    }
+
     test("does not publish audit event when user has required permission") {
         coEvery { riskClient.calculateVaR(any()) } returns mockk(relaxed = true)
         val token = TestJwtHelper.generateToken(userId = "user-rm", roles = listOf(Role.RISK_MANAGER))
