@@ -10,6 +10,7 @@ import com.kinetix.position.persistence.DatabaseFactory
 import com.kinetix.position.persistence.ExposedPositionRepository
 import com.kinetix.position.persistence.ExposedPositionNotesRepository
 import com.kinetix.position.persistence.ExposedTradeEventRepository
+import com.kinetix.position.persistence.ExposedLimitBreachEventWriter
 import com.kinetix.position.persistence.ExposedLimitDefinitionRepository
 import com.kinetix.position.persistence.ExposedTemporaryLimitIncreaseRepository
 import com.kinetix.position.fix.ExposedExecutionCostRepository
@@ -164,7 +165,12 @@ fun Application.moduleWithRoutes() {
 
     val limitDefinitionRepo = ExposedLimitDefinitionRepository(db)
     val temporaryLimitIncreaseRepo = ExposedTemporaryLimitIncreaseRepository(db)
-    val limitHierarchyService = LimitHierarchyService(limitDefinitionRepo, temporaryLimitIncreaseRepo)
+    val limitBreachEventWriter = ExposedLimitBreachEventWriter(db)
+    val limitHierarchyService = LimitHierarchyService(
+        limitDefinitionRepo,
+        temporaryLimitIncreaseRepo,
+        breachEventWriter = limitBreachEventWriter,
+    )
     val preTradeCheckService = HierarchyBasedPreTradeCheckService(positionRepository, limitHierarchyService)
 
     val nettingSetTradeRepository = ExposedNettingSetTradeRepository(db)

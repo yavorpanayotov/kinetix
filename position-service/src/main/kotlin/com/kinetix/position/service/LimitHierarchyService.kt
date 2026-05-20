@@ -2,11 +2,13 @@ package com.kinetix.position.service
 
 import com.kinetix.common.model.DeskId
 import com.kinetix.position.client.ReferenceDataServiceClient
+import com.kinetix.position.model.LimitBreachSeverity
 import com.kinetix.position.model.LimitCheckResult
 import com.kinetix.position.model.LimitCheckStatus
 import com.kinetix.position.model.LimitDefinition
 import com.kinetix.position.model.LimitLevel
 import com.kinetix.position.model.LimitType
+import com.kinetix.position.persistence.LimitBreachEventWriter
 import com.kinetix.position.persistence.LimitDefinitionRepository
 import com.kinetix.position.persistence.TemporaryLimitIncreaseRepository
 import java.math.BigDecimal
@@ -17,6 +19,9 @@ class LimitHierarchyService(
     private val temporaryLimitIncreaseRepo: TemporaryLimitIncreaseRepository,
     private val referenceDataClient: ReferenceDataServiceClient? = null,
     private val warningThresholdPct: Double = 0.8,
+    // Optional breach-history sink. When null the service does not persist
+    // breaches (keeps existing call sites and unit tests unchanged).
+    private val breachEventWriter: LimitBreachEventWriter? = null,
 ) {
     suspend fun checkLimit(
         entityId: String,
@@ -26,14 +31,19 @@ class LimitHierarchyService(
         intraday: Boolean = true,
         parentEntityIds: Map<LimitLevel, String> = emptyMap(),
         parentExposures: Map<LimitLevel, BigDecimal> = emptyMap(),
+        // Book the check relates to, used as `limit_breach_events.book_id`.
+        // When null: at BOOK level the entityId IS the book; at other levels
+        // the entityId is the closest scoping key and is used as the fallback.
+        bookId: String? = null,
     ): LimitCheckResult {
         val now = Instant.now()
+        val resolvedBookId = bookId ?: entityId
 
         val entityLimit = limitDefinitionRepo.findByEntityAndType(entityId, level, limitType)
         if (entityLimit != null) {
             val result = evaluateLimit(entityLimit, currentExposure, intraday, now)
             if (result.status == LimitCheckStatus.BREACHED) {
-                return result
+                return persistOutcome(result, entityId, resolvedBookId, limitType, now)
             }
         }
 
@@ -49,19 +59,69 @@ class LimitHierarchyService(
             if (parentLimit != null) {
                 val parentResult = evaluateLimit(parentLimit, parentExposure, intraday, now)
                 if (parentResult.status == LimitCheckStatus.BREACHED) {
-                    return parentResult.copy(breachedAt = parentLevel)
+                    return persistOutcome(
+                        parentResult.copy(breachedAt = parentLevel),
+                        entityId,
+                        resolvedBookId,
+                        limitType,
+                        now,
+                    )
                 }
             }
         }
 
         if (entityLimit != null) {
-            return evaluateLimit(entityLimit, currentExposure, intraday, now)
+            return persistOutcome(
+                evaluateLimit(entityLimit, currentExposure, intraday, now),
+                entityId,
+                resolvedBookId,
+                limitType,
+                now,
+            )
         }
 
         return LimitCheckResult(
             status = LimitCheckStatus.OK,
             currentExposure = currentExposure,
         )
+    }
+
+    /**
+     * Persists the side effects of a finished limit check, then returns the
+     * result unchanged so callers can `return persistOutcome(...)`. A BREACHED
+     * status records a (HARD) breach; an OK status resolves any open breach
+     * for the same entity/limit. WARNING is a grey zone — it neither records
+     * nor resolves. No-op when no [breachEventWriter] is configured.
+     */
+    private suspend fun persistOutcome(
+        result: LimitCheckResult,
+        entityId: String,
+        bookId: String,
+        limitType: LimitType,
+        now: Instant,
+    ): LimitCheckResult {
+        val writer = breachEventWriter ?: return result
+        when (result.status) {
+            LimitCheckStatus.BREACHED -> writer.recordBreach(
+                entityId = entityId,
+                bookId = bookId,
+                limitType = limitType.name,
+                severity = LimitBreachSeverity.HARD,
+                currentValue = result.currentExposure ?: BigDecimal.ZERO,
+                limitValue = result.effectiveLimit ?: result.limitValue ?: BigDecimal.ZERO,
+                breachedAt = now,
+            )
+
+            LimitCheckStatus.OK -> writer.recordResolution(
+                entityId = entityId,
+                bookId = bookId,
+                limitType = limitType.name,
+                resolvedAt = now,
+            )
+
+            LimitCheckStatus.WARNING -> {} // grey zone — leave any open breach open
+        }
+        return result
     }
 
     private suspend fun resolveParentIds(
