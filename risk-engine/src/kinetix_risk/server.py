@@ -30,6 +30,7 @@ from datetime import date as _date, timedelta as _timedelta
 from kinetix_risk.black_scholes import bs_greeks
 from kinetix_risk.bond_pricing import bond_dv01
 from kinetix_risk.greeks import calculate_greeks
+from kinetix_risk.log_formatter import JsonLogFormatter
 from kinetix_risk.models import AssetClass, BondPosition, OptionPosition, OptionType
 
 
@@ -438,10 +439,9 @@ class RiskCalculationServicer(risk_calculation_pb2_grpc.RiskCalculationServiceSe
 
 
 def serve(port: int = 50051, metrics_port: int = 9091, models_dir: str = "models"):
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(threadName)s] %(levelname)-5s %(name)s - %(message)s",
-    )
+    _json_handler = logging.StreamHandler()
+    _json_handler.setFormatter(JsonLogFormatter())
+    logging.basicConfig(level=logging.INFO, handlers=[_json_handler])
 
     # Configure OTel logging if endpoint is set
     otel_endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
