@@ -8,6 +8,8 @@ A multi-service institutional risk management platform built almost entirely thr
 - **24 Allium behavioural specifications**
 - **35 architectural decision records**
 
+**Kinetix Copilot — morning brief, intraday push, ⌘K** — a citation-enforced AI copilot that narrates overnight risk, pushes threshold breaches live, and answers free-form questions, all sourced from Kinetix's own data ([ADR-0036](docs/adr/ADR-0036-ai-copilot-architecture.md) · [plan](plans/ai-v2.md)).
+
 ### Where to look next
 
 - [How it was built](docs/HOW_IT_WAS_BUILT.md) — the AI-assisted-dev workflow, agents, and skills behind the codebase.
@@ -18,12 +20,19 @@ A multi-service institutional risk management platform built almost entirely thr
 
 ## AI features
 
-Two LLM-powered features ship in v1, routed through the host's Claude Code subscription via the [Claude Agent SDK](https://docs.anthropic.com/en/docs/claude-code/sdk) — no per-token API spend.
+Kinetix ships LLM-powered explainers routed through the host's Claude Code subscription via the [Claude Agent SDK](https://docs.anthropic.com/en/docs/claude-code/sdk) — no `ANTHROPIC_API_KEY`, no per-token spend. A dedicated Python `ai-insights-service` (FastAPI on port 8095) owns prompt construction, response validation, and a deterministic canned-mode fallback (`DEMO_MODE=true`) used by CI, Playwright, and any public demo.
 
-- **VaR Explainer** — on the Risk tab's VaR gauge, click **Explain** for a narrative + bullets that walk through the result and call out top contributors.
+**v1 — shipped**
+
+- **VaR Explainer** — on the Risk tab's VaR gauge, click **Explain** for a narrative plus bullets that walk through the result and call out top contributors.
 - **AI Commentary** — on the Reports tab, every generated report renders an AI Commentary card below it summarising drivers and any limit breaches.
+- Gateway exposes `POST /api/v1/insights/explain/var` and `POST /api/v1/insights/explain/report`; both proxy to `ai-insights-service` and preserve the `{narrative, bullets, model, mode}` response shape so the UI can render a "Demo mode" badge when the SDK isn't reachable.
 
-Both features run through a Python `ai-insights-service` with a deterministic canned-mode fallback (`DEMO_MODE=true`). See [`ai-insights-service/README.md`](ai-insights-service/README.md) for the host-auth model, `DEMO_MODE` flag, and the response-shape contract.
+**v2 — in flight ([ADR-0036](docs/adr/ADR-0036-ai-copilot-architecture.md))**
+
+Foundation for the Kinetix Copilot is landed: an in-process [Model Context Protocol](https://modelcontextprotocol.io/) server on internal port 8096 with ten read-only tools over Kinetix's own data (`get_book_var`, `get_positions`, `get_greeks_summary`, `get_limit_utilisation`, `get_pnl_attribution`, `get_vol_surface`, `get_stress_scenarios`, `get_correlation_matrix`, `get_active_alerts`, `get_market_data_snapshot`), a `Citation` contract requiring every numeric token in a response to carry a `{tool, params, result_field, result_value, as_of_timestamp, data_source, freshness_seconds}` source, and a server-side policy guard that rejects advisory language (`you should`, `i recommend`, `consider hedging`, …) with `POLICY_VIOLATION`. Streaming chat (SSE), morning brief, intraday push, and ⌘K integration are tracked in [`plans/ai-v2.md`](plans/ai-v2.md). **Write actions remain explicitly out of scope** — the copilot reads, narrates, and cites; it does not book, hedge, or recommend.
+
+See [`ai-insights-service/README.md`](ai-insights-service/README.md) for the host-auth model and DEMO_MODE flag, and the [AI Features wiki page](docs/wiki/AI-Features.md) for the full architecture.
 
 # Kinetix
 
@@ -35,14 +44,15 @@ Kinetix covers the full risk lifecycle for a multi-asset trading desk — trade 
 
 | | |
 |---|---|
-| **Services** | 12 Kotlin/Ktor microservices on JVM 21 + 1 Python risk engine |
+| **Services** | 12 Kotlin/Ktor microservices on JVM 21 + Python risk engine + Python `ai-insights-service` |
 | **Risk engine** | Python 3.12 — NumPy, SciPy, PyTorch — exposes 11 gRPC services |
+| **AI** | Python `ai-insights-service` (FastAPI) on top of the Claude Agent SDK, in-process MCP server, citation-enforced narratives ([ADR-0036](docs/adr/ADR-0036-ai-copilot-architecture.md)) |
 | **Frontend** | React 19 + TypeScript dashboard, 11 trader/risk tabs |
 | **Datastores** | PostgreSQL 17 / TimescaleDB (database-per-service), Redis 7 |
 | **Messaging** | Apache Kafka 3.9 (KRaft) — 20 production topics with per-topic DLQs |
 | **Schema** | 173 Flyway migrations across 11 service schemas |
 | **Behavioural specs** | 24 [Allium v3](https://github.com/juxt/allium) specifications |
-| **Architecture decisions** | 35 ADRs in [`docs/adr/`](docs/adr/) |
+| **Architecture decisions** | 36 ADRs in [`docs/adr/`](docs/adr/) |
 | **Tests** | 915 — 561 Kotlin (Kotest) · 79 Python (pytest) · 191 Vitest · 84 Playwright |
 | **Observability** | Prometheus, Grafana, Loki, Tempo, OpenTelemetry |
 | **Quality gates** | Coverage ratchet, mutation testing (Stryker, mutmut), property-based tests (Hypothesis), Gatling load tests |
@@ -58,17 +68,17 @@ Kinetix covers the full risk lifecycle for a multi-asset trading desk — trade 
                                 |   Gateway   |  Keycloak JWT, rate limit, WS fan-out
                                 +------+------+
                                        |
-        +-------------+-------------+---+------------+-------------+--------------+
-        |             |             |                |             |              |
-   +----+-----+  +----+-----+  +---+--------+  +-----+------+  +---+------+  +----+-----+
-   | Position |  |  Price   |  |    Risk    |  |   Rates    |  |Reference |  |   Fix    |
-   | Service  |  | Service  |  |Orchestrator|  | Volatility |  |   Data   |  | Gateway  |
-   +----+-----+  +----+-----+  +----+--+----+  | Correlation|  +----+-----+  +----+-----+
-        |             |             |  |       +------------+       |             |
-        |        +----+----+        |  |  gRPC                       |        FIX 4.4
-        |        |  Redis  |        |  +------+                      |   (venue / prime broker)
-        |        +---------+        |         |                      |
-        |                           |    +----+------+               |
+        +-------------+-------------+---+------------+-------------+--------------+--------------+
+        |             |             |                |             |              |              |
+   +----+-----+  +----+-----+  +---+--------+  +-----+------+  +---+------+  +----+-----+  +----+-----------+
+   | Position |  |  Price   |  |    Risk    |  |   Rates    |  |Reference |  |   Fix    |  | AI Insights    |
+   | Service  |  | Service  |  |Orchestrator|  | Volatility |  |   Data   |  | Gateway  |  | (FastAPI +     |
+   +----+-----+  +----+-----+  +----+--+----+  | Correlation|  +----+-----+  +----+-----+  | Claude Agent   |
+        |             |             |  |       +------------+       |             |        | SDK + MCP)     |
+        |        +----+----+        |  |  gRPC                       |        FIX 4.4      +-------+--------+
+        |        |  Redis  |        |  +------+                      |   (venue / prime broker)    |
+        |        +---------+        |         |                      |                             |
+        |                           |    +----+------+               |              host ~/.claude credential
         |                           |    |   Risk    |  Python       |
         |                           |    |  Engine   |  NumPy/SciPy  |
         |                           |    +-----------+  PyTorch      |
@@ -160,7 +170,8 @@ The pieces that took the most thought are documented under [`docs/adr/`](docs/ad
 | **Notification Service** | Kotlin | Alert rule engine (13 alert types), debounced/deduplicated delivery via in-app/email/webhook/PagerDuty, escalation, anomaly subscriptions |
 | **Fix Gateway** | Kotlin | FIX 4.4 venue connectivity, `NewOrderSingle`/`ExecutionReport` lifecycle, session reconciliation, mass-cancel-on-disconnect ([ADR-0035](docs/adr/0035-fix-gateway-service-extraction.md)) |
 | **Risk Engine** | Python | Stateless gRPC calculator: VaR (3 methods), ES, Greeks, BSM/bond/swap pricing, FRTB SBM/DRC/RRAO, SA-CCR, factor model, regime classifier, reverse stress, ML services |
-| **UI** | TypeScript | React 19 trading + risk dashboard — 11 tabs in three clusters (Trading, Risk, Ops), workspaces with saved views, WCAG 2.1 accessibility, dark mode, CSV export, WebSocket streaming |
+| **AI Insights Service** | Python | FastAPI on port 8095 wrapping the Claude Agent SDK. v1 explainers (`/api/v1/insights/explain/var`, `/api/v1/insights/explain/report`) plus the v2 Copilot foundation — in-process MCP server (port 8096) with 10 read-only Kinetix tools, `Citation` contract, banned-phrase policy guard, and a deterministic canned client for `DEMO_MODE=true` ([ADR-0036](docs/adr/ADR-0036-ai-copilot-architecture.md)) |
+| **UI** | TypeScript | React 19 trading + risk dashboard — 11 tabs in three clusters (Trading, Risk, Ops), workspaces with saved views, WCAG 2.1 accessibility, dark mode, CSV export, WebSocket streaming, `AIInsightPanel` rendering insights with mode badge |
 
 ## Behavioural specifications
 
@@ -198,6 +209,7 @@ The platform's intended behaviour is formally specified in 24 [Allium v3](https:
 | Languages | Kotlin 2.1 (JVM 21), Python 3.12, TypeScript 5.9 |
 | Backend framework | Ktor 3.1, Koin, Kotlinx Serialization, Exposed 0.58 ORM |
 | Risk engine | NumPy, SciPy, PyTorch 2.2, scikit-learn |
+| AI | Claude Agent SDK (Python), FastAPI, Model Context Protocol (in-process server), Pydantic — host `~/.claude/` subscription, no `ANTHROPIC_API_KEY` |
 | Frontend | React 19, Tailwind CSS 4, Vite 7, Recharts |
 | Datastores | PostgreSQL 17 / TimescaleDB (hypertables, continuous aggregates, retention policies) |
 | Caching | Redis 7 (Lettuce 6.5) |
@@ -289,7 +301,7 @@ A coverage ratchet gates merges, mutation testing (Stryker for UI, mutmut for Py
 
 ## Architecture Decision Records
 
-35 ADRs — 32 Accepted, 3 Proposed. Every ADR has an **Applies when** trigger list and an imperative **Rules** section, so the decision *and* the resulting code contract are both explicit. Full index and by-task lookup table in [`docs/adr/`](docs/adr/README.md).
+36 ADRs. Every ADR has an **Applies when** trigger list and an imperative **Rules** section, so the decision *and* the resulting code contract are both explicit. Full index and by-task lookup table in [`docs/adr/`](docs/adr/README.md).
 
 Highlights:
 
@@ -310,6 +322,7 @@ Highlights:
 | [0033](docs/adr/0033-vol-surface-diff-method.md) | Vol-surface diff method |
 | [0034](docs/adr/0034-regime-degraded-signal-policy.md) | Regime classifier behaviour on degraded inputs |
 | [0035](docs/adr/0035-fix-gateway-service-extraction.md) | Fix-gateway service extraction |
+| [0036](docs/adr/ADR-0036-ai-copilot-architecture.md) | AI Copilot architecture (in-process MCP, citations, policy guard) |
 
 ## Project structure
 
@@ -328,6 +341,7 @@ kinetix/
 ├── notification-service/    Alert rules and multi-channel delivery
 ├── fix-gateway/             FIX 4.4 venue connectivity (ADR-0035)
 ├── risk-engine/             Python quantitative engine (gRPC)
+├── ai-insights-service/     LLM-powered explainers + Copilot foundation (FastAPI, Claude Agent SDK, MCP)
 ├── ui/                      React 19 trading and risk dashboard
 ├── proto/                   Protobuf / gRPC service contracts
 ├── common/                  Shared Kotlin library
