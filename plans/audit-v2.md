@@ -83,7 +83,7 @@ Make `correlationId` a reliable join key across Loki logs, Tempo traces and the 
       Acceptance: `./gradlew :audit-service:test :audit-service:integrationTest`
 - [x] 2.3 Populate `correlationId` from the SLF4J MDC when constructing `GovernanceAuditEvent` in every publisher — `risk-orchestrator` (`VaRCalculationService`, `EodPromotionService`, `CrossBookLimitCheckService`), `regulatory-service`, `notification-service`, `gateway` (`RouteAuthorization`).
       Acceptance: `./gradlew :risk-orchestrator:test :regulatory-service:test :notification-service:test :gateway:test`
-- [ ] 2.4 In the audit-service Kafka consumers, inject the inbound event's `correlationId` into the MDC for the duration of processing **and** persist it onto the `AuditEvent`. Cover both the governance consumer and the trade-event consumer; add a test asserting a consumed event's `correlationId` reaches the stored record.
+- [x] 2.4 In the audit-service Kafka consumers, inject the inbound event's `correlationId` into the MDC for the duration of processing **and** persist it onto the `AuditEvent`. Cover both the governance consumer and the trade-event consumer; add a test asserting a consumed event's `correlationId` reaches the stored record.
       Acceptance: `./gradlew :audit-service:test :audit-service:acceptanceTest`
 - [ ] 2.5 Confirm the additive `GovernanceAuditEvent` field has not broken Kafka schema compatibility.
       Acceptance: `./gradlew :schema-tests:test`
