@@ -431,6 +431,18 @@ class VaRCalculationService(
                 correlationId = correlationId,
             )
             updateJobSafely(job)
+
+            governanceAuditPublisher?.publish(
+                GovernanceAuditEvent(
+                    eventType = AuditEventType.RISK_CALCULATION_FAILED,
+                    userId = triggeredBy,
+                    userRole = "SYSTEM",
+                    bookId = request.bookId.value,
+                    details = jobError,
+                    correlationId = MDC.get("correlationId"),
+                )
+            )
+
             throw e
         }
     }

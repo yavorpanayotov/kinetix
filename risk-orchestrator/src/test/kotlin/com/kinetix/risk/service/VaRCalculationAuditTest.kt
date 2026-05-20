@@ -12,8 +12,10 @@ import com.kinetix.risk.client.RiskEngineClient
 import com.kinetix.risk.kafka.GovernanceAuditPublisher
 import com.kinetix.risk.kafka.NoOpRiskResultPublisher
 import com.kinetix.risk.model.*
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
 import io.mockk.clearMocks
 import io.mockk.coEvery
 import io.mockk.every
@@ -144,5 +146,34 @@ class VaRCalculationAuditTest : FunSpec({
         val decoded = Json { ignoreUnknownKeys = true }
             .decodeFromString<GovernanceAuditEvent>(publishedSlot.captured.value())
         decoded.correlationId shouldBe null
+    }
+
+    test("when the risk engine throws, a RISK_CALCULATION_FAILED governance event is published") {
+        val bookId = BookId("book-1")
+        coEvery { positionProvider.getPositions(bookId) } returns listOf(aPosition(bookId.value))
+        coEvery { riskEngineClient.valuate(any(), any(), any(), any()) } throws
+            RuntimeException("risk engine unavailable")
+
+        val publishedSlot = slot<org.apache.kafka.clients.producer.ProducerRecord<String, String>>()
+        every { producer.send(capture(publishedSlot)) } returns givenFuture()
+
+        MDC.put("correlationId", "corr-var-fail-1")
+        shouldThrow<RuntimeException> {
+            service.calculateVaR(
+                VaRCalculationRequest(
+                    bookId = bookId,
+                    calculationType = CalculationType.PARAMETRIC,
+                    confidenceLevel = ConfidenceLevel.CL_99,
+                    timeHorizonDays = 1,
+                )
+            )
+        }
+
+        val decoded = Json { ignoreUnknownKeys = true }
+            .decodeFromString<GovernanceAuditEvent>(publishedSlot.captured.value())
+        decoded.eventType shouldBe AuditEventType.RISK_CALCULATION_FAILED
+        decoded.bookId shouldBe "book-1"
+        decoded.correlationId shouldBe "corr-var-fail-1"
+        decoded.details shouldContain "risk engine unavailable"
     }
 })
