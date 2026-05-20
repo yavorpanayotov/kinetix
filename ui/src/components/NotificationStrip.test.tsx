@@ -92,7 +92,7 @@ describe('NotificationStrip', () => {
       <NotificationStrip
         items={makeItems()}
         expanded={true}
-        onExpandedChange={(v) => {
+        onExpandedChange={(v: boolean) => {
           lastValue = v
         }}
       />,
