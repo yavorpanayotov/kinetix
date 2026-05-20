@@ -22,8 +22,8 @@ import io.ktor.server.testing.*
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
-import io.mockk.slot
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import java.math.BigDecimal
 import java.time.Instant
 import java.util.Currency
@@ -60,7 +60,9 @@ private fun Application.testOrderRouteModule(
     service: OrderSubmissionService,
     ghostFillRepository: GhostFillRepository = EmptyGhostFillRepository,
 ) {
-    install(ContentNegotiation) { json() }
+    // Mirror production (Application.module): tolerate unknown request-body fields
+    // so a legacy caller-supplied arrivalPrice is ignored rather than rejected.
+    install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
     install(StatusPages) {
         exception<IllegalArgumentException> { call, cause ->
             call.respond(
@@ -74,9 +76,8 @@ private fun Application.testOrderRouteModule(
 
 class OrderRoutesTest : FunSpec({
 
-    test("POST /api/v1/orders forwards arrivalPriceTimestamp through to OrderSubmissionService") {
+    test("POST /api/v1/orders submits an order and returns 201") {
         val service = mockk<OrderSubmissionService>()
-        val captured = slot<Instant?>()
         coEvery {
             service.submit(
                 bookId = any(),
@@ -85,11 +86,9 @@ class OrderRoutesTest : FunSpec({
                 quantity = any(),
                 orderType = any(),
                 limitPrice = any(),
-                arrivalPrice = any(),
                 fixSessionId = any(),
                 assetClass = any(),
                 currency = any(),
-                arrivalPriceTimestamp = captureNullable(captured),
                 instrumentType = "CASH_EQUITY",
             )
         } returns fakeOrder()
@@ -101,75 +100,47 @@ class OrderRoutesTest : FunSpec({
                 setBody(
                     """
                     {"bookId":"book-1","instrumentId":"AAPL","side":"BUY","quantity":"100",
-                     "orderType":"LIMIT","limitPrice":"150.00","arrivalPrice":"149.90",
+                     "orderType":"LIMIT","limitPrice":"150.00","instrumentType":"CASH_EQUITY"}
+                    """.trimIndent(),
+                )
+            }
+            response.status shouldBe HttpStatusCode.Created
+        }
+    }
+
+    test("POST /api/v1/orders ignores a caller-supplied arrivalPrice in the request body") {
+        // arrivalPrice is captured server-side from price-service; the route must
+        // accept (extra fields are ignored) the body without forwarding the value.
+        val service = mockk<OrderSubmissionService>()
+        coEvery {
+            service.submit(
+                bookId = any(),
+                instrumentId = any(),
+                side = any(),
+                quantity = any(),
+                orderType = any(),
+                limitPrice = any(),
+                fixSessionId = any(),
+                assetClass = any(),
+                currency = any(),
+                instrumentType = "CASH_EQUITY",
+            )
+        } returns fakeOrder()
+
+        testApplication {
+            application { testOrderRouteModule(service) }
+            val response = client.post("/api/v1/orders") {
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """
+                    {"bookId":"book-1","instrumentId":"AAPL","side":"BUY","quantity":"100",
+                     "orderType":"LIMIT","limitPrice":"150.00","arrivalPrice":"999.99",
                      "arrivalPriceTimestamp":"2026-04-30T11:59:55Z","instrumentType":"CASH_EQUITY"}
                     """.trimIndent(),
                 )
             }
+            // The route succeeds; the caller's arrivalPrice/timestamp are simply ignored.
             response.status shouldBe HttpStatusCode.Created
-        }
-
-        captured.captured shouldBe Instant.parse("2026-04-30T11:59:55Z")
-    }
-
-    test("POST /api/v1/orders without arrivalPriceTimestamp passes null to OrderSubmissionService") {
-        val service = mockk<OrderSubmissionService>()
-        val captured = slot<Instant?>()
-        coEvery {
-            service.submit(
-                bookId = any(),
-                instrumentId = any(),
-                side = any(),
-                quantity = any(),
-                orderType = any(),
-                limitPrice = any(),
-                arrivalPrice = any(),
-                fixSessionId = any(),
-                assetClass = any(),
-                currency = any(),
-                arrivalPriceTimestamp = captureNullable(captured),
-                instrumentType = "CASH_EQUITY",
-            )
-        } returns fakeOrder()
-
-        testApplication {
-            application { testOrderRouteModule(service) }
-            val response = client.post("/api/v1/orders") {
-                contentType(ContentType.Application.Json)
-                setBody(
-                    """
-                    {"bookId":"book-1","instrumentId":"AAPL","side":"BUY","quantity":"100",
-                     "orderType":"LIMIT","limitPrice":"150.00","arrivalPrice":"149.90","instrumentType":"CASH_EQUITY"}
-                    """.trimIndent(),
-                )
-            }
-            response.status shouldBe HttpStatusCode.Created
-        }
-
-        captured.captured shouldBe null
-    }
-
-    test("POST /api/v1/orders rejects an unparseable arrivalPriceTimestamp with 400") {
-        val service = mockk<OrderSubmissionService>(relaxed = true)
-
-        testApplication {
-            application { testOrderRouteModule(service) }
-            val response = client.post("/api/v1/orders") {
-                contentType(ContentType.Application.Json)
-                setBody(
-                    """
-                    {"bookId":"book-1","instrumentId":"AAPL","side":"BUY","quantity":"100",
-                     "orderType":"LIMIT","limitPrice":"150.00","arrivalPrice":"149.90",
-                     "arrivalPriceTimestamp":"not-a-timestamp","instrumentType":"CASH_EQUITY"}
-                    """.trimIndent(),
-                )
-            }
-            response.status shouldBe HttpStatusCode.BadRequest
-            response.bodyAsText().contains("arrivalPriceTimestamp") shouldBe true
-        }
-
-        coVerify(exactly = 0) {
-            service.submit(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), instrumentType = any())
         }
     }
 
@@ -188,11 +159,9 @@ class OrderRoutesTest : FunSpec({
                 quantity = any(),
                 orderType = any(),
                 limitPrice = any(),
-                arrivalPrice = any(),
                 fixSessionId = any(),
                 assetClass = any(),
                 currency = any(),
-                arrivalPriceTimestamp = any(),
                 instrumentType = "CASH_EQUITY",
             )
         } returns rejectedOrder
@@ -204,8 +173,7 @@ class OrderRoutesTest : FunSpec({
                 setBody(
                     """
                     {"bookId":"book-1","instrumentId":"AAPL","side":"BUY","quantity":"100",
-                     "orderType":"LIMIT","limitPrice":"150.00","arrivalPrice":"149.90",
-                     "instrumentType":"CASH_EQUITY"}
+                     "orderType":"LIMIT","limitPrice":"150.00","instrumentType":"CASH_EQUITY"}
                     """.trimIndent(),
                 )
             }
@@ -226,11 +194,9 @@ class OrderRoutesTest : FunSpec({
                 quantity = any(),
                 orderType = any(),
                 limitPrice = any(),
-                arrivalPrice = any(),
                 fixSessionId = any(),
                 assetClass = any(),
                 currency = any(),
-                arrivalPriceTimestamp = any(),
                 instrumentType = "CASH_EQUITY",
             )
         } throws IllegalArgumentException("Arrival price is stale: observed 45000ms ago, limit is 30000ms")
@@ -242,13 +208,69 @@ class OrderRoutesTest : FunSpec({
                 setBody(
                     """
                     {"bookId":"book-1","instrumentId":"AAPL","side":"BUY","quantity":"100",
-                     "orderType":"LIMIT","limitPrice":"150.00","arrivalPrice":"149.90",
-                     "arrivalPriceTimestamp":"2026-04-30T11:59:00Z","instrumentType":"CASH_EQUITY"}
+                     "orderType":"LIMIT","limitPrice":"150.00","instrumentType":"CASH_EQUITY"}
                     """.trimIndent(),
                 )
             }
             response.status shouldBe HttpStatusCode.BadRequest
             response.bodyAsText().contains("stale") shouldBe true
+        }
+    }
+
+    test("POST /api/v1/orders surfaces a missing-mid-price rejection from the service as 400") {
+        val service = mockk<OrderSubmissionService>()
+        coEvery {
+            service.submit(
+                bookId = any(),
+                instrumentId = any(),
+                side = any(),
+                quantity = any(),
+                orderType = any(),
+                limitPrice = any(),
+                fixSessionId = any(),
+                assetClass = any(),
+                currency = any(),
+                instrumentType = "CASH_EQUITY",
+            )
+        } throws IllegalArgumentException("No current mid price available for instrument AAPL")
+
+        testApplication {
+            application { testOrderRouteModule(service) }
+            val response = client.post("/api/v1/orders") {
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """
+                    {"bookId":"book-1","instrumentId":"AAPL","side":"BUY","quantity":"100",
+                     "orderType":"LIMIT","limitPrice":"150.00","instrumentType":"CASH_EQUITY"}
+                    """.trimIndent(),
+                )
+            }
+            response.status shouldBe HttpStatusCode.BadRequest
+            response.bodyAsText().contains("No current mid price") shouldBe true
+        }
+    }
+
+    test("POST /api/v1/orders rejects an unparseable expiresAt with 400 without calling the service") {
+        val service = mockk<OrderSubmissionService>(relaxed = true)
+
+        testApplication {
+            application { testOrderRouteModule(service) }
+            val response = client.post("/api/v1/orders") {
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """
+                    {"bookId":"book-1","instrumentId":"AAPL","side":"BUY","quantity":"100",
+                     "orderType":"LIMIT","limitPrice":"150.00","timeInForce":"GTD",
+                     "expiresAt":"not-a-timestamp","instrumentType":"CASH_EQUITY"}
+                    """.trimIndent(),
+                )
+            }
+            response.status shouldBe HttpStatusCode.BadRequest
+            response.bodyAsText().contains("expiresAt") shouldBe true
+        }
+
+        coVerify(exactly = 0) {
+            service.submit(any(), any(), any(), any(), any(), any(), any(), any(), any(), instrumentType = any())
         }
     }
 })

@@ -11,6 +11,7 @@ import com.kinetix.common.model.Money
 import com.kinetix.common.model.Side
 import com.kinetix.common.model.TradeId
 import com.kinetix.common.model.TraderId
+import com.kinetix.position.client.PriceLookupClient
 import com.kinetix.position.model.LimitBreach
 import com.kinetix.position.service.BookTradeCommand
 import com.kinetix.position.service.PreTradeCheckService
@@ -43,6 +44,13 @@ class OrderSubmissionService(
     private val sessionRepository: FIXSessionRepository,
     private val fixOrderSender: FIXOrderSender,
     private val preTradeCheckService: PreTradeCheckService,
+    /**
+     * Reads the current mid price from price-service. The arrival price is
+     * captured server-side at submission time per `execution.allium`
+     * (`let arrival_price = current_mid_price(instrument_id)`); it is never a
+     * caller input.
+     */
+    private val priceLookupClient: PriceLookupClient,
     private val riskCheckTimeoutMs: Long = 500L,
     /**
      * Production order-routing collaborator (ADR-0035 phase 4). When non-null AND the
@@ -73,11 +81,9 @@ class OrderSubmissionService(
         quantity: BigDecimal,
         orderType: String,
         limitPrice: BigDecimal?,
-        arrivalPrice: BigDecimal,
         fixSessionId: String?,
         assetClass: String = "EQUITY",
         currency: String = "USD",
-        arrivalPriceTimestamp: Instant? = null,
         timeInForce: TimeInForce = TimeInForce.DAY,
         expiresAt: Instant? = null,
         maxGtdHorizonDays: Long = 90,
@@ -90,11 +96,18 @@ class OrderSubmissionService(
         require(instrumentType.isNotBlank()) { "instrumentType must not be blank" }
         require(quantity > BigDecimal.ZERO) { "Quantity must be positive" }
 
-        if (arrivalPriceTimestamp != null) {
-            val ageMs = Instant.now().toEpochMilli() - arrivalPriceTimestamp.toEpochMilli()
-            require(ageMs <= ARRIVAL_PRICE_MAX_AGE_MS) {
-                "Arrival price is stale: observed ${ageMs}ms ago, limit is ${ARRIVAL_PRICE_MAX_AGE_MS}ms"
-            }
+        // Capture the arrival price server-side from price-service at submission
+        // time (spec: execution.allium — current_mid_price). The caller never
+        // supplies the price, so its observation time is always known and the
+        // staleness check below runs unconditionally.
+        val midPrice = priceLookupClient.currentMidPrice(InstrumentId(instrumentId))
+        requireNotNull(midPrice) {
+            "No current mid price available for instrument $instrumentId"
+        }
+        val arrivalPrice = midPrice.price
+        val ageMs = Instant.now().toEpochMilli() - midPrice.observedAt.toEpochMilli()
+        require(ageMs <= ARRIVAL_PRICE_MAX_AGE_MS) {
+            "Arrival price is stale: observed ${ageMs}ms ago, limit is ${ARRIVAL_PRICE_MAX_AGE_MS}ms"
         }
 
         val now = Instant.now()

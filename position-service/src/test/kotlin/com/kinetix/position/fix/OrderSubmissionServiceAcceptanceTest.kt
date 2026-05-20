@@ -1,6 +1,9 @@
 package com.kinetix.position.fix
 
+import com.kinetix.common.model.InstrumentId
 import com.kinetix.common.model.Side
+import com.kinetix.position.client.MidPrice
+import com.kinetix.position.client.PriceLookupClient
 import com.kinetix.position.model.LimitBreachResult
 import com.kinetix.position.persistence.DatabaseTestSetup
 import com.kinetix.position.service.BookTradeCommand
@@ -21,6 +24,8 @@ import io.kotest.matchers.string.shouldContain
 import kotlinx.coroutines.runBlocking
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import java.math.BigDecimal
+import java.time.Instant
+import java.util.Currency
 import java.util.concurrent.TimeUnit
 
 /**
@@ -48,7 +53,10 @@ class OrderSubmissionServiceAcceptanceTest : FunSpec({
         }
     }
 
-    fun newService(client: com.kinetix.common.execution.FixGatewayClient): OrderSubmissionService {
+    fun newService(
+        client: com.kinetix.common.execution.FixGatewayClient,
+        priceLookup: PriceLookupClient = FreshMidPriceLookup(),
+    ): OrderSubmissionService {
         // The gateway path bypasses the legacy FIX session + sender entirely when
         // [fixGatewayClient] is wired, so these collaborators are never invoked.
         // Empty in-process implementations keep the constructor satisfied.
@@ -69,6 +77,7 @@ class OrderSubmissionServiceAcceptanceTest : FunSpec({
             sessionRepository = sessionRepo,
             fixOrderSender = sender,
             preTradeCheckService = preTradeCheck,
+            priceLookupClient = priceLookup,
             fixGatewayClient = client,
         )
     }
@@ -80,7 +89,6 @@ class OrderSubmissionServiceAcceptanceTest : FunSpec({
         quantity = BigDecimal("100"),
         orderType = "LIMIT",
         limitPrice = BigDecimal("150.00"),
-        arrivalPrice = BigDecimal("149.90"),
         fixSessionId = null,
         instrumentType = "CASH_EQUITY",
         venue = venue,
@@ -97,6 +105,44 @@ class OrderSubmissionServiceAcceptanceTest : FunSpec({
             val persisted = runBlocking { orderRepo.findById(returned.orderId) }!!
             persisted.status shouldBe OrderStatus.SENT
             persisted.venueOrderId shouldBe "NYSE-OID-42"
+        }
+    }
+
+    test("persisted order's arrival price is the server-side mid price, not a caller input") {
+        runSubmissionStubServer(SubmissionStub.PendingNew(venueOrderId = "NYSE-OID-1")) { handle ->
+            val service = newService(
+                GrpcFixGatewayClient(handle.channel),
+                priceLookup = FreshMidPriceLookup(amount = "152.37"),
+            )
+            val returned = runBlocking { submit(service) }
+
+            returned.arrivalPrice.compareTo(BigDecimal("152.37")) shouldBe 0
+
+            val persisted = runBlocking { orderRepo.findById(returned.orderId) }!!
+            persisted.arrivalPrice.compareTo(BigDecimal("152.37")) shouldBe 0
+        }
+    }
+
+    test("a stale server-side mid price rejects the submission before any row is written") {
+        runSubmissionStubServer(SubmissionStub.PendingNew(venueOrderId = "NYSE-OID-2")) { handle ->
+            val service = newService(
+                GrpcFixGatewayClient(handle.channel),
+                priceLookup = StaleMidPriceLookup,
+            )
+
+            val thrown = runCatching { runBlocking { submit(service) } }.exceptionOrNull()
+            (thrown is IllegalArgumentException) shouldBe true
+            thrown!!.message!! shouldContain "stale"
+
+            // No order row should have been persisted — validation runs before save.
+            val count = runBlocking {
+                newSuspendedTransaction(db = db) {
+                    exec("SELECT COUNT(*) FROM execution_orders") { rs ->
+                        rs.next(); rs.getLong(1)
+                    }
+                }
+            }
+            count shouldBe 0L
         }
     }
 
@@ -237,6 +283,22 @@ class OrderSubmissionServiceAcceptanceTest : FunSpec({
         }
     }
 })
+
+// ---------------------------------------------------------------------
+// Fake price-service lookups. Arrival price is captured server-side at
+// submission time (spec: execution.allium current_mid_price); the caller
+// never supplies it, so these stand in for price-service.
+// ---------------------------------------------------------------------
+
+private class FreshMidPriceLookup(private val amount: String = "149.90") : PriceLookupClient {
+    override suspend fun currentMidPrice(instrumentId: InstrumentId): MidPrice =
+        MidPrice(BigDecimal(amount), Currency.getInstance("USD"), Instant.now())
+}
+
+private object StaleMidPriceLookup : PriceLookupClient {
+    override suspend fun currentMidPrice(instrumentId: InstrumentId): MidPrice =
+        MidPrice(BigDecimal("149.90"), Currency.getInstance("USD"), Instant.now().minusSeconds(120))
+}
 
 // ---------------------------------------------------------------------
 // Stub server plumbing — matches the GrpcOrderCancelEmitterAcceptanceTest

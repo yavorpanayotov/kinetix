@@ -44,20 +44,9 @@ fun Route.orderRoutes(
             val quantity = request.quantity.toBigDecimalOrNull()
                 ?: throw IllegalArgumentException("Invalid quantity '${request.quantity}'")
 
-            val arrivalPrice = request.arrivalPrice.toBigDecimalOrNull()
-                ?: throw IllegalArgumentException("Invalid arrivalPrice '${request.arrivalPrice}'")
-
             val limitPrice = request.limitPrice?.let {
                 it.toBigDecimalOrNull()
                     ?: throw IllegalArgumentException("Invalid limitPrice '$it'")
-            }
-
-            val arrivalPriceTimestamp = request.arrivalPriceTimestamp?.let {
-                try {
-                    Instant.parse(it)
-                } catch (e: DateTimeParseException) {
-                    throw IllegalArgumentException("Invalid arrivalPriceTimestamp '$it'")
-                }
             }
 
             val timeInForce = runCatching { TimeInForce.valueOf(request.timeInForce.uppercase()) }
@@ -82,11 +71,9 @@ fun Route.orderRoutes(
                 quantity = quantity,
                 orderType = request.orderType,
                 limitPrice = limitPrice,
-                arrivalPrice = arrivalPrice,
                 fixSessionId = request.fixSessionId,
                 assetClass = request.assetClass,
                 currency = request.currency,
-                arrivalPriceTimestamp = arrivalPriceTimestamp,
                 timeInForce = timeInForce,
                 expiresAt = expiresAt,
                 instrumentType = request.instrumentType,

@@ -3,7 +3,10 @@ package com.kinetix.position.fix
 import com.kinetix.common.execution.FixGatewayClient
 import com.kinetix.common.execution.PlaceOrderResult
 import com.kinetix.common.execution.PlaceOrderStatus
+import com.kinetix.common.model.InstrumentId
 import com.kinetix.common.model.Side
+import com.kinetix.position.client.MidPrice
+import com.kinetix.position.client.PriceLookupClient
 import com.kinetix.position.model.LimitBreach
 import com.kinetix.position.model.LimitBreachResult
 import com.kinetix.position.model.LimitBreachSeverity
@@ -16,6 +19,7 @@ import io.kotest.matchers.string.shouldContain
 import io.mockk.*
 import java.math.BigDecimal
 import java.time.Instant
+import java.util.Currency
 
 class OrderSubmissionServiceTest : FunSpec({
 
@@ -23,20 +27,27 @@ class OrderSubmissionServiceTest : FunSpec({
     val sessionRepository = mockk<FIXSessionRepository>()
     val fixOrderSender = mockk<FIXOrderSender>()
     val preTradeCheckService = mockk<PreTradeCheckService>()
+    val priceLookupClient = mockk<PriceLookupClient>()
 
     val service = OrderSubmissionService(
         orderRepository = orderRepository,
         sessionRepository = sessionRepository,
         fixOrderSender = fixOrderSender,
         preTradeCheckService = preTradeCheckService,
+        priceLookupClient = priceLookupClient,
     )
 
+    fun midPrice(amount: String, observedAt: Instant = Instant.now()) =
+        MidPrice(BigDecimal(amount), Currency.getInstance("USD"), observedAt)
+
     beforeEach {
-        clearMocks(orderRepository, sessionRepository, fixOrderSender, preTradeCheckService)
+        clearMocks(orderRepository, sessionRepository, fixOrderSender, preTradeCheckService, priceLookupClient)
         coEvery { orderRepository.save(any()) } just runs
         coEvery { orderRepository.updateStatus(any(), any(), any(), any()) } just runs
         coEvery { fixOrderSender.send(any(), any()) } just runs
         coEvery { preTradeCheckService.check(any()) } returns LimitBreachResult(emptyList())
+        // Default: a fresh server-side mid price for any instrument.
+        coEvery { priceLookupClient.currentMidPrice(any()) } returns midPrice("149.90")
     }
 
     test("saves order and returns it with APPROVED status when no FIX session is provided") {
@@ -47,7 +58,6 @@ class OrderSubmissionServiceTest : FunSpec({
             quantity = BigDecimal("100"),
             orderType = "LIMIT",
             limitPrice = BigDecimal("150.00"),
-            arrivalPrice = BigDecimal("149.90"),
             fixSessionId = null,
             instrumentType = "CASH_EQUITY",
         )
@@ -62,6 +72,89 @@ class OrderSubmissionServiceTest : FunSpec({
         coVerify(exactly = 1) { orderRepository.save(any()) }
         coVerify(exactly = 1) { orderRepository.updateStatus(any(), OrderStatus.APPROVED, "APPROVED", null) }
         coVerify(exactly = 0) { fixOrderSender.send(any(), any()) }
+    }
+
+    // ------------------------------------------------------------
+    // Server-side arrival-price capture (execution.allium C6)
+    // ------------------------------------------------------------
+
+    test("arrival price is taken from price-service, not the request body") {
+        coEvery { priceLookupClient.currentMidPrice(InstrumentId("AAPL")) } returns midPrice("151.42")
+
+        val order = service.submit(
+            bookId = "equity-growth",
+            instrumentId = "AAPL",
+            side = Side.BUY,
+            quantity = BigDecimal("100"),
+            orderType = "MARKET",
+            limitPrice = null,
+            fixSessionId = null,
+            instrumentType = "CASH_EQUITY",
+        )
+
+        order.arrivalPrice.compareTo(BigDecimal("151.42")) shouldBe 0
+        coVerify(exactly = 1) { priceLookupClient.currentMidPrice(InstrumentId("AAPL")) }
+        coVerify(exactly = 1) {
+            orderRepository.save(match { it.arrivalPrice.compareTo(BigDecimal("151.42")) == 0 })
+        }
+    }
+
+    test("rejects submission when price-service has no current mid price") {
+        coEvery { priceLookupClient.currentMidPrice(any()) } returns null
+
+        shouldThrow<IllegalArgumentException> {
+            service.submit(
+                bookId = "equity-growth",
+                instrumentId = "AAPL",
+                side = Side.BUY,
+                quantity = BigDecimal("100"),
+                orderType = "MARKET",
+                limitPrice = null,
+                fixSessionId = null,
+                instrumentType = "CASH_EQUITY",
+            )
+        }.message!! shouldContain "No current mid price"
+
+        coVerify(exactly = 0) { orderRepository.save(any()) }
+    }
+
+    test("rejects order when the server-side mid price is older than 30 seconds") {
+        coEvery { priceLookupClient.currentMidPrice(any()) } returns
+            midPrice("149.90", observedAt = Instant.now().minusSeconds(31))
+
+        shouldThrow<IllegalArgumentException> {
+            service.submit(
+                bookId = "equity-growth",
+                instrumentId = "AAPL",
+                side = Side.BUY,
+                quantity = BigDecimal("100"),
+                orderType = "MARKET",
+                limitPrice = null,
+                fixSessionId = null,
+                instrumentType = "CASH_EQUITY",
+            )
+        }.message!! shouldContain "stale"
+
+        coVerify(exactly = 0) { orderRepository.save(any()) }
+    }
+
+    test("accepts order when the server-side mid price is within 30 seconds") {
+        coEvery { priceLookupClient.currentMidPrice(any()) } returns
+            midPrice("149.90", observedAt = Instant.now().minusSeconds(10))
+
+        val order = service.submit(
+            bookId = "equity-growth",
+            instrumentId = "AAPL",
+            side = Side.BUY,
+            quantity = BigDecimal("100"),
+            orderType = "MARKET",
+            limitPrice = null,
+            fixSessionId = null,
+            instrumentType = "CASH_EQUITY",
+        )
+
+        order.status shouldBe OrderStatus.APPROVED
+        coVerify(exactly = 1) { orderRepository.save(any()) }
     }
 
     test("dispatches order via FIX and returns SENT status when session is connected") {
@@ -82,7 +175,6 @@ class OrderSubmissionServiceTest : FunSpec({
             quantity = BigDecimal("200"),
             orderType = "MARKET",
             limitPrice = null,
-            arrivalPrice = BigDecimal("149.80"),
             fixSessionId = "FIX-01",
             instrumentType = "CASH_EQUITY",
         )
@@ -110,7 +202,6 @@ class OrderSubmissionServiceTest : FunSpec({
             quantity = BigDecimal("50"),
             orderType = "LIMIT",
             limitPrice = BigDecimal("160.00"),
-            arrivalPrice = BigDecimal("159.90"),
             fixSessionId = "FIX-02",
             instrumentType = "CASH_EQUITY",
         )
@@ -129,7 +220,6 @@ class OrderSubmissionServiceTest : FunSpec({
             quantity = BigDecimal("10"),
             orderType = "MARKET",
             limitPrice = null,
-            arrivalPrice = BigDecimal("150.00"),
             fixSessionId = "MISSING",
             instrumentType = "CASH_EQUITY",
         )
@@ -147,72 +237,12 @@ class OrderSubmissionServiceTest : FunSpec({
                 quantity = BigDecimal.ZERO,
                 orderType = "MARKET",
                 limitPrice = null,
-                arrivalPrice = BigDecimal("150.00"),
                 fixSessionId = null,
                 instrumentType = "CASH_EQUITY",
             )
         }
 
         coVerify(exactly = 0) { orderRepository.save(any()) }
-    }
-
-    test("rejects order when arrival price timestamp is older than 30 seconds") {
-        val staleTimestamp = Instant.now().minusSeconds(31)
-
-        shouldThrow<IllegalArgumentException> {
-            service.submit(
-                bookId = "equity-growth",
-                instrumentId = "AAPL",
-                side = Side.BUY,
-                quantity = BigDecimal("100"),
-                orderType = "MARKET",
-                limitPrice = null,
-                arrivalPrice = BigDecimal("150.00"),
-                fixSessionId = null,
-                arrivalPriceTimestamp = staleTimestamp,
-                instrumentType = "CASH_EQUITY",
-            )
-        }
-
-        coVerify(exactly = 0) { orderRepository.save(any()) }
-    }
-
-    test("accepts order when arrival price timestamp is within 30 seconds") {
-        val freshTimestamp = Instant.now().minusSeconds(10)
-
-        val order = service.submit(
-            bookId = "equity-growth",
-            instrumentId = "AAPL",
-            side = Side.BUY,
-            quantity = BigDecimal("100"),
-            orderType = "MARKET",
-            limitPrice = null,
-            arrivalPrice = BigDecimal("150.00"),
-            fixSessionId = null,
-            arrivalPriceTimestamp = freshTimestamp,
-            instrumentType = "CASH_EQUITY",
-        )
-
-        order.status shouldBe OrderStatus.APPROVED
-        coVerify(exactly = 1) { orderRepository.save(any()) }
-    }
-
-    test("skips arrival price staleness check when no timestamp is provided") {
-        val order = service.submit(
-            bookId = "equity-growth",
-            instrumentId = "AAPL",
-            side = Side.BUY,
-            quantity = BigDecimal("100"),
-            orderType = "MARKET",
-            limitPrice = null,
-            arrivalPrice = BigDecimal("150.00"),
-            fixSessionId = null,
-            arrivalPriceTimestamp = null,
-            instrumentType = "CASH_EQUITY",
-        )
-
-        order.status shouldBe OrderStatus.APPROVED
-        coVerify(exactly = 1) { orderRepository.save(any()) }
     }
 
     test("approves and dispatches when check passes with no breaches") {
@@ -225,7 +255,6 @@ class OrderSubmissionServiceTest : FunSpec({
             quantity = BigDecimal("100"),
             orderType = "MARKET",
             limitPrice = null,
-            arrivalPrice = BigDecimal("150.00"),
             fixSessionId = null,
             instrumentType = "CASH_EQUITY",
         )
@@ -253,7 +282,6 @@ class OrderSubmissionServiceTest : FunSpec({
             quantity = BigDecimal("100"),
             orderType = "MARKET",
             limitPrice = null,
-            arrivalPrice = BigDecimal("150.00"),
             fixSessionId = null,
             instrumentType = "CASH_EQUITY",
         )
@@ -285,7 +313,6 @@ class OrderSubmissionServiceTest : FunSpec({
             quantity = BigDecimal("100"),
             orderType = "MARKET",
             limitPrice = null,
-            arrivalPrice = BigDecimal("150.00"),
             fixSessionId = null,
             instrumentType = "CASH_EQUITY",
         )
@@ -306,6 +333,7 @@ class OrderSubmissionServiceTest : FunSpec({
             sessionRepository = sessionRepository,
             fixOrderSender = fixOrderSender,
             preTradeCheckService = preTradeCheckService,
+            priceLookupClient = priceLookupClient,
             riskCheckTimeoutMs = 50L,
         )
         coEvery { preTradeCheckService.check(any()) } coAnswers {
@@ -320,7 +348,6 @@ class OrderSubmissionServiceTest : FunSpec({
             quantity = BigDecimal("100"),
             orderType = "MARKET",
             limitPrice = null,
-            arrivalPrice = BigDecimal("150.00"),
             fixSessionId = null,
             instrumentType = "CASH_EQUITY",
         )
@@ -348,7 +375,6 @@ class OrderSubmissionServiceTest : FunSpec({
             quantity = BigDecimal("100"),
             orderType = "MARKET",
             limitPrice = null,
-            arrivalPrice = BigDecimal("150.00"),
             fixSessionId = null,
             instrumentType = "CASH_EQUITY",
         )
@@ -367,7 +393,6 @@ class OrderSubmissionServiceTest : FunSpec({
             quantity = BigDecimal("500000"),
             orderType = "LIMIT",
             limitPrice = BigDecimal("99.50"),
-            arrivalPrice = BigDecimal("99.45"),
             fixSessionId = null,
             assetClass = "FIXED_INCOME",
             currency = "EUR",
@@ -390,7 +415,6 @@ class OrderSubmissionServiceTest : FunSpec({
             quantity = BigDecimal("100"),
             orderType = "MARKET",
             limitPrice = null,
-            arrivalPrice = BigDecimal("150.00"),
             fixSessionId = null,
             instrumentType = "CASH_EQUITY",
         )
@@ -407,7 +431,6 @@ class OrderSubmissionServiceTest : FunSpec({
             quantity = BigDecimal("100"),
             orderType = "MARKET",
             limitPrice = null,
-            arrivalPrice = BigDecimal("150.00"),
             fixSessionId = null,
             timeInForce = TimeInForce.GTC,
             instrumentType = "CASH_EQUITY",
@@ -426,7 +449,6 @@ class OrderSubmissionServiceTest : FunSpec({
                 quantity = BigDecimal("100"),
                 orderType = "MARKET",
                 limitPrice = null,
-                arrivalPrice = BigDecimal("150.00"),
                 fixSessionId = null,
                 timeInForce = TimeInForce.GTD,
                 expiresAt = null,
@@ -444,7 +466,6 @@ class OrderSubmissionServiceTest : FunSpec({
                 quantity = BigDecimal("100"),
                 orderType = "MARKET",
                 limitPrice = null,
-                arrivalPrice = BigDecimal("150.00"),
                 fixSessionId = null,
                 timeInForce = TimeInForce.GTD,
                 expiresAt = Instant.now().minusSeconds(60),
@@ -462,7 +483,6 @@ class OrderSubmissionServiceTest : FunSpec({
                 quantity = BigDecimal("100"),
                 orderType = "MARKET",
                 limitPrice = null,
-                arrivalPrice = BigDecimal("150.00"),
                 fixSessionId = null,
                 timeInForce = TimeInForce.GTD,
                 expiresAt = Instant.now().plusSeconds(100L * 24 * 3600),
@@ -480,7 +500,6 @@ class OrderSubmissionServiceTest : FunSpec({
                 quantity = BigDecimal("100"),
                 orderType = "MARKET",
                 limitPrice = null,
-                arrivalPrice = BigDecimal("150.00"),
                 fixSessionId = null,
                 timeInForce = TimeInForce.DAY,
                 expiresAt = Instant.now().plusSeconds(3600),
@@ -498,7 +517,6 @@ class OrderSubmissionServiceTest : FunSpec({
             quantity = BigDecimal("100"),
             orderType = "MARKET",
             limitPrice = null,
-            arrivalPrice = BigDecimal("150.00"),
             fixSessionId = null,
             timeInForce = TimeInForce.GTD,
             expiresAt = expires,
@@ -521,6 +539,7 @@ class OrderSubmissionServiceTest : FunSpec({
         sessionRepository = sessionRepository,
         fixOrderSender = fixOrderSender,
         preTradeCheckService = preTradeCheckService,
+        priceLookupClient = priceLookupClient,
         fixGatewayClient = fixGatewayClient,
     )
 
@@ -538,7 +557,7 @@ class OrderSubmissionServiceTest : FunSpec({
         val order = gatewayService(client).submit(
             bookId = "equity-growth", instrumentId = "AAPL", side = Side.BUY,
             quantity = BigDecimal("100"), orderType = "LIMIT",
-            limitPrice = BigDecimal("150"), arrivalPrice = BigDecimal("149.90"),
+            limitPrice = BigDecimal("150"),
             fixSessionId = null, instrumentType = "CASH_EQUITY",
             venue = "NYSE",
         )
@@ -563,7 +582,7 @@ class OrderSubmissionServiceTest : FunSpec({
         val order = gatewayService(client).submit(
             bookId = "equity-growth", instrumentId = "AAPL", side = Side.BUY,
             quantity = BigDecimal("10"), orderType = "MARKET",
-            limitPrice = null, arrivalPrice = BigDecimal("100"),
+            limitPrice = null,
             fixSessionId = null, instrumentType = "CASH_EQUITY",
         )
 
@@ -581,7 +600,7 @@ class OrderSubmissionServiceTest : FunSpec({
         val order = gatewayService(client).submit(
             bookId = "equity-growth", instrumentId = "AAPL", side = Side.BUY,
             quantity = BigDecimal("1"), orderType = "MARKET",
-            limitPrice = null, arrivalPrice = BigDecimal("100"),
+            limitPrice = null,
             fixSessionId = null, instrumentType = "CASH_EQUITY",
             venue = "MADEUP",
         )
@@ -599,7 +618,7 @@ class OrderSubmissionServiceTest : FunSpec({
         val order = gatewayService(client).submit(
             bookId = "equity-growth", instrumentId = "AAPL", side = Side.BUY,
             quantity = BigDecimal("1"), orderType = "MARKET",
-            limitPrice = null, arrivalPrice = BigDecimal("100"),
+            limitPrice = null,
             fixSessionId = null, instrumentType = "CASH_EQUITY",
         )
 
@@ -616,7 +635,7 @@ class OrderSubmissionServiceTest : FunSpec({
         val order = gatewayService(client).submit(
             bookId = "equity-growth", instrumentId = "AAPL", side = Side.BUY,
             quantity = BigDecimal("1"), orderType = "MARKET",
-            limitPrice = null, arrivalPrice = BigDecimal("100"),
+            limitPrice = null,
             fixSessionId = null, instrumentType = "CASH_EQUITY",
         )
 
@@ -637,7 +656,7 @@ class OrderSubmissionServiceTest : FunSpec({
         val order = gatewayService(client).submit(
             bookId = "equity-growth", instrumentId = "AAPL", side = Side.BUY,
             quantity = BigDecimal("1"), orderType = "MARKET",
-            limitPrice = null, arrivalPrice = BigDecimal("100"),
+            limitPrice = null,
             fixSessionId = null, instrumentType = "CASH_EQUITY",
         )
 
@@ -655,7 +674,7 @@ class OrderSubmissionServiceTest : FunSpec({
         val order = gatewayService(client).submit(
             bookId = "equity-growth", instrumentId = "AAPL", side = Side.BUY,
             quantity = BigDecimal("1"), orderType = "MARKET",
-            limitPrice = null, arrivalPrice = BigDecimal("100"),
+            limitPrice = null,
             fixSessionId = null, instrumentType = "CASH_EQUITY",
         )
 
@@ -678,7 +697,7 @@ class OrderSubmissionServiceTest : FunSpec({
         gatewayService(client).submit(
             bookId = "equity-growth", instrumentId = "AAPL", side = Side.BUY,
             quantity = BigDecimal("1"), orderType = "MARKET",
-            limitPrice = null, arrivalPrice = BigDecimal("100"),
+            limitPrice = null,
             fixSessionId = "FIX-LEGACY-01", instrumentType = "CASH_EQUITY",
         )
 
@@ -706,7 +725,7 @@ class OrderSubmissionServiceTest : FunSpec({
         gatewayService(client).submit(
             bookId = "equity-growth", instrumentId = "AAPL", side = Side.BUY,
             quantity = BigDecimal("1"), orderType = "MARKET",
-            limitPrice = null, arrivalPrice = BigDecimal("100"),
+            limitPrice = null,
             fixSessionId = null, instrumentType = "CASH_EQUITY",
         )
 

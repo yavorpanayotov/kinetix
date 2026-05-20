@@ -2,6 +2,14 @@ package com.kinetix.position.routes.dtos
 
 import kotlinx.serialization.Serializable
 
+/**
+ * Order-submission request body.
+ *
+ * The arrival price is NOT a caller input — it is captured server-side from
+ * price-service at submission time (spec: `execution.allium` —
+ * `let arrival_price = current_mid_price(instrument_id)`). Any `arrivalPrice` /
+ * `arrivalPriceTimestamp` fields sent by a client are ignored.
+ */
 @Serializable
 data class SubmitOrderRequest(
     val bookId: String,
@@ -10,17 +18,9 @@ data class SubmitOrderRequest(
     val quantity: String,
     val orderType: String,
     val limitPrice: String? = null,
-    val arrivalPrice: String,
     val fixSessionId: String? = null,
     val assetClass: String = "EQUITY",
     val currency: String = "USD",
-    /**
-     * Optional ISO-8601 instant when the arrival price was observed. When supplied,
-     * orders are rejected with 400 if the price is stale per
-     * `OrderSubmissionService.ARRIVAL_PRICE_MAX_AGE_MS`. Spec: execution.allium
-     * arrival-price staleness check.
-     */
-    val arrivalPriceTimestamp: String? = null,
     /**
      * FIX time-in-force. Defaults to DAY (industry norm) when absent. Must be one of
      * DAY / GTC / IOC / FOK / GTD. GTD requires [expiresAt] to be set; non-GTD must

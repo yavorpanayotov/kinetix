@@ -12,6 +12,7 @@ env:
   PORT: "8081"
   DATABASE_URL: "jdbc:postgresql://kinetix-postgresql:5432/kinetix_position"
   KAFKA_BOOTSTRAP_SERVERS: "kinetix-kafka:9092"
+  PRICE_SERVICE_URL: "http://kinetix-price-service:8082"
   SEED_DATA: "false"
   OTEL_JAVA_GLOBAL_AUTOCONFIGURE_ENABLED: "true"
   OTEL_EXPORTER_OTLP_ENDPOINT: "http://kinetix-opentelemetry-collector:4317"

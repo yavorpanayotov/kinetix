@@ -110,7 +110,10 @@ fun Application.module() {
     val appMicrometerRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
     attributes.put(MicrometerRegistryKey, appMicrometerRegistry)
     install(MicrometerMetrics) { registry = appMicrometerRegistry }
-    install(ContentNegotiation) { json() }
+    // ignoreUnknownKeys: tolerate request bodies carrying fields the server no
+    // longer reads — e.g. a legacy caller-supplied `arrivalPrice` on order
+    // submission, which is now captured server-side from price-service.
+    install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
     install(CallLogging) {
         level = Level.INFO
         mdc("correlationId") {
@@ -171,6 +174,16 @@ fun Application.moduleWithRoutes() {
         install(ClientContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
     }
     val referenceDataClient = HttpReferenceDataServiceClient(referenceDataHttpClient, referenceDataBaseUrl)
+
+    // price-service client: order submission captures the arrival price server-side
+    // from price-service at submission time (spec: execution.allium current_mid_price).
+    val priceServiceBaseUrl = environment.config.config("priceService").property("baseUrl").getString()
+    val priceServiceHttpClient = HttpClient(CIO) {
+        install(ClientContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+    }
+    val priceLookupClient = com.kinetix.position.client.HttpPriceLookupClient(
+        priceServiceHttpClient, priceServiceBaseUrl,
+    )
 
     val limitDefinitionRepo = ExposedLimitDefinitionRepository(db)
     val temporaryLimitIncreaseRepo = ExposedTemporaryLimitIncreaseRepository(db)
@@ -317,6 +330,7 @@ fun Application.moduleWithRoutes() {
         sessionRepository = fixSessionRepository,
         fixOrderSender = fixOrderSender,
         preTradeCheckService = preTradeCheckService,
+        priceLookupClient = priceLookupClient,
         fixGatewayClient = fixGatewayClient,
     )
     val executionCostService = com.kinetix.position.fix.ExecutionCostService()
