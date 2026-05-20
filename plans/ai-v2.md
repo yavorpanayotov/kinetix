@@ -222,7 +222,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
 
 - [x] 9.1 Add `<ExplainButton>` to `PositionRiskTable` rows (rightmost 32 px action column, label on row focus/selection) + table header (portfolio-level explain). Each click opens `<AIInsightPanel>` with `<StreamingNarrative>` consuming `/chat` with the row's position payload as `page_context`. Playwright covers per-row open, double-click protection, "only one panel open" behaviour.
       Acceptance: `cd ui && npm run lint && npx playwright test e2e/inline-explainer-positions.spec.ts`
-- [ ] 9.2 Add `<ExplainButton>` to the P&L attribution chart container (above the waterfall). Payload includes top-N drivers + date. Playwright covers the explain flow.
+- [x] 9.2 Add `<ExplainButton>` to the P&L attribution chart container (above the waterfall). Payload includes top-N drivers + date. Playwright covers the explain flow.
       Acceptance: `cd ui && npm run lint && npx playwright test e2e/inline-explainer-pnl.spec.ts`
 - [ ] 9.3 Add `<ExplainButton>` to each row in the alerts/breaches panel (`NotificationCenter`). Payload includes alertId, type, currentValue, threshold, severity. Playwright covers alert-row explain.
       Acceptance: `cd ui && npm run lint && npx playwright test e2e/inline-explainer-alerts.spec.ts`
