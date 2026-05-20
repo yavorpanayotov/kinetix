@@ -151,7 +151,7 @@ not stop mid-loop:
 
 ### PR 1 — Fix broken & misleading panels (dashboard JSON only)
 
-- [ ] 1.1 `infrastructure/kafka-health.json` — keep the Messages-In offset-rate
+- [x] 1.1 `infrastructure/kafka-health.json` — keep the Messages-In offset-rate
       query (correct throughput proxy for the kafka-exporter-only scrape) but add
       a panel `description` noting it is a partition-offset-derived estimate.
       Change the **DLQ panel** from `rate(...current_offset...)` to absolute DLQ
