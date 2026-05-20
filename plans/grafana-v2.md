@@ -158,7 +158,7 @@ not stop mid-loop:
       depth so a stalled DLQ is visible instead of reading zero; add red
       thresholds.
       Acceptance: `node plans/scripts/validate-grafana.mjs`
-- [ ] 1.2 `risk/greeks.json` — change the delta and gamma panels from
+- [x] 1.2 `risk/greeks.json` — change the delta and gamma panels from
       `unit: short` to `unit: none` with explicit display names ("Net Delta
       (dimensionless)", "Net Gamma"); correct the vega panel `description` to state
       it is dollars-per-vol-point, not a currency amount.
