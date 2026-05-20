@@ -1,10 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Search, Sparkles } from 'lucide-react'
+import { Bookmark, Search, Sparkles } from 'lucide-react'
 import type { ChatChunk } from '../api/copilot'
 import { chat } from '../api/copilot'
 import { StreamingNarrative } from './StreamingNarrative'
 import { CitationList } from './CitationList'
+import { SavedQueryChip } from './SavedQueryChip'
 import type { Citation } from '../api/copilot'
+import {
+  deleteUserSavedQuery,
+  loadSavedQueries,
+  saveUserQuery,
+} from '../api/savedQueries'
+import type { SavedQuery } from '../api/savedQueries'
 
 /**
  * Plan §7.1 — Cmd+K command palette.
@@ -52,6 +59,14 @@ interface CommandPaletteProps {
    * Defaults to the real `chat` import.
    */
   chatFn?: typeof chat
+  /**
+   * Plan §8.3 — a saved query handed in from outside the palette (e.g. a
+   * built-in chip clicked in the notification inbox). When this changes
+   * to a non-null value while the palette is open, its prompt is routed
+   * to the copilot immediately. The parent clears it after the palette
+   * closes. Ignored when `copilotMode` is `false`.
+   */
+  pendingSavedQuery?: SavedQuery | null
 }
 
 const RECENT_KEY = 'kinetix:command-palette:recent'
@@ -115,6 +130,7 @@ export function CommandPalette({
   items,
   copilotMode = false,
   chatFn = chat,
+  pendingSavedQuery = null,
 }: CommandPaletteProps) {
   const [query, setQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
@@ -141,6 +157,15 @@ export function CommandPalette({
   >(null)
   const [followup, setFollowup] = useState('')
 
+  // Saved copilot queries (§8.3). The "Copilot" group in the empty-query
+  // state renders these as chips; saving a free-form query from the
+  // palette refreshes the list. `savedQueryNotice` surfaces a transient
+  // message — e.g. when the twelve-query limit is hit.
+  const [savedQueries, setSavedQueries] = useState<SavedQuery[]>(() =>
+    loadSavedQueries(),
+  )
+  const [savedQueryNotice, setSavedQueryNotice] = useState<string | null>(null)
+
   // Reset state every time the palette opens. The DOM is mounted by the time
   // this effect fires, so focus can move synchronously.
   //
@@ -161,6 +186,8 @@ export function CommandPalette({
       setCopilotAnswered(false)
       setCopilotCompletionMode(null)
       setFollowup('')
+      setSavedQueries(loadSavedQueries())
+      setSavedQueryNotice(null)
       inputRef.current?.focus()
     } else {
       setCopilotStream(null)
@@ -222,6 +249,22 @@ export function CommandPalette({
     }
   }, [flatFiltered.length, selectedIndex])
 
+  // §8.3 — when a saved query is handed in from outside (a built-in chip
+  // clicked in the notification inbox) route its prompt to the copilot
+  // as soon as the palette is open in copilot mode.
+  useEffect(() => {
+    if (!open || !copilotMode || !pendingSavedQuery) return
+    const prompt = pendingSavedQuery.prompt.trim()
+    if (prompt.length === 0) return
+    setCopilotCitations([])
+    setCopilotAnswered(false)
+    setCopilotCompletionMode(null)
+    setCopilotStream(chatFn({ message: prompt, page_context: {} }))
+    // chatFn is stable across renders (a prop default or a test fake);
+    // re-running only when the pending query itself changes is correct.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, copilotMode, pendingSavedQuery])
+
   if (!open) return null
 
   const activate = (item: CommandItem) => {
@@ -250,6 +293,38 @@ export function CommandPalette({
     setCopilotAnswered(false)
     setCopilotCompletionMode(null)
     setCopilotStream(chatFn({ message: trimmed, page_context: {} }))
+  }
+
+  /**
+   * Run a saved query (§8.3) — route its stored prompt to the copilot,
+   * exactly as a free-form ask would.
+   */
+  const runSavedQuery = (savedQuery: SavedQuery) => {
+    askCopilot(savedQuery.prompt)
+  }
+
+  /**
+   * Save the current free-form query as a new user saved query. Refreshes
+   * the chip list on success; surfaces a notice when the twelve-query cap
+   * blocks the save or the query is blank.
+   */
+  const handleSaveCurrentQuery = () => {
+    const result = saveUserQuery(query)
+    if (result.ok) {
+      setSavedQueries(loadSavedQueries())
+      setSavedQueryNotice('Saved.')
+    } else if (result.reason === 'limit') {
+      setSavedQueryNotice('Saved-query limit reached (12). Delete one first.')
+    } else {
+      setSavedQueryNotice('Type a query to save.')
+    }
+  }
+
+  /** Delete a user saved query and refresh the chip list. */
+  const handleDeleteSavedQuery = (savedQuery: SavedQuery) => {
+    deleteUserSavedQuery(savedQuery.id)
+    setSavedQueries(loadSavedQueries())
+    setSavedQueryNotice(null)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -293,6 +368,12 @@ export function CommandPalette({
 
   let runningIndex = 0
   const showRecent = recentItems.length > 0
+  // The "Copilot" group of saved-query chips shows only in copilot mode
+  // while the query input is empty (§8.3 — the Cmd+K empty-query state).
+  const showSavedQueries = copilotMode && query.trim().length === 0
+  // The save-current-query affordance appears in copilot mode once the
+  // user has typed something — it captures the free-form draft.
+  const showSaveAffordance = copilotMode && query.trim().length > 0
 
   return (
     <>
@@ -328,10 +409,31 @@ export function CommandPalette({
             aria-label="Command palette search"
             className="flex-1 bg-transparent text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none"
           />
+          {showSaveAffordance && (
+            <button
+              type="button"
+              data-testid="command-palette-save-query"
+              onClick={handleSaveCurrentQuery}
+              aria-label="Save this query"
+              title="Save this query"
+              className="inline-flex items-center gap-1 rounded border border-slate-300 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:border-surface-600 dark:text-slate-400 dark:hover:bg-surface-700 dark:hover:text-slate-200"
+            >
+              <Bookmark className="h-3 w-3" aria-hidden="true" />
+              Save
+            </button>
+          )}
           <kbd className="inline-block px-1.5 py-0.5 text-[10px] font-mono font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-surface-900 border border-slate-300 dark:border-surface-600 rounded">
             Esc
           </kbd>
         </div>
+        {savedQueryNotice && (
+          <div
+            data-testid="command-palette-saved-query-notice"
+            className="px-3 py-1 text-[10px] text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-surface-700"
+          >
+            {savedQueryNotice}
+          </div>
+        )}
         <div
           data-testid="command-palette-list"
           className="flex-1 overflow-y-auto py-1"
@@ -379,6 +481,27 @@ export function CommandPalette({
                   )
                 })}
               </ul>
+            </div>
+          )}
+
+          {showSavedQueries && (
+            <div data-testid="command-palette-group-Copilot">
+              <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                Copilot
+              </div>
+              <div
+                data-testid="command-palette-saved-queries"
+                className="flex flex-wrap gap-1.5 px-3 pb-2"
+              >
+                {savedQueries.map((savedQuery) => (
+                  <SavedQueryChip
+                    key={savedQuery.id}
+                    query={savedQuery}
+                    onSelect={runSavedQuery}
+                    onDelete={handleDeleteSavedQuery}
+                  />
+                ))}
+              </div>
             </div>
           )}
 

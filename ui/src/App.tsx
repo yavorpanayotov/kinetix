@@ -64,6 +64,7 @@ import { PersonaSwitcher } from './components/PersonaSwitcher'
 import { DemoWelcomeStrip } from './components/DemoWelcomeStrip'
 import { KeyboardShortcutsOverlay } from './components/KeyboardShortcutsOverlay'
 import { CommandPalette, type CommandItem } from './components/CommandPalette'
+import type { SavedQuery } from './api/savedQueries'
 import { SmallViewportWarning, MIN_VIEWPORT_WIDTH_PX } from './components/SmallViewportWarning'
 
 type Tab = 'positions' | 'trades' | 'pnl' | 'risk' | 'eod' | 'scenarios' | 'regulatory' | 'counterparty-risk' | 'reports' | 'alerts' | 'system'
@@ -148,6 +149,12 @@ function AppContent() {
   // Plan §7.1 — Cmd+K (or Ctrl+K) opens the command palette. State lives at
   // App.tsx because the palette needs setters across the entire app surface.
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
+  // Plan §8.3 — a saved query fired from a built-in chip in the
+  // notification inbox. Setting it opens the command palette in copilot
+  // mode and runs the query; it is cleared when the palette closes.
+  const [pendingSavedQuery, setPendingSavedQuery] = useState<SavedQuery | null>(
+    null,
+  )
   // Plan §6.10 — today's morning brief, surfaced inside <NotificationStrip>.
   // Null until the fetch lands (or if it fails / is still generating).
   const [morningBrief, setMorningBrief] = useState<MorningBrief | null>(null)
@@ -732,6 +739,10 @@ function AppContent() {
         items={[]}
         morningBrief={morningBrief}
         intradayPushes={copilotPushes}
+        onRunSavedQuery={(query) => {
+          setPendingSavedQuery(query)
+          setCommandPaletteOpen(true)
+        }}
       />
 
       <RiskTickerStrip
@@ -1009,9 +1020,13 @@ function AppContent() {
 
       <CommandPalette
         open={commandPaletteOpen}
-        onClose={() => setCommandPaletteOpen(false)}
+        onClose={() => {
+          setCommandPaletteOpen(false)
+          setPendingSavedQuery(null)
+        }}
         items={commandPaletteItems}
         copilotMode
+        pendingSavedQuery={pendingSavedQuery}
       />
 
       <HedgeRecommendationPanel

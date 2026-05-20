@@ -12,6 +12,9 @@ import {
 import type { NotificationSeverity } from '../utils/notificationSeverity'
 import { MorningBriefCard } from './MorningBriefCard'
 import { IntradayPushItem } from './IntradayPushItem'
+import { SavedQueryChip } from './SavedQueryChip'
+import { BUILTIN_SAVED_QUERIES } from '../api/savedQueries'
+import type { SavedQuery } from '../api/savedQueries'
 
 // Re-export the severity vocabulary so existing importers of
 // `./NotificationStrip` keep working (this is a type-only re-export, so
@@ -62,6 +65,11 @@ export interface NotificationStripProps {
    */
   morningBrief?: MorningBrief | null
   /**
+   * Plan §8.3 — invoked when the user clicks one of the five built-in
+   * saved-query chips at the top of the inbox.
+   */
+  onRunSavedQuery?: (query: SavedQuery) => void
+  /**
    * Intraday Copilot push events (plan §7.9 / PR 7), as surfaced by
    * `useCopilotWebSocket()` — newest first. They render as `Zap`-marked
    * inbox rows below the morning brief; more than five collapse the
@@ -71,6 +79,12 @@ export interface NotificationStripProps {
    * empty list.
    */
   intradayPushes?: CopilotPushEvent[]
+  /**
+   * Plan §8.3 — invoked when the user clicks one of the five built-in
+   * saved-query chips rendered at the top of the inbox. When omitted the
+   * chips still render but are inert.
+   */
+  onRunSavedQuery?: (query: SavedQuery) => void
 }
 
 const DISMISSED_KEY = 'kinetix:copilot-inbox:dismissed'
@@ -165,6 +179,11 @@ export interface NotificationInboxProps {
   intradayPushes?: CopilotPushEvent[]
   /** Dismiss a single intraday push, keyed by its ``session_id``. */
   onDismissPush?: (sessionId: string) => void
+  /**
+   * Plan §8.3 — invoked when the user clicks one of the five built-in
+   * saved-query chips at the top of the inbox.
+   */
+  onRunSavedQuery?: (query: SavedQuery) => void
 }
 
 export function NotificationInbox({
@@ -175,6 +194,7 @@ export function NotificationInbox({
   briefRef,
   intradayPushes = [],
   onDismissPush = () => {},
+  onRunSavedQuery = () => {},
 }: NotificationInboxProps) {
   // More than five pushes: render the first five and collapse the rest
   // into a single "N more" badge (plan §7.9).
@@ -187,6 +207,24 @@ export function NotificationInbox({
       data-testid="notification-inbox"
       className="max-h-80 overflow-y-auto border-b border-slate-200 dark:border-surface-700 bg-white dark:bg-surface-800"
     >
+      {/*
+        Plan §8.3 — the five built-in saved-query chips render at the top
+        of the inbox so the operator can fire a common copilot question
+        with one click. They are always present (built-ins are
+        undeletable) and always count as content.
+      */}
+      <div
+        data-testid="saved-query-chips"
+        className="flex flex-wrap gap-1.5 border-b border-slate-100 px-3 py-2 dark:border-surface-700"
+      >
+        {BUILTIN_SAVED_QUERIES.map((query) => (
+          <SavedQueryChip
+            key={query.id}
+            query={query}
+            onSelect={onRunSavedQuery}
+          />
+        ))}
+      </div>
       {morningBrief && (
         <div data-testid="notification-inbox-brief" ref={briefRef}>
           <MorningBriefCard brief={morningBrief} />
@@ -291,6 +329,7 @@ export function NotificationStrip({
   expanded,
   onExpandedChange,
   morningBrief = null,
+  onRunSavedQuery,
   intradayPushes = [],
 }: NotificationStripProps) {
   const [dismissed, setDismissed] = useState<Set<string>>(() => loadDismissed())
@@ -438,6 +477,7 @@ export function NotificationStrip({
             items={visible}
             onDismiss={handleDismiss}
             onDismissAll={handleDismissAll}
+            onRunSavedQuery={onRunSavedQuery}
           />
         )}
       </div>
@@ -527,6 +567,7 @@ export function NotificationStrip({
           briefRef={briefRef}
           intradayPushes={visiblePushes}
           onDismissPush={handleDismissPush}
+          onRunSavedQuery={onRunSavedQuery}
         />
       )}
     </div>
