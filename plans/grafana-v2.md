@@ -229,7 +229,7 @@ not stop mid-loop:
       dashboard and repoint every panel `datasource` to `${datasource}`, so
       dashboards are portable across Prometheus/Loki instances.
       Acceptance: `node plans/scripts/validate-grafana.mjs`
-- [ ] 3.3 Rename implementation-detail panel titles to user-facing language across
+- [x] 3.3 Rename implementation-detail panel titles to user-facing language across
       all dashboards (e.g. "PendingNewCorrelator: TTL Evictions" → "Order
       Correlator — TTL Evictions"; "fix_message_log Partitions Archived" → "FIX Log
       Partitions Archived").
