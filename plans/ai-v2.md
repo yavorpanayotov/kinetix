@@ -167,7 +167,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
 
 - [x] 6.1 Flyway migration `position-service/.../V???__create_limit_breach_events.sql` creating `limit_breach_events(id, entity_id, book_id, limit_type, severity, current_value, limit_value, breached_at, resolved_at)` with indexes on `(book_id, breached_at DESC)` and `(severity, breached_at DESC)`. Acceptance: position-service migration tests pass.
       Acceptance: `./gradlew :position-service:test --tests "*LimitBreachEventsMigrationTest"`
-- [ ] 6.2 Add `LimitBreachEventWriter` hook in position-service `LimitHierarchyService` — persists every detected breach (and resolution) to `limit_breach_events`. Acceptance tests assert breach write + resolution write + idempotency.
+- [x] 6.2 Add `LimitBreachEventWriter` hook in position-service `LimitHierarchyService` — persists every detected breach (and resolution) to `limit_breach_events`. Acceptance tests assert breach write + resolution write + idempotency.
       Acceptance: `./gradlew :position-service:acceptanceTest --tests "*LimitBreachEventWriterAcceptanceTest"`
 - [ ] 6.3 Add MCP tool `get_recent_breaches(book_id, since?)` in `ai-insights-service/.../mcp/tools/` reading from `limit_breach_events` via position-service HTTP API. Unit test against `FakeKinetixHttpClient`.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_tool_get_recent_breaches.py -m unit`
