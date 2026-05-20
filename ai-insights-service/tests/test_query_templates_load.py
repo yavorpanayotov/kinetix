@@ -136,7 +136,9 @@ def test_prompt_placeholders_match_required_params(path: Path) -> None:
 
     payload = _load(path)
     placeholders = _placeholders(str(payload["prompt_template"]))
-    declared = set(payload["required_params"])
+    raw_params = payload["required_params"]
+    assert isinstance(raw_params, list)
+    declared = set(raw_params)
 
     assert placeholders == declared, (
         f"{path.name}: prompt placeholders {placeholders} "
