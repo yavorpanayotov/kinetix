@@ -98,6 +98,18 @@ class RiskCalculationServicer(risk_calculation_pb2_grpc.RiskCalculationServiceSe
             calc_type = proto_calculation_type_to_domain(request.calculation_type)
             confidence = proto_confidence_to_domain(request.confidence_level)
 
+            calculation_type = (
+                calc_type.value if hasattr(calc_type, "value") else str(calc_type)
+            )
+            logger.info(
+                "Starting VaR calculation",
+                extra={
+                    "book_id": request.book_id.value,
+                    "correlation_id": None,
+                    "calculation_type": calculation_type,
+                },
+            )
+
             market_data_dicts = proto_market_data_to_domain(request.market_data)
             bundle = consume_market_data(market_data_dicts)
 
@@ -143,6 +155,15 @@ class RiskCalculationServicer(risk_calculation_pb2_grpc.RiskCalculationServiceSe
                 greeks_rho.labels(book_id=book_id).set(gr.rho)
             except Exception:
                 logger.warning("Greeks calculation failed in CalculateVaR for book %s", book_id, exc_info=True)
+
+            logger.info(
+                "Completed VaR calculation",
+                extra={
+                    "book_id": book_id,
+                    "correlation_id": None,
+                    "calculation_type": ct,
+                },
+            )
 
             return var_result_to_proto_response(
                 result,

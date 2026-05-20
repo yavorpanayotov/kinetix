@@ -51,6 +51,14 @@ class StressTestServicer(stress_testing_pb2_grpc.StressTestServiceServicer):
     def RunStressTest(self, request, context):
         scenario_name = request.scenario_name
         start = time.time()
+        logger.info(
+            "Starting stress test",
+            extra={
+                "book_id": request.book_id.value,
+                "correlation_id": None,
+                "calculation_type": "STRESS",
+            },
+        )
         try:
             # Try historical scenario first, fall back to hypothetical
             if scenario_name and not request.vol_shocks and not request.price_shocks:
@@ -76,6 +84,14 @@ class StressTestServicer(stress_testing_pb2_grpc.StressTestServiceServicer):
             )
 
             stress_test_total.labels(scenario_name=result.scenario_name).inc()
+            logger.info(
+                "Completed stress test",
+                extra={
+                    "book_id": request.book_id.value,
+                    "correlation_id": None,
+                    "calculation_type": "STRESS",
+                },
+            )
             return stress_result_to_proto(result)
         finally:
             duration = time.time() - start
@@ -189,6 +205,14 @@ class StressTestServicer(stress_testing_pb2_grpc.StressTestServiceServicer):
             "with GREEKS in requested_outputs instead"
         )
         start = time.time()
+        logger.info(
+            "Starting Greeks calculation",
+            extra={
+                "book_id": request.book_id.value,
+                "correlation_id": None,
+                "calculation_type": "GREEKS",
+            },
+        )
         try:
             positions = proto_positions_to_domain(request.positions)
             calc_type = proto_calculation_type_to_domain(request.calculation_type)
@@ -203,6 +227,14 @@ class StressTestServicer(stress_testing_pb2_grpc.StressTestServiceServicer):
             )
 
             greeks_calculation_total.inc()
+            logger.info(
+                "Completed Greeks calculation",
+                extra={
+                    "book_id": request.book_id.value,
+                    "correlation_id": None,
+                    "calculation_type": "GREEKS",
+                },
+            )
             return greeks_result_to_proto(result)
         finally:
             duration = time.time() - start
