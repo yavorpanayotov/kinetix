@@ -17,11 +17,28 @@
     { "title": "Database Health", "type": "link", "url": "/d/kinetix-database-health", "icon": "dashboard" },
     { "title": "Service Logs", "type": "link", "url": "/d/kinetix-service-logs", "icon": "dashboard" }
   ],
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "label": "Data source",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "refresh": 1,
+        "regex": "",
+        "options": []
+      }
+    ]
+  },
   "panels": [
     {
       "title": "Trade Booking Rate",
       "type": "timeseries",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
       "targets": [
         {
@@ -37,7 +54,7 @@
     {
       "title": "Trade Booking Latency (P95)",
       "type": "timeseries",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
       "targets": [
         {
@@ -57,7 +74,7 @@
     {
       "title": "Trade Error Rate",
       "type": "timeseries",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
       "targets": [
         {
@@ -73,7 +90,7 @@
     {
       "title": "Price Update Rate",
       "type": "timeseries",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
       "targets": [
         {
@@ -89,7 +106,7 @@
     {
       "title": "Price Feed Ingestion Latency",
       "type": "timeseries",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 },
       "targets": [
         {
@@ -105,7 +122,7 @@
     {
       "title": "Gateway Request Rate by Route",
       "type": "timeseries",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 },
       "targets": [
         {
@@ -121,7 +138,7 @@
     {
       "title": "Kafka Trade Event Lag",
       "type": "timeseries",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
       "targets": [
         {
@@ -137,7 +154,7 @@
     {
       "title": "Risk Orchestrator Request Rate",
       "type": "timeseries",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
       "targets": [
         {

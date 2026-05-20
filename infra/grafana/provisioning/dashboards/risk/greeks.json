@@ -21,10 +21,23 @@
   "templating": {
     "list": [
       {
+        "name": "datasource",
+        "type": "datasource",
+        "label": "Data source",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "refresh": 1,
+        "regex": "",
+        "options": []
+      },
+      {
         "name": "book_id",
         "type": "query",
         "label": "Book",
-        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
         "query": "label_values(greeks_delta, book_id)",
         "refresh": 2,
         "includeAll": true,
@@ -40,7 +53,7 @@
       "id": 1,
       "title": "Net Delta by Asset Class",
       "type": "timeseries",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
       "targets": [
         {
@@ -57,7 +70,7 @@
       "id": 2,
       "title": "Net Gamma by Asset Class",
       "type": "timeseries",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
       "targets": [
         {
@@ -75,7 +88,7 @@
       "title": "Net Vega by Asset Class",
       "description": "Vega is dollars-per-vol-point: the P&L change for a 1 percentage-point move in implied volatility. It is a sensitivity, not a currency amount or the position's dollar value.",
       "type": "timeseries",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
       "targets": [
         {
@@ -92,7 +105,7 @@
       "id": 4,
       "title": "Net Theta",
       "type": "timeseries",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
       "targets": [
         {
@@ -109,7 +122,7 @@
       "id": 5,
       "title": "Net Rho",
       "type": "timeseries",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
       "targets": [
         {
@@ -126,7 +139,7 @@
       "id": 6,
       "title": "Greeks Calculation Rate",
       "type": "stat",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 6, "x": 12, "y": 16 },
       "targets": [
         {
@@ -143,7 +156,7 @@
       "id": 7,
       "title": "Greeks Calculation Duration (P95)",
       "type": "stat",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 6, "x": 18, "y": 16 },
       "targets": [
         {

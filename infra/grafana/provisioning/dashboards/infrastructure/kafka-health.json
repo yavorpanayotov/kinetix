@@ -17,11 +17,28 @@
     { "title": "Database Health", "type": "link", "url": "/d/kinetix-database-health", "icon": "dashboard" },
     { "title": "Service Logs", "type": "link", "url": "/d/kinetix-service-logs", "icon": "dashboard" }
   ],
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "label": "Data source",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "refresh": 1,
+        "regex": "",
+        "options": []
+      }
+    ]
+  },
   "panels": [
     {
       "title": "Consumer Group Lag",
       "type": "timeseries",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
       "targets": [
         {
@@ -38,7 +55,7 @@
       "title": "Messages In Per Second",
       "type": "timeseries",
       "description": "Partition-offset-derived throughput estimate. The only Kafka scrape target is kafka-exporter (no broker JMX target), so there is no native broker messages-in-per-sec metric. This is the conventional proxy: the rate of change of partition end offsets approximates produce throughput per topic.",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
       "targets": [
         {
@@ -54,7 +71,7 @@
     {
       "title": "Topic Partition Count",
       "type": "stat",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
       "targets": [
         {
@@ -70,7 +87,7 @@
     {
       "title": "Under-Replicated Partitions",
       "type": "stat",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 },
       "targets": [
         {
@@ -96,7 +113,7 @@
     {
       "title": "Broker Count",
       "type": "stat",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 },
       "targets": [
         {
@@ -113,7 +130,7 @@
       "title": "DLQ Depth",
       "type": "timeseries",
       "description": "Absolute message count sitting in each dead-letter topic, derived from partition end offsets. A rate-based panel reads zero for a stalled (non-growing) DLQ and looks healthy; absolute depth stays visibly non-zero while messages remain unprocessed. Any non-zero value is a problem — red threshold at 1.",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
       "targets": [
         {

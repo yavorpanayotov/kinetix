@@ -21,10 +21,23 @@
   "templating": {
     "list": [
       {
+        "name": "datasource",
+        "type": "datasource",
+        "label": "Data source",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "refresh": 1,
+        "regex": "",
+        "options": []
+      },
+      {
         "name": "book_id",
         "type": "query",
         "label": "Book",
-        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
         "query": "label_values(risk_var_value, book_id)",
         "refresh": 2,
         "includeAll": true,
@@ -37,7 +50,7 @@
         "name": "calculation_type",
         "type": "query",
         "label": "Method",
-        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
         "query": "label_values(risk_var_value, calculation_type)",
         "refresh": 2,
         "includeAll": false,
@@ -48,7 +61,7 @@
         "name": "confidence_level",
         "type": "query",
         "label": "Confidence",
-        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
         "query": "label_values(risk_var_value, confidence_level)",
         "refresh": 2,
         "includeAll": false,
@@ -63,7 +76,7 @@
       "title": "VaR Limit Utilisation",
       "description": "VaR utilisation per book: risk_var_value / risk_var_limit (joined on book_id). 1.0 = limit fully consumed. Green below 80%, amber 80-100%, red at or above 100%. risk_var_limit is emitted by position-service (the limit owner); risk_var_value by risk-orchestrator/risk-engine.",
       "type": "bargauge",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
       "targets": [
         {
@@ -95,7 +108,7 @@
       "id": 2,
       "title": "VaR Utilisation Trend",
       "type": "timeseries",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
       "targets": [
         {
@@ -112,7 +125,7 @@
       "id": 3,
       "title": "Pre-Trade Limit Check Rate",
       "type": "timeseries",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
       "targets": [
         {
@@ -133,7 +146,7 @@
       "id": 4,
       "title": "Trade Rejection Rate (Limit Breaches)",
       "type": "timeseries",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
       "targets": [
         {
@@ -154,7 +167,7 @@
       "id": 5,
       "title": "Expected Shortfall by Book",
       "type": "bargauge",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
       "targets": [
         {

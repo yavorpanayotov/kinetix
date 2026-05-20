@@ -23,6 +23,23 @@
     { "title": "Database Health", "type": "link", "url": "/d/kinetix-database-health", "icon": "dashboard" },
     { "title": "Service Logs", "type": "link", "url": "/d/kinetix-service-logs", "icon": "dashboard" }
   ],
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "label": "Data source",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "refresh": 1,
+        "regex": "",
+        "options": []
+      }
+    ]
+  },
   "panels": [
     {
       "id": 1,
@@ -41,7 +58,7 @@
           "refId": "A",
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${datasource}"
           }
         }
       ],
@@ -52,7 +69,7 @@
       },
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${datasource}"
       }
     },
     {
@@ -72,7 +89,7 @@
           "refId": "A",
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${datasource}"
           }
         }
       ],
@@ -83,7 +100,7 @@
       },
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${datasource}"
       }
     },
     {
@@ -103,7 +120,7 @@
           "refId": "A",
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${datasource}"
           }
         }
       ],
@@ -130,7 +147,7 @@
       },
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${datasource}"
       }
     },
     {
@@ -150,7 +167,7 @@
           "refId": "A",
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${datasource}"
           }
         }
       ],
@@ -162,7 +179,7 @@
       },
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${datasource}"
       }
     }
   ],

@@ -16,12 +16,29 @@
     { "title": "Trade Flow", "type": "link", "url": "/d/kinetix-trade-flow", "icon": "dashboard" },
     { "title": "Service Logs", "type": "link", "url": "/d/kinetix-service-logs", "icon": "dashboard" }
   ],
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "label": "Data source",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "refresh": 1,
+        "regex": "",
+        "options": []
+      }
+    ]
+  },
   "panels": [
     {
       "title": "FIX Session State (per venue)",
       "description": "Logon state of each FIX session. Uses the 'last' reducer (not 'lastNotNull') so that when the FIX gateway stops being scraped the panel renders 'No data' rather than holding the last UP sample green indefinitely.",
       "type": "stat",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 6, "w": 24, "x": 0, "y": 0 },
       "targets": [
         {
@@ -53,7 +70,7 @@
     {
       "title": "Inbound Messages / sec (by venue + msg_type)",
       "type": "timeseries",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
       "targets": [
         {
@@ -66,7 +83,7 @@
     {
       "title": "Outbound Messages / sec (by venue + msg_type)",
       "type": "timeseries",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
       "targets": [
         {
@@ -79,7 +96,7 @@
     {
       "title": "Cancel Ack Latency p50 / p95 / p99 (by venue)",
       "type": "timeseries",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 14 },
       "targets": [
         {
@@ -110,7 +127,7 @@
     {
       "title": "Cancel Attempts by Outcome (rate, by venue)",
       "type": "timeseries",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 6, "w": 8, "x": 8, "y": 22 },
       "targets": [
         {
@@ -123,7 +140,7 @@
     {
       "title": "Unacknowledged Outbound (counter, by venue)",
       "type": "stat",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 6, "w": 8, "x": 16, "y": 22 },
       "targets": [
         {
@@ -149,7 +166,7 @@
     {
       "title": "PendingNewCorrelator: TTL Evictions (rate, by venue)",
       "type": "timeseries",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 28 },
       "targets": [
         {
@@ -162,7 +179,7 @@
     {
       "title": "PendingNewCorrelator: Back-Pressure (rate, by venue)",
       "type": "timeseries",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 28 },
       "targets": [
         {
@@ -175,7 +192,7 @@
     {
       "title": "Session Reconciliation Outcomes (post-reconnect 35=H sweep)",
       "type": "timeseries",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 36 },
       "targets": [
         {

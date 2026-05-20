@@ -20,10 +20,23 @@
   "templating": {
     "list": [
       {
+        "name": "datasource",
+        "type": "datasource",
+        "label": "Data source",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "refresh": 1,
+        "regex": "",
+        "options": []
+      },
+      {
         "name": "book_id",
         "type": "query",
         "label": "Book",
-        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
         "query": "label_values(risk_var_value, book_id)",
         "refresh": 2,
         "includeAll": true,
@@ -36,7 +49,7 @@
         "name": "calculation_type",
         "type": "query",
         "label": "Method",
-        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
         "query": "label_values(risk_var_value, calculation_type)",
         "refresh": 2,
         "includeAll": false,
@@ -47,7 +60,7 @@
         "name": "confidence_level",
         "type": "query",
         "label": "Confidence",
-        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
         "query": "label_values(risk_var_value, confidence_level)",
         "refresh": 2,
         "includeAll": false,
@@ -60,7 +73,7 @@
     {
       "title": "VaR Calculation Rate",
       "type": "timeseries",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
       "targets": [
         {
@@ -78,7 +91,7 @@
     {
       "title": "VaR Calculation Duration (P95)",
       "type": "timeseries",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
       "targets": [
         {
@@ -100,7 +113,7 @@
     {
       "title": "Current VaR by Portfolio",
       "type": "stat",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
       "targets": [
         {
@@ -119,7 +132,7 @@
     {
       "title": "Expected Shortfall (CVaR)",
       "type": "stat",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
       "targets": [
         {
@@ -138,7 +151,7 @@
     {
       "title": "VaR Component Contribution",
       "type": "bargauge",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 },
       "targets": [
         {
@@ -157,7 +170,7 @@
     {
       "title": "Greeks Calculation Rate",
       "type": "timeseries",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 },
       "targets": [
         {
@@ -175,7 +188,7 @@
     {
       "title": "Greeks Calculation Duration (P95)",
       "type": "timeseries",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 8, "x": 0, "y": 16 },
       "targets": [
         {
@@ -193,7 +206,7 @@
     {
       "title": "Stress Test Rate & Duration",
       "type": "timeseries",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 16 },
       "targets": [
         {
@@ -226,7 +239,7 @@
     {
       "title": "FRTB Calculation Rate & Duration",
       "type": "timeseries",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 16 },
       "targets": [
         {
@@ -259,7 +272,7 @@
     {
       "title": "ML Predictions",
       "type": "timeseries",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
       "targets": [
         {
@@ -277,7 +290,7 @@
     {
       "title": "Anomalies Detected",
       "type": "timeseries",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
       "targets": [
         {

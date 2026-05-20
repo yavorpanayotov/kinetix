@@ -25,10 +25,23 @@
   "templating": {
     "list": [
       {
+        "name": "datasource",
+        "type": "datasource",
+        "label": "Data source",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "refresh": 1,
+        "regex": "",
+        "options": []
+      },
+      {
         "name": "book_id",
         "type": "query",
         "label": "Book",
-        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
         "query": "label_values(risk_var_value, book_id)",
         "refresh": 2,
         "includeAll": true,
@@ -41,7 +54,7 @@
         "name": "calculation_type",
         "type": "query",
         "label": "Method",
-        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
         "query": "label_values(risk_var_value, calculation_type)",
         "refresh": 2,
         "includeAll": false,
@@ -52,7 +65,7 @@
         "name": "confidence_level",
         "type": "query",
         "label": "Confidence",
-        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
         "query": "label_values(risk_var_value, confidence_level)",
         "refresh": 2,
         "includeAll": false,
@@ -79,7 +92,7 @@
           "refId": "A",
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${datasource}"
           }
         }
       ],
@@ -107,7 +120,7 @@
       },
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${datasource}"
       }
     },
     {
@@ -127,7 +140,7 @@
           "refId": "A",
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${datasource}"
           }
         }
       ],
@@ -138,7 +151,7 @@
       },
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${datasource}"
       }
     },
     {
@@ -158,7 +171,7 @@
           "refId": "A",
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${datasource}"
           }
         }
       ],
@@ -170,7 +183,7 @@
       },
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${datasource}"
       }
     },
     {
@@ -190,7 +203,7 @@
           "refId": "A",
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${datasource}"
           }
         }
       ],
@@ -201,7 +214,7 @@
       },
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${datasource}"
       }
     },
     {
@@ -221,7 +234,7 @@
           "refId": "A",
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${datasource}"
           }
         }
       ],
@@ -233,7 +246,7 @@
       },
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${datasource}"
       }
     }
   ],

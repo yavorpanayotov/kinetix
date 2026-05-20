@@ -9,7 +9,9 @@
 // Checks:
 //   (a) every dashboard JSON parses — JSON syntax errors are hard errors.
 //   (b) every panel datasource (uid or name) resolves to a provisioned
-//       datasource. Grafana template variables ($foo / ${foo}) are valid.
+//       datasource. A datasource that references a Grafana template variable
+//       ($foo / ${foo}) is valid only when the dashboard's templating.list
+//       declares a "type": "datasource" variable of that name.
 //   (c) warns when a timeseries/stat/gauge/bargauge panel declares no unit.
 //   (d) prints every PromQL/LogQL metric name referenced, grouped by dashboard.
 //   (e) if alert-rules.yml exists, checks every "- alert:" block has expr,
@@ -151,19 +153,55 @@ function isTemplateVariable(value) {
   return typeof value === 'string' && /\$\{?\w+\}?/.test(value);
 }
 
+// Extracts the variable name from a template-variable reference string
+// ("$foo" / "${foo}" → "foo"). Returns null when not a template reference.
+function templateVariableName(value) {
+  if (typeof value !== 'string') return null;
+  const m = value.match(/\$\{?(\w+)\}?/);
+  return m ? m[1] : null;
+}
+
+// Collects the set of template-variable names a dashboard declares with
+// "type": "datasource" — these are the variables a panel may legitimately
+// point its datasource at.
+function datasourceVariableNames(dashboard) {
+  const names = new Set();
+  const list = dashboard?.templating?.list;
+  if (!Array.isArray(list)) return names;
+  for (const variable of list) {
+    if (variable == null || typeof variable !== 'object') continue;
+    if (variable.type === 'datasource' && typeof variable.name === 'string') {
+      names.add(variable.name);
+    }
+  }
+  return names;
+}
+
 // Resolve a datasource reference (string or {type,uid}) against provisioned
-// datasources. Returns true if valid, false if it is a concrete unresolved ref.
-function datasourceResolves(ds, sources) {
+// datasources and the dashboard's own datasource-type template variables.
+// Returns true if valid, false if it is a concrete unresolved ref or a
+// template-variable reference with no matching datasource variable defined.
+//
+// `dsVariables` is the Set of datasource-type template-variable names declared
+// by the dashboard; a "${foo}" reference is valid only when "foo" is in it.
+function datasourceResolves(ds, sources, dsVariables) {
+  const vars = dsVariables || new Set();
   if (ds == null) return true; // panel inherits dashboard/default datasource
   if (typeof ds === 'string') {
     if (ds === '' || ds === 'default' || ds === '-- Mixed --') return true;
-    if (isTemplateVariable(ds)) return true;
+    if (isTemplateVariable(ds)) {
+      // A template-variable datasource is valid only when the dashboard
+      // defines a matching "type": "datasource" template variable.
+      return vars.has(templateVariableName(ds));
+    }
     return sources.uids.has(ds) || sources.names.has(ds);
   }
   if (typeof ds === 'object') {
     const uid = ds.uid;
     if (uid == null || uid === '') return true; // type-only ref, runtime picks
-    if (isTemplateVariable(uid)) return true;
+    if (isTemplateVariable(uid)) {
+      return vars.has(templateVariableName(uid));
+    }
     if (uid === 'default' || uid === '-- Mixed --' || uid === 'grafana') {
       return true;
     }
@@ -264,6 +302,25 @@ function validateDashboard(file, sources) {
   const panels = collectPanels(dashboard);
   const metrics = new Set();
 
+  // Datasource-type template variables this dashboard declares; a panel may
+  // legitimately point its datasource at any of these via "${name}".
+  const dsVariables = datasourceVariableNames(dashboard);
+
+  // (b) template-variable datasource resolution — a query-type template
+  // variable that itself targets a datasource (e.g. label_values(...)).
+  const templateList = dashboard?.templating?.list;
+  if (Array.isArray(templateList)) {
+    for (const variable of templateList) {
+      if (variable == null || typeof variable !== 'object') continue;
+      if (!datasourceResolves(variable.datasource, sources, dsVariables)) {
+        error(
+          `${rel(file)}: template variable "${variable.name}" references ` +
+            `unknown datasource ${describeDatasource(variable.datasource)}`,
+        );
+      }
+    }
+  }
+
   for (const panel of panels) {
     const panelType = panel.type;
     const panelTitle = panel.title || `#${panel.id ?? '?'}`;
@@ -272,7 +329,7 @@ function validateDashboard(file, sources) {
     if (panelType === 'row') continue;
 
     // (b) panel datasource resolution.
-    if (!datasourceResolves(panel.datasource, sources)) {
+    if (!datasourceResolves(panel.datasource, sources, dsVariables)) {
       error(
         `${rel(file)}: panel "${panelTitle}" references unknown datasource ` +
           `${describeDatasource(panel.datasource)}`,
@@ -283,7 +340,7 @@ function validateDashboard(file, sources) {
     if (Array.isArray(panel.targets)) {
       for (const target of panel.targets) {
         if (target == null || typeof target !== 'object') continue;
-        if (!datasourceResolves(target.datasource, sources)) {
+        if (!datasourceResolves(target.datasource, sources, dsVariables)) {
           error(
             `${rel(file)}: panel "${panelTitle}" target references unknown ` +
               `datasource ${describeDatasource(target.datasource)}`,

@@ -22,10 +22,23 @@
   "templating": {
     "list": [
       {
+        "name": "datasource",
+        "type": "datasource",
+        "label": "Data source",
+        "query": "loki",
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "refresh": 1,
+        "regex": "",
+        "options": []
+      },
+      {
         "name": "service",
         "type": "query",
         "label": "Service",
-        "datasource": { "type": "loki", "uid": "loki" },
+        "datasource": { "type": "loki", "uid": "${datasource}" },
         "query": "label_values(service_name)",
         "includeAll": true,
         "allValue": ".+",
@@ -42,7 +55,7 @@
       "title": "Log Volume",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 16, "x": 0, "y": 0 },
-      "datasource": { "type": "loki", "uid": "loki" },
+      "datasource": { "type": "loki", "uid": "${datasource}" },
       "targets": [
         {
           "expr": "sum by (service_name) (count_over_time({service_name=~\"$service\"} [$__auto]))",
@@ -69,7 +82,7 @@
       "title": "Error Count",
       "type": "stat",
       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
-      "datasource": { "type": "loki", "uid": "loki" },
+      "datasource": { "type": "loki", "uid": "${datasource}" },
       "targets": [
         {
           "expr": "sum(count_over_time({service_name=~\"$service\"} | detected_level=`ERROR` [$__range]))",
@@ -96,7 +109,7 @@
       "title": "Error Volume",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 16, "x": 0, "y": 8 },
-      "datasource": { "type": "loki", "uid": "loki" },
+      "datasource": { "type": "loki", "uid": "${datasource}" },
       "targets": [
         {
           "expr": "sum by (service_name) (count_over_time({service_name=~\"$service\"} | detected_level=`ERROR` [$__auto]))",
@@ -124,7 +137,7 @@
       "title": "Warn Count",
       "type": "stat",
       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 },
-      "datasource": { "type": "loki", "uid": "loki" },
+      "datasource": { "type": "loki", "uid": "${datasource}" },
       "targets": [
         {
           "expr": "sum(count_over_time({service_name=~\"$service\"} | detected_level=`WARN` [$__range]))",
@@ -151,7 +164,7 @@
       "title": "Log Lines",
       "type": "logs",
       "gridPos": { "h": 16, "w": 24, "x": 0, "y": 16 },
-      "datasource": { "type": "loki", "uid": "loki" },
+      "datasource": { "type": "loki", "uid": "${datasource}" },
       "targets": [
         {
           "expr": "{service_name=~\"$service\"}",
