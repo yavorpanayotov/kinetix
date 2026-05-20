@@ -1,5 +1,7 @@
 package com.kinetix.demo.client
 
+import com.kinetix.demo.client.dtos.PrimeBrokerStatementRequest
+import com.kinetix.demo.client.dtos.RecordExecutionCostRequest
 import com.kinetix.demo.client.dtos.StrategyTradeRequest
 
 /**
@@ -25,4 +27,29 @@ interface PositionServiceClient {
         strategyId: String,
         request: StrategyTradeRequest,
     ): String
+
+    /**
+     * Records a synthetic execution-cost sample for [bookId] by calling the
+     * demo/seed endpoint `POST /api/v1/internal/execution/cost/{bookId}`.
+     *
+     * Used by the simulator to populate the Trades > Execution Cost subtab —
+     * one sample per simulated trade.
+     */
+    suspend fun recordExecutionCost(
+        bookId: String,
+        request: RecordExecutionCostRequest,
+    )
+
+    /**
+     * Uploads a prime-broker statement for [bookId] by calling
+     * `POST /api/v1/execution/reconciliation/{bookId}/statements`, which runs
+     * server-side reconciliation against the book's internal positions.
+     *
+     * Used by the simulator to seed reconciliation breaks for the Trades >
+     * Reconciliation subtab.
+     */
+    suspend fun uploadPrimeBrokerStatement(
+        bookId: String,
+        request: PrimeBrokerStatementRequest,
+    )
 }

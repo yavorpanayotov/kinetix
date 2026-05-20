@@ -1,6 +1,9 @@
 package com.kinetix.demo.schedule
 
 import com.kinetix.demo.client.PositionServiceClient
+import com.kinetix.demo.client.dtos.PrimeBrokerPositionDto
+import com.kinetix.demo.client.dtos.PrimeBrokerStatementRequest
+import com.kinetix.demo.client.dtos.RecordExecutionCostRequest
 import com.kinetix.demo.client.dtos.StrategyTradeRequest
 import com.kinetix.demo.profile.DemoBookProfile
 import com.kinetix.demo.profile.DemoBookProfiles
@@ -9,9 +12,11 @@ import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.Clock
 import java.time.DayOfWeek
+import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
+import java.util.UUID
 import kotlin.random.Random
 
 /**
@@ -42,6 +47,19 @@ import kotlin.random.Random
  * indicative spots). Real `price-service` integration is out of scope here
  * and lands in a later checkbox.
  *
+ * ## Execution-cost and reconciliation seeding
+ *
+ * After each successfully booked trade the job posts one synthetic
+ * execution-cost sample via
+ * [PositionServiceClient.recordExecutionCost] so the Trades > Execution Cost
+ * subtab renders non-empty data. For a deterministically sampled ~5% of
+ * trades it also uploads a prime-broker statement that deliberately
+ * mismatches the book's internal positions via
+ * [PositionServiceClient.uploadPrimeBrokerStatement], so the server-side
+ * reconciliation produces at least one break row for the Trades >
+ * Reconciliation subtab. Both samples derive every value from the injected
+ * seeded [Random] — there is no unseeded randomness anywhere in the job.
+ *
  * @property positionClient wire to `position-service` `/strategies/{id}/trades`.
  * @property strategyIdResolver maps `bookId -> strategyId` (strategies are not
  *     pre-seeded; see [DefaultStrategyIdResolver]).
@@ -53,6 +71,8 @@ import kotlin.random.Random
  * @property clock pluggable clock — UTC in production, fixed in tests.
  * @property random pluggable RNG — `Random.Default` in production, seeded
  *     in tests so assertions are deterministic.
+ * @property reconciliationBreakProbability fraction of booked trades that
+ *     also trigger a deliberately mismatched prime-broker statement upload.
  */
 class SimulatedTraderJob(
     private val positionClient: PositionServiceClient,
@@ -63,6 +83,7 @@ class SimulatedTraderJob(
     private val tradingHoursEnd: LocalTime,
     private val clock: Clock = Clock.systemUTC(),
     private val random: Random = Random.Default,
+    private val reconciliationBreakProbability: Double = DEFAULT_RECONCILIATION_BREAK_PROBABILITY,
 ) {
 
     private val logger = LoggerFactory.getLogger(SimulatedTraderJob::class.java)
@@ -115,6 +136,8 @@ class SimulatedTraderJob(
                 strategyId = strategyId,
                 request = request,
             )
+            seedExecutionCost(profile, request)
+            maybeSeedReconciliationBreak(profile, request)
             true
         } catch (failure: Exception) {
             logger.warn(
@@ -124,6 +147,96 @@ class SimulatedTraderJob(
                 failure,
             )
             false
+        }
+    }
+
+    /**
+     * Posts a synthetic execution-cost sample for the just-booked [trade].
+     * All metrics are derived from the injected seeded [random] so the demo
+     * data is deterministic. A seeding failure is logged but does not fail
+     * the trade — the trade itself has already booked successfully.
+     */
+    private suspend fun seedExecutionCost(profile: DemoBookProfile, trade: StrategyTradeRequest) {
+        val arrivalPrice = BigDecimal(trade.priceAmount)
+        // Slippage in basis points: ±25 bps drawn from the seeded RNG.
+        val slippageBps = BigDecimal.valueOf(random.nextDouble(-25.0, 25.0))
+            .setScale(SLIPPAGE_SCALE, RoundingMode.HALF_UP)
+        // Recover an average fill price consistent with the slippage figure:
+        // avgFill = arrival * (1 + slippageBps / 10_000).
+        val averageFillPrice = arrivalPrice
+            .multiply(BigDecimal.ONE + slippageBps.divide(BPS_DENOMINATOR, 10, RoundingMode.HALF_UP))
+            .setScale(PRICE_SCALE, RoundingMode.HALF_UP)
+        val marketImpactBps = BigDecimal.valueOf(random.nextDouble(0.0, 10.0))
+            .setScale(SLIPPAGE_SCALE, RoundingMode.HALF_UP)
+        val timingCostBps = BigDecimal.valueOf(random.nextDouble(0.0, 5.0))
+            .setScale(SLIPPAGE_SCALE, RoundingMode.HALF_UP)
+        val totalCostBps = (slippageBps + marketImpactBps + timingCostBps)
+            .setScale(SLIPPAGE_SCALE, RoundingMode.HALF_UP)
+
+        val request = RecordExecutionCostRequest(
+            orderId = "demo-ord-${UUID.randomUUID()}",
+            instrumentId = trade.instrumentId,
+            completedAt = trade.tradedAt,
+            arrivalPrice = arrivalPrice.toPlainString(),
+            averageFillPrice = averageFillPrice.toPlainString(),
+            side = trade.side,
+            totalQty = trade.quantity,
+            slippageBps = slippageBps.toPlainString(),
+            marketImpactBps = marketImpactBps.toPlainString(),
+            timingCostBps = timingCostBps.toPlainString(),
+            totalCostBps = totalCostBps.toPlainString(),
+        )
+        try {
+            positionClient.recordExecutionCost(profile.bookId, request)
+        } catch (failure: Exception) {
+            logger.warn(
+                "Failed to seed execution cost for book {} instrument {} — continuing",
+                profile.bookId,
+                trade.instrumentId,
+                failure,
+            )
+        }
+    }
+
+    /**
+     * For a deterministically sampled fraction of trades, uploads a
+     * prime-broker statement whose quantity for the traded instrument
+     * deliberately differs from the book's internal position by more than the
+     * server-side auto-resolve threshold (1 unit), so the reconciliation
+     * produces at least one break row.
+     */
+    private suspend fun maybeSeedReconciliationBreak(
+        profile: DemoBookProfile,
+        trade: StrategyTradeRequest,
+    ) {
+        if (random.nextDouble() > reconciliationBreakProbability) {
+            return
+        }
+        val tradedQty = BigDecimal(trade.quantity)
+        // Subtract a clear, > 1-unit delta so the break is material on the
+        // server side regardless of the book's other positions.
+        val mismatchedQty = (tradedQty - RECONCILIATION_BREAK_DELTA).max(BigDecimal.ZERO)
+        val date = LocalDate.ofInstant(clock.instant(), ZoneOffset.UTC).toString()
+        val request = PrimeBrokerStatementRequest(
+            bookId = profile.bookId,
+            date = date,
+            positions = listOf(
+                PrimeBrokerPositionDto(
+                    instrumentId = trade.instrumentId,
+                    quantity = mismatchedQty.toPlainString(),
+                    price = trade.priceAmount,
+                ),
+            ),
+        )
+        try {
+            positionClient.uploadPrimeBrokerStatement(profile.bookId, request)
+        } catch (failure: Exception) {
+            logger.warn(
+                "Failed to seed reconciliation break for book {} instrument {} — continuing",
+                profile.bookId,
+                trade.instrumentId,
+                failure,
+            )
         }
     }
 
@@ -172,5 +285,26 @@ class SimulatedTraderJob(
         "COMMODITY" -> "COMMODITY_FUTURE"
         "DERIVATIVE" -> "EQUITY_OPTION"
         else -> "CASH_EQUITY"
+    }
+
+    companion object {
+        /** ~5% of booked trades also produce a reconciliation break. */
+        const val DEFAULT_RECONCILIATION_BREAK_PROBABILITY: Double = 0.05
+
+        /** Decimal scale for basis-point execution-cost metrics. */
+        private const val SLIPPAGE_SCALE: Int = 4
+
+        /** Decimal scale for derived price figures. */
+        private const val PRICE_SCALE: Int = 6
+
+        /** Basis-point denominator: 1 bp = 1/10_000. */
+        private val BPS_DENOMINATOR: BigDecimal = BigDecimal.valueOf(10_000)
+
+        /**
+         * Quantity delta applied to a prime-broker statement to force a
+         * material break. Comfortably above the server's 1-unit auto-resolve
+         * threshold.
+         */
+        private val RECONCILIATION_BREAK_DELTA: BigDecimal = BigDecimal.valueOf(10)
     }
 }

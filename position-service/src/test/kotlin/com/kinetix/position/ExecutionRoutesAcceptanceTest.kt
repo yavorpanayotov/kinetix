@@ -245,6 +245,103 @@ class ExecutionRoutesAcceptanceTest : FunSpec({
         }
     }
 
+    test("POST /api/v1/internal/execution/cost/{bookId} persists a row returned by the GET cost endpoint") {
+        testApplication {
+            application { configureTestApp(costRepo, reconRepo, reconService, positionRepo) }
+            val postResponse = client.post("/api/v1/internal/execution/cost/book-internal") {
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """
+                    {
+                        "orderId": "ord-internal-1",
+                        "instrumentId": "MSFT",
+                        "completedAt": "2026-05-20T14:30:00Z",
+                        "arrivalPrice": "420.00",
+                        "averageFillPrice": "420.84",
+                        "side": "BUY",
+                        "totalQty": "200",
+                        "slippageBps": "20.00",
+                        "marketImpactBps": "8.50",
+                        "timingCostBps": "3.20",
+                        "totalCostBps": "31.70"
+                    }
+                    """.trimIndent()
+                )
+            }
+            postResponse.status shouldBe HttpStatusCode.Created
+            val created = Json.parseToJsonElement(postResponse.bodyAsText()).jsonObject
+            created["orderId"]!!.jsonPrimitive.content shouldBe "ord-internal-1"
+            created["bookId"]!!.jsonPrimitive.content shouldBe "book-internal"
+
+            // The persisted row is now visible via the public GET cost endpoint.
+            val getResponse = client.get("/api/v1/execution/cost/book-internal")
+            getResponse.status shouldBe HttpStatusCode.OK
+            val body = Json.parseToJsonElement(getResponse.bodyAsText()).jsonArray
+            body.size shouldBe 1
+            val row = body[0].jsonObject
+            row["orderId"]!!.jsonPrimitive.content shouldBe "ord-internal-1"
+            row["instrumentId"]!!.jsonPrimitive.content shouldBe "MSFT"
+            row["side"]!!.jsonPrimitive.content shouldBe "BUY"
+            row["slippageBps"]!!.jsonPrimitive.content.toBigDecimal().toDouble() shouldBe 20.0
+            row["marketImpactBps"]!!.jsonPrimitive.content.toBigDecimal().toDouble() shouldBe 8.5
+            row["totalCostBps"]!!.jsonPrimitive.content.toBigDecimal().toDouble() shouldBe 31.7
+        }
+    }
+
+    test("POST /api/v1/internal/execution/cost/{bookId} accepts a sample with null optional metrics") {
+        testApplication {
+            application { configureTestApp(costRepo, reconRepo, reconService, positionRepo) }
+            val postResponse = client.post("/api/v1/internal/execution/cost/book-internal-2") {
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """
+                    {
+                        "orderId": "ord-internal-2",
+                        "instrumentId": "AAPL",
+                        "completedAt": "2026-05-20T15:00:00Z",
+                        "arrivalPrice": "150.00",
+                        "averageFillPrice": "149.85",
+                        "side": "SELL",
+                        "totalQty": "100",
+                        "slippageBps": "-10.00",
+                        "totalCostBps": "-10.00"
+                    }
+                    """.trimIndent()
+                )
+            }
+            postResponse.status shouldBe HttpStatusCode.Created
+
+            val getResponse = client.get("/api/v1/execution/cost/book-internal-2")
+            val body = Json.parseToJsonElement(getResponse.bodyAsText()).jsonArray
+            body.size shouldBe 1
+        }
+    }
+
+    test("POST /api/v1/internal/execution/cost/{bookId} with invalid side returns 400") {
+        testApplication {
+            application { configureTestApp(costRepo, reconRepo, reconService, positionRepo) }
+            val response = client.post("/api/v1/internal/execution/cost/book-internal-3") {
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """
+                    {
+                        "orderId": "ord-internal-3",
+                        "instrumentId": "AAPL",
+                        "completedAt": "2026-05-20T15:00:00Z",
+                        "arrivalPrice": "150.00",
+                        "averageFillPrice": "149.85",
+                        "side": "HOLD",
+                        "totalQty": "100",
+                        "slippageBps": "-10.00",
+                        "totalCostBps": "-10.00"
+                    }
+                    """.trimIndent()
+                )
+            }
+            response.status shouldBe HttpStatusCode.BadRequest
+        }
+    }
+
     test("POST statement detects material break when PB position differs by more than 1 unit") {
         positionRepo.save(
             Position(

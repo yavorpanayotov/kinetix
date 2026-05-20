@@ -156,6 +156,8 @@ class SimulatedTraderJobTest : FunSpec({
             )
             "generated-trade-id-${captured.size}"
         }
+        coEvery { client.recordExecutionCost(any(), any()) } returns Unit
+        coEvery { client.uploadPrimeBrokerStatement(any(), any()) } returns Unit
 
         val instant = atUtc("2026-05-18", "12:00:00")
         val clock = fixedClock(instant)
@@ -236,6 +238,8 @@ class SimulatedTraderJobTest : FunSpec({
             }
             "ok-$calls"
         }
+        coEvery { client.recordExecutionCost(any(), any()) } returns Unit
+        coEvery { client.uploadPrimeBrokerStatement(any(), any()) } returns Unit
 
         val clock = fixedClock(atUtc("2026-05-18", "12:00:00"))
         var postedRef = 0
@@ -257,6 +261,100 @@ class SimulatedTraderJobTest : FunSpec({
         posted shouldBeGreaterThanOrEqual 0
     }
 
+    test("an execution-cost sample is seeded for every successfully booked trade") {
+        val client = mockk<PositionServiceClient>()
+        val bookedTrades = mutableListOf<StrategyTradeRequest>()
+        val recordedCosts = mutableListOf<com.kinetix.demo.client.dtos.RecordExecutionCostRequest>()
+        coEvery { client.bookTrade(any(), any(), any()) } answers {
+            bookedTrades += thirdArg<StrategyTradeRequest>()
+            "trade-${bookedTrades.size}"
+        }
+        coEvery { client.recordExecutionCost(any(), any()) } answers {
+            recordedCosts += secondArg<com.kinetix.demo.client.dtos.RecordExecutionCostRequest>()
+        }
+        coEvery { client.uploadPrimeBrokerStatement(any(), any()) } returns Unit
+
+        val clock = fixedClock(atUtc("2026-05-18", "12:00:00"))
+        runTest {
+            SimulatedTraderJob(
+                positionClient = client,
+                strategyIdResolver = stubResolver(),
+                books = listOf(sampleEquityBook),
+                tradingHoursStart = tradingHoursStart,
+                tradingHoursEnd = tradingHoursEnd,
+                clock = clock,
+                random = Random(seed = 7),
+            ).runTick()
+        }
+
+        // One execution-cost sample per booked trade.
+        recordedCosts.size shouldBe bookedTrades.size
+        recordedCosts.size shouldBeGreaterThan 0
+        recordedCosts.forEach { cost ->
+            cost.instrumentId shouldBeIn sampleEquityBook.instrumentIds
+            listOf("BUY", "SELL") shouldContain cost.side
+            cost.orderId.startsWith("demo-ord-") shouldBe true
+            // totalCostBps is parseable as a number.
+            BigDecimal(cost.totalCostBps)
+        }
+    }
+
+    test("reconciliation breaks are seeded for roughly the configured fraction of trades") {
+        val client = mockk<PositionServiceClient>()
+        var booked = 0
+        var statements = 0
+        coEvery { client.bookTrade(any(), any(), any()) } answers {
+            booked += 1
+            "trade-$booked"
+        }
+        coEvery { client.recordExecutionCost(any(), any()) } returns Unit
+        coEvery { client.uploadPrimeBrokerStatement(any(), any()) } answers {
+            statements += 1
+        }
+
+        // Force every booked trade to also upload a mismatched statement by
+        // setting the break probability to 1.0 — deterministic, no RNG slack.
+        val clock = fixedClock(atUtc("2026-05-18", "12:00:00"))
+        runTest {
+            SimulatedTraderJob(
+                positionClient = client,
+                strategyIdResolver = stubResolver(),
+                books = listOf(sampleEquityBook),
+                tradingHoursStart = tradingHoursStart,
+                tradingHoursEnd = tradingHoursEnd,
+                clock = clock,
+                random = Random(seed = 7),
+                reconciliationBreakProbability = 1.0,
+            ).runTick()
+        }
+
+        booked shouldBeGreaterThan 0
+        statements shouldBe booked
+    }
+
+    test("no reconciliation statement is uploaded when the break probability is zero") {
+        val client = mockk<PositionServiceClient>()
+        coEvery { client.bookTrade(any(), any(), any()) } returns "trade-x"
+        coEvery { client.recordExecutionCost(any(), any()) } returns Unit
+        coEvery { client.uploadPrimeBrokerStatement(any(), any()) } returns Unit
+
+        val clock = fixedClock(atUtc("2026-05-18", "12:00:00"))
+        runTest {
+            SimulatedTraderJob(
+                positionClient = client,
+                strategyIdResolver = stubResolver(),
+                books = listOf(sampleEquityBook),
+                tradingHoursStart = tradingHoursStart,
+                tradingHoursEnd = tradingHoursEnd,
+                clock = clock,
+                random = Random(seed = 7),
+                reconciliationBreakProbability = 0.0,
+            ).runTick()
+        }
+
+        coVerify(exactly = 0) { client.uploadPrimeBrokerStatement(any(), any()) }
+    }
+
     test("generated notional always lies inside the profile's notionalRangeUsd") {
         // Capture every generated quantity, recover the notional via the
         // hardcoded EQUITY price ($100), and assert it lies in range.
@@ -266,6 +364,8 @@ class SimulatedTraderJobTest : FunSpec({
             captured += thirdArg<StrategyTradeRequest>()
             "ok-${captured.size}"
         }
+        coEvery { client.recordExecutionCost(any(), any()) } returns Unit
+        coEvery { client.uploadPrimeBrokerStatement(any(), any()) } returns Unit
 
         val tightBook = DemoBookProfile(
             bookId = "tight-equity",

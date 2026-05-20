@@ -1,6 +1,8 @@
 package com.kinetix.position.routes
 
+import com.kinetix.common.model.Side
 import com.kinetix.position.fix.ExecutionCostAnalysis
+import com.kinetix.position.fix.ExecutionCostMetrics
 import com.kinetix.position.fix.ExecutionCostRepository
 import com.kinetix.position.fix.PrimeBrokerPosition
 import com.kinetix.position.fix.PrimeBrokerReconciliation
@@ -13,6 +15,7 @@ import com.kinetix.position.routes.dtos.PrimeBrokerPositionDto
 import com.kinetix.position.routes.dtos.PrimeBrokerStatementRequest
 import com.kinetix.position.routes.dtos.ReconciliationBreakDto
 import com.kinetix.position.routes.dtos.ReconciliationResponse
+import com.kinetix.position.routes.dtos.RecordExecutionCostRequest
 import com.kinetix.position.routes.dtos.UpdateBreakStatusRequest
 import io.github.smiley4.ktoropenapi.get
 import io.github.smiley4.ktoropenapi.patch
@@ -134,6 +137,50 @@ fun Route.executionRoutes(
                 primeBrokerReconciliationRepository.updateBreakStatus(reconciliationId, instrumentId, status)
                 call.respond(HttpStatusCode.NoContent)
             }
+        }
+    }
+
+    // Demo/seed seam — see RecordExecutionCostRequest. Lives under the existing
+    // /api/v1/internal/ namespace (alongside /api/v1/internal/position and
+    // /api/v1/internal/trades) so demo-orchestrator can seed the Execution
+    // Cost subtab; it is not part of the public trading contract.
+    route("/api/v1/internal/execution/cost/{bookId}") {
+        post({
+            summary = "Record a synthetic execution cost analysis (demo seed)"
+            tags = listOf("Execution", "Internal")
+            request {
+                pathParameter<String>("bookId") { description = "Book identifier" }
+                body<RecordExecutionCostRequest>()
+            }
+            response {
+                code(HttpStatusCode.Created) { body<ExecutionCostResponse>() }
+            }
+        }) {
+            val bookId = call.requirePathParam("bookId")
+            val request = call.receive<RecordExecutionCostRequest>()
+            val side = runCatching { Side.valueOf(request.side) }.getOrElse {
+                throw IllegalArgumentException(
+                    "Invalid side: ${request.side}. Must be one of ${Side.entries.map { it.name }}",
+                )
+            }
+            val analysis = ExecutionCostAnalysis(
+                orderId = request.orderId,
+                bookId = bookId,
+                instrumentId = request.instrumentId,
+                completedAt = Instant.parse(request.completedAt),
+                arrivalPrice = BigDecimal(request.arrivalPrice),
+                averageFillPrice = BigDecimal(request.averageFillPrice),
+                side = side,
+                totalQty = BigDecimal(request.totalQty),
+                metrics = ExecutionCostMetrics(
+                    slippageBps = BigDecimal(request.slippageBps),
+                    marketImpactBps = request.marketImpactBps?.let { BigDecimal(it) },
+                    timingCostBps = request.timingCostBps?.let { BigDecimal(it) },
+                    totalCostBps = BigDecimal(request.totalCostBps),
+                ),
+            )
+            executionCostRepository.save(analysis)
+            call.respond(HttpStatusCode.Created, analysis.toResponse())
         }
     }
 }

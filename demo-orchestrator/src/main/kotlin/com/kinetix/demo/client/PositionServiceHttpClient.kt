@@ -1,5 +1,7 @@
 package com.kinetix.demo.client
 
+import com.kinetix.demo.client.dtos.PrimeBrokerStatementRequest
+import com.kinetix.demo.client.dtos.RecordExecutionCostRequest
 import com.kinetix.demo.client.dtos.StrategyTradeRequest
 import com.kinetix.demo.client.dtos.StrategyTradeResponse
 import io.ktor.client.HttpClient
@@ -67,6 +69,49 @@ class PositionServiceHttpClient(
             )
         }
         return parsed.tradeId
+    }
+
+    override suspend fun recordExecutionCost(
+        bookId: String,
+        request: RecordExecutionCostRequest,
+    ) {
+        val url = "$baseUrl/api/v1/internal/execution/cost/$bookId"
+        val body = json.encodeToString(RecordExecutionCostRequest.serializer(), request)
+        logger.debug(
+            "Recording execution cost bookId={} orderId={} instrumentId={} slippageBps={}",
+            bookId,
+            request.orderId,
+            request.instrumentId,
+            request.slippageBps,
+        )
+        val response = httpClient.post(url) {
+            contentType(ContentType.Application.Json)
+            setBody(body)
+        }
+        if (!response.status.isSuccess()) {
+            failLoudly("POST", url, response)
+        }
+    }
+
+    override suspend fun uploadPrimeBrokerStatement(
+        bookId: String,
+        request: PrimeBrokerStatementRequest,
+    ) {
+        val url = "$baseUrl/api/v1/execution/reconciliation/$bookId/statements"
+        val body = json.encodeToString(PrimeBrokerStatementRequest.serializer(), request)
+        logger.debug(
+            "Uploading prime broker statement bookId={} date={} positions={}",
+            bookId,
+            request.date,
+            request.positions.size,
+        )
+        val response = httpClient.post(url) {
+            contentType(ContentType.Application.Json)
+            setBody(body)
+        }
+        if (!response.status.isSuccess()) {
+            failLoudly("POST", url, response)
+        }
     }
 
     private suspend fun failLoudly(method: String, url: String, response: HttpResponse): Nothing {
