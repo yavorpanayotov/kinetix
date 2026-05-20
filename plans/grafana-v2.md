@@ -175,7 +175,7 @@ not stop mid-loop:
       window-aware reducer) so a service that has gone down is not rendered green
       from its last scraped value.
       Acceptance: `node plans/scripts/validate-grafana.mjs`
-- [ ] 1.5 `risk/risk-engine.json` — fix the FRTB and stress-test panels: give the
+- [x] 1.5 `risk/risk-engine.json` — fix the FRTB and stress-test panels: give the
       duration series its own y-axis and `unit: s`, separate from the rate series;
       add the missing
       `histogram_quantile(0.95, ...stress_test_duration_seconds_bucket...)` query
