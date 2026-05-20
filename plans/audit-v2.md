@@ -138,7 +138,7 @@ The single biggest "easy to track" win — version-controlled, business-event da
       Acceptance: `test -d deploy/observability/dashboards && python3 -c "import yaml; yaml.safe_load(open('deploy/observability/grafana/provisioning/dashboards/dashboards.yml')); print('ok')"`
 - [x] 7.2 Add `deploy/observability/dashboards/trade-lifecycle.json` — trades booked/amended/cancelled over time (by book, by user), sourced from `audit_events` via Loki/Postgres, with a `correlationId` drill-through link to Loki + Tempo.
       Acceptance: `python3 -c "import json; d=json.load(open('deploy/observability/dashboards/trade-lifecycle.json')); assert d['panels']; print('ok')"`
-- [ ] 7.3 Add `deploy/observability/dashboards/risk-run-health.json` — VaR run count, `risk_var_calculation_duration_seconds` p95 histogram, failed-run count (from `RISK_CALCULATION_FAILED`), DLQ depth, with a drill-through to the Loki logs for a selected run.
+- [x] 7.3 Add `deploy/observability/dashboards/risk-run-health.json` — VaR run count, `risk_var_calculation_duration_seconds` p95 histogram, failed-run count (from `RISK_CALCULATION_FAILED`), DLQ depth, with a drill-through to the Loki logs for a selected run.
       Acceptance: `python3 -c "import json; d=json.load(open('deploy/observability/dashboards/risk-run-health.json')); assert d['panels']; print('ok')"`
 - [ ] 7.4 Add `deploy/observability/dashboards/business-alerts.json` — limit breaches, anomalies and regime changes over time, with `bookId` and `tradeId` template variables for support search.
       Acceptance: `python3 -c "import json; d=json.load(open('deploy/observability/dashboards/business-alerts.json')); assert d['templating']; print('ok')"`
