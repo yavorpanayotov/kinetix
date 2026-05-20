@@ -459,6 +459,33 @@ class RiskCalculationServicer(risk_calculation_pb2_grpc.RiskCalculationServiceSe
             context.abort(grpc.StatusCode.INTERNAL, str(e))
 
 
+def build_grpc_server_interceptors() -> list:
+    """Builds the gRPC server interceptor chain.
+
+    When ``OTEL_EXPORTER_OTLP_ENDPOINT`` is set, includes the OpenTelemetry
+    gRPC server interceptor. The interceptor extracts the inbound W3C
+    ``traceparent`` from request metadata and continues the trace context,
+    so spans created while handling the RPC become children of the calling
+    service's span (e.g. risk-orchestrator → risk-engine trace stitching).
+
+    Returns an empty list when no OTLP endpoint is configured, matching the
+    rest of the OTel setup which is gated on the same environment variable.
+    """
+    interceptors: list = []
+    if os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT"):
+        try:
+            from opentelemetry.instrumentation.grpc import server_interceptor
+
+            interceptors.append(server_interceptor())
+            logger.info("OTel gRPC server interceptor enabled — inbound traces will be continued")
+        except Exception:
+            logger.warning(
+                "Failed to configure OTel gRPC server interceptor, continuing without it",
+                exc_info=True,
+            )
+    return interceptors
+
+
 def serve(port: int = 50051, metrics_port: int = 9091, models_dir: str = "models"):
     _json_handler = logging.StreamHandler()
     _json_handler.setFormatter(JsonLogFormatter())
@@ -493,6 +520,7 @@ def serve(port: int = 50051, metrics_port: int = 9091, models_dir: str = "models
     max_message_size = 50 * 1024 * 1024  # 50 MB
     server = grpc.server(
         futures.ThreadPoolExecutor(max_workers=10),
+        interceptors=build_grpc_server_interceptors(),
         options=[
             ("grpc.max_send_message_length", max_message_size),
             ("grpc.max_receive_message_length", max_message_size),
