@@ -153,7 +153,7 @@ Give users and support a screen — no LogQL required.
       Acceptance: `cd ui && npm run test -- audit`
 - [x] 8.2 Add `ui/src/components/AuditLogPanel.tsx` — a paginated, filterable table (book / trade / event-type / time-window), event-type badges, a chain-integrity indicator, and an empty state. Add the Vitest unit test.
       Acceptance: `cd ui && npm run test -- AuditLogPanel`
-- [ ] 8.3 Add an "Activity" top-level tab to `App.tsx` rendering `<AuditLogPanel>`.
+- [x] 8.3 Add an "Activity" top-level tab to `App.tsx` rendering `<AuditLogPanel>`.
       Acceptance: `cd ui && npm run lint && npm run test -- App`
 - [ ] 8.4 Add a Playwright E2E spec `ui/e2e/audit-log.spec.ts` covering empty state, data rendering, filtering by trade ID, and the API error path (mock routes per `ui/e2e/fixtures.ts`).
       Acceptance: `cd ui && npx playwright test e2e/audit-log.spec.ts`

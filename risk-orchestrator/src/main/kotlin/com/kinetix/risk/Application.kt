@@ -129,9 +129,12 @@ import com.kinetix.risk.service.KeyRateDurationService
 import com.kinetix.risk.routes.marketRegimeRoutes
 import com.kinetix.risk.persistence.ExposedMarketRegimeRepository
 import com.kinetix.risk.service.AdaptiveRegimeParameterProvider
-import com.kinetix.risk.model.MarketRegime
-import com.kinetix.risk.model.RegimeSignals
-import com.kinetix.risk.model.RegimeState
+import com.kinetix.risk.service.PersistingRegimeTransitionListener
+import com.kinetix.risk.service.RegimeSignalProvider
+import com.kinetix.risk.client.GrpcRegimeDetectorClient
+import com.kinetix.risk.kafka.KafkaRegimeEventPublisher
+import com.kinetix.risk.schedule.ScheduledRegimeDetector
+import com.kinetix.proto.risk.MLPredictionServiceGrpcKt
 import com.kinetix.risk.simulation.*
 import com.kinetix.risk.resilience.CircuitBreakerMetrics
 import io.lettuce.core.RedisClient
@@ -456,14 +459,6 @@ fun Application.moduleWithRoutes() {
         concentrationAlertPublisher = factorConcentrationAlertPublisher,
     )
 
-    val varCalculationService = VaRCalculationService(
-        effectivePositionProvider, effectiveRiskEngineClient, resultPublisher,
-        dependenciesDiscoverer = dependenciesDiscoverer,
-        marketDataFetcher = marketDataFetcher,
-        jobRecorder = jobRecorder,
-        runManifestCapture = runManifestCapture,
-        instrumentServiceClient = instrumentServiceClient,
-    )
     val redisUrl = environment.config.propertyOrNull("redis.url")?.getString().orEmpty()
     val redisConnection = if (redisUrl.isNotBlank()) {
         val client = RedisClient.create(redisUrl)
@@ -475,6 +470,52 @@ fun Application.moduleWithRoutes() {
     } else {
         NoOpDistributedLock()
     }
+
+    // Market regime detection. The ScheduledRegimeDetector classifies market
+    // conditions every detectionIntervalMinutes via the risk engine, debounces
+    // transitions, persists RegimeHistory, and exposes the live RegimeState that
+    // VaRCalculationService.applyRegimeOverride and /api/v1/risk/regime/current
+    // read. See specs/regime.allium:155-425.
+    val marketRegimeRepository = ExposedMarketRegimeRepository(riskDb)
+    val regimeBenchmarkInstrument = environment.config
+        .propertyOrNull("regime.benchmarkInstrument")?.getString() ?: "SPX"
+    val regimeCorrelationLabels = environment.config
+        .propertyOrNull("regime.correlationLabels")?.getString()
+        ?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }
+        ?: listOf("EQUITY", "RATES", "FX", "CREDIT")
+    val regimeDetectionIntervalMinutes = environment.config
+        .propertyOrNull("regime.detectionIntervalMinutes")?.getString()?.toLongOrNull() ?: 15L
+    val regimeSignalProvider = RegimeSignalProvider(
+        priceServiceClient = effectivePriceServiceClient,
+        correlationServiceClient = effectiveCorrelationServiceClient,
+        benchmarkInstrumentId = com.kinetix.common.model.InstrumentId(regimeBenchmarkInstrument),
+        correlationLabels = regimeCorrelationLabels,
+    )
+    val regimeDetectorClient = GrpcRegimeDetectorClient(
+        MLPredictionServiceGrpcKt.MLPredictionServiceCoroutineStub(channel),
+    )
+    val regimeTransitionListener = PersistingRegimeTransitionListener(
+        repository = marketRegimeRepository,
+        eventPublisher = KafkaRegimeEventPublisher(kafkaProducer),
+    )
+    val scheduledRegimeDetector = ScheduledRegimeDetector(
+        regimeDetectorClient = regimeDetectorClient,
+        signalProvider = { regimeSignalProvider.gather() },
+        parameterProvider = AdaptiveRegimeParameterProvider(),
+        listeners = listOf(regimeTransitionListener),
+        intervalMillis = regimeDetectionIntervalMinutes * 60_000L,
+        lock = distributedLock,
+    )
+
+    val varCalculationService = VaRCalculationService(
+        effectivePositionProvider, effectiveRiskEngineClient, resultPublisher,
+        dependenciesDiscoverer = dependenciesDiscoverer,
+        marketDataFetcher = marketDataFetcher,
+        jobRecorder = jobRecorder,
+        runManifestCapture = runManifestCapture,
+        instrumentServiceClient = instrumentServiceClient,
+        activeRegimeProvider = { scheduledRegimeDetector.currentState },
+    )
 
     val varCache: VaRCache = if (redisConnection != null) {
         val ttl = environment.config.propertyOrNull("redis.ttlSeconds")?.getString()?.toLongOrNull() ?: 300L
@@ -729,27 +770,14 @@ fun Application.moduleWithRoutes() {
             )
         )
         liquidityRiskRoutes(liquidityRiskService, liquidityRiskSnapshotRepository)
-        // The full ScheduledRegimeDetector is not wired in this build; the UI
-        // header polls /api/v1/risk/regime/current every minute, so we serve a
-        // valid NORMAL default and read history from whatever the repository
-        // has persisted (empty until detection is enabled end-to-end).
-        run {
-            val regimeParams = AdaptiveRegimeParameterProvider().parametersFor(MarketRegime.NORMAL)
-            val defaultRegimeState = RegimeState(
-                regime = MarketRegime.NORMAL,
-                detectedAt = java.time.Instant.now(),
-                confidence = 1.0,
-                signals = RegimeSignals(realisedVol20d = 0.0, crossAssetCorrelation = 0.0),
-                varParameters = regimeParams,
-                consecutiveObservations = 0,
-                isConfirmed = true,
-                degradedInputs = false,
-            )
-            marketRegimeRoutes(
-                currentStateProvider = { defaultRegimeState },
-                repository = ExposedMarketRegimeRepository(riskDb),
-            )
-        }
+        // /api/v1/risk/regime/current serves the live RegimeState owned by the
+        // ScheduledRegimeDetector; history is read from market_regime_history,
+        // which the PersistingRegimeTransitionListener writes on each confirmed
+        // transition.
+        marketRegimeRoutes(
+            currentStateProvider = { scheduledRegimeDetector.currentState },
+            repository = marketRegimeRepository,
+        )
         marginRoutes(effectivePositionProvider, MarginCalculator())
         factorRiskRoutes(factorDecompositionRepository)
         jobHistoryRoutes(jobRecorder)
@@ -793,6 +821,7 @@ fun Application.moduleWithRoutes() {
     launch { tradeEventConsumer.start() }
     if (schedulerEnabled) {
     launch { priceEventConsumer.start() }
+    launch { scheduledRegimeDetector.start() }
     launch {
         ScheduledVaRCalculator(
             varCalculationService = varCalculationService,

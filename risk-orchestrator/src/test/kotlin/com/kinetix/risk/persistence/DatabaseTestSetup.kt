@@ -18,7 +18,19 @@ object DatabaseTestSetup {
         withTimescale = true,
     )
 
+    @Volatile
+    private var database: Database? = null
+
+    /**
+     * Starts the shared Postgres container (once), runs migrations (once), and
+     * returns a single shared [Database]. Every acceptance spec in the JVM
+     * reuses the same Hikari connection pool — creating a fresh pool per spec
+     * would exhaust the container's `max_connections` cap once enough
+     * DB-backed acceptance classes run in one JVM.
+     */
+    @Synchronized
     fun startAndMigrate(): Database {
+        database?.let { return it }
         if (!postgres.isRunning) {
             postgres.start()
         }
@@ -28,6 +40,6 @@ object DatabaseTestSetup {
                 username = postgres.username,
                 password = postgres.password,
             )
-        )
+        ).also { database = it }
     }
 }
