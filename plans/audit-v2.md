@@ -142,7 +142,7 @@ The single biggest "easy to track" win — version-controlled, business-event da
       Acceptance: `python3 -c "import json; d=json.load(open('deploy/observability/dashboards/risk-run-health.json')); assert d['panels']; print('ok')"`
 - [x] 7.4 Add `deploy/observability/dashboards/business-alerts.json` — limit breaches, anomalies and regime changes over time, with `bookId` and `tradeId` template variables for support search.
       Acceptance: `python3 -c "import json; d=json.load(open('deploy/observability/dashboards/business-alerts.json')); assert d['templating']; print('ok')"`
-- [ ] 7.5 Wire dashboard + datasource provisioning into the local stack (`docker-compose` observability service volume mounts) and the Helm observability chart (`charts/observability` — `dashboardProviders` / `dashboardsConfigMaps` or equivalent).
+- [x] 7.5 Wire dashboard + datasource provisioning into the local stack (`docker-compose` observability service volume mounts) and the Helm observability chart (`charts/observability` — `dashboardProviders` / `dashboardsConfigMaps` or equivalent).
       Acceptance: `python3 -c "import yaml; yaml.safe_load(open('deploy/helm/kinetix/charts/observability/values.yaml')); print('ok')" && grep -rq dashboards deploy/observability/grafana`
 
 ### PR 8 — UI: Activity & Audit view
