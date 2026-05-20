@@ -241,7 +241,7 @@ not stop mid-loop:
       gauges; add dashboard links between `risk-overview` and `risk-engine` to
       disambiguate the two.
       Acceptance: `node plans/scripts/validate-grafana.mjs`
-- [ ] 3.5 `overview/system-health.json` — add `$job`/`$consumergroup` template
+- [x] 3.5 `overview/system-health.json` — add `$job`/`$consumergroup` template
       variables and rework the Kafka Consumer Lag panel to group by consumer group
       (not group+topic+partition) so it stays legible at scale; add an amber
       threshold step to the Error Rate stat panel between green and red.
