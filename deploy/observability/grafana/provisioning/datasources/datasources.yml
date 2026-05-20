@@ -1,0 +1,60 @@
+# Grafana datasource provisioning — Prometheus, Loki, Tempo.
+# URLs match the service names in infra/docker-compose.observability.yml.
+apiVersion: 1
+
+datasources:
+  # Tempo must be provisioned first — Prometheus and Loki reference its UID
+  # below, and Grafana 12+ validates cross-references at provision time.
+  - name: Tempo
+    uid: tempo
+    type: tempo
+    access: proxy
+    url: http://tempo:3200
+    editable: false
+    jsonData:
+      # Jump from a trace span straight to the logs around it.
+      tracesToLogsV2:
+        datasourceUid: loki
+        spanStartTimeShift: "-1h"
+        spanEndTimeShift: "1h"
+        filterByTraceID: true
+        filterBySpanID: false
+      # Jump from a trace span to related service metrics.
+      tracesToMetrics:
+        datasourceUid: prometheus
+        spanStartTimeShift: "-1h"
+        spanEndTimeShift: "1h"
+      # Render the service graph from span metrics.
+      serviceMap:
+        datasourceUid: prometheus
+      nodeGraph:
+        enabled: true
+
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      httpMethod: POST
+      # Exemplars carry trace IDs — clicking one opens the trace in Tempo.
+      exemplarTraceIdDestinations:
+        - name: traceID
+          datasourceUid: tempo
+
+  - name: Loki
+    uid: loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    editable: false
+    jsonData:
+      # Extract the traceId from structured log lines and link to Tempo.
+      derivedFields:
+        - name: TraceID
+          matcherType: regex
+          matcherRegex: '"traceId":"([a-f0-9]+)"'
+          url: "$${__value.raw}"
+          datasourceUid: tempo

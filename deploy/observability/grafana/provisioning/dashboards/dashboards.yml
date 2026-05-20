@@ -1,0 +1,20 @@
+# Grafana dashboard provisioning — file-based provider.
+# Loads version-controlled dashboard JSON from deploy/observability/dashboards/,
+# which is mounted into the Grafana container at the path below.
+apiVersion: 1
+
+providers:
+  - name: "Kinetix"
+    orgId: 1
+    # Empty folder => sub-directories of the scanned path become Grafana folders.
+    folder: ""
+    type: file
+    # Dashboards are code: deletions and edits must happen in git, not the UI.
+    disableDeletion: true
+    editable: false
+    # Re-scan the directory for changes; 0 keeps the default interval.
+    updateIntervalSeconds: 30
+    allowUiUpdates: false
+    options:
+      path: /etc/grafana/provisioning/dashboards
+      foldersFromFilesStructure: true
