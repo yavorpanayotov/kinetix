@@ -1,7 +1,28 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { AlertRuleDto, AlertEventDto } from '../types'
+import type { ChatChunk, ChatRequest } from '../api/copilot'
 import { NotificationCenter } from './NotificationCenter'
+
+/**
+ * Build a `ReadableStream<ChatChunk>` that emits a delta chunk then a
+ * terminal `done` — the streaming-explainer test double for §9.3.
+ */
+function fakeChatStream(): ReadableStream<ChatChunk> {
+  return new ReadableStream<ChatChunk>({
+    start(controller) {
+      controller.enqueue({ type: 'delta', delta: 'VaR breached its limit.' })
+      controller.enqueue({
+        type: 'done',
+        session_id: 's',
+        conversation_id: 'c',
+        model: 'canned-chat',
+        mode: 'canned',
+      })
+      controller.close()
+    },
+  })
+}
 
 const sampleRules: AlertRuleDto[] = [
   {
@@ -1730,6 +1751,161 @@ describe('NotificationCenter', () => {
       fireEvent.click(screen.getByTestId('jump-to-risk-jump-evt-2'))
 
       expect(onJumpToRisk).toHaveBeenCalledWith(null)
+    })
+  })
+
+  describe('inline alert explainer', () => {
+    // plans/ai-v2.md §9.3 — an <ExplainButton> on every alert/breach row
+    // opens an inline <AIInsightPanel> wired to the v2 /chat stream.
+    it('renders an Explain button on every alert row', () => {
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={sampleAlerts}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+        />,
+      )
+
+      expect(screen.getByTestId('explain-alert-evt-1')).toBeInTheDocument()
+      expect(screen.getByTestId('explain-alert-evt-2')).toBeInTheDocument()
+      // No panel before any button is clicked.
+      expect(
+        screen.queryByTestId('alert-explain-panel-evt-1'),
+      ).not.toBeInTheDocument()
+    })
+
+    it('opens the streaming insight panel when an alert Explain button is clicked', async () => {
+      const chatFn = vi.fn(() => fakeChatStream())
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={sampleAlerts}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+          chatFn={chatFn}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('explain-alert-evt-1'))
+
+      expect(
+        screen.getByTestId('alert-explain-panel-evt-1'),
+      ).toBeInTheDocument()
+      await waitFor(() =>
+        expect(
+          screen.getByTestId('streaming-narrative-text'),
+        ).toHaveTextContent('VaR breached its limit.'),
+      )
+    })
+
+    it('attaches alertId, type, currentValue, threshold and severity to the explain page_context', () => {
+      const chatFn = vi.fn<(req: ChatRequest) => ReadableStream<ChatChunk>>(
+        () => fakeChatStream(),
+      )
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={sampleAlerts}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+          chatFn={chatFn}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('explain-alert-evt-1'))
+
+      expect(chatFn).toHaveBeenCalledTimes(1)
+      const request = chatFn.mock.calls[0][0]
+      const ctx = request.page_context as Record<string, unknown>
+      expect(ctx.page).toBe('alerts')
+      expect(ctx.alertId).toBe('evt-1')
+      expect(ctx.type).toBe('VAR_BREACH')
+      expect(ctx.currentValue).toBe(150000)
+      expect(ctx.threshold).toBe(100000)
+      expect(ctx.severity).toBe('CRITICAL')
+    })
+
+    it('a rapid double-click does not fire a duplicate chat request', () => {
+      const chatFn = vi.fn(() => fakeChatStream())
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={sampleAlerts}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+          chatFn={chatFn}
+        />,
+      )
+
+      const button = screen.getByTestId('explain-alert-evt-1')
+      fireEvent.click(button)
+      fireEvent.click(button)
+      fireEvent.click(button)
+
+      expect(chatFn).toHaveBeenCalledTimes(1)
+      expect(screen.getAllByTestId('alert-explain-panel-evt-1')).toHaveLength(1)
+    })
+
+    it('opening a second alert explainer closes the first (only one panel open)', () => {
+      const chatFn = vi.fn(() => fakeChatStream())
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={sampleAlerts}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+          chatFn={chatFn}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('explain-alert-evt-1'))
+      expect(
+        screen.getByTestId('alert-explain-panel-evt-1'),
+      ).toBeInTheDocument()
+
+      fireEvent.click(screen.getByTestId('explain-alert-evt-2'))
+      expect(
+        screen.queryByTestId('alert-explain-panel-evt-1'),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.getByTestId('alert-explain-panel-evt-2'),
+      ).toBeInTheDocument()
+    })
+
+    it('the panel close button dismisses the explainer', () => {
+      const chatFn = vi.fn(() => fakeChatStream())
+      render(
+        <NotificationCenter
+          rules={[]}
+          alerts={sampleAlerts}
+          loading={false}
+          error={null}
+          onCreateRule={() => {}}
+          onDeleteRule={() => {}}
+          chatFn={chatFn}
+        />,
+      )
+
+      fireEvent.click(screen.getByTestId('explain-alert-evt-1'))
+      expect(
+        screen.getByTestId('alert-explain-panel-evt-1'),
+      ).toBeInTheDocument()
+
+      fireEvent.click(screen.getByTestId('ai-insight-close'))
+      expect(
+        screen.queryByTestId('alert-explain-panel-evt-1'),
+      ).not.toBeInTheDocument()
     })
   })
 })

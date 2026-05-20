@@ -21,6 +21,16 @@ import { formatRelativeTime, formatRelativeFuture } from '../utils/format'
 import { exportToCsv } from '../utils/exportCsv'
 import { Card, Button, Badge, Input, Select, Spinner, ErrorCard } from './ui'
 import { ConfirmDialog } from './ui/ConfirmDialog'
+import { useCopilotContext } from '../hooks/useCopilotContext'
+import { chat, type ChatChunk, type ChatRequest } from '../api/copilot'
+import { ExplainButton } from './ExplainButton'
+import { AIInsightPanel } from './AIInsightPanel'
+
+/** Signature of the injectable `chatFn` — mirrors `chat` in `api/copilot`. */
+type ChatFn = (
+  request: ChatRequest,
+  options?: { signal?: AbortSignal },
+) => ReadableStream<ChatChunk>
 
 /**
  * Lifecycle states the Alerts queue can include/exclude. The 'ALL' chip from
@@ -91,6 +101,35 @@ interface NotificationCenterProps {
    * alert is not scoped to a specific book. See docs/plans/ui-overhaul.md §2.4.
    */
   onJumpToRisk?: (bookId: string | null) => void
+  /**
+   * Dependency-injection seam for the streaming `chat()` client. Tests
+   * substitute a fake; production callers leave it unset and the real
+   * `chat` import is used (plan §9.3 — inline explainer on alert rows).
+   */
+  chatFn?: ChatFn
+}
+
+/**
+ * Build the `page_context` for an alert-row inline explainer `/chat` call.
+ *
+ * Extends the ambient copilot context (`useCopilotContext()`) with the
+ * clicked alert's payload — alertId, type, currentValue, threshold and
+ * severity — so the model can speak to *that* specific breach (plan §9.3).
+ */
+function buildAlertExplainContext(
+  base: Record<string, unknown>,
+  alert: AlertEventDto,
+): Record<string, unknown> {
+  return {
+    ...base,
+    page: 'alerts',
+    alertId: alert.id,
+    type: alert.type,
+    currentValue: alert.currentValue,
+    threshold: alert.threshold,
+    severity: alert.severity,
+    book_id: alert.bookId,
+  }
 }
 
 /**
@@ -179,7 +218,9 @@ export function NotificationCenter({
   onResolve,
   onSnooze,
   onJumpToRisk,
+  chatFn = chat,
 }: NotificationCenterProps) {
+  const copilotContext = useCopilotContext()
   const [name, setName] = useState('')
   const [type, setType] = useState('VAR_BREACH')
   const [threshold, setThreshold] = useState('')
@@ -220,6 +261,12 @@ export function NotificationCenter({
   // Snooze popover state — only one row's popover open at a time so the row
   // layout stays compact. §3.1b.4 spec: fixed presets, no custom datepicker.
   const [snoozeOpenId, setSnoozeOpenId] = useState<string | null>(null)
+  // Inline explainer state (plan §9.3). At most one alert-row explainer is
+  // ever open — `explainAlertId` identifies which row's panel is showing and
+  // `explainStream` is the live `/chat` token stream feeding the panel.
+  const [explainAlertId, setExplainAlertId] = useState<string | null>(null)
+  const [explainStream, setExplainStream] =
+    useState<ReadableStream<ChatChunk> | null>(null)
 
   /**
    * Count of alerts per status — drives the chip badges so the operator can
@@ -456,6 +503,29 @@ export function NotificationCenter({
     }
   }
 
+  /**
+   * Open the inline explainer for a specific alert row.
+   *
+   * Double-click protection: a second click on the alert whose panel is
+   * already open is a no-op — neither a duplicate panel nor a duplicate
+   * `/chat` request is created. Opening a *different* alert's explainer
+   * replaces the current one ("only one panel open"), plan §9.3.
+   */
+  function handleExplainAlert(alert: AlertEventDto) {
+    if (explainAlertId === alert.id) return
+    const stream = chatFn({
+      message: `Explain this ${alert.type} alert — why did it breach?`,
+      page_context: buildAlertExplainContext(copilotContext, alert),
+    })
+    setExplainAlertId(alert.id)
+    setExplainStream(stream)
+  }
+
+  function closeExplainAlert() {
+    setExplainAlertId(null)
+    setExplainStream(null)
+  }
+
   function renderAlertRow(alert: AlertEventDto) {
     const SevIcon = severityIcon[alert.severity] ?? Info
     const canAcknowledge =
@@ -616,6 +686,16 @@ export function NotificationCenter({
                   Go to Risk
                 </button>
               )}
+              {/* Inline explainer affordance — plan §9.3. Stays visible even
+                  while a triage form is open so the operator can ask the
+                  copilot mid-triage. */}
+              <ExplainButton
+                data-testid={`explain-alert-${alert.id}`}
+                label="Explain"
+                ariaLabel={`Explain alert ${alert.message}`}
+                onClick={() => handleExplainAlert(alert)}
+                className="px-2 py-0.5 text-xs"
+              />
             </div>
           </div>
           <div className="text-xs text-slate-500">
@@ -814,6 +894,20 @@ export function NotificationCenter({
                 </p>
               )}
             </form>
+          )}
+          {/* Inline AI explainer panel — plan §9.3. At most one alert row's
+              panel is open at a time; opening another replaces this one. */}
+          {explainAlertId === alert.id && explainStream && (
+            <div
+              data-testid={`alert-explain-panel-${alert.id}`}
+              className="mt-2"
+            >
+              <AIInsightPanel
+                stream={explainStream}
+                title={`Explain — ${alert.message}`}
+                onClose={closeExplainAlert}
+              />
+            </div>
           )}
         </div>
       </div>
