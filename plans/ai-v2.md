@@ -198,7 +198,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_intraday_push_generator.py -m unit`
 - [x] 7.5 Add gateway internal route `POST /internal/copilot/push` in `gateway/.../routes/CopilotInternalRoutes.kt` — accepts the push payload from `ai-insights-service` (cluster-internal only; no auth challenge). Enqueues to `CopilotBroadcaster`. Test asserts external requests are rejected and internal requests flow through.
       Acceptance: `./gradlew :gateway:acceptanceTest --tests "*CopilotInternalPushAcceptanceTest"`
-- [ ] 7.6 Add `CopilotBroadcaster` in `gateway/.../websocket/CopilotBroadcaster.kt` (mirrors `AlertBroadcaster`) and `/ws/copilot` WebSocket route in `CopilotWebSocketRoute.kt`. JWT auth on connect; scope-filter by `X-User-Books`. Register in `Application.kt` `devModule()`. Test asserts message delivery to scoped users only.
+- [x] 7.6 Add `CopilotBroadcaster` in `gateway/.../websocket/CopilotBroadcaster.kt` (mirrors `AlertBroadcaster`) and `/ws/copilot` WebSocket route in `CopilotWebSocketRoute.kt`. JWT auth on connect; scope-filter by `X-User-Books`. Register in `Application.kt` `devModule()`. Test asserts message delivery to scoped users only.
       Acceptance: `./gradlew :gateway:acceptanceTest --tests "*CopilotWebSocketRouteAcceptanceTest"`
 - [ ] 7.7 Wire `ai-insights-service` to POST to the gateway internal endpoint when an intraday alert fires. Add `GatewayPushClient` (httpx wrapper). Unit test asserts the push payload shape and URL.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_gateway_push_client.py -m unit`
