@@ -49,7 +49,7 @@
         }
       ],
       "fieldConfig": {
-        "defaults": { "unit": "short" },
+        "defaults": { "unit": "none", "displayName": "Net Delta (dimensionless)" },
         "overrides": []
       }
     },
@@ -66,13 +66,14 @@
         }
       ],
       "fieldConfig": {
-        "defaults": { "unit": "short" },
+        "defaults": { "unit": "none", "displayName": "Net Gamma" },
         "overrides": []
       }
     },
     {
       "id": 3,
       "title": "Net Vega by Asset Class",
+      "description": "Vega is dollars-per-vol-point: the P&L change for a 1 percentage-point move in implied volatility. It is a sensitivity, not a currency amount or the position's dollar value.",
       "type": "timeseries",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
