@@ -3,6 +3,7 @@ package com.kinetix.audit.persistence
 import com.kinetix.audit.model.AuditEvent
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SortOrder
+import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.andWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.max
@@ -34,6 +35,31 @@ class ExposedAuditEventRepository(private val db: Database? = null) : AuditEvent
         // the pool's REPEATABLE_READ default would freeze the snapshot at the lock
         // acquisition and serve stale data even with the lock held.
         exec("SELECT pg_advisory_xact_lock($AUDIT_CHAIN_LOCK_KEY)") { rs -> rs.next() }
+
+        // Kafka inbox-dedup: at-least-once delivery can replay an already-persisted
+        // record. If this event carries Kafka coordinates and a row with the same
+        // (topic, partition, offset) already exists, it is a redelivery — skip it
+        // entirely. The skip happens here, before any chaining or sequence-number
+        // assignment, so a duplicate consumes no sequence number and does not
+        // touch the hash chain. Two genuinely different events never share an
+        // offset on the same partition, so there is zero false-rejection risk.
+        // The check is safe under the advisory lock acquired above, which already
+        // serialises every chain append — there is no SELECT-then-INSERT race.
+        if (event.sourceTopic != null && event.sourcePartition != null && event.sourceOffset != null) {
+            val alreadyPersisted = AuditEventsTable
+                .select(AuditEventsTable.id)
+                .where {
+                    (AuditEventsTable.sourceTopic eq event.sourceTopic) and
+                        (AuditEventsTable.sourcePartition eq event.sourcePartition) and
+                        (AuditEventsTable.sourceOffset eq event.sourceOffset)
+                }
+                .limit(1)
+                .empty()
+                .not()
+            if (alreadyPersisted) {
+                return@newSuspendedTransaction
+            }
+        }
 
         val latestHash = AuditEventsTable
             .select(AuditEventsTable.recordHash)
@@ -90,6 +116,9 @@ class ExposedAuditEventRepository(private val db: Database? = null) : AuditEvent
             it[details] = event.details
             it[sequenceNumber] = event.sequenceNumber ?: assignedSequenceNumber
             it[correlationId] = event.correlationId
+            it[sourceTopic] = event.sourceTopic
+            it[sourcePartition] = event.sourcePartition
+            it[sourceOffset] = event.sourceOffset
         }
     }
 
@@ -195,5 +224,8 @@ class ExposedAuditEventRepository(private val db: Database? = null) : AuditEvent
         details = this[AuditEventsTable.details],
         sequenceNumber = this[AuditEventsTable.sequenceNumber],
         correlationId = this[AuditEventsTable.correlationId],
+        sourceTopic = this[AuditEventsTable.sourceTopic],
+        sourcePartition = this[AuditEventsTable.sourcePartition],
+        sourceOffset = this[AuditEventsTable.sourceOffset],
     )
 }

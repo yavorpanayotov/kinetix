@@ -31,6 +31,12 @@ object AuditEventsTable : Table("audit_events") {
     val sequenceNumber = long("sequence_number").nullable()
     // Operational metadata — not part of the hash chain (see AuditHasher).
     val correlationId = varchar("correlation_id", 255).nullable()
+    // Kafka inbox-dedup coordinates — uniquely identify the source record so a
+    // redelivery can be skipped. Nullable: NULL for non-Kafka inserts. Not part
+    // of the hash chain (operational metadata, see AuditHasher).
+    val sourceTopic = varchar("source_topic", 255).nullable()
+    val sourcePartition = integer("source_partition").nullable()
+    val sourceOffset = long("source_offset").nullable()
 
     override val primaryKey = PrimaryKey(id)
 }

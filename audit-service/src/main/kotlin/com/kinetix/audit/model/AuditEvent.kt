@@ -32,4 +32,11 @@ data class AuditEvent(
     // Operational metadata — a cross-reference pointer to Loki logs / Tempo traces.
     // Intentionally excluded from AuditHasher's hash-chain input (see AuditHasher).
     val correlationId: String? = null,
+    // Kafka inbox-dedup coordinates — the (topic, partition, offset) of the
+    // source record. Populated by the Kafka consumers; NULL for non-Kafka
+    // inserts (DLQ replay, dev seeding). Operational metadata: intentionally
+    // excluded from AuditHasher's hash-chain input, exactly like correlationId.
+    val sourceTopic: String? = null,
+    val sourcePartition: Int? = null,
+    val sourceOffset: Long? = null,
 )

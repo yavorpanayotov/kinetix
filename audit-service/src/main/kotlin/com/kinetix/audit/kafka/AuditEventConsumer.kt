@@ -40,7 +40,12 @@ class AuditEventConsumer(
                             val event = json.decodeFromString<TradeEventMessage>(record.value())
                             MDC.put("correlationId", event.correlationId ?: "")
                             try {
-                                val auditEvent = event.toAuditEvent(receivedAt = Instant.now())
+                                val auditEvent = event.toAuditEvent(
+                                    receivedAt = Instant.now(),
+                                    sourceTopic = record.topic(),
+                                    sourcePartition = record.partition(),
+                                    sourceOffset = record.offset(),
+                                )
                                 repository.save(auditEvent)
                                 logger.info(
                                     "Audit event persisted: tradeId={}, bookId={}, eventType={}",
@@ -69,7 +74,12 @@ class AuditEventConsumer(
         }
     }
 
-    private fun TradeEventMessage.toAuditEvent(receivedAt: Instant): AuditEvent = AuditEvent(
+    private fun TradeEventMessage.toAuditEvent(
+        receivedAt: Instant,
+        sourceTopic: String,
+        sourcePartition: Int,
+        sourceOffset: Long,
+    ): AuditEvent = AuditEvent(
         tradeId = tradeId,
         bookId = bookId,
         instrumentId = instrumentId,
@@ -85,5 +95,8 @@ class AuditEventConsumer(
         traderId = traderId,
         eventType = auditEventType,
         correlationId = correlationId,
+        sourceTopic = sourceTopic,
+        sourcePartition = sourcePartition,
+        sourceOffset = sourceOffset,
     )
 }

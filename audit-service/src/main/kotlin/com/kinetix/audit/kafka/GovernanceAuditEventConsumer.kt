@@ -40,7 +40,12 @@ class GovernanceAuditEventConsumer(
                             val event = json.decodeFromString<GovernanceAuditEvent>(record.value())
                             MDC.put("correlationId", event.correlationId ?: "")
                             try {
-                                val auditEvent = event.toAuditEvent(receivedAt = Instant.now())
+                                val auditEvent = event.toAuditEvent(
+                                    receivedAt = Instant.now(),
+                                    sourceTopic = record.topic(),
+                                    sourcePartition = record.partition(),
+                                    sourceOffset = record.offset(),
+                                )
                                 repository.save(auditEvent)
                                 logger.info(
                                     "Governance audit event persisted: eventType={}, userId={}, userRole={}",
@@ -69,7 +74,12 @@ class GovernanceAuditEventConsumer(
         }
     }
 
-    private fun GovernanceAuditEvent.toAuditEvent(receivedAt: Instant): AuditEvent = AuditEvent(
+    private fun GovernanceAuditEvent.toAuditEvent(
+        receivedAt: Instant,
+        sourceTopic: String,
+        sourcePartition: Int,
+        sourceOffset: Long,
+    ): AuditEvent = AuditEvent(
         tradeId = null,
         bookId = bookId,
         instrumentId = null,
@@ -89,5 +99,8 @@ class GovernanceAuditEventConsumer(
         submissionId = submissionId,
         details = details,
         correlationId = correlationId,
+        sourceTopic = sourceTopic,
+        sourcePartition = sourcePartition,
+        sourceOffset = sourceOffset,
     )
 }
