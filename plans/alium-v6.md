@@ -168,7 +168,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       `group-b` C6.
       Acceptance: `./gradlew :position-service:test :position-service:acceptanceTest --tests "*OrderSubmission*"`
 
-- [ ] 1.8 New Flyway migration in `position-service` recreating the trade
+- [x] 1.8 New Flyway migration in `position-service` recreating the trade
       immutability trigger to also protect `instrument_type` and `trader_id`
       (`V14__fix_immutability_trigger_book_id.sql` currently covers 11 columns;
       `trading.allium:252-256` lists both extras as immutable). Use the next free
