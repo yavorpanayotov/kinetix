@@ -2,7 +2,32 @@ import { render, screen, within, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { PositionRiskDto } from '../types'
+import type { ChatChunk, ChatRequest } from '../api/copilot'
 import { PositionRiskTable } from './PositionRiskTable'
+
+/** Signature of the injectable `chatFn` prop — mirrors `chat` in `api/copilot`. */
+type ChatFn = (
+  request: ChatRequest,
+  options?: { signal?: AbortSignal },
+) => ReadableStream<ChatChunk>
+
+/** Build a `ReadableStream<ChatChunk>` that emits the supplied chunks then closes. */
+function streamOf(...chunks: ChatChunk[]): ReadableStream<ChatChunk> {
+  return new ReadableStream<ChatChunk>({
+    start(controller) {
+      for (const chunk of chunks) controller.enqueue(chunk)
+      controller.close()
+    },
+  })
+}
+
+const doneChunk: ChatChunk = {
+  type: 'done',
+  session_id: 's',
+  conversation_id: 'c',
+  model: 'canned-chat',
+  mode: 'canned',
+}
 
 const makeRisk = (overrides: Partial<PositionRiskDto> = {}): PositionRiskDto => ({
   instrumentId: 'AAPL',
@@ -330,6 +355,150 @@ describe('PositionRiskTable', () => {
       render(<PositionRiskTable data={[]} loading={false} />)
 
       expect(screen.queryByTestId('risk-csv-export')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('inline explainer', () => {
+    it('renders a per-row explain button for every row', () => {
+      render(
+        <PositionRiskTable
+          data={[makeRisk({ instrumentId: 'AAPL' }), makeRisk({ instrumentId: 'MSFT' })]}
+          loading={false}
+        />,
+      )
+
+      expect(screen.getByTestId('explain-position-AAPL')).toBeInTheDocument()
+      expect(screen.getByTestId('explain-position-MSFT')).toBeInTheDocument()
+    })
+
+    it('renders a portfolio-level explain button in the header', () => {
+      render(<PositionRiskTable data={[makeRisk()]} loading={false} />)
+
+      expect(screen.getByTestId('explain-positions-portfolio')).toBeInTheDocument()
+    })
+
+    it('opens the insight panel and fires chat() with the row position payload', async () => {
+      const user = userEvent.setup()
+      const chatFn = vi.fn<ChatFn>(() => streamOf(doneChunk))
+      render(
+        <PositionRiskTable
+          data={[makeRisk({ instrumentId: 'AAPL' })]}
+          loading={false}
+          bookId="port-1"
+          chatFn={chatFn}
+        />,
+      )
+
+      await user.click(screen.getByTestId('explain-position-AAPL'))
+
+      expect(screen.getByTestId('position-explain-panel')).toBeInTheDocument()
+      expect(chatFn).toHaveBeenCalledTimes(1)
+      const request = chatFn.mock.calls[0][0]
+      expect(request.page_context).toMatchObject({
+        page: 'positions',
+        book_id: 'port-1',
+        instrument_id: 'AAPL',
+      })
+      expect(request.page_context.position).toMatchObject({ instrumentId: 'AAPL' })
+    })
+
+    it('does not fire a duplicate chat() on a second click of the same row button', async () => {
+      const user = userEvent.setup()
+      const chatFn = vi.fn<ChatFn>(() => streamOf(doneChunk))
+      render(
+        <PositionRiskTable
+          data={[makeRisk({ instrumentId: 'AAPL' })]}
+          loading={false}
+          chatFn={chatFn}
+        />,
+      )
+
+      const button = screen.getByTestId('explain-position-AAPL')
+      await user.click(button)
+      await user.click(button)
+      await user.click(button)
+
+      expect(chatFn).toHaveBeenCalledTimes(1)
+      expect(screen.getAllByTestId('position-explain-panel')).toHaveLength(1)
+    })
+
+    it('opening a second row explainer replaces the first (only one panel open)', async () => {
+      const user = userEvent.setup()
+      const chatFn = vi.fn<ChatFn>(() => streamOf(doneChunk))
+      render(
+        <PositionRiskTable
+          data={[makeRisk({ instrumentId: 'AAPL' }), makeRisk({ instrumentId: 'MSFT' })]}
+          loading={false}
+          chatFn={chatFn}
+        />,
+      )
+
+      await user.click(screen.getByTestId('explain-position-AAPL'))
+      await user.click(screen.getByTestId('explain-position-MSFT'))
+
+      const panels = screen.getAllByTestId('position-explain-panel')
+      expect(panels).toHaveLength(1)
+      expect(panels[0]).toHaveTextContent('MSFT')
+      expect(chatFn).toHaveBeenCalledTimes(2)
+    })
+
+    it('the header explain button sends portfolio-scope page_context', async () => {
+      const user = userEvent.setup()
+      const chatFn = vi.fn<ChatFn>(() => streamOf(doneChunk))
+      render(
+        <PositionRiskTable
+          data={[makeRisk({ instrumentId: 'AAPL' }), makeRisk({ instrumentId: 'MSFT' })]}
+          loading={false}
+          bookId="port-1"
+          chatFn={chatFn}
+        />,
+      )
+
+      await user.click(screen.getByTestId('explain-positions-portfolio'))
+
+      expect(screen.getByTestId('position-explain-panel')).toBeInTheDocument()
+      const request = chatFn.mock.calls[0][0]
+      expect(request.page_context).toMatchObject({
+        page: 'positions',
+        book_id: 'port-1',
+        scope: 'portfolio',
+        position_count: 2,
+      })
+      expect(request.page_context.instrument_id).toBeUndefined()
+    })
+
+    it('closes the explainer when the panel close button is clicked', async () => {
+      const user = userEvent.setup()
+      const chatFn = vi.fn<ChatFn>(() => streamOf(doneChunk))
+      render(
+        <PositionRiskTable
+          data={[makeRisk({ instrumentId: 'AAPL' })]}
+          loading={false}
+          chatFn={chatFn}
+        />,
+      )
+
+      await user.click(screen.getByTestId('explain-position-AAPL'))
+      expect(screen.getByTestId('position-explain-panel')).toBeInTheDocument()
+
+      await user.click(screen.getByTestId('ai-insight-close'))
+      expect(screen.queryByTestId('position-explain-panel')).not.toBeInTheDocument()
+    })
+
+    it('clicking a row explain button does not toggle the row detail', async () => {
+      const user = userEvent.setup()
+      const chatFn = vi.fn<ChatFn>(() => streamOf(doneChunk))
+      render(
+        <PositionRiskTable
+          data={[makeRisk({ instrumentId: 'AAPL' })]}
+          loading={false}
+          chatFn={chatFn}
+        />,
+      )
+
+      await user.click(screen.getByTestId('explain-position-AAPL'))
+
+      expect(screen.queryByTestId('position-risk-detail-AAPL')).not.toBeInTheDocument()
     })
   })
 })

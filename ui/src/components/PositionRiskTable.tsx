@@ -6,6 +6,9 @@ import { formatAssetClassLabel } from '../utils/formatAssetClass'
 import { exportToCsv } from '../utils/exportCsv'
 import { Card, Spinner } from './ui'
 import { ScenarioBadge } from './ScenarioBadge'
+import { ExplainButton } from './ExplainButton'
+import { AIInsightPanel } from './AIInsightPanel'
+import { chat, type ChatChunk, type ChatRequest } from '../api/copilot'
 
 type SortField =
   | 'marketValue'
@@ -19,6 +22,22 @@ type SortField =
   | 'percentageOfTotal'
 type SortDirection = 'asc' | 'desc'
 
+/** Signature of the injectable `chatFn` — mirrors `chat` in `api/copilot`. */
+type ChatFn = (
+  request: ChatRequest,
+  options?: { signal?: AbortSignal },
+) => ReadableStream<ChatChunk>
+
+/**
+ * Which inline explainer (if any) is currently open. At most one is ever
+ * open for the table — opening a new one replaces the previous (plan §9.1
+ * "only one panel open"). `kind: 'portfolio'` is the table-header explain;
+ * `kind: 'row'` is keyed by the row's `instrumentId`.
+ */
+type ExplainTarget =
+  | { kind: 'portfolio' }
+  | { kind: 'row'; instrumentId: string }
+
 interface PositionRiskTableProps {
   data: PositionRiskDto[]
   loading: boolean
@@ -28,6 +47,55 @@ interface PositionRiskTableProps {
   activeScenario?: string | null
   /** Market regime — VaR / ES contributions carry a regime-adj badge when non-NORMAL. */
   marketRegime?: MarketRegime | null
+  /**
+   * Book the table belongs to — stamped into the `page_context` of any
+   * inline explainer `/chat` call (plan §9.1). Optional: the explainer
+   * still works without it (the model just lacks a book scope).
+   */
+  bookId?: string | null
+  /**
+   * Dependency-injection seam for the streaming `chat()` client. Tests
+   * substitute a fake; production callers leave it unset and the real
+   * `chat` import is used.
+   */
+  chatFn?: ChatFn
+}
+
+/**
+ * Build the `page_context` for an inline explainer `/chat` call.
+ *
+ * For a per-row explainer the row's full position payload is attached so
+ * the model can speak to that specific instrument; for the header
+ * explainer only the portfolio-level scope is attached.
+ */
+function buildExplainContext(
+  target: ExplainTarget,
+  bookId: string | null | undefined,
+  rows: PositionRiskDto[],
+): Record<string, unknown> {
+  const context: Record<string, unknown> = { page: 'positions' }
+  if (typeof bookId === 'string' && bookId.length > 0) {
+    context.book_id = bookId
+  }
+  if (target.kind === 'row') {
+    const row = rows.find((r) => r.instrumentId === target.instrumentId)
+    context.instrument_id = target.instrumentId
+    if (row) context.position = row
+  } else {
+    context.scope = 'portfolio'
+    context.position_count = rows.length
+  }
+  return context
+}
+
+/** Stable equality for two explain targets (used for double-click guard). */
+function sameTarget(a: ExplainTarget | null, b: ExplainTarget): boolean {
+  if (a === null) return false
+  if (a.kind !== b.kind) return false
+  if (a.kind === 'row' && b.kind === 'row') {
+    return a.instrumentId === b.instrumentId
+  }
+  return true
 }
 
 function numericValue(row: PositionRiskDto, field: SortField, useAbsolute: boolean): number {
@@ -55,12 +123,45 @@ const COLUMNS: { label: string; tooltip?: string; field: SortField; sortable: tr
   { label: '% Total', field: 'percentageOfTotal', sortable: true },
 ]
 
-export function PositionRiskTable({ data, loading, error, onRetry, activeScenario = null, marketRegime = null }: PositionRiskTableProps) {
+export function PositionRiskTable({ data, loading, error, onRetry, activeScenario = null, marketRegime = null, bookId = null, chatFn = chat }: PositionRiskTableProps) {
   const [expanded, setExpanded] = useState(true)
   const [sortField, setSortField] = useState<SortField>('varContribution')
   const [sortDir, setSortDir] = useState<SortDirection>('desc')
   const [useAbsoluteSort, setUseAbsoluteSort] = useState(true)
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
+
+  // Inline explainer state (plan §9.1). `explainTarget` identifies which
+  // explainer (header or a specific row) is open — at most one at a time.
+  // `explainStream` is the live `/chat` token stream feeding the panel.
+  const [explainTarget, setExplainTarget] = useState<ExplainTarget | null>(null)
+  const [explainStream, setExplainStream] = useState<ReadableStream<ChatChunk> | null>(null)
+
+  /**
+   * Open an inline explainer for `target`.
+   *
+   * Double-click protection: a second click on the explainer whose panel is
+   * already open is a no-op — neither a duplicate panel nor a duplicate
+   * `/chat` request is created. Opening a *different* explainer replaces the
+   * current one ("only one panel open").
+   */
+  const handleExplain = (target: ExplainTarget) => {
+    if (sameTarget(explainTarget, target)) return
+    const message =
+      target.kind === 'row'
+        ? `Explain the risk contribution of position ${target.instrumentId}.`
+        : 'Explain the portfolio risk in this position table.'
+    const stream = chatFn({
+      message,
+      page_context: buildExplainContext(target, bookId, data),
+    })
+    setExplainTarget(target)
+    setExplainStream(stream)
+  }
+
+  const closeExplain = () => {
+    setExplainTarget(null)
+    setExplainStream(null)
+  }
 
   const sorted = useMemo(() => {
     return [...data].sort((a, b) => {
@@ -123,14 +224,23 @@ export function PositionRiskTable({ data, loading, error, onRetry, activeScenari
             <ScenarioBadge scenario={activeScenario} regime={marketRegime} />
           </div>
           {data.length > 0 && (
-            <button
-              data-testid="risk-csv-export"
-              onClick={handleExportCsv}
-              className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-slate-500 border border-slate-300 rounded hover:bg-slate-50 transition-colors"
-            >
-              <Download className="h-3.5 w-3.5" />
-              Export CSV
-            </button>
+            <div className="flex items-center gap-2">
+              <ExplainButton
+                data-testid="explain-positions-portfolio"
+                label="Explain"
+                ariaLabel="Explain portfolio position risk"
+                onClick={() => handleExplain({ kind: 'portfolio' })}
+                className="px-2 py-1 text-xs"
+              />
+              <button
+                data-testid="risk-csv-export"
+                onClick={handleExportCsv}
+                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-slate-500 border border-slate-300 rounded hover:bg-slate-50 transition-colors"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Export CSV
+              </button>
+            </div>
           )}
         </div>
 
@@ -184,6 +294,11 @@ export function PositionRiskTable({ data, loading, error, onRetry, activeScenari
                       {col.label} {sortIcon(col.field)}
                     </th>
                   ))}
+                  {/* Rightmost action column — per-row inline explainer (plan §9.1). */}
+                  <th
+                    aria-label="Explain"
+                    className="w-8 py-2 pr-4 text-right"
+                  />
                 </tr>
               </thead>
               <tbody>
@@ -223,10 +338,34 @@ export function PositionRiskTable({ data, loading, error, onRetry, activeScenari
                         >
                           {formatNum(row.percentageOfTotal)}%
                         </td>
+                        <td
+                          className="w-8 py-2 pr-4 text-right"
+                          onClick={(e) => {
+                            // Don't toggle the row's expand state when the
+                            // explainer is clicked.
+                            e.stopPropagation()
+                          }}
+                        >
+                          <ExplainButton
+                            data-testid={`explain-position-${row.instrumentId}`}
+                            // Label appears only when the row is focused /
+                            // selected (expanded); icon-only otherwise so
+                            // the 32px action column stays compact.
+                            label={isExpanded ? 'Explain' : ''}
+                            ariaLabel={`Explain ${row.instrumentId} position risk`}
+                            onClick={() =>
+                              handleExplain({
+                                kind: 'row',
+                                instrumentId: row.instrumentId,
+                              })
+                            }
+                            className="px-1.5 py-1 text-xs"
+                          />
+                        </td>
                       </tr>
                       {isExpanded && (
                         <tr data-testid={`position-risk-detail-${row.instrumentId}`}>
-                          <td colSpan={11} className="bg-slate-50 px-4 py-3 border-b border-slate-200">
+                          <td colSpan={12} className="bg-slate-50 px-4 py-3 border-b border-slate-200">
                             <div className="grid grid-cols-4 gap-4 text-xs">
                               <div>
                                 <span className="text-slate-500">Market Value</span>
@@ -269,6 +408,20 @@ export function PositionRiskTable({ data, loading, error, onRetry, activeScenari
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {explainTarget && explainStream && (
+          <div data-testid="position-explain-panel" className="px-4 pb-4 pt-2">
+            <AIInsightPanel
+              stream={explainStream}
+              title={
+                explainTarget.kind === 'row'
+                  ? `Explain — ${explainTarget.instrumentId}`
+                  : 'Explain — Portfolio Position Risk'
+              }
+              onClose={closeExplain}
+            />
           </div>
         )}
       </div>

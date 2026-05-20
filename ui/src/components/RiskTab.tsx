@@ -415,6 +415,7 @@ export function RiskTab({
                   onRetry={refreshPositionRisk}
                   activeScenario={activeScenario}
                   marketRegime={marketRegime}
+                  bookId={bookId}
                 />
               </ErrorBoundary>
               <div className="mt-4">
