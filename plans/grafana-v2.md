@@ -213,7 +213,7 @@ not stop mid-loop:
       Prometheus exports it as `unacknowledged_outbound` (the `_total` suffix is
       stripped from gauges) — drop `_total` from that panel's query.
       Acceptance: `node plans/scripts/validate-grafana.mjs`
-- [ ] 2.4 Add a Prometheus `/metrics` endpoint to `ai-insights-service` and a
+- [x] 2.4 Add a Prometheus `/metrics` endpoint to `ai-insights-service` and a
       corresponding `ai-insights-service` scrape job in
       `deploy/observability/prometheus.yml` (the service is currently not scraped
       at all).
