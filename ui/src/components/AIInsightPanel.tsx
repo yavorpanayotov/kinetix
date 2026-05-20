@@ -1,5 +1,9 @@
+import { useState } from 'react'
 import { X } from 'lucide-react'
+import type { ChatChunk, Citation } from '../api/copilot'
 import type { InsightResponse } from '../api/insights'
+import { StreamingNarrative } from './StreamingNarrative'
+import { CitationList } from './CitationList'
 
 export interface AIInsightPanelProps {
   loading?: boolean
@@ -7,16 +11,32 @@ export interface AIInsightPanelProps {
   insight?: InsightResponse | null
   title?: string
   onClose?: () => void
+  /**
+   * Streaming variant. When provided and non-null, the panel composes
+   * <StreamingNarrative> instead of rendering a buffered insight. Takes
+   * precedence over `insight` when both are supplied — the stream IS
+   * the in-flight insight. `loading`/`error` still take precedence
+   * over the stream so callers can short-circuit before the stream
+   * opens.
+   */
+  stream?: ReadableStream<ChatChunk> | null
+}
+
+interface StreamResult {
+  citations: Citation[]
+  model: string
+  mode: 'live' | 'canned'
 }
 
 /**
  * Reusable slide-over / card component for AI-generated insights.
  *
  * Pure-presentational: the parent owns fetching and passes one of
- * {loading, error, insight} at a time. Renders a narrative paragraph,
- * a bullet list, and a footer with the model name plus a "Demo mode"
- * badge when the insight was produced from a canned (offline) response
- * rather than a live model call.
+ * {loading, error, insight, stream} at a time. The buffered `insight`
+ * path renders a narrative paragraph + bullet list (v1 explainers).
+ * The `stream` path composes <StreamingNarrative> for token-flow and,
+ * once the stream finishes, a <CitationList> footer plus the model /
+ * "Demo mode" chrome.
  */
 export function AIInsightPanel({
   loading = false,
@@ -24,7 +44,12 @@ export function AIInsightPanel({
   insight = null,
   title = 'AI Insight',
   onClose,
+  stream = null,
 }: AIInsightPanelProps) {
+  const [streamResult, setStreamResult] = useState<StreamResult | null>(null)
+
+  const showStream = !loading && !error && stream != null
+
   return (
     <section
       data-testid="ai-insight-panel"
@@ -66,7 +91,36 @@ export function AIInsightPanel({
         </div>
       )}
 
-      {!loading && !error && insight && (
+      {showStream && (
+        <div data-testid="ai-insight-streaming">
+          <StreamingNarrative
+            stream={stream}
+            onComplete={({ citations, model, mode }) =>
+              setStreamResult({ citations, model, mode })
+            }
+          />
+          {streamResult && streamResult.citations.length > 0 && (
+            <div data-testid="ai-insight-citations" className="mt-3">
+              <CitationList citations={streamResult.citations} />
+            </div>
+          )}
+          {streamResult && (
+            <footer className="mt-3 flex items-center justify-between border-t border-slate-100 dark:border-surface-700 pt-2 text-xs text-slate-500 dark:text-slate-400">
+              <span data-testid="ai-insight-model">{streamResult.model}</span>
+              {streamResult.mode === 'canned' && (
+                <span
+                  data-testid="ai-insight-demo-badge"
+                  className="rounded bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 text-amber-800 dark:text-amber-300"
+                >
+                  Demo mode
+                </span>
+              )}
+            </footer>
+          )}
+        </div>
+      )}
+
+      {!loading && !error && !showStream && insight && (
         <div data-testid="ai-insight-content">
           <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-200 mb-3">
             {insight.narrative}
@@ -92,7 +146,7 @@ export function AIInsightPanel({
         </div>
       )}
 
-      {!loading && !error && !insight && (
+      {!loading && !error && !showStream && !insight && (
         <p
           data-testid="ai-insight-empty"
           className="text-sm italic text-slate-500 dark:text-slate-400"

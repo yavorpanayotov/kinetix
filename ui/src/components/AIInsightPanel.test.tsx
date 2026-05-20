@@ -1,7 +1,32 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import type { ChatChunk, Citation } from '../api/copilot'
 import type { InsightResponse } from '../api/insights'
 import { AIInsightPanel } from './AIInsightPanel'
+
+function makeCitation(overrides: Partial<Citation> = {}): Citation {
+  return {
+    tool: 'risk.var',
+    params: { book_id: 'BOOK-1' },
+    result_field: 'value',
+    result_value: 5.2,
+    result_currency: 'USD',
+    as_of_timestamp: '2025-05-19T00:00:00Z',
+    data_source: 'risk-orchestrator',
+    freshness_seconds: 30,
+    quality_flags: [],
+    ...overrides,
+  }
+}
+
+function streamOf(...chunks: ChatChunk[]): ReadableStream<ChatChunk> {
+  return new ReadableStream<ChatChunk>({
+    start(controller) {
+      for (const chunk of chunks) controller.enqueue(chunk)
+      controller.close()
+    },
+  })
+}
 
 function makeInsight(overrides: Partial<InsightResponse> = {}): InsightResponse {
   return {
@@ -114,5 +139,153 @@ describe('AIInsightPanel', () => {
 
     expect(screen.queryByLabelText('Close insight panel')).not.toBeInTheDocument()
     expect(screen.queryByTestId('ai-insight-close')).not.toBeInTheDocument()
+  })
+
+  it('renders StreamingNarrative when stream prop is provided', async () => {
+    const stream = streamOf(
+      { type: 'delta', delta: 'Streaming narrative text' },
+      {
+        type: 'done',
+        session_id: 's-1',
+        conversation_id: 'c-1',
+        model: 'claude-opus-4-7',
+        mode: 'live',
+      },
+    )
+
+    render(<AIInsightPanel stream={stream} />)
+
+    expect(screen.getByTestId('ai-insight-streaming')).toBeInTheDocument()
+    await waitFor(() =>
+      expect(screen.getByTestId('streaming-narrative-text')).toHaveTextContent(
+        'Streaming narrative text',
+      ),
+    )
+  })
+
+  it('renders CitationList after stream completes with citations', async () => {
+    const citation = makeCitation()
+    const stream = streamOf(
+      { type: 'delta', delta: 'VaR is 5.2 USD.' },
+      {
+        type: 'done',
+        session_id: 's-1',
+        conversation_id: 'c-1',
+        model: 'claude-opus-4-7',
+        mode: 'live',
+        citations: [citation],
+      },
+    )
+
+    render(<AIInsightPanel stream={stream} />)
+
+    await waitFor(() =>
+      expect(screen.getByTestId('ai-insight-citations')).toBeInTheDocument(),
+    )
+  })
+
+  it('renders model and demo-mode badge after stream completes', async () => {
+    const stream = streamOf(
+      { type: 'delta', delta: 'Hello' },
+      {
+        type: 'done',
+        session_id: 's-1',
+        conversation_id: 'c-1',
+        model: 'canned-chat',
+        mode: 'canned',
+      },
+    )
+
+    render(<AIInsightPanel stream={stream} />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('ai-insight-model')).toHaveTextContent(
+        'canned-chat',
+      )
+      expect(screen.getByTestId('ai-insight-demo-badge')).toBeInTheDocument()
+    })
+  })
+
+  it('stream branch coexists with insight branch — stream wins when both present', async () => {
+    const legacyInsight: InsightResponse = {
+      narrative: 'Legacy non-streaming narrative',
+      bullets: ['Legacy bullet'],
+      model: 'claude-3-5-sonnet',
+      mode: 'live',
+    }
+    const stream = streamOf(
+      { type: 'delta', delta: 'Live streamed body' },
+      {
+        type: 'done',
+        session_id: 's-1',
+        conversation_id: 'c-1',
+        model: 'claude-opus-4-7',
+        mode: 'live',
+      },
+    )
+
+    render(<AIInsightPanel stream={stream} insight={legacyInsight} />)
+
+    expect(screen.getByTestId('ai-insight-streaming')).toBeInTheDocument()
+    await waitFor(() =>
+      expect(screen.getByTestId('streaming-narrative-text')).toHaveTextContent(
+        'Live streamed body',
+      ),
+    )
+    expect(screen.queryByTestId('ai-insight-content')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('Legacy non-streaming narrative'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('falls back to insight branch when stream prop is null', () => {
+    const legacyInsight: InsightResponse = {
+      narrative: 'Legacy non-streaming narrative',
+      bullets: ['Legacy bullet'],
+      model: 'claude-3-5-sonnet',
+      mode: 'live',
+    }
+
+    render(<AIInsightPanel stream={null} insight={legacyInsight} />)
+
+    expect(screen.getByTestId('ai-insight-content')).toBeInTheDocument()
+    expect(screen.getByText('Legacy non-streaming narrative')).toBeInTheDocument()
+    expect(screen.queryByTestId('ai-insight-streaming')).not.toBeInTheDocument()
+  })
+
+  it('loading state takes precedence over stream prop', () => {
+    const stream = streamOf(
+      { type: 'delta', delta: 'should not render' },
+      {
+        type: 'done',
+        session_id: 's-1',
+        conversation_id: 'c-1',
+        model: 'claude-opus-4-7',
+        mode: 'live',
+      },
+    )
+
+    render(<AIInsightPanel loading stream={stream} />)
+
+    expect(screen.getByTestId('ai-insight-loading')).toBeInTheDocument()
+    expect(screen.queryByTestId('ai-insight-streaming')).not.toBeInTheDocument()
+  })
+
+  it('error state takes precedence over stream prop', () => {
+    const stream = streamOf(
+      { type: 'delta', delta: 'should not render' },
+      {
+        type: 'done',
+        session_id: 's-1',
+        conversation_id: 'c-1',
+        model: 'claude-opus-4-7',
+        mode: 'live',
+      },
+    )
+
+    render(<AIInsightPanel error="oops" stream={stream} />)
+
+    expect(screen.getByTestId('ai-insight-error')).toBeInTheDocument()
+    expect(screen.queryByTestId('ai-insight-streaming')).not.toBeInTheDocument()
   })
 })
