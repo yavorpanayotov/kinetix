@@ -1,0 +1,20 @@
+# Test-profile overrides for the Kinetix application stack.
+#
+# Layer this file on top of docker-compose.services.yml when bringing the
+# stack up for automated testing (CI smoke / end-to-end / Playwright):
+#
+#   docker compose \
+#     -f infra/docker-compose.infra.yml \
+#     -f docker-compose.services.yml \
+#     -f docker-compose.test.yml \
+#     up --build --wait
+#
+# Test runs must never reach the live Claude Agent SDK — CI has no
+# authenticated `claude` CLI and outbound LLM calls would make tests slow,
+# flaky, and non-deterministic. Pinning DEMO_MODE=true here forces the
+# ai-insights-service container onto its canned, fixture-backed clients so
+# every test run is hermetic and reproducible.
+services:
+  ai-insights-service:
+    environment:
+      DEMO_MODE: "true"

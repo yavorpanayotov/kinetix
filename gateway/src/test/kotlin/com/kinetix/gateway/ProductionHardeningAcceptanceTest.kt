@@ -22,10 +22,31 @@ import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.testing.*
+import io.kotest.matchers.collections.shouldBeEmpty
+import io.kotest.matchers.string.shouldContain
+import java.io.File
 
 private fun testJwtConfig() = TestJwtHelper.testJwtConfig()
 private fun testJwkProvider() = TestJwtHelper.testJwkProvider()
 private fun generateToken(roles: List<Role>): String = TestJwtHelper.generateToken(roles = roles)
+
+/**
+ * Resolves the monorepo root by walking up from the test process working
+ * directory until a directory containing `settings.gradle.kts` is found.
+ * Gradle launches the `:gateway` test JVM with `user.dir` set to the
+ * `gateway/` module directory, so the root is one or more levels above.
+ */
+private fun repoRoot(): File {
+    var dir: File? = File(System.getProperty("user.dir")).absoluteFile
+    while (dir != null) {
+        if (File(dir, "settings.gradle.kts").isFile) return dir
+        dir = dir.parentFile
+    }
+    error("Could not locate the monorepo root (no settings.gradle.kts found above ${System.getProperty("user.dir")})")
+}
+
+/** The banned verification-hedge phrase — see plan ai-v2.md "Out of scope". */
+private const val BANNED_VERIFICATION_HEDGE = "verify with your team"
 
 private val bookTradeResponseJson = """
     {
@@ -179,5 +200,44 @@ class ProductionHardeningAcceptanceTest : FunSpec({
         val config = ConnectionPoolConfig.forService("position-service")
         config.maxPoolSize shouldBe 15
         config.minIdle shouldBe 3
+    }
+
+    test("ai-insights-service runs in demo mode under test — the test-profile compose override sets DEMO_MODE=true so CI never reaches the live Claude SDK") {
+        val composeOverride = File(repoRoot(), "docker-compose.test.yml")
+        composeOverride.isFile shouldBe true
+
+        val text = composeOverride.readText()
+        // The override must declare the ai-insights-service container and
+        // pin DEMO_MODE to "true" — without it CI would default to
+        // ${DEMO_MODE:-false} from docker-compose.services.yml and attempt
+        // live LLM calls, making test runs slow, flaky, and non-deterministic.
+        text shouldContain "ai-insights-service:"
+
+        val aiSection = text.substringAfter("ai-insights-service:")
+        aiSection shouldContain "DEMO_MODE"
+        val demoModeAssignment = aiSection
+            .lineSequence()
+            .map { it.trim() }
+            .first { it.startsWith("DEMO_MODE") }
+        demoModeAssignment.replace(" ", "") shouldBe """DEMO_MODE:"true""""
+    }
+
+    test("no verification-hedge copy under ai-insights-service/src — banned-phrase scrub finds the phrase in no canned fixture or fallback") {
+        val srcDir = File(repoRoot(), "ai-insights-service/src")
+        srcDir.isDirectory shouldBe true
+
+        val offenders = srcDir.walkTopDown()
+            .filter { it.isFile }
+            .filter { file ->
+                runCatching { file.readText().contains(BANNED_VERIFICATION_HEDGE) }
+                    .getOrDefault(false)
+            }
+            .map { it.relativeTo(repoRoot()).path }
+            .toList()
+
+        // "verify with your team" is verification-hedge copy explicitly
+        // ruled out by the plan — citations are the trust anchor. No canned
+        // fixture or fallback narrative may contain it.
+        offenders.shouldBeEmpty()
     }
 })
