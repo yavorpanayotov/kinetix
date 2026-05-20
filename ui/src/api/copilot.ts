@@ -73,6 +73,30 @@ export type ChatChunk =
     }
 
 /**
+ * A single intraday Copilot push event delivered over the ``/ws/copilot``
+ * WebSocket channel (PR 7 / ADR-0036).
+ *
+ * Mirrors the gateway ``CopilotPushRequest`` DTO
+ * (``gateway/.../dtos/CopilotPushRequest.kt``), which in turn mirrors the
+ * Python ``IntradayPush`` model: a firing intraday threshold composed into a
+ * sourced, dismissible alert. Field names stay snake_case because that is the
+ * wire shape the gateway forwards verbatim — the same snake_case convention
+ * already used by {@link Citation} on the chat channel.
+ *
+ * ``sources`` carries the provenance trail; each entry is {@link Citation}-shaped.
+ */
+export interface CopilotPushEvent {
+  alert_type: string
+  severity: string
+  book_id: string
+  headline: string
+  context_bullets: string[]
+  sources: Citation[]
+  session_id: string
+  generated_at: string
+}
+
+/**
  * Discriminated payload variants the UI sends to ``/chat``. Each variant
  * carries the page-specific context the model needs to answer. The route
  * accepts the same JSON shape regardless — this union just gives
