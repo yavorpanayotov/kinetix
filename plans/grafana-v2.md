@@ -140,7 +140,7 @@ not stop mid-loop:
       (every `- alert:` has `expr`, `for`, `labels`, `annotations`). Exits
       non-zero on any hard error.
       Acceptance: `node plans/scripts/validate-grafana.mjs`
-- [ ] 0.2 Create `deploy/observability/alert-rules.yml` (referenced by
+- [x] 0.2 Create `deploy/observability/alert-rules.yml` (referenced by
       `prometheus.yml:11` but missing — the alert pipeline is currently inert).
       Add at least 12 rules across groups for: service down (`up == 0` per job),
       high HTTP 5xx error rate, Kafka consumer lag, DLQ depth growth, stale market
