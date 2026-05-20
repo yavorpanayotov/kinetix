@@ -62,10 +62,10 @@ kube-prometheus-stack:
                   labels:
                     severity: critical
                   annotations:
-                    summary: "VaR breached threshold for portfolio {{ $labels.portfolio_id }}"
-                    description: "VaR value {{ $value }} exceeds 1,000,000 for portfolio {{ $labels.portfolio_id }}"
+                    summary: "VaR breached threshold for book {{ $labels.book_id }}"
+                    description: "VaR value {{ $value }} exceeds 1,000,000 for book {{ $labels.book_id }}"
                 - alert: RiskCalculationSlow
-                  expr: histogram_quantile(0.95, rate(var_calculation_duration_seconds_bucket[5m])) > 30
+                  expr: histogram_quantile(0.95, rate(risk_var_calculation_duration_seconds_bucket[5m])) > 30
                   for: 2m
                   labels:
                     severity: warning
@@ -85,13 +85,13 @@ kube-prometheus-stack:
             - name: kinetix-kafka
               rules:
                 - alert: KafkaConsumerLag
-                  expr: kafka_consumer_group_lag > 10000
+                  expr: kafka_consumergroup_lag > 10000
                   for: 10m
                   labels:
                     severity: warning
                   annotations:
-                    summary: "Kafka consumer lag is high for {{ $labels.group }}"
-                    description: "Consumer group {{ $labels.group }} has lag of {{ $value }} on topic {{ $labels.topic }}"
+                    summary: "Kafka consumer lag is high for {{ $labels.consumergroup }}"
+                    description: "Consumer group {{ $labels.consumergroup }} has lag of {{ $value }} on topic {{ $labels.topic }}"
     resources:
       requests:
         cpu: 200m
