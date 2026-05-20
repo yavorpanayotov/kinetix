@@ -97,9 +97,18 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 fun main(args: Array<String>): Unit = EngineMain.main(args)
 
+/**
+ * Attribute key under which [module] stores the Prometheus registry backing the
+ * `/metrics` endpoint, so [moduleWithRoutes] can bind additional meters (e.g.
+ * the `risk_var_limit` gauge) to the same registry that is scraped.
+ */
+val MicrometerRegistryKey: io.ktor.util.AttributeKey<PrometheusMeterRegistry> =
+    io.ktor.util.AttributeKey("position-service-micrometer-registry")
+
 fun Application.module() {
     log.info("Starting position-service")
     val appMicrometerRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
+    attributes.put(MicrometerRegistryKey, appMicrometerRegistry)
     install(MicrometerMetrics) { registry = appMicrometerRegistry }
     install(ContentNegotiation) { json() }
     install(CallLogging) {
@@ -495,6 +504,27 @@ fun Application.moduleWithRoutes() {
 
     launch {
         seedDefaultFirmLimits(limitDefinitionRepo)
+    }
+
+    // Publish a `risk_var_limit{book_id,calculation_type,confidence_level}`
+    // gauge for every configured book VaR limit. position-service owns limits,
+    // so it is the authoritative source for the limit side of VaR-utilisation
+    // dashboards (utilisation = risk_var_value / risk_var_limit on book_id).
+    // The gauge is refreshed periodically so limit edits (PUT /api/v1/limits)
+    // and demo seeding are reflected without a restart.
+    val varLimitGaugeBinder = com.kinetix.position.metrics.VarLimitGaugeBinder(
+        limitDefinitionRepository = limitDefinitionRepo,
+        registry = attributes[MicrometerRegistryKey],
+    )
+    launch {
+        while (true) {
+            try {
+                varLimitGaugeBinder.refresh()
+            } catch (e: Exception) {
+                log.warn("Failed to refresh risk_var_limit gauges", e)
+            }
+            kotlinx.coroutines.delay(java.time.Duration.ofSeconds(30).toMillis())
+        }
     }
 
     val seedEnabled = environment.config.propertyOrNull("seed.enabled")?.getString()?.toBoolean() ?: true
