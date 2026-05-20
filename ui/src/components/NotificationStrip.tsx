@@ -2,7 +2,21 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Bell, ChevronDown, ChevronUp, X } from 'lucide-react'
 import { formatRelativeTime } from '../utils/format'
 import type { MorningBrief } from '../api/brief'
+import type { CopilotPushEvent } from '../api/copilot'
+import {
+  CHIP_CLASS,
+  DOT_CLASS,
+  SEVERITY_ORDER,
+  pushSeverity,
+} from '../utils/notificationSeverity'
+import type { NotificationSeverity } from '../utils/notificationSeverity'
 import { MorningBriefCard } from './MorningBriefCard'
+import { IntradayPushItem } from './IntradayPushItem'
+
+// Re-export the severity vocabulary so existing importers of
+// `./NotificationStrip` keep working (this is a type-only re-export, so
+// it does not trip the react-refresh "components only" rule).
+export type { NotificationSeverity }
 
 /**
  * Plan §6.9 — copilot notification strip.
@@ -17,9 +31,11 @@ import { MorningBriefCard } from './MorningBriefCard'
  * (<MorningBriefCard>, 6.10) and intraday push items (PR 7). For 6.9 it is
  * driven entirely by props — the caller owns the notification list and the
  * strip only filters out items the user has dismissed.
+ *
+ * The severity vocabulary (`NotificationSeverity`, the chip/dot colour
+ * maps) lives in `../utils/notificationSeverity` so the intraday-push
+ * row (<IntradayPushItem>, §7.9) shares the exact same mapping.
  */
-export type NotificationSeverity = 'info' | 'warning' | 'critical'
-
 export interface NotificationItem {
   id: string
   severity: NotificationSeverity
@@ -45,6 +61,16 @@ export interface NotificationStripProps {
    * is expandable and non-empty even with zero notification items.
    */
   morningBrief?: MorningBrief | null
+  /**
+   * Intraday Copilot push events (plan §7.9 / PR 7), as surfaced by
+   * `useCopilotWebSocket()` — newest first. They render as `Zap`-marked
+   * inbox rows below the morning brief; more than five collapse the
+   * excess into a single "N more" badge. Like a brief, the presence of
+   * pushes alone makes the strip non-empty and expandable; their
+   * severities count toward the collapsed-bar chips. Defaults to an
+   * empty list.
+   */
+  intradayPushes?: CopilotPushEvent[]
 }
 
 const DISMISSED_KEY = 'kinetix:copilot-inbox:dismissed'
@@ -79,22 +105,11 @@ function saveBriefSeenDate(date: string): void {
   }
 }
 
-/** Severities rendered in priority order for chips and the dot legend. */
-const SEVERITY_ORDER: NotificationSeverity[] = ['critical', 'warning', 'info']
-
-/** Chip colour classes keyed by severity — class-substring assertions rely on these. */
-const CHIP_CLASS: Record<NotificationSeverity, string> = {
-  critical: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
-  warning: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
-  info: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300',
-}
-
-/** Severity dot colour classes for individual inbox rows. */
-const DOT_CLASS: Record<NotificationSeverity, string> = {
-  critical: 'bg-red-500',
-  warning: 'bg-amber-500',
-  info: 'bg-slate-400',
-}
+/**
+ * Maximum number of intraday-push rows rendered before the rest collapse
+ * into a single "N more" overflow badge (plan §7.9).
+ */
+const MAX_INTRADAY_PUSH_ROWS = 5
 
 /**
  * Read the dismissed-id set from localStorage. Tolerates a missing or
@@ -141,6 +156,13 @@ export interface NotificationInboxProps {
    */
   morningBrief?: MorningBrief | null
   briefRef?: React.RefObject<HTMLDivElement | null>
+  /**
+   * Intraday Copilot push events (plan §7.9). Rendered below the morning
+   * brief, above the notification rows; more than five collapse into a
+   * single "N more" badge. Like a brief, their presence keeps the inbox
+   * non-empty. Defaults to an empty list.
+   */
+  intradayPushes?: CopilotPushEvent[]
 }
 
 export function NotificationInbox({
@@ -149,7 +171,13 @@ export function NotificationInbox({
   onDismissAll,
   morningBrief = null,
   briefRef,
+  intradayPushes = [],
 }: NotificationInboxProps) {
+  // More than five pushes: render the first five and collapse the rest
+  // into a single "N more" badge (plan §7.9).
+  const visiblePushes = intradayPushes.slice(0, MAX_INTRADAY_PUSH_ROWS)
+  const pushOverflow = intradayPushes.length - visiblePushes.length
+
   return (
     <div
       id={INBOX_ID}
@@ -161,10 +189,27 @@ export function NotificationInbox({
           <MorningBriefCard brief={morningBrief} />
         </div>
       )}
+      {intradayPushes.length > 0 && (
+        <ul data-testid="intraday-push-list">
+          {visiblePushes.map((push) => (
+            <IntradayPushItem key={push.session_id} push={push} />
+          ))}
+          {pushOverflow > 0 && (
+            <li className="flex justify-center px-3 py-1.5 border-b border-slate-100 dark:border-surface-700">
+              <span
+                data-testid="intraday-push-overflow"
+                className="inline-flex items-center rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-surface-700 dark:text-slate-300"
+              >
+                {pushOverflow} more
+              </span>
+            </li>
+          )}
+        </ul>
+      )}
       {items.length === 0 ? (
-        // "All caught up" only when there's nothing at all — a brief
-        // alone is enough content to keep the inbox non-empty.
-        morningBrief ? null : (
+        // "All caught up" only when there's nothing at all — a brief or an
+        // intraday push alone is enough content to keep the inbox non-empty.
+        morningBrief || intradayPushes.length > 0 ? null : (
           <div
             data-testid="notification-inbox-empty"
             className="px-4 py-6 text-sm text-center text-slate-400 dark:text-slate-500"
@@ -239,6 +284,7 @@ export function NotificationStrip({
   expanded,
   onExpandedChange,
   morningBrief = null,
+  intradayPushes = [],
 }: NotificationStripProps) {
   const [dismissed, setDismissed] = useState<Set<string>>(() => loadDismissed())
   const [internalExpanded, setInternalExpanded] = useState(false)
@@ -340,10 +386,10 @@ export function NotificationStrip({
   // last visible item was just dismissed from the open inbox — the inbox
   // stays mounted so the "All caught up" message is visible.
   //
-  // A morning brief counts as content: when one is present the strip
-  // takes the populated path below (expandable, non-empty bar) even
-  // with zero notification items.
-  if (visible.length === 0 && !morningBrief) {
+  // A morning brief or an intraday push counts as content: when either is
+  // present the strip takes the populated path below (expandable,
+  // non-empty bar) even with zero notification items.
+  if (visible.length === 0 && !morningBrief && intradayPushes.length === 0) {
     return (
       <div
         role="region"
@@ -370,13 +416,17 @@ export function NotificationStrip({
     )
   }
 
-  // Severity counts for the chips — render a chip only for severities present.
+  // Severity counts for the chips — render a chip only for severities
+  // present. Intraday pushes (plan §7.9) count alongside notification
+  // items so the collapsed bar reflects the full severity picture; their
+  // free-form wire severity is narrowed via `pushSeverity`.
   const severityCounts: Record<NotificationSeverity, number> = {
     critical: 0,
     warning: 0,
     info: 0,
   }
   for (const item of visible) severityCounts[item.severity] += 1
+  for (const push of intradayPushes) severityCounts[pushSeverity(push.severity)] += 1
 
   return (
     <div
@@ -447,6 +497,7 @@ export function NotificationStrip({
           onDismissAll={handleDismissAll}
           morningBrief={morningBrief}
           briefRef={briefRef}
+          intradayPushes={intradayPushes}
         />
       )}
     </div>
