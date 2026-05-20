@@ -73,8 +73,11 @@ import com.kinetix.gateway.routes.keyRateDurationRoutes
 import com.kinetix.gateway.routes.saCcrRoutes
 import com.kinetix.gateway.audit.GovernanceAuditPublisher
 import com.kinetix.gateway.routes.reportProxyRoutes
+import com.kinetix.gateway.routes.CopilotInternalAuth
+import com.kinetix.gateway.routes.copilotInternalRoutes
 import com.kinetix.gateway.kafka.KafkaIntradayPnlConsumer
 import com.kinetix.gateway.websocket.AlertBroadcaster
+import com.kinetix.gateway.websocket.CopilotBroadcaster
 import com.kinetix.gateway.websocket.PnlBroadcaster
 import com.kinetix.gateway.websocket.PriceBroadcaster
 import com.kinetix.gateway.websocket.alertWebSocket
@@ -465,6 +468,7 @@ fun Application.devModule() {
     val priceBroadcaster = PriceBroadcaster()
     val pnlBroadcaster = PnlBroadcaster()
     val alertBroadcaster = AlertBroadcaster()
+    val copilotBroadcaster = CopilotBroadcaster()
 
     // Dev user book assignments matching Keycloak realm-export.json users
     val bookAccessService = InMemoryBookAccessService(
@@ -628,6 +632,22 @@ fun Application.devModule() {
                 resetToken = demoResetToken,
             )
         }
+    }
+
+    // Cluster-internal intraday-push intake (PR 7 / ADR-0036). ai-insights-service
+    // POSTs composed push payloads to POST /internal/copilot/push; the gateway
+    // enqueues them on the CopilotBroadcaster for /ws/copilot fan-out. The route
+    // is internal-only — no JWT challenge — and is guarded by a shared-secret
+    // header (X-Internal-Token), the same pattern demoAdminRoutes uses. It is
+    // only registered when COPILOT_INTERNAL_TOKEN is configured, so the
+    // unauthenticated route never exists without a guard.
+    val copilotInternalToken = System.getenv("COPILOT_INTERNAL_TOKEN")
+    if (copilotInternalToken != null) {
+        routing {
+            copilotInternalRoutes(copilotBroadcaster, CopilotInternalAuth(copilotInternalToken))
+        }
+    } else {
+        log.warn("COPILOT_INTERNAL_TOKEN not set — POST /internal/copilot/push is disabled")
     }
 
     val pnlConsumerProps = Properties().apply {
