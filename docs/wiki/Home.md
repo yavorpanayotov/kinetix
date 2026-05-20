@@ -13,9 +13,11 @@ This wiki is a living reference for engineers, quants, risk managers, and operat
 - **[Risk Methodology](Risk-Methodology)** — quant methods deep dive: VaR/ES, Greeks, factor model, stress, regime detection
 - **[FRTB Capital](FRTB-Capital)** — Standardised Approach: SBM, DRC, RRAO; bucket correlations; reporting
 - **[Audit and Compliance](Audit-and-Compliance)** — hash-chained audit, four-eyes governance, retention, replay
+- **[Observability](Observability)** — `correlationId` join key, dashboards-as-code, how support tracks an event
+- **[AI Features](AI-Features)** — Claude Agent SDK integration: v1 explainers (VaR, Reports), v2 Copilot foundation (MCP, citations, policy guard)
 - **[Local Development](Local-Development)** — quick start, dev loops, troubleshooting, common gotchas
 - **[Testing Strategy](Testing-Strategy)** — test pyramid, Testcontainers patterns, property-based and mutation testing
-- **[ADR Index](ADR-Index)** — all 35 architecture decisions with summaries and triggers
+- **[ADR Index](ADR-Index)** — all 36 architecture decisions with summaries and triggers
 
 ## Platform at a glance
 
@@ -23,12 +25,13 @@ This wiki is a living reference for engineers, quants, risk managers, and operat
 |---|---|
 | **Backend** | 12 Kotlin/Ktor microservices on JVM 21 |
 | **Risk engine** | Python 3.12 — NumPy, SciPy, PyTorch — 11 gRPC services |
+| **AI** | Python `ai-insights-service` (FastAPI) on the Claude Agent SDK; in-process MCP server; citation-enforced narratives |
 | **Frontend** | React 19 + TypeScript, 11 trader/risk tabs |
 | **Datastores** | PostgreSQL 17 / TimescaleDB (database-per-service), Redis 7 |
 | **Messaging** | Apache Kafka 3.9 (KRaft) — 20 production topics, per-topic DLQs |
 | **Schema** | 173 Flyway migrations across 11 service schemas |
 | **Behavioural specs** | 24 Allium v3 specifications |
-| **Architecture decisions** | 35 ADRs (32 Accepted, 3 Proposed) |
+| **Architecture decisions** | 36 ADRs |
 | **Tests** | 915 across Kotlin (Kotest), Python (pytest), UI (Vitest + Playwright) |
 | **Observability** | Prometheus, Grafana, Loki, Tempo, OpenTelemetry |
 

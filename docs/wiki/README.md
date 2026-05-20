@@ -35,9 +35,11 @@ On subsequent updates, edit the files here, copy across, push.
 | `Risk-Methodology.md` | `Risk-Methodology` | VaR/ES, Greeks, factor model, stress, regime |
 | `FRTB-Capital.md` | `FRTB-Capital` | SBM, DRC, RRAO; bucket correlations |
 | `Audit-and-Compliance.md` | `Audit-and-Compliance` | Hash chain, four-eyes, retention, replay |
+| `Observability.md` | `Observability` | `correlationId` join key, dashboards-as-code, support runbook |
+| `AI-Features.md` | `AI-Features` | Claude Agent SDK integration, v1 explainers, v2 Copilot foundation |
 | `Local-Development.md` | `Local-Development` | Setup, dev loops, troubleshooting |
 | `Testing-Strategy.md` | `Testing-Strategy` | Test pyramid, Testcontainers, mutation, property |
-| `ADR-Index.md` | `ADR-Index` | All 35 ADRs with summaries and by-task lookup |
+| `ADR-Index.md` | `ADR-Index` | All 36 ADRs with summaries and by-task lookup |
 
 ## Conventions
 
