@@ -164,7 +164,7 @@
       }
     },
     {
-      "title": "PendingNewCorrelator: TTL Evictions (rate, by venue)",
+      "title": "Order Correlator — TTL Evictions (rate, by venue)",
       "type": "timeseries",
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 28 },
@@ -177,7 +177,7 @@
       "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] }
     },
     {
-      "title": "PendingNewCorrelator: Back-Pressure (rate, by venue)",
+      "title": "Order Correlator — Back-Pressure (rate, by venue)",
       "type": "timeseries",
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 28 },
