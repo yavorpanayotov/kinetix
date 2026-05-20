@@ -17,6 +17,7 @@ General financial terms, acronyms, and concepts referenced throughout the Kineti
 | **Incremental VaR** | Change in portfolio VaR when a position or book is added or removed. |
 | **LVAR (Liquidity-adjusted VaR)** | VaR adjusted for the cost and time required to liquidate positions. |
 | **Confidence Level** | Probability threshold for VaR — e.g. 99% means "we expect losses to exceed this level only 1% of the time." |
+| **Diversification Benefit** | Reduction in aggregate portfolio risk because positions are less than perfectly correlated. Measured as the sum of standalone VaRs minus the actual portfolio VaR. |
 
 ## Greeks (Option Sensitivities)
 
@@ -52,6 +53,7 @@ General financial terms, acronyms, and concepts referenced throughout the Kineti
 | **Ledoit-Wolf Shrinkage** | Statistical technique that regularises a sample covariance matrix toward a structured target, reducing estimation error. |
 | **Cholesky Decomposition** | Factorisation of a positive-definite matrix into a lower-triangular matrix. Used to generate correlated random variables in Monte Carlo simulation. |
 | **Antithetic Variates** | Variance reduction technique that pairs each random path with its mirror image, improving Monte Carlo convergence. |
+| **Bilinear Interpolation** | Two-dimensional interpolation used to read a value off a volatility surface (across strike and maturity) when the exact grid point is not available. |
 
 ## Market Data
 
@@ -83,6 +85,22 @@ General financial terms, acronyms, and concepts referenced throughout the Kineti
 | **Trade Blotter** | A log of all trades executed, typically showing time, instrument, quantity, price, and status. |
 | **Unrealised P&L** | Gain or loss on open positions based on current market prices vs. entry prices. |
 | **Realised P&L** | Gain or loss locked in when a position is closed or reduced. |
+| **Rebalancing** | Adjusting a portfolio's holdings with a set of trades to return it to a target allocation or risk profile. |
+
+## Order Execution & FIX
+
+| Term | Definition |
+|------|-----------|
+| **FIX Protocol** | Financial Information eXchange — the industry-standard messaging protocol for electronic order routing and trade execution between trading venues and market participants. |
+| **NewOrderSingle (35=D)** | FIX message that submits a single new order to a venue. |
+| **Order Cancel Request (35=F)** | FIX message that requests cancellation of a previously submitted order. |
+| **Execution Report (35=8)** | FIX message reporting the status of an order — acknowledgement, partial fill, fill, cancellation, or rejection. |
+| **FIX Session** | A stateful, sequenced connection between two FIX endpoints. Each side maintains incrementing sender and target sequence numbers. |
+| **Sequence Number** | Monotonic counter on every message in a FIX session. A mismatch indicates lost messages and triggers a resend request. |
+| **Gap Fill** | FIX recovery mechanism that closes a sequence-number gap with an administrative message instead of resending the original business messages. |
+| **Trading Venue** | An exchange or execution facility where orders are matched (e.g. NYSE, NASDAQ, LSE). |
+| **PENDING_NEW** | Order status after submission but before the venue has acknowledged the order. |
+| **Ghost Fill** | An execution report received with no matching outbound order — a reconciliation anomaly requiring investigation. |
 
 ## Instrument Types
 
@@ -159,12 +177,15 @@ General financial terms, acronyms, and concepts referenced throughout the Kineti
 | **Scenario** | A defined set of market shocks applied simultaneously (e.g. equity -20%, rates +200bps). |
 | **Reverse Stress Test** | Finding the market conditions that would cause a specified level of loss. |
 | **Shock** | A hypothetical instantaneous change in a market variable. |
+| **What-If Analysis** | Evaluation of how a set of hypothetical trades would change a portfolio's Greeks and risk metrics against the current baseline, before any trade is executed. |
+| **Stress Window** | A named historical period of market turbulence (e.g. the 2008 crisis, the 2020 crash) used as a ready-made scenario in historical stress testing. |
 
 ## P&L Attribution
 
 | Term | Definition |
 |------|-----------|
 | **P&L Attribution** | Decomposition of total P&L into components explained by each Greek (delta P&L, gamma P&L, vega P&L, theta P&L, rho P&L) plus an unexplained residual. |
+| **Unexplained P&L** | The residual of a P&L attribution — the portion not accounted for by first- and second-order Greek terms. Captures execution slippage, fees, model error, and higher-order sensitivities. |
 | **High Water Mark** | Peak historical portfolio value, used as a reference for drawdown measurement. |
 | **Factor Model** | Decomposition of returns into systematic risk factors (e.g. market beta, rates duration, credit spread, FX delta, vol exposure). |
 | **R-squared** | Proportion of return variance explained by a factor model. Higher = better fit. |
