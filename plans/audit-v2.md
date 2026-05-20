@@ -127,7 +127,7 @@ The two new dependencies are **approved** (see CI/CD & guardrail approvals). Thi
       Acceptance: `./gradlew :risk-orchestrator:test`
 - [x] 6.2 Add `opentelemetry-instrumentation-grpc` server instrumentation to the risk-engine gRPC server (`server.py`) so it continues the inbound trace context.
       Acceptance: `cd risk-engine && uv run pytest -m unit`
-- [ ] 6.3 Add a test asserting an inbound `traceparent` is read into the active span context on the Python side.
+- [x] 6.3 Add a test asserting an inbound `traceparent` is read into the active span context on the Python side.
       Acceptance: `cd risk-engine && uv run pytest tests/test_tracing.py -m unit`
 
 ### PR 7 — Grafana dashboards as code
