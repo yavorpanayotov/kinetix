@@ -41,7 +41,7 @@ ACL failures and ``UPSTREAM_ERROR`` — is an ``error`` section.
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any, Callable
+from typing import Callable
 
 from kinetix_insights.brief.models import BriefSection, MorningBrief
 from kinetix_insights.citations.models import Citation
