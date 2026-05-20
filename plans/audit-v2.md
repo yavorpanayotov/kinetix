@@ -187,5 +187,5 @@ Prove the event trail is trustworthy under partial failure.
 
 ### PR 12 — Documentation
 
-- [ ] 12.1 Update `docs/adr/ADR-0008` (or append an observability addendum) and the wiki to document: `correlationId` as the cross-system join key, dashboards-as-code, the three Grafana dashboards and their URLs, and a short "how support tracks an event" runbook.
+- [x] 12.1 Update `docs/adr/ADR-0008` (or append an observability addendum) and the wiki to document: `correlationId` as the cross-system join key, dashboards-as-code, the three Grafana dashboards and their URLs, and a short "how support tracks an event" runbook.
       Acceptance: `grep -rqi 'correlationId' docs/ && grep -rqi 'trade-lifecycle\|risk-run-health' docs/`
