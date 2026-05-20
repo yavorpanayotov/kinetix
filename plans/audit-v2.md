@@ -92,7 +92,7 @@ Make `correlationId` a reliable join key across Loki logs, Tempo traces and the 
 
 A risk run that fails must leave a trace support can find.
 
-- [ ] 3.1 Add `RISK_CALCULATION_FAILED` to the `AuditEventType` enum (`common/.../audit/AuditEventType.kt`).
+- [x] 3.1 Add `RISK_CALCULATION_FAILED` to the `AuditEventType` enum (`common/.../audit/AuditEventType.kt`).
       Acceptance: `./gradlew :common:test`
 - [ ] 3.2 In `VaRCalculationService` (`risk-orchestrator`), publish a `RISK_CALCULATION_FAILED` `GovernanceAuditEvent` from the failure `catch` block (the one that sets `RunStatus.FAILED`), carrying `bookId`, `correlationId` and the error message in `details`. Write the failing test first: *"when the risk engine throws, a RISK_CALCULATION_FAILED governance event is published"*.
       Acceptance: `./gradlew :risk-orchestrator:test --tests "*VaRCalculationAuditTest"`
