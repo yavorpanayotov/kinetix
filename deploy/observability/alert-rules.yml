@@ -1,45 +1,77 @@
-# Prometheus alerting rules for local development.
+# Prometheus alerting rules for the Kinetix platform.
 #
-# Referenced by prometheus.yml `rule_files`. Ported from the Helm
-# observability chart (deploy/helm/kinetix/charts/observability/values.yaml,
-# additionalPrometheusRulesMap) with metric/label names corrected to match
-# what the services actually emit:
+# Referenced by prometheus.yml `rule_files`. Ported from the Helm observability
+# chart (deploy/helm/kinetix/charts/observability/values.yaml,
+# additionalPrometheusRulesMap) with metric/label names corrected to match what
+# the services actually emit:
 #   - risk-engine histogram is `risk_var_calculation_duration_seconds`
 #     (so the bucket series is `risk_var_calculation_duration_seconds_bucket`)
 #   - kafka-exporter emits `kafka_consumergroup_lag`
 #   - `risk_var_value` carries a `book_id` label, not `portfolio_id`
-#   - price-service emits `price_staleness_seconds{instrument_id=...}` (correct as-is)
+#   - price-service emits `price_staleness_seconds{instrument_id=...}`
+#
+# Alertmanager (deploy/observability/alertmanager.yml) routes any alert with
+# `severity: critical` to the critical receiver (10s group_wait, 1h repeat);
+# everything else (`severity: warning`) falls through to the default receiver.
+#
+# Job names below match the scrape_configs in prometheus.yml. Kafka lag/offset
+# metrics come from the kafka-exporter job; database `pg_*` metrics from the
+# postgres-exporter (job "postgres"). Service metrics (up, http_*,
+# hikaricp_*, jvm_*, process_*) are exposed by each Kotlin/Ktor service via
+# Micrometer; the risk-engine exposes risk_var_* via the Python
+# prometheus_client.
 groups:
-  - name: kinetix-risk
+  # ---------------------------------------------------------------------------
+  - name: kinetix-availability
     rules:
-      - alert: VaRBreached
-        expr: risk_var_value > 1000000
+      - alert: ServiceDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "Prometheus has been unable to scrape {{ $labels.instance }} (job {{ $labels.job }}) for over 2m — the service is unreachable or has crashed."
+
+      - alert: ServiceFlapping
+        expr: changes(up[15m]) > 4
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Service {{ $labels.job }} is flapping"
+          description: "Target {{ $labels.instance }} (job {{ $labels.job }}) has changed scrape state more than 4 times in 15m — an unstable or crash-looping service."
+
+  # ---------------------------------------------------------------------------
+  - name: kinetix-http
+    rules:
+      - alert: HighHttp5xxErrorRate
+        expr: |
+          sum by (job) (rate(ktor_http_server_requests_seconds_count{status=~"5.."}[5m]))
+            /
+          sum by (job) (rate(ktor_http_server_requests_seconds_count[5m]))
+            > 0.05
         for: 5m
         labels:
           severity: critical
         annotations:
-          summary: "VaR breached threshold for book {{ $labels.book_id }}"
-          description: "VaR value {{ $value }} exceeds 1,000,000 for book {{ $labels.book_id }}"
-      - alert: RiskCalculationSlow
-        expr: histogram_quantile(0.95, rate(risk_var_calculation_duration_seconds_bucket[5m])) > 30
-        for: 2m
+          summary: "High HTTP 5xx error rate on {{ $labels.job }}"
+          description: "More than 5% of HTTP requests served by {{ $labels.job }} returned 5xx over the last 5m (current ratio {{ $value | humanizePercentage }})."
+
+      - alert: ElevatedHttpLatency
+        expr: |
+          histogram_quantile(
+            0.99,
+            sum by (job, le) (rate(ktor_http_server_requests_seconds_bucket[5m]))
+          ) > 1.5
+        for: 10m
         labels:
           severity: warning
         annotations:
-          summary: "Risk calculation p95 latency exceeds 30s"
-          description: "P95 VaR calculation duration is {{ $value }}s"
+          summary: "Elevated HTTP p99 latency on {{ $labels.job }}"
+          description: "The p99 HTTP request latency for {{ $labels.job }} has exceeded 1.5s for 10m (current {{ $value }}s)."
 
-  - name: kinetix-price
-    rules:
-      - alert: PriceStale
-        expr: price_staleness_seconds > 60
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: "Price data is stale for {{ $labels.instrument_id }}"
-          description: "Price staleness is {{ $value }}s for {{ $labels.instrument_id }}"
-
+  # ---------------------------------------------------------------------------
   - name: kinetix-kafka
     rules:
       - alert: KafkaConsumerLag
@@ -49,4 +81,141 @@ groups:
           severity: warning
         annotations:
           summary: "Kafka consumer lag is high for {{ $labels.consumergroup }}"
-          description: "Consumer group {{ $labels.consumergroup }} has lag of {{ $value }} on topic {{ $labels.topic }}"
+          description: "Consumer group {{ $labels.consumergroup }} has lag of {{ $value }} on topic {{ $labels.topic }}."
+
+      - alert: KafkaConsumerStalled
+        expr: |
+          kafka_consumergroup_lag > 0
+            and
+          rate(kafka_consumergroup_current_offset[10m]) == 0
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Kafka consumer {{ $labels.consumergroup }} is stalled"
+          description: "Consumer group {{ $labels.consumergroup }} has outstanding lag on topic {{ $labels.topic }} but its committed offset has not advanced for 15m — the consumer is stuck."
+
+      - alert: KafkaDlqDepthGrowing
+        expr: |
+          delta(
+            kafka_topic_partition_current_offset{topic=~".+\\.dlq"}[15m]
+          ) > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Dead-letter queue {{ $labels.topic }} is growing"
+          description: "New messages have been written to dead-letter topic {{ $labels.topic }} in the last 15m — a consumer has exhausted its retries and is shedding messages that need manual replay."
+
+  # ---------------------------------------------------------------------------
+  - name: kinetix-price
+    rules:
+      - alert: PriceStale
+        expr: price_staleness_seconds > 60
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Price data is stale for {{ $labels.instrument_id }}"
+          description: "Price staleness is {{ $value }}s for {{ $labels.instrument_id }} — risk and P&L are running on stale prices."
+
+      - alert: PriceSeverelyStale
+        expr: price_staleness_seconds > 300
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Market data severely stale for {{ $labels.instrument_id }}"
+          description: "The price for {{ $labels.instrument_id }} is more than 300s old ({{ $value }}s) and has not refreshed for 5m."
+
+  # ---------------------------------------------------------------------------
+  - name: kinetix-risk
+    rules:
+      - alert: VaRBreached
+        expr: risk_var_value > 1000000
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "VaR breached threshold for book {{ $labels.book_id }}"
+          description: "VaR value {{ $value }} exceeds 1,000,000 for book {{ $labels.book_id }} (confidence {{ $labels.confidence_level }}) — the book is over its risk budget."
+
+      - alert: RiskCalculationSlow
+        expr: histogram_quantile(0.95, rate(risk_var_calculation_duration_seconds_bucket[5m])) > 30
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Risk calculation p95 latency exceeds 30s"
+          description: "P95 VaR calculation duration is {{ $value }}s — risk runs are slow and may delay the risk picture."
+
+      - alert: RiskRunStale
+        expr: |
+          time() - max by (book_id) (
+            timestamp(risk_var_calculation_total)
+          ) > 3600
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Risk run stale for book {{ $labels.book_id }}"
+          description: "No completed VaR calculation has been recorded for book {{ $labels.book_id }} in over an hour — the risk picture for this book is out of date."
+
+  # ---------------------------------------------------------------------------
+  - name: kinetix-database
+    rules:
+      - alert: DatabaseConnectionSaturation
+        expr: |
+          sum by (job) (hikaricp_connections_active)
+            /
+          sum by (job) (hikaricp_connections_max)
+            > 0.9
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database connection pool near saturation on {{ $labels.job }}"
+          description: "More than 90% of the HikariCP connection pool for {{ $labels.job }} has been in use for 5m — new requests risk timing out acquiring a connection."
+
+      - alert: DatabaseConnectionsPending
+        expr: hikaricp_connections_pending > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Threads waiting for a DB connection on {{ $labels.job }}"
+          description: "One or more threads in {{ $labels.job }} have been waiting to acquire a database connection for 5m — the HikariCP pool is under-provisioned or queries are running long."
+
+      - alert: PostgresDown
+        expr: pg_up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL is unreachable"
+          description: "The postgres-exporter has reported the PostgreSQL server as unreachable for more than 2m — all persistence is at risk."
+
+  # ---------------------------------------------------------------------------
+  - name: kinetix-jvm-process
+    rules:
+      - alert: JvmHeapPressure
+        expr: |
+          sum by (job, instance) (jvm_memory_used_bytes{area="heap"})
+            /
+          sum by (job, instance) (jvm_memory_max_bytes{area="heap"})
+            > 0.9
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "JVM heap pressure on {{ $labels.job }}"
+          description: "JVM heap usage on {{ $labels.instance }} ({{ $labels.job }}) has exceeded 90% of the maximum heap for 10m — risk of long GC pauses or OutOfMemoryError."
+
+      - alert: ProcessFileDescriptorsExhausting
+        expr: process_open_fds / process_max_fds > 0.85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "File descriptors near exhaustion on {{ $labels.job }}"
+          description: "The process for {{ $labels.job }} on {{ $labels.instance }} has been using more than 85% of its available file descriptors for 10m — new connections or files may soon fail to open."
