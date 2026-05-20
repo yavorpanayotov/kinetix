@@ -158,7 +158,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
       Acceptance: `cd ui && npm run test -- AIInsightPanel && cd ui && npx playwright test e2e/report-commentary.spec.ts`
 - [x] 5.6 Extend `<CommandPalette>` with `copilotMode?: boolean` prop + a streaming-response zone below the input. When ⌘K is opened and the user types free-form, fire `chat()` and render `<StreamingNarrative>` + `<CitationList>`. Add multi-turn follow-up textarea (Shift+Enter newline; Enter sends). Vitest covers the new zone.
       Acceptance: `cd ui && npm run test -- CommandPalette`
-- [ ] 5.7 Add `page_context` plumbing: a `useCopilotContext()` hook that reads route + visible selections (book, scenario, VaR result) and serialises them. Used by both `<ExplainButton>` and `<CommandPalette>`. Vitest covers context shape per route.
+- [x] 5.7 Add `page_context` plumbing: a `useCopilotContext()` hook that reads route + visible selections (book, scenario, VaR result) and serialises them. Used by both `<ExplainButton>` and `<CommandPalette>`. Vitest covers context shape per route.
       Acceptance: `cd ui && npm run test -- useCopilotContext`
 - [ ] 5.8 Add `chatMockCanned` helper to `ui/e2e/fixtures.ts` — fulfils `/api/v1/insights/chat` with a multi-chunk SSE body. Add Playwright `ui/e2e/copilot-chat.spec.ts` covering: ⌘K open, free-form question, streaming token render, citation chip click, Esc-cancels-stream, demo-mode badge visible.
       Acceptance: `cd ui && npm run lint && npx playwright test e2e/copilot-chat.spec.ts`
