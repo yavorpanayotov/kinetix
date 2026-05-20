@@ -183,7 +183,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
       Acceptance: `./gradlew :gateway:acceptanceTest --tests "*CopilotBriefRouteAcceptanceTest"`
 - [x] 6.9 Add `<NotificationStrip>` + `<NotificationInbox>` in `ui/src/components/NotificationStrip.tsx`. 36px collapsed bar below `<SystemStatusBanner>`, above `<RiskTickerStrip>`. Severity chips, "N unread", expand-to-inbox (max-height 320px scroll). Per-item dismiss + dismiss-all; dismissed IDs in `localStorage` keyed `kinetix:copilot-inbox:dismissed`. Vitest covers collapsed/expanded/empty/error states.
       Acceptance: `cd ui && npm run test -- NotificationStrip`
-- [ ] 6.10 Add `<MorningBriefCard>` in `ui/src/components/MorningBriefCard.tsx` rendered inside `<NotificationInbox>`. On first inbox open of the trading day (compare `localStorage` key `kinetix:morning-brief:last-seen-date` vs today), auto-expand inbox + scroll to brief items. Add Playwright `ui/e2e/morning-brief.spec.ts` covering brief render, auto-expand-on-first-load, dismiss-without-losing-access, demo-mode badge.
+- [x] 6.10 Add `<MorningBriefCard>` in `ui/src/components/MorningBriefCard.tsx` rendered inside `<NotificationInbox>`. On first inbox open of the trading day (compare `localStorage` key `kinetix:morning-brief:last-seen-date` vs today), auto-expand inbox + scroll to brief items. Add Playwright `ui/e2e/morning-brief.spec.ts` covering brief render, auto-expand-on-first-load, dismiss-without-losing-access, demo-mode badge.
       Acceptance: `cd ui && npm run lint && npm run test -- MorningBriefCard && npx playwright test e2e/morning-brief.spec.ts`
 
 ### PR 7 — Intraday push: Kafka consumer + WebSocket + UI
