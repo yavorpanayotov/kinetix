@@ -138,7 +138,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       `counterparty-risk.allium:415-444`.
       Acceptance: `./gradlew :risk-orchestrator:test :risk-orchestrator:acceptanceTest --tests "*SaCcr*"`
 
-- [ ] 1.4 Re-enable `ScheduledRegimeDetector`. Remove the stubbed `NORMAL` provider
+- [x] 1.4 Re-enable `ScheduledRegimeDetector`. Remove the stubbed `NORMAL` provider
       at `risk-orchestrator/Application.kt:722-742` and wire the real detector
       (debounce, listener, distributed-lock plumbing already implemented). Verify
       `RegimeHistory` is written and the downstream rules (`OverrideVaRParameters`,
