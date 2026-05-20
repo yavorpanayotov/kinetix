@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { Activity, BarChart3, ScrollText, TrendingUp, Shield, FlaskConical, Scale, Bell, Server, FlaskRound, Sun, Moon, CalendarDays, Users, FileText, LogOut } from 'lucide-react'
+import { Activity, BarChart3, ScrollText, TrendingUp, Shield, FlaskConical, Scale, Bell, Server, FlaskRound, Sun, Moon, CalendarDays, Users, FileText, History, LogOut } from 'lucide-react'
 import { ErrorBoundary, SectionErrorCard } from './components/ErrorBoundary'
 import { SubTabBar } from './components/ui/SubTabBar'
 import { PositionGrid } from './components/PositionGrid'
@@ -18,6 +18,7 @@ import { HedgeRecommendationPanel } from './components/HedgeRecommendationPanel'
 import { useHedgeRecommendation } from './hooks/useHedgeRecommendation'
 import { CounterpartyRiskDashboard } from './components/CounterpartyRiskDashboard'
 import { ReportsTab } from './components/ReportsTab'
+import { AuditLogPanel } from './components/AuditLogPanel'
 import { EodTimelineTab } from './components/EodTimelineTab'
 import { BookSummaryCard } from './components/BookSummaryCard'
 import { RiskTickerStrip } from './components/RiskTickerStrip'
@@ -67,7 +68,7 @@ import { CommandPalette, type CommandItem } from './components/CommandPalette'
 import type { SavedQuery } from './api/savedQueries'
 import { SmallViewportWarning, MIN_VIEWPORT_WIDTH_PX } from './components/SmallViewportWarning'
 
-type Tab = 'positions' | 'trades' | 'pnl' | 'risk' | 'eod' | 'scenarios' | 'regulatory' | 'counterparty-risk' | 'reports' | 'alerts' | 'system'
+type Tab = 'positions' | 'trades' | 'pnl' | 'risk' | 'eod' | 'scenarios' | 'regulatory' | 'counterparty-risk' | 'reports' | 'activity' | 'alerts' | 'system'
 
 // Plan §2.1: the 11 top-level tabs are grouped into three visual clusters
 // — Trading, Risk, Ops. The clusters are communicated by thin presentational
@@ -92,6 +93,7 @@ const TABS: { key: Tab; label: string; icon: typeof Activity; cluster: TabCluste
   // Ops cluster
   { key: 'regulatory', label: 'Regulatory', icon: Scale, cluster: 'ops', clusterStart: true },
   { key: 'reports', label: 'Reports', icon: FileText, cluster: 'ops' },
+  { key: 'activity', label: 'Activity', icon: History, cluster: 'ops' },
   { key: 'alerts', label: 'Alerts', icon: Bell, cluster: 'ops' },
   { key: 'system', label: 'System', icon: Server, cluster: 'ops' },
 ]
@@ -979,6 +981,12 @@ function AppContent() {
                       setActiveTab('risk')
                     }}
                   />
+                )}
+
+                {activeTab === 'activity' && (
+                  <ErrorBoundary fallback={<SectionErrorCard name="Activity" />}>
+                    <AuditLogPanel />
+                  </ErrorBoundary>
                 )}
 
                 {activeTab === 'alerts' && (

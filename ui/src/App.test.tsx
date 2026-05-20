@@ -52,6 +52,10 @@ vi.mock('./components/CounterpartyRiskDashboard', () => ({
     </div>
   ),
 }))
+vi.mock('./api/audit', () => ({
+  fetchAuditEvents: vi.fn(async () => []),
+  verifyAuditChain: vi.fn(async () => ({ valid: true, eventCount: 0 })),
+}))
 vi.mock('./components/ReportsTab', () => ({
   ReportsTab: ({
     onJumpToRiskAtDate,
@@ -457,6 +461,17 @@ describe('App', () => {
     fireEvent.click(screen.getByTestId('tab-regulatory'))
 
     expect(screen.getByTestId('regulatory-tab-wrapper')).toBeInTheDocument()
+  })
+
+  it('has an Activity tab that renders the audit log panel when clicked', () => {
+    render(<App />)
+
+    expect(screen.getByTestId('tab-activity')).toBeInTheDocument()
+    expect(screen.queryByTestId('audit-log-panel')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('tab-activity'))
+
+    expect(screen.getByTestId('audit-log-panel')).toBeInTheDocument()
   })
 
   it('clicking Alerts tab shows notification center', () => {
@@ -1434,7 +1449,7 @@ describe('App', () => {
     // The 11 top-level tabs are visually grouped into three clusters:
     //   Trading: Positions · Trades · P&L
     //   Risk:    Risk · EOD · Scenarios · Counterparty
-    //   Ops:     Regulatory · Reports · Alerts · System
+    //   Ops:     Regulatory · Reports · Activity · Alerts · System
     // The grouping is communicated by thin presentational dividers between
     // the cluster boundaries. All tabs remain inside a single tablist so
     // keyboard navigation continues to work uniformly.
@@ -1448,6 +1463,7 @@ describe('App', () => {
       'tab-counterparty-risk',
       'tab-regulatory',
       'tab-reports',
+      'tab-activity',
       'tab-alerts',
       'tab-system',
     ]
