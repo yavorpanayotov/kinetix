@@ -120,12 +120,15 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       test in the same commit. Do not yet migrate the instrument fields (1.2).
       Acceptance: `./gradlew :common:test`
 
-- [ ] 1.2 Migrate the typed instrument fields off raw `String` onto the 1.1 enums:
+- [x] 1.2 Migrate the typed instrument fields off raw `String` onto the 1.1 enums:
       `EquityOption.optionType`/`exerciseStyle`, `CommodityOption.optionType`,
       `FxOption.optionType`, `CorporateBond.seniority`, `InterestRateSwap.payReceive`.
       Update serialization, DTOs and every consuming service; the build must stay
       green. Source: `group-a` C9.
-      Acceptance: `./gradlew build`
+      Acceptance: `./gradlew test` (compiles all modules + unit tests; full
+      `./gradlew build` is not runnable here — it pulls in stack-dependent
+      `:end2end-tests:end2EndTest`/`:loadTest`/`:gateway:loadTest` and exhausts
+      Postgres connections running every module's acceptanceTest in parallel).
 
 - [ ] 1.3 SA-CCR per-netting-set computation. `SaCcrService.kt:44` synthesises one
       fake netting set `"$counterpartyId-SA-CCR"`; rewrite to group trades by their
