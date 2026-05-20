@@ -17,6 +17,7 @@ import io.ktor.server.request.receiveChannel
 import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondBytesWriter
 import io.ktor.server.routing.Route
+import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.utils.io.copyAndClose
 import io.ktor.utils.io.toByteArray
@@ -25,8 +26,9 @@ import io.ktor.utils.io.toByteArray
  * Gateway proxy routes for AI insight endpoints.
  *
  * Forwards `POST /api/v1/insights/explain/var` (PR 2 — VaR Explainer),
- * `POST /api/v1/insights/explain/report` (PR 3 — Risk Report Generator), and
- * `POST /api/v1/insights/chat` (PR 4 — Copilot streaming chat) to the
+ * `POST /api/v1/insights/explain/report` (PR 3 — Risk Report Generator),
+ * `POST /api/v1/insights/chat` (PR 4 — Copilot streaming chat), and
+ * `GET /api/v1/insights/brief/today` (PR 6 — Copilot daily brief) to the
  * `ai-insights-service` backend without transforming the body. The gateway
  * does not own the insight schema — request and response bodies pass through
  * as raw bytes so downstream schema evolution does not require redeploying
@@ -60,6 +62,9 @@ fun Route.insightsRoutes(
             "$insightsBaseUrl/api/v1/insights/chat",
             call,
         )
+    }
+    get("/api/v1/insights/brief/today") {
+        proxyToInsights(httpClient, "$insightsBaseUrl/api/v1/insights/brief/today", call)
     }
 }
 
