@@ -175,7 +175,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_tool_search_audit_log.py -m unit`
 - [x] 6.5 Add `MorningBriefGenerator` in `src/kinetix_insights/brief/generator.py`: per-book iteration over `get_book_var`, `get_pnl_attribution`, `get_recent_breaches`, `get_limit_utilisation`, `get_greeks_summary` deltas vs SOD; assembles `MorningBrief{sections[{title, narrative, bullets, sources, severity}], generated_at, mode}`. Per-book errors do NOT abort the batch — surface as `status: timeout/error` sections.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_morning_brief_generator.py -m unit`
-- [ ] 6.6 Add `CannedBriefClient` in `src/kinetix_insights/brief/canned.py` returning a fixture from `fixtures/demo_brief.json`. Add `ClaudeAgentBriefClient` wrapping the generator + SDK summarisation. Factory selects via `DEMO_MODE`.
+- [x] 6.6 Add `CannedBriefClient` in `src/kinetix_insights/brief/canned.py` returning a fixture from `fixtures/demo_brief.json`. Add `ClaudeAgentBriefClient` wrapping the generator + SDK summarisation. Factory selects via `DEMO_MODE`.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_brief_factory.py -m unit`
 - [ ] 6.7 Add `GET /api/v1/insights/brief/today` route — returns 200 with brief if generated, 202 with `{status: generating, retry_after}` otherwise. Background lifespan task schedules generation at 06:30 local (cron via `asyncio` sleep loop) and on-demand if not yet generated when first requested today.
       Acceptance: `cd ai-insights-service && DEMO_MODE=true uv run pytest tests/test_brief_acceptance.py -m unit`
