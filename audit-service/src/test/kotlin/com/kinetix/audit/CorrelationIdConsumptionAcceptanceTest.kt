@@ -111,4 +111,44 @@ class CorrelationIdConsumptionAcceptanceTest : FunSpec({
         job.cancel()
         producer.close()
     }
+
+    test("a RISK_CALCULATION_FAILED governance event is consumed — the failure is persisted end-to-end with its details and correlationId preserved") {
+        val bootstrapServers = KafkaTestSetup.start()
+        val topic = "governance.audit.failed-${UUID.randomUUID()}"
+        val correlationId = "corr-risk-failed-${UUID.randomUUID()}"
+        val bookId = "book-risk-failed-${UUID.randomUUID()}"
+        val errorDetails = "VaR calculation failed: risk-engine gRPC call timed out after 30s"
+
+        val kafkaConsumer = KafkaTestSetup.createConsumer(bootstrapServers, "audit-risk-failed")
+        val consumer = GovernanceAuditEventConsumer(kafkaConsumer, repository, topic = topic)
+        val job = launch { consumer.start() }
+
+        val event = GovernanceAuditEvent(
+            eventType = AuditEventType.RISK_CALCULATION_FAILED,
+            userId = "system",
+            userRole = "SYSTEM",
+            bookId = bookId,
+            details = errorDetails,
+            correlationId = correlationId,
+        )
+
+        val producer = KafkaTestSetup.createProducer(bootstrapServers)
+        producer.send(ProducerRecord(topic, bookId, Json.encodeToString(event))).get()
+
+        withTimeout(20_000) {
+            while (repository.findAll().isEmpty()) {
+                delay(100)
+            }
+        }
+
+        val stored = repository.findAll()
+        stored.size shouldBe 1
+        stored[0].eventType shouldBe "RISK_CALCULATION_FAILED"
+        stored[0].bookId shouldBe bookId
+        stored[0].details shouldBe errorDetails
+        stored[0].correlationId shouldBe correlationId
+
+        job.cancel()
+        producer.close()
+    }
 })
