@@ -11,6 +11,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.slf4j.LoggerFactory
+import org.slf4j.MDC
 import java.time.Duration
 import java.time.Instant
 import kotlin.coroutines.coroutineContext
@@ -37,12 +38,17 @@ class GovernanceAuditEventConsumer(
                     try {
                         retryableConsumer.process(record.key() ?: "", record.value()) {
                             val event = json.decodeFromString<GovernanceAuditEvent>(record.value())
-                            val auditEvent = event.toAuditEvent(receivedAt = Instant.now())
-                            repository.save(auditEvent)
-                            logger.info(
-                                "Governance audit event persisted: eventType={}, userId={}, userRole={}",
-                                auditEvent.eventType, auditEvent.userId, auditEvent.userRole,
-                            )
+                            MDC.put("correlationId", event.correlationId ?: "")
+                            try {
+                                val auditEvent = event.toAuditEvent(receivedAt = Instant.now())
+                                repository.save(auditEvent)
+                                logger.info(
+                                    "Governance audit event persisted: eventType={}, userId={}, userRole={}",
+                                    auditEvent.eventType, auditEvent.userId, auditEvent.userRole,
+                                )
+                            } finally {
+                                MDC.remove("correlationId")
+                            }
                         }
                     } catch (e: Exception) {
                         logger.error(
@@ -82,5 +88,6 @@ class GovernanceAuditEventConsumer(
         limitId = limitId,
         submissionId = submissionId,
         details = details,
+        correlationId = correlationId,
     )
 }

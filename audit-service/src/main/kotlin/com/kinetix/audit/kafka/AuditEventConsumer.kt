@@ -84,5 +84,6 @@ class AuditEventConsumer(
         userRole = userRole,
         traderId = traderId,
         eventType = auditEventType,
+        correlationId = correlationId,
     )
 }

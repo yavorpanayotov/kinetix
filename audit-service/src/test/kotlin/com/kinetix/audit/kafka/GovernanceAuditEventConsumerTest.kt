@@ -107,6 +107,33 @@ class GovernanceAuditEventConsumerTest : FunSpec({
         saved.tradeId shouldBe null
     }
 
+    test("persists governance audit event with the inbound correlationId carried onto the stored record") {
+        val event = GovernanceAuditEvent(
+            eventType = AuditEventType.RISK_CALCULATION_COMPLETED,
+            userId = "system",
+            userRole = "SYSTEM",
+            bookId = "book-A",
+            details = "VaR run complete",
+            correlationId = "corr-xyz-123",
+        )
+        val json = Json.encodeToString(event)
+        val consumer = makeConsumerWithOneRecord(json)
+
+        val savedSlot = slot<AuditEvent>()
+        coEvery { repository.save(capture(savedSlot)) } returns Unit
+
+        val governanceConsumer = GovernanceAuditEventConsumer(consumer, repository)
+        val job = launch { governanceConsumer.start() }
+        withTimeout(3000) {
+            while (!savedSlot.isCaptured) delay(50)
+        }
+        job.cancel()
+
+        val saved = savedSlot.captured
+        saved.eventType shouldBe "RISK_CALCULATION_COMPLETED"
+        saved.correlationId shouldBe "corr-xyz-123"
+    }
+
     test("persists governance audit event with RBAC_ACCESS_DENIED event type") {
         val event = GovernanceAuditEvent(
             eventType = AuditEventType.RBAC_ACCESS_DENIED,
