@@ -37,6 +37,46 @@
         "refresh": 1,
         "regex": "",
         "options": []
+      },
+      {
+        "name": "job",
+        "type": "query",
+        "label": "Job",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "query": "label_values(up, job)",
+        "refresh": 2,
+        "includeAll": true,
+        "allValue": ".+",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "hide": 0,
+        "multi": true,
+        "sort": 1
+      },
+      {
+        "name": "consumergroup",
+        "type": "query",
+        "label": "Consumer Group",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "query": "label_values(kafka_consumergroup_lag, consumergroup)",
+        "refresh": 2,
+        "includeAll": true,
+        "allValue": ".+",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "hide": 0,
+        "multi": true,
+        "sort": 1
       }
     ]
   },
@@ -61,6 +101,7 @@
           "thresholds": {
             "steps": [
               { "color": "green", "value": null },
+              { "color": "orange", "value": 0.005 },
               { "color": "red", "value": 0.01 }
             ]
           }
@@ -153,7 +194,7 @@
       },
       "targets": [
         {
-          "expr": "rate(ktor_http_server_requests_seconds_count[5m])",
+          "expr": "rate(ktor_http_server_requests_seconds_count{job=~\"$job\"}[5m])",
           "legendFormat": "{{job}} {{route}}",
           "refId": "A",
           "datasource": {
@@ -184,7 +225,7 @@
       },
       "targets": [
         {
-          "expr": "rate(ktor_http_server_requests_seconds_count{status=~\"5..\"}[5m])",
+          "expr": "rate(ktor_http_server_requests_seconds_count{status=~\"5..\", job=~\"$job\"}[5m])",
           "legendFormat": "{{job}} {{route}}",
           "refId": "A",
           "datasource": {
@@ -215,7 +256,7 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (job, le) (rate(ktor_http_server_requests_seconds_bucket[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (job, le) (rate(ktor_http_server_requests_seconds_bucket{job=~\"$job\"}[5m])))",
           "legendFormat": "{{job}}",
           "refId": "A",
           "datasource": {
@@ -246,7 +287,7 @@
       },
       "targets": [
         {
-          "expr": "jvm_memory_used_bytes",
+          "expr": "jvm_memory_used_bytes{job=~\"$job\"}",
           "legendFormat": "{{job}} {{area}} {{id}}",
           "refId": "A",
           "datasource": {
@@ -277,7 +318,7 @@
       },
       "targets": [
         {
-          "expr": "rate(jvm_gc_pause_seconds_sum[5m])",
+          "expr": "rate(jvm_gc_pause_seconds_sum{job=~\"$job\"}[5m])",
           "legendFormat": "{{job}} {{cause}}",
           "refId": "A",
           "datasource": {
@@ -308,8 +349,8 @@
       },
       "targets": [
         {
-          "expr": "kafka_consumergroup_lag",
-          "legendFormat": "{{consumergroup}} {{topic}} {{partition}}",
+          "expr": "sum by (consumergroup) (kafka_consumergroup_lag{consumergroup=~\"$consumergroup\"})",
+          "legendFormat": "{{consumergroup}}",
           "refId": "A",
           "datasource": {
             "type": "prometheus",
@@ -317,6 +358,11 @@
           }
         }
       ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      },
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
