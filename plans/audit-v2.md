@@ -96,7 +96,7 @@ A risk run that fails must leave a trace support can find.
       Acceptance: `./gradlew :common:test`
 - [x] 3.2 In `VaRCalculationService` (`risk-orchestrator`), publish a `RISK_CALCULATION_FAILED` `GovernanceAuditEvent` from the failure `catch` block (the one that sets `RunStatus.FAILED`), carrying `bookId`, `correlationId` and the error message in `details`. Write the failing test first: *"when the risk engine throws, a RISK_CALCULATION_FAILED governance event is published"*.
       Acceptance: `./gradlew :risk-orchestrator:test --tests "*VaRCalculationAuditTest"`
-- [ ] 3.3 Confirm the audit-service governance consumer persists the new event type end-to-end (consumer → Kafka → DB). Add an acceptance test if the existing one does not cover `RISK_CALCULATION_FAILED`.
+- [x] 3.3 Confirm the audit-service governance consumer persists the new event type end-to-end (consumer → Kafka → DB). Add an acceptance test if the existing one does not cover `RISK_CALCULATION_FAILED`.
       Acceptance: `./gradlew :audit-service:acceptanceTest`
 
 ### PR 4 — Audit query API for support
