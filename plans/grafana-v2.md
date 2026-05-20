@@ -163,7 +163,7 @@ not stop mid-loop:
       (dimensionless)", "Net Gamma"); correct the vega panel `description` to state
       it is dollars-per-vol-point, not a currency amount.
       Acceptance: `node plans/scripts/validate-grafana.mjs`
-- [ ] 1.3 `trading/pnl.json` — fix the "Unexplained P&L Fraction" panel: the
+- [x] 1.3 `trading/pnl.json` — fix the "Unexplained P&L Fraction" panel: the
       `!= 0` filter in the denominator blanks the whole panel when total P&L is
       exactly zero (flat book, new book, end of day). Replace with a zero-safe
       denominator (`clamp_min(abs(pnl_attribution_total_pnl{...}), 1)`) so a flat
