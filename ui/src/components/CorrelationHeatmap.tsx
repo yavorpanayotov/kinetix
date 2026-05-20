@@ -1,3 +1,16 @@
+import { useState } from 'react'
+import { useCopilotContext } from '../hooks/useCopilotContext'
+import { chat, type ChatChunk, type ChatRequest } from '../api/copilot'
+import { ExplainButton } from './ExplainButton'
+import { AIInsightPanel } from './AIInsightPanel'
+import { buildCorrelationExplainContext } from './buildCorrelationExplainContext'
+
+/** Signature of the injectable `chatFn` — mirrors `chat` in `api/copilot`. */
+type ChatFn = (
+  request: ChatRequest,
+  options?: { signal?: AbortSignal },
+) => ReadableStream<ChatChunk>
+
 const ASSET_CLASSES = ['EQUITY', 'FIXED_INCOME', 'FX', 'COMMODITY', 'DERIVATIVE']
 
 const CORRELATION_DATA: Record<string, Record<string, number>> = {
@@ -18,6 +31,12 @@ const SHORT_LABELS: Record<string, string> = {
 
 interface CorrelationHeatmapProps {
   assetClasses?: string[]
+  /**
+   * Dependency-injection seam for the streaming `chat()` client. Tests
+   * substitute a fake; production callers leave it unset and the real
+   * `chat` import is used (plan §9.5).
+   */
+  chatFn?: ChatFn
 }
 
 function getCellColor(value: number, isDiagonal: boolean): string {
@@ -44,10 +63,44 @@ function getTextColor(value: number, isDiagonal: boolean): string {
   return '#334155'
 }
 
-export function CorrelationHeatmap({ assetClasses }: CorrelationHeatmapProps) {
+export function CorrelationHeatmap({ assetClasses, chatFn = chat }: CorrelationHeatmapProps) {
   const classes = assetClasses
     ? ASSET_CLASSES.filter((ac) => assetClasses.includes(ac))
     : ASSET_CLASSES
+
+  const copilotContext = useCopilotContext()
+
+  // Inline explainer state (plan §9.5). At most one panel is ever open
+  // for the matrix; `explainStream` is the live `/chat` token stream.
+  const [explainOpen, setExplainOpen] = useState(false)
+  const [explainStream, setExplainStream] = useState<ReadableStream<ChatChunk> | null>(null)
+
+  /**
+   * Open the matrix-level inline explainer, focused on correlation
+   * breaks derived from the matrix already on screen.
+   *
+   * Double-click protection: a second click while the panel is already
+   * open is a no-op — neither a duplicate panel nor a duplicate `/chat`
+   * request is created (plan §9.5).
+   */
+  const handleExplain = () => {
+    if (explainOpen) return
+    const stream = chatFn({
+      message: 'Explain the correlation breaks in this matrix — where is diversification weakest?',
+      page_context: buildCorrelationExplainContext(
+        copilotContext,
+        classes,
+        CORRELATION_DATA,
+      ),
+    })
+    setExplainOpen(true)
+    setExplainStream(stream)
+  }
+
+  const closeExplain = () => {
+    setExplainOpen(false)
+    setExplainStream(null)
+  }
 
   const cellWidth = 52
   const cellHeight = 40
@@ -58,7 +111,28 @@ export function CorrelationHeatmap({ assetClasses }: CorrelationHeatmapProps) {
 
   return (
     <div data-testid="correlation-heatmap" className="rounded-lg border border-slate-200 bg-white p-4">
-      <h3 className="text-sm font-semibold text-slate-700 mb-3">Correlation Matrix</h3>
+      {/* Matrix header — matrix-level explain affordance (plan §9.5). */}
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold text-slate-700">Correlation Matrix</h3>
+        <ExplainButton
+          data-testid="explain-correlation-matrix"
+          label="Explain"
+          ariaLabel="Explain correlation breaks"
+          onClick={handleExplain}
+          className="px-2 py-1 text-xs"
+        />
+      </div>
+
+      {explainOpen && explainStream && (
+        <div data-testid="correlation-explain-panel" className="mb-3">
+          <AIInsightPanel
+            stream={explainStream}
+            title="Explain — Correlation Breaks"
+            onClose={closeExplain}
+          />
+        </div>
+      )}
+
       <svg width={svgWidth} height={svgHeight} style={{ display: 'block' }}>
         {/* Column header labels */}
         {classes.map((col, colIdx) => (

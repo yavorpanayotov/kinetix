@@ -1,7 +1,29 @@
-import { render, screen, fireEvent } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
 import type { GreeksResultDto } from '../types'
+import type { ChatChunk, ChatRequest } from '../api/copilot'
 import { RiskSensitivities } from './RiskSensitivities'
+
+/**
+ * Build a `ReadableStream<ChatChunk>` that emits one delta chunk then a
+ * terminal `done` — the streaming-explainer test double (plan §9.5).
+ */
+function fakeChatStream(): ReadableStream<ChatChunk> {
+  return new ReadableStream<ChatChunk>({
+    start(controller) {
+      controller.enqueue({ type: 'delta', delta: 'Net delta is long.' })
+      controller.enqueue({
+        type: 'done',
+        session_id: 's',
+        conversation_id: 'c',
+        model: 'canned-chat',
+        mode: 'canned',
+      })
+      controller.close()
+    },
+  })
+}
 
 const greeksResult: GreeksResultDto = {
   bookId: 'book-1',
@@ -245,6 +267,75 @@ describe('RiskSensitivities', () => {
       fireEvent.click(screen.getByTestId('greek-info-delta'))
       expect(screen.queryByTestId('greek-popover-theta')).not.toBeInTheDocument()
       expect(screen.getByTestId('greek-popover-delta')).toBeInTheDocument()
+    })
+  })
+
+  describe('aggregate-Greeks inline explainer (plan §9.5)', () => {
+    it('renders a card-level Explain button with no panel before it is clicked', () => {
+      render(<RiskSensitivities greeksResult={greeksResult} />)
+
+      expect(screen.getByTestId('explain-greeks')).toBeInTheDocument()
+      expect(screen.queryByTestId('greeks-explain-panel')).not.toBeInTheDocument()
+    })
+
+    it('opens the streaming insight panel when the Explain button is clicked', async () => {
+      const chatFn = vi.fn(() => fakeChatStream())
+      render(<RiskSensitivities greeksResult={greeksResult} chatFn={chatFn} />)
+
+      await userEvent.click(screen.getByTestId('explain-greeks'))
+
+      expect(screen.getByTestId('greeks-explain-panel')).toBeInTheDocument()
+      await waitFor(() =>
+        expect(screen.getByTestId('streaming-narrative-text')).toHaveTextContent(
+          'Net delta is long.',
+        ),
+      )
+    })
+
+    it('attaches the aggregate Greeks figures to the explain page_context', async () => {
+      const chatFn = vi.fn<(req: ChatRequest) => ReadableStream<ChatChunk>>(
+        () => fakeChatStream(),
+      )
+      render(<RiskSensitivities greeksResult={greeksResult} chatFn={chatFn} />)
+
+      await userEvent.click(screen.getByTestId('explain-greeks'))
+
+      expect(chatFn).toHaveBeenCalledTimes(1)
+      const request = chatFn.mock.calls[0][0]
+      const ctx = request.page_context as Record<string, unknown>
+      expect(ctx.page).toBe('greeks')
+      expect(ctx.book_id).toBe('book-1')
+
+      // delta = 1234.56 + 567.89 = 1802.45; theta/rho are book-level scalars.
+      const agg = ctx.aggregate_greeks as Record<string, number>
+      expect(agg.delta).toBeCloseTo(1802.45)
+      expect(agg.gamma).toBeCloseTo(91.24)
+      expect(agg.vega).toBeCloseTo(8023.79)
+      expect(agg.theta).toBeCloseTo(-123.45)
+      expect(agg.rho).toBeCloseTo(456.78)
+    })
+
+    it('a rapid double-click does not fire a duplicate chat request', async () => {
+      const chatFn = vi.fn(() => fakeChatStream())
+      render(<RiskSensitivities greeksResult={greeksResult} chatFn={chatFn} />)
+
+      const button = screen.getByTestId('explain-greeks')
+      await userEvent.click(button)
+      await userEvent.click(button)
+
+      expect(chatFn).toHaveBeenCalledTimes(1)
+      expect(screen.getAllByTestId('greeks-explain-panel')).toHaveLength(1)
+    })
+
+    it('the panel close button dismisses the explainer', async () => {
+      const chatFn = vi.fn(() => fakeChatStream())
+      render(<RiskSensitivities greeksResult={greeksResult} chatFn={chatFn} />)
+
+      await userEvent.click(screen.getByTestId('explain-greeks'))
+      expect(screen.getByTestId('greeks-explain-panel')).toBeInTheDocument()
+
+      await userEvent.click(screen.getByTestId('ai-insight-close'))
+      expect(screen.queryByTestId('greeks-explain-panel')).not.toBeInTheDocument()
     })
   })
 })

@@ -5,8 +5,19 @@ import { useClickOutside } from '../hooks/useClickOutside'
 import { formatNum } from '../utils/format'
 import { formatAssetClassLabel } from '../utils/formatAssetClass'
 import { formatCompactCurrency } from '../utils/formatCompactCurrency'
+import { useCopilotContext } from '../hooks/useCopilotContext'
+import { chat, type ChatChunk, type ChatRequest } from '../api/copilot'
+import { ExplainButton } from './ExplainButton'
+import { AIInsightPanel } from './AIInsightPanel'
+import { buildGreeksExplainContext } from './buildGreeksExplainContext'
 
 type Greek = 'delta' | 'gamma' | 'vega' | 'theta' | 'rho'
+
+/** Signature of the injectable `chatFn` — mirrors `chat` in `api/copilot`. */
+type ChatFn = (
+  request: ChatRequest,
+  options?: { signal?: AbortSignal },
+) => ReadableStream<ChatChunk>
 
 const greekDescriptions: Record<Greek, string> = {
   delta: "Estimated change in portfolio VaR for a $1 move in the underlying. A positive value means VaR increases as the underlying rises.",
@@ -19,14 +30,49 @@ const greekDescriptions: Record<Greek, string> = {
 interface RiskSensitivitiesProps {
   greeksResult: GreeksResultDto
   pvValue?: string | null
+  /**
+   * Dependency-injection seam for the streaming `chat()` client. Tests
+   * substitute a fake; production callers leave it unset and the real
+   * `chat` import is used (plan §9.5).
+   */
+  chatFn?: ChatFn
 }
 
-export function RiskSensitivities({ greeksResult, pvValue }: RiskSensitivitiesProps) {
+export function RiskSensitivities({ greeksResult, pvValue, chatFn = chat }: RiskSensitivitiesProps) {
   const [openPopover, setOpenPopover] = useState<Greek | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const copilotContext = useCopilotContext()
+
+  // Inline explainer state (plan §9.5). At most one panel is ever open
+  // for the aggregate Greeks card; `explainStream` is the live `/chat`
+  // token stream.
+  const [explainOpen, setExplainOpen] = useState(false)
+  const [explainStream, setExplainStream] = useState<ReadableStream<ChatChunk> | null>(null)
 
   const closePopover = useCallback(() => setOpenPopover(null), [])
   useClickOutside(containerRef, closePopover)
+
+  /**
+   * Open the inline explainer for the aggregate Greeks card.
+   *
+   * Double-click protection: a second click while the panel is already
+   * open is a no-op — neither a duplicate panel nor a duplicate `/chat`
+   * request is created (plan §9.5).
+   */
+  const handleExplain = () => {
+    if (explainOpen) return
+    const stream = chatFn({
+      message: 'Explain the aggregate Greeks for this book — what is the net sensitivity?',
+      page_context: buildGreeksExplainContext(copilotContext, greeksResult),
+    })
+    setExplainOpen(true)
+    setExplainStream(stream)
+  }
+
+  const closeExplain = () => {
+    setExplainOpen(false)
+    setExplainStream(null)
+  }
 
   useEffect(() => {
     if (!openPopover) return
@@ -77,6 +123,28 @@ export function RiskSensitivities({ greeksResult, pvValue }: RiskSensitivitiesPr
 
   return (
     <div ref={containerRef} data-testid="risk-sensitivities">
+      {/* Card header — aggregate-Greeks explain affordance (plan §9.5). */}
+      <div className="flex items-center justify-between pb-2">
+        <span className="text-xs font-semibold text-slate-600">Greeks</span>
+        <ExplainButton
+          data-testid="explain-greeks"
+          label="Explain"
+          ariaLabel="Explain aggregate Greeks"
+          onClick={handleExplain}
+          className="px-2 py-1 text-xs"
+        />
+      </div>
+
+      {explainOpen && explainStream && (
+        <div data-testid="greeks-explain-panel" className="pb-3">
+          <AIInsightPanel
+            stream={explainStream}
+            title="Explain — Aggregate Greeks"
+            onClose={closeExplain}
+          />
+        </div>
+      )}
+
       {pvValue != null && (
         <div data-testid="pv-display" className="text-xs mb-2">
           <span className="text-slate-600">PV: </span>
