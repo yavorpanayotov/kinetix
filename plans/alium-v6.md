@@ -160,7 +160,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       Source: `group-e` E-S2C-01.
       Acceptance: `./gradlew :notification-service:test`
 
-- [ ] 1.7 Capture arrival price server-side. `OrderSubmissionService.kt:76,89`
+- [x] 1.7 Capture arrival price server-side. `OrderSubmissionService.kt:76,89`
       accepts caller-supplied `arrivalPrice`; replace with
       `current_mid_price(instrument_id)` from price-service at submission time per
       `execution.allium:266`. Remove `arrivalPrice`/`arrivalPriceTimestamp` from
