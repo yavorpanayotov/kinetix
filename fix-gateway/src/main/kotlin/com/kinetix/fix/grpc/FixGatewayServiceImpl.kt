@@ -18,6 +18,9 @@ import com.kinetix.proto.execution.IsVenueOpenResponse
 import com.kinetix.proto.execution.PlaceOrderRequest
 import com.kinetix.proto.execution.PlaceOrderResponse
 import io.grpc.stub.StreamObserver
+import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.Timer
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 import java.math.BigDecimal
@@ -50,9 +53,49 @@ class FixGatewayServiceImpl(
     private val originalOrderLookup: OriginalOrderLookup,
     private val clock: () -> Instant = Instant::now,
     private val reconciliationCoordinator: SessionReconciliationCoordinator? = null,
+    private val meterRegistry: MeterRegistry = SimpleMeterRegistry(),
 ) : FixGatewayGrpc.FixGatewayImplBase() {
 
     private val logger = LoggerFactory.getLogger(FixGatewayServiceImpl::class.java)
+
+    /**
+     * Record one outbound FIX message on the wire. Mirrors the inbound
+     * `fix_messages_in_total` counter in [com.kinetix.fix.session.InboundFixHandler]
+     * so the dashboard can plot inbound vs outbound side by side.
+     */
+    private fun recordOutbound(venue: String, msgType: String) {
+        meterRegistry.counter(
+            "fix_messages_out_total",
+            "venue", venue,
+            "msg_type", msgType,
+        ).increment()
+    }
+
+    /**
+     * Record a failed (non-ACCEPTED) cancel attempt, tagged by the failure
+     * [reason] so ops can split rejects from session-down/unknown-venue.
+     */
+    private fun recordCancelFailed(venue: String, reason: String) {
+        meterRegistry.counter(
+            "cancel_failed_total",
+            "venue", venue,
+            "reason", reason,
+        ).increment()
+    }
+
+    /**
+     * Per-venue [Timer] for cancel acknowledgement latency — the wall-clock time
+     * from the start of [handleCancel] to the session sender returning a
+     * [SendOutcome]. The Micrometer base name is `cancel_ack_latency`; the
+     * Prometheus registry appends the `_seconds` base-unit suffix, so the
+     * dashboard's `cancel_ack_latency_seconds_bucket` query resolves correctly.
+     * `publishPercentileHistogram()` emits the `_bucket` series the panel needs.
+     */
+    private fun cancelAckLatencyTimer(venue: String): Timer =
+        Timer.builder("cancel_ack_latency")
+            .tag("venue", venue)
+            .publishPercentileHistogram()
+            .register(meterRegistry)
 
     /**
      * Resolves Side / OrderQty / Symbol for a previous 35=D so the 35=F cancel
@@ -84,14 +127,26 @@ class FixGatewayServiceImpl(
     }
 
     internal fun handleCancel(request: CancelOrderRequest): CancelOrderResponse {
+        val startNanos = System.nanoTime()
+        // Venue label for metrics resolves to the canonical venue once the registry
+        // lookup succeeds; before that we tag with the raw request venue so even
+        // INVALID_REQUEST / UNKNOWN_VENUE failures still attribute to a venue series.
+        var metricVenue = request.venue.ifBlank { "UNKNOWN" }
+
         if (request.clOrdId.isBlank()) {
+            recordCancelFailed(metricVenue, "INVALID_REQUEST")
             return reject(request, "cl_ord_id must be non-empty")
         }
         val session = venueSessionRegistry.lookup(request.venue)
-            ?: return unknownVenue(request)
+        if (session == null) {
+            recordCancelFailed(metricVenue, "UNKNOWN_VENUE")
+            return unknownVenue(request)
+        }
+        metricVenue = session.venue
 
         // Gate: block cancels during reconciliation — same policy as placeOrder.
         if (reconciliationCoordinator != null && !reconciliationCoordinator.isActive(session.venue)) {
+            recordCancelFailed(metricVenue, "SESSION_DOWN")
             return CancelOrderResponse.newBuilder()
                 .setClOrdId(request.clOrdId)
                 .setStatus(CancelOrderResponse.Status.SESSION_DOWN)
@@ -100,10 +155,14 @@ class FixGatewayServiceImpl(
         }
 
         if (request.venueOrderId.isBlank()) {
+            recordCancelFailed(metricVenue, "INVALID_REQUEST")
             return reject(request, "venue_order_id is required (FIX tag 37)")
         }
         val original = originalOrderLookup.lookup(session.venue, request.clOrdId)
-            ?: return reject(request, "original order not found in fix_message_log for clOrdID=${request.clOrdId}")
+        if (original == null) {
+            recordCancelFailed(metricVenue, "INVALID_REQUEST")
+            return reject(request, "original order not found in fix_message_log for clOrdID=${request.clOrdId}")
+        }
 
         val message = cancelMessageBuilder.build(
             session = session,
@@ -117,23 +176,40 @@ class FixGatewayServiceImpl(
             ),
         )
 
-        return when (val outcome = sessionSender.send(session.venue, message)) {
-            SendOutcome.Sent -> CancelOrderResponse.newBuilder()
-                .setClOrdId(request.clOrdId)
-                .setStatus(CancelOrderResponse.Status.ACCEPTED)
-                .build()
-            SendOutcome.SessionDown -> CancelOrderResponse.newBuilder()
-                .setClOrdId(request.clOrdId)
-                .setStatus(CancelOrderResponse.Status.SESSION_DOWN)
-                .setDetail("FIX session for ${session.venue} is not connected")
-                .build()
-            SendOutcome.UnknownVenue -> unknownVenue(request)
+        val response = when (sessionSender.send(session.venue, message)) {
+            SendOutcome.Sent -> {
+                // The 35=F is on the wire — count it as an outbound FIX message.
+                recordOutbound(session.venue, "ORDER_CANCEL_REQUEST")
+                CancelOrderResponse.newBuilder()
+                    .setClOrdId(request.clOrdId)
+                    .setStatus(CancelOrderResponse.Status.ACCEPTED)
+                    .build()
+            }
+            SendOutcome.SessionDown -> {
+                recordCancelFailed(metricVenue, "SESSION_DOWN")
+                CancelOrderResponse.newBuilder()
+                    .setClOrdId(request.clOrdId)
+                    .setStatus(CancelOrderResponse.Status.SESSION_DOWN)
+                    .setDetail("FIX session for ${session.venue} is not connected")
+                    .build()
+            }
+            SendOutcome.UnknownVenue -> {
+                recordCancelFailed(metricVenue, "UNKNOWN_VENUE")
+                unknownVenue(request)
+            }
         }.also {
             logger.info(
                 "CancelOrder venue={} clOrdId={} venueOrderId={} reason={} status={}",
                 session.venue, request.clOrdId, request.venueOrderId, request.reason, it.status,
             )
         }
+
+        // Record the cancel-ack latency for every cancel that reached the session
+        // sender, regardless of outcome — the panel plots how long the venue (or
+        // the session layer) takes to acknowledge a cancel attempt.
+        cancelAckLatencyTimer(metricVenue)
+            .record(System.nanoTime() - startNanos, java.util.concurrent.TimeUnit.NANOSECONDS)
+        return response
     }
 
     private fun reject(request: CancelOrderRequest, detail: String): CancelOrderResponse =
@@ -261,7 +337,8 @@ class FixGatewayServiceImpl(
         val response = try {
             pendingNewCorrelator.register(session.venue, request.clOrdId) {
                 when (sessionSender.send(session.venue, message)) {
-                    SendOutcome.Sent -> Unit
+                    // The 35=D NewOrderSingle is on the wire — count the outbound message.
+                    SendOutcome.Sent -> recordOutbound(session.venue, "NEW_ORDER_SINGLE")
                     SendOutcome.SessionDown -> throw PlaceOrderSessionDown
                     SendOutcome.UnknownVenue -> throw PlaceOrderUnknownVenue
                 }

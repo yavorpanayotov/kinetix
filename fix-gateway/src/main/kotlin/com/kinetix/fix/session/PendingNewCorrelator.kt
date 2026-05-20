@@ -1,5 +1,6 @@
 package com.kinetix.fix.session
 
+import io.micrometer.core.instrument.Gauge
 import io.micrometer.core.instrument.MeterRegistry
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.TimeoutCancellationException
@@ -63,6 +64,30 @@ class PendingNewCorrelator(
     private val entries: MutableMap<Key, Entry> = ConcurrentHashMap()
     private val semaphores: MutableMap<String, Semaphore> = ConcurrentHashMap()
 
+    /**
+     * Venues for which an `unacknowledged_outbound_total` gauge has already been
+     * bound. The gauge value tracks [inFlightCount] for the venue — i.e. the
+     * count of outbound 35=D NewOrderSingle messages still awaiting a venue ack.
+     * Registered lazily on the first [register] for a venue because the set of
+     * launch venues is configuration-driven and not known at construction time.
+     */
+    private val gaugedVenues: MutableSet<String> = ConcurrentHashMap.newKeySet()
+
+    private fun bindUnacknowledgedOutboundGauge(venue: String) {
+        if (gaugedVenues.add(venue)) {
+            // Registered as a Gauge: the value rises and falls with the in-flight
+            // count, so it is a point-in-time snapshot, not a monotonic counter.
+            // The Prometheus client reserves the `_total` suffix for counters and
+            // strips it from every non-counter meter, so this gauge is exported as
+            // `unacknowledged_outbound` (see [UNACKNOWLEDGED_OUTBOUND_METER]).
+            Gauge.builder(UNACKNOWLEDGED_OUTBOUND_METER) { inFlightCount(venue).toDouble() }
+                .tag("venue", venue)
+                .tag("msg_type", "NEW_ORDER_SINGLE")
+                .description("Outbound FIX messages awaiting a venue acknowledgement")
+                .register(meterRegistry)
+        }
+    }
+
     sealed class Outcome {
         data class PendingNew(val venueOrderId: String) : Outcome()
         data class Rejected(val reason: String) : Outcome()
@@ -90,6 +115,7 @@ class PendingNewCorrelator(
         clOrdId: String,
         onRegistered: () -> Unit,
     ): Registration {
+        bindUnacknowledgedOutboundGauge(venue)
         val semaphore = semaphores.computeIfAbsent(venue) { Semaphore(maxInFlightPerVenue) }
         val acquired = semaphore.tryAcquire(backPressureWait.toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS)
         if (!acquired) {
@@ -208,5 +234,18 @@ class PendingNewCorrelator(
          * stall before back-pressure fires).
          */
         const val DEFAULT_MAX_IN_FLIGHT_PER_VENUE = 500
+
+        /**
+         * Micrometer meter name for the unacknowledged-outbound gauge.
+         *
+         * Exported by the Prometheus registry as `unacknowledged_outbound` — the
+         * Prometheus client strips the conventional `_total` counter suffix from
+         * every non-counter meter, so a gauge cannot carry a `_total`-suffixed
+         * exposition name. The FIX Gateway dashboard panel currently queries
+         * `unacknowledged_outbound_total`; that PromQL must drop the `_total`
+         * suffix to match this gauge (a dashboard-side fix, not an instrumentation
+         * one — see plans/grafana-v2.md PR 2 checkbox 2.3).
+         */
+        internal const val UNACKNOWLEDGED_OUTBOUND_METER = "unacknowledged_outbound"
     }
 }

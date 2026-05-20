@@ -93,6 +93,7 @@ fun Application.moduleWithDependencies() {
         sessionSender = NoOpFixSessionSender(),
         // Phase 2 has no fix_message_log entries yet; phase 4 wires the real lookup.
         originalOrderLookup = { _, _ -> null },
+        meterRegistry = appMicrometerRegistry,
     )
     val grpcServer = FixGatewayServer(
         port = grpcPort,
