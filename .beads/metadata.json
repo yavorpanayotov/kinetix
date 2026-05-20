@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "kinetixlk",
+  "project_id": "4fb6d3df-58cb-45b0-8a5a-33a373e98e8c"
+}
