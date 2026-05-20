@@ -3,6 +3,7 @@ package com.kinetix.audit.persistence
 import com.kinetix.audit.model.AuditEvent
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SortOrder
+import org.jetbrains.exposed.sql.andWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.max
 import org.jetbrains.exposed.sql.selectAll
@@ -111,6 +112,30 @@ class ExposedAuditEventRepository(private val db: Database? = null) : AuditEvent
         AuditEventsTable
             .selectAll()
             .where { AuditEventsTable.id greater afterId }
+            .orderBy(AuditEventsTable.id, SortOrder.ASC)
+            .limit(limit)
+            .map { it.toAuditEvent() }
+    }
+
+    override suspend fun findPage(
+        afterId: Long,
+        limit: Int,
+        bookId: String?,
+        tradeId: String?,
+        eventType: String?,
+        from: Instant?,
+        to: Instant?,
+    ): List<AuditEvent> = newSuspendedTransaction(db = db) {
+        AuditEventsTable
+            .selectAll()
+            .where { AuditEventsTable.id greater afterId }
+            .apply {
+                bookId?.let { andWhere { AuditEventsTable.bookId eq it } }
+                tradeId?.let { andWhere { AuditEventsTable.tradeId eq it } }
+                eventType?.let { andWhere { AuditEventsTable.eventType eq it } }
+                from?.let { andWhere { AuditEventsTable.receivedAt greaterEq it.atOffset(ZoneOffset.UTC) } }
+                to?.let { andWhere { AuditEventsTable.receivedAt lessEq it.atOffset(ZoneOffset.UTC) } }
+            }
             .orderBy(AuditEventsTable.id, SortOrder.ASC)
             .limit(limit)
             .map { it.toAuditEvent() }

@@ -52,7 +52,9 @@ class AuditRoutesTest : FunSpec({
                 receivedAt = Instant.parse("2025-01-15T11:00:01Z"),
             ),
         )
-        coEvery { repository.findPage(0L, 1000) } returns events
+        coEvery {
+            repository.findPage(0L, 1000, null, null, null, null, null)
+        } returns events
 
         testApplication {
             application { module(repository) }
@@ -68,7 +70,9 @@ class AuditRoutesTest : FunSpec({
     }
 
     test("GET /api/v1/audit/events returns empty array when no events") {
-        coEvery { repository.findPage(0L, 1000) } returns emptyList()
+        coEvery {
+            repository.findPage(0L, 1000, null, null, null, null, null)
+        } returns emptyList()
 
         testApplication {
             application { module(repository) }
@@ -92,7 +96,9 @@ class AuditRoutesTest : FunSpec({
             tradedAt = "2025-01-15T10:00:00Z",
             receivedAt = Instant.parse("2025-01-15T10:00:01Z"),
         )
-        coEvery { repository.findByBookId("port-1") } returns listOf(event)
+        coEvery {
+            repository.findPage(0L, 1000, "port-1", null, null, null, null)
+        } returns listOf(event)
 
         testApplication {
             application { module(repository) }
@@ -102,8 +108,24 @@ class AuditRoutesTest : FunSpec({
             body.size shouldBe 1
             body[0].jsonObject["bookId"]?.jsonPrimitive?.content shouldBe "port-1"
 
-            coVerify(exactly = 1) { repository.findByBookId("port-1") }
+            coVerify(exactly = 1) { repository.findPage(0L, 1000, "port-1", null, null, null, null) }
             coVerify(exactly = 0) { repository.findAll() }
+        }
+    }
+
+    test("GET /api/v1/audit/events?eventType=UNKNOWN returns 400") {
+        testApplication {
+            application { module(repository) }
+            val response = client.get("/api/v1/audit/events?eventType=NOT_A_TYPE")
+            response.status shouldBe HttpStatusCode.BadRequest
+        }
+    }
+
+    test("GET /api/v1/audit/events?from=invalid returns 400") {
+        testApplication {
+            application { module(repository) }
+            val response = client.get("/api/v1/audit/events?from=not-a-date")
+            response.status shouldBe HttpStatusCode.BadRequest
         }
     }
 

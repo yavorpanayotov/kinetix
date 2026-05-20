@@ -8,11 +8,13 @@ import com.kinetix.audit.persistence.VerificationCheckpoint
 import com.kinetix.audit.persistence.VerificationCheckpointRepository
 import com.kinetix.audit.routes.dtos.GapDetectionResponse
 import com.kinetix.audit.routes.dtos.SequenceGap
+import com.kinetix.common.audit.AuditEventType
 import io.github.smiley4.ktoropenapi.get
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import org.slf4j.LoggerFactory
 import java.time.Instant
+import java.time.format.DateTimeParseException
 
 private val logger = LoggerFactory.getLogger("com.kinetix.audit.routes.AuditRoutes")
 
@@ -33,6 +35,22 @@ fun Route.auditRoutes(
                     description = "Filter by book ID"
                     required = false
                 }
+                queryParameter<String>("tradeId") {
+                    description = "Filter by trade ID"
+                    required = false
+                }
+                queryParameter<String>("eventType") {
+                    description = "Filter by event type (one of the AuditEventType values)"
+                    required = false
+                }
+                queryParameter<String>("from") {
+                    description = "Only events received at or after this ISO-8601 instant (inclusive)"
+                    required = false
+                }
+                queryParameter<String>("to") {
+                    description = "Only events received at or before this ISO-8601 instant (inclusive)"
+                    required = false
+                }
                 queryParameter<Long>("afterId") {
                     description = "Return events with id greater than this value (cursor-based pagination)"
                     required = false
@@ -44,15 +62,27 @@ fun Route.auditRoutes(
             }
         }) {
             val bookId = call.request.queryParameters["bookId"]
+            val tradeId = call.request.queryParameters["tradeId"]
+            val eventType = call.request.queryParameters["eventType"]?.also { value ->
+                require(AuditEventType.entries.any { it.name == value }) {
+                    "Unknown eventType '$value'"
+                }
+            }
+            val from = call.request.queryParameters["from"].parseInstantOrReject("from")
+            val to = call.request.queryParameters["to"].parseInstantOrReject("to")
             val afterId = call.request.queryParameters["afterId"]?.toLongOrNull() ?: 0L
             val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: DEFAULT_PAGE_LIMIT)
                 .coerceIn(1, MAX_PAGE_LIMIT)
 
-            val events = if (bookId != null) {
-                repository.findByBookId(bookId)
-            } else {
-                repository.findPage(afterId, limit)
-            }
+            val events = repository.findPage(
+                afterId = afterId,
+                limit = limit,
+                bookId = bookId,
+                tradeId = tradeId,
+                eventType = eventType,
+                from = from,
+                to = to,
+            )
             call.respond(events.map { it.toResponse() })
         }
 
@@ -128,5 +158,19 @@ fun Route.auditRoutes(
             logger.info("Gap detection complete: {} gaps found", response.gapCount)
             call.respond(response)
         }
+    }
+}
+
+/**
+ * Parses an optional ISO-8601 instant query parameter. Returns `null` when absent,
+ * and throws [IllegalArgumentException] (mapped to HTTP 400 by StatusPages) when the
+ * value is present but unparseable.
+ */
+private fun String?.parseInstantOrReject(paramName: String): Instant? {
+    if (this == null) return null
+    return try {
+        Instant.parse(this)
+    } catch (e: DateTimeParseException) {
+        throw IllegalArgumentException("Invalid '$paramName' timestamp: '$this' is not a valid ISO-8601 instant", e)
     }
 }
