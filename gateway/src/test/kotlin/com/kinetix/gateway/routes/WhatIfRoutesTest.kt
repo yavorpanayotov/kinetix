@@ -83,7 +83,8 @@ class WhatIfRoutesTest : FunSpec({
                                 "side": "BUY",
                                 "quantity": "100",
                                 "priceAmount": "450.00",
-                                "priceCurrency": "USD"
+                                "priceCurrency": "USD",
+                                "instrumentType": "CASH_EQUITY"
                             }
                         ]
                     }
@@ -134,7 +135,8 @@ class WhatIfRoutesTest : FunSpec({
                                 "side": "SELL",
                                 "quantity": "200",
                                 "priceAmount": "175.00",
-                                "priceCurrency": "EUR"
+                                "priceCurrency": "EUR",
+                                "instrumentType": "EQUITY_OPTION"
                             }
                         ],
                         "calculationType": "MONTE_CARLO",
@@ -155,6 +157,7 @@ class WhatIfRoutesTest : FunSpec({
             slot.captured.hypotheticalTrades[0].quantity shouldBe "200"
             slot.captured.hypotheticalTrades[0].priceAmount shouldBe "175.00"
             slot.captured.hypotheticalTrades[0].priceCurrency shouldBe "EUR"
+            slot.captured.hypotheticalTrades[0].instrumentType shouldBe "EQUITY_OPTION"
             slot.captured.calculationType shouldBe "MONTE_CARLO"
             slot.captured.confidenceLevel shouldBe "CL_99"
         }
@@ -178,6 +181,7 @@ class WhatIfRoutesTest : FunSpec({
                                 "quantity": "50",
                                 "priceAmount": "170.00",
                                 "priceCurrency": "USD",
+                                "instrumentType": "CASH_EQUITY",
                                 "bidAskSpreadBps": 5.0
                             }
                         ]
@@ -219,6 +223,7 @@ class WhatIfRoutesTest : FunSpec({
                                 "quantity": "100",
                                 "priceAmount": "250.00",
                                 "priceCurrency": "USD",
+                                "instrumentType": "CASH_EQUITY",
                                 "bidAskSpreadBps": 10.0
                             }
                         ],
@@ -235,6 +240,7 @@ class WhatIfRoutesTest : FunSpec({
             slot.captured.bookId shouldBe "my-portfolio"
             slot.captured.trades.size shouldBe 1
             slot.captured.trades[0].instrumentId shouldBe "TSLA"
+            slot.captured.trades[0].instrumentType shouldBe "CASH_EQUITY"
             slot.captured.trades[0].bidAskSpreadBps shouldBe 10.0
             slot.captured.calculationType shouldBe "HISTORICAL"
             slot.captured.confidenceLevel shouldBe "CL_99"

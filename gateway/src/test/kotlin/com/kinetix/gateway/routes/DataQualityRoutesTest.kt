@@ -304,7 +304,7 @@ class DataQualityRoutesTest : FunSpec({
     test("Position Count check returns OK when position-service has portfolios") {
         val mockClient = buildMultiUrlMockClient(
             mapOf(
-                "api/v1/books" to ("""[{"id":"port-1"}]""" to HttpStatusCode.OK),
+                "api/v1/books" to ("""[{"bookId":"port-1"}]""" to HttpStatusCode.OK),
                 "health/ready" to ("""{"status":"READY","checks":{}}""" to HttpStatusCode.OK),
                 "fix/sessions" to ("""[]""" to HttpStatusCode.OK),
             )
@@ -349,7 +349,7 @@ class DataQualityRoutesTest : FunSpec({
             mapOf(
                 "health/ready" to (readyBody to HttpStatusCode.OK),
                 "fix/sessions" to ("""[]""" to HttpStatusCode.OK),
-                "api/v1/books" to ("""[{"id":"port-1"}]""" to HttpStatusCode.OK),
+                "api/v1/books" to ("""[{"bookId":"port-1"}]""" to HttpStatusCode.OK),
             )
         )
 
@@ -371,7 +371,7 @@ class DataQualityRoutesTest : FunSpec({
             mapOf(
                 "health/ready" to (readyBody to HttpStatusCode.OK),
                 "fix/sessions" to ("""[]""" to HttpStatusCode.OK),
-                "api/v1/books" to ("""[{"id":"port-1"}]""" to HttpStatusCode.OK),
+                "api/v1/books" to ("""[{"bookId":"port-1"}]""" to HttpStatusCode.OK),
             )
         )
 
