@@ -169,7 +169,7 @@ Give users and support a screen — no LogQL required.
 
 ### PR 10 — Retention & business-event alerts
 
-- [ ] 10.1 Set explicit retention in the Helm observability chart: Loki 90 days, Tempo 30 days. Document the values alongside the existing DB retention policies.
+- [x] 10.1 Set explicit retention in the Helm observability chart: Loki 90 days, Tempo 30 days. Document the values alongside the existing DB retention policies.
       Acceptance: `python3 -c "import yaml; v=yaml.safe_load(open('deploy/helm/kinetix/charts/observability/values.yaml')); print('ok')" && grep -Eq 'retention|retention_period' deploy/helm/kinetix/charts/observability/values.yaml`
 - [ ] 10.2 Add business-event alert rules to `alert-rules.yml` and the Helm chart: DLQ depth (`kafka_consumergroup_lag` on `*.dlq` topics) and a `RISK_CALCULATION_FAILED`-rate alert. Only include a rule if its metric is confirmed emitted; otherwise note the missing metric in the rule comment.
       Acceptance: `python3 -c "import yaml; g=yaml.safe_load(open('deploy/observability/alert-rules.yml')); assert any('Dlq' in r.get('alert','') or 'DLQ' in r.get('alert','') for grp in g['groups'] for r in grp['rules']); print('ok')"`
