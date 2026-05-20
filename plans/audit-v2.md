@@ -125,7 +125,7 @@ The two new dependencies are **approved** (see CI/CD & guardrail approvals). Thi
 
 - [x] 6.1 Add the OpenTelemetry gRPC client interceptor to `GrpcRiskEngineClient` (`risk-orchestrator`) so the W3C `traceparent` header propagates on every call to the risk-engine.
       Acceptance: `./gradlew :risk-orchestrator:test`
-- [ ] 6.2 Add `opentelemetry-instrumentation-grpc` server instrumentation to the risk-engine gRPC server (`server.py`) so it continues the inbound trace context.
+- [x] 6.2 Add `opentelemetry-instrumentation-grpc` server instrumentation to the risk-engine gRPC server (`server.py`) so it continues the inbound trace context.
       Acceptance: `cd risk-engine && uv run pytest -m unit`
 - [ ] 6.3 Add a test asserting an inbound `traceparent` is read into the active span context on the Python side.
       Acceptance: `cd risk-engine && uv run pytest tests/test_tracing.py -m unit`
