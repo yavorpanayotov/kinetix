@@ -250,7 +250,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
 
 ### PR 11 — Wrap-up: demo seed + README pointer
 
-- [ ] 11.1 Add `/demo` orchestrator hook that pre-stages a deterministic morning brief, one queued intraday push, and a sample saved-query result so the 90-second demo script runs end-to-end without any live SDK call. Doc the demo script in `ai-insights-service/README.md` under a new "v2 demo flow" section.
+- [x] 11.1 Add `/demo` orchestrator hook that pre-stages a deterministic morning brief, one queued intraday push, and a sample saved-query result so the 90-second demo script runs end-to-end without any live SDK call. Doc the demo script in `ai-insights-service/README.md` under a new "v2 demo flow" section.
       Acceptance: `grep -q "v2 demo flow" ai-insights-service/README.md && cd ui && npx playwright test e2e/copilot-demo-walkthrough.spec.ts`
 - [ ] 11.2 Update root `README.md` "Built with Claude Code" hero with a one-line pointer to v2 features ("Kinetix Copilot — morning brief, intraday push, ⌘K") and a link to ADR-0036 + this plan. Refresh `docs/evolution-report.md` final paragraph with the v2 completion date.
       Acceptance: `grep -q "Kinetix Copilot" README.md && grep -q "ADR-0036" README.md && grep -q "ai-v2" README.md`
