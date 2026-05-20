@@ -10,9 +10,18 @@ provisioner — **no hand-built dashboards in the Grafana UI**.
   file provider that scans this directory for dashboard JSON.
 - `deploy/observability/grafana/provisioning/datasources/datasources.yml` defines
   the Prometheus, Loki, and Tempo datasources the dashboards query.
-- Both the local `docker-compose` stack and the Helm `observability` chart mount
-  this directory into the Grafana container so the same dashboards run
-  everywhere.
+- Both the local `docker-compose` stack and the Helm `observability` chart serve
+  the same dashboards, so what you see locally matches prod:
+  - **Local:** `infra/docker-compose.observability.yml` mounts this directory
+    into the Grafana container at
+    `/etc/grafana/provisioning/dashboards/kinetix`, a sub-folder of the path
+    the file provider scans.
+  - **Prod:** `deploy/helm/kinetix/charts/observability` bundles a deployable
+    copy of these JSON files under `charts/observability/dashboards/`.
+    `templates/grafana-dashboards-configmap.yaml` turns them into a ConfigMap,
+    and `grafana.dashboardProviders` / `grafana.dashboardsConfigMaps` in
+    `values.yaml` provision it. Keep the two copies in sync — when a dashboard
+    here changes, copy it into `charts/observability/dashboards/`.
 
 ## Conventions
 

@@ -1,0 +1,366 @@
+{
+  "uid": "kinetix-trade-lifecycle",
+  "title": "Trade Lifecycle",
+  "description": "Trade booking, amendment and cancellation activity over time, sourced from audit-service structured logs (audit_events). Every panel carries a correlationId drill-through to Loki logs and Tempo traces.",
+  "tags": ["kinetix", "audit", "trades"],
+  "timezone": "browser",
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "links": [
+    { "title": "Risk Run Health", "type": "link", "url": "/d/kinetix-risk-run-health", "icon": "dashboard" },
+    { "title": "Business Alerts & Events", "type": "link", "url": "/d/kinetix-business-alerts", "icon": "dashboard" },
+    { "title": "Service Logs", "type": "link", "url": "/d/kinetix-service-logs", "icon": "dashboard" },
+    { "title": "Trade Flow", "type": "link", "url": "/d/kinetix-trade-flow", "icon": "dashboard" }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "bookId",
+        "type": "query",
+        "label": "Book",
+        "datasource": { "type": "loki", "uid": "loki" },
+        "query": "label_values({service_name=\"audit-service\"} | json | line_format \"{{.message}}\" | logfmt, bookId)",
+        "includeAll": true,
+        "allValue": ".+",
+        "current": { "text": "All", "value": "$__all" },
+        "multi": true,
+        "refresh": 2,
+        "sort": 1
+      },
+      {
+        "name": "userId",
+        "type": "query",
+        "label": "User",
+        "datasource": { "type": "loki", "uid": "loki" },
+        "query": "label_values({service_name=\"audit-service\"} | json, userId)",
+        "includeAll": true,
+        "allValue": ".+",
+        "current": { "text": "All", "value": "$__all" },
+        "multi": true,
+        "refresh": 2,
+        "sort": 1
+      },
+      {
+        "name": "eventType",
+        "type": "custom",
+        "label": "Event Type",
+        "query": "TRADE_BOOKED,TRADE_AMENDED,TRADE_CANCELLED",
+        "includeAll": true,
+        "allValue": "TRADE_.+",
+        "current": { "text": "All", "value": "$__all" },
+        "multi": true
+      },
+      {
+        "name": "correlationId",
+        "type": "textbox",
+        "label": "Correlation ID",
+        "description": "Paste a correlationId to follow one trade across every service via the drill-through panel and links.",
+        "query": "",
+        "current": { "text": "", "value": "" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Trades Booked",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({service_name=\"audit-service\"} |= `Audit event persisted` |= `eventType=TRADE_BOOKED` [$__range]))",
+          "legendFormat": "Booked"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0",
+          "color": { "mode": "fixed", "fixedColor": "green" }
+        }
+      },
+      "options": { "colorMode": "value", "graphMode": "area", "textMode": "value_and_name" }
+    },
+    {
+      "id": 2,
+      "title": "Trades Amended",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({service_name=\"audit-service\"} |= `Audit event persisted` |= `eventType=TRADE_AMENDED` [$__range]))",
+          "legendFormat": "Amended"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0",
+          "color": { "mode": "fixed", "fixedColor": "yellow" }
+        }
+      },
+      "options": { "colorMode": "value", "graphMode": "area", "textMode": "value_and_name" }
+    },
+    {
+      "id": 3,
+      "title": "Trades Cancelled",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({service_name=\"audit-service\"} |= `Audit event persisted` |= `eventType=TRADE_CANCELLED` [$__range]))",
+          "legendFormat": "Cancelled"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0",
+          "color": { "mode": "fixed", "fixedColor": "red" }
+        }
+      },
+      "options": { "colorMode": "value", "graphMode": "area", "textMode": "value_and_name" }
+    },
+    {
+      "id": 4,
+      "title": "Audit Event Errors",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({service_name=\"audit-service\"} |= `Failed to process audit event` [$__range]))",
+          "legendFormat": "Errors"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        }
+      },
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" }
+    },
+    {
+      "id": 5,
+      "title": "Trade Events Over Time (by event type)",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 5 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "description": "Booked / amended / cancelled trade events recorded by audit-service. Filter by book, user and event type using the dashboard variables.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (eventType) (count_over_time({service_name=\"audit-service\"} |= `Audit event persisted` | pattern `<_>eventType=<eventType>` | eventType=~\"$eventType\" [$__auto]))",
+          "legendFormat": "{{eventType}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 70,
+            "stacking": { "mode": "normal" }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "TRADE_BOOKED" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "TRADE_AMENDED" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "yellow" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "TRADE_CANCELLED" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }]
+          }
+        ]
+      },
+      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "table", "placement": "right", "calcs": ["sum"] } }
+    },
+    {
+      "id": 6,
+      "title": "Trade Events by Book",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 14 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "description": "Trade lifecycle event volume broken down by book, parsed from the audit-service log line.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (bookId) (count_over_time({service_name=\"audit-service\"} |= `Audit event persisted` | pattern `<_>bookId=<bookId>, eventType=<eventType>` | bookId=~\"$bookId\" | eventType=~\"$eventType\" [$__auto]))",
+          "legendFormat": "{{bookId}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "stacking": { "mode": "none" },
+            "lineWidth": 2
+          }
+        }
+      },
+      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["sum"] } }
+    },
+    {
+      "id": 7,
+      "title": "Trade Events by User",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 14 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "description": "Trade lifecycle event volume broken down by the user that booked, amended or cancelled the trade.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (userId) (count_over_time({service_name=\"audit-service\"} |= `Audit event persisted` | json | userId=~\"$userId\" [$__auto]))",
+          "legendFormat": "{{userId}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "stacking": { "mode": "none" },
+            "lineWidth": 2
+          }
+        }
+      },
+      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["sum"] } }
+    },
+    {
+      "id": 8,
+      "title": "Cancellation Ratio",
+      "type": "gauge",
+      "gridPos": { "h": 7, "w": 6, "x": 0, "y": 23 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "description": "Cancelled trades as a fraction of all trade lifecycle events over the dashboard range — an elevated ratio can indicate operational or pricing issues.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({service_name=\"audit-service\"} |= `eventType=TRADE_CANCELLED` [$__range])) / clamp_min(sum(count_over_time({service_name=\"audit-service\"} |= `Audit event persisted` [$__range])), 1)",
+          "legendFormat": "Cancellation ratio"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.1 },
+              { "color": "red", "value": 0.25 }
+            ]
+          }
+        }
+      },
+      "options": { "showThresholdLabels": false, "showThresholdMarkers": true }
+    },
+    {
+      "id": 9,
+      "title": "Recent Trade Events",
+      "type": "logs",
+      "gridPos": { "h": 14, "w": 18, "x": 6, "y": 23 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "description": "Latest trade lifecycle events from audit-service. Expand a line to see structured fields; click the TraceID derived field to open the trace in Tempo, or use the panel links below for a correlationId drill-through.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service_name=\"audit-service\"} |= `Audit event persisted` | json | eventType=~\"$eventType\" | bookId=~\"$bookId\" | userId=~\"$userId\""
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": true,
+        "enableLogDetails": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none"
+      }
+    },
+    {
+      "id": 10,
+      "title": "correlationId Drill-through",
+      "type": "logs",
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 37 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "description": "Set the correlationId variable to follow a single trade across every service. Use the panel links to jump to the full Loki log stream and the Tempo trace for that correlationId.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service_name=~\".+\"} | json | correlationId=`$correlationId`"
+        }
+      ],
+      "links": [
+        {
+          "title": "Open all logs for this correlationId in Loki",
+          "url": "/explore?left=%7B%22datasource%22:%22loki%22,%22queries%22:%5B%7B%22datasource%22:%7B%22type%22:%22loki%22,%22uid%22:%22loki%22%7D,%22expr%22:%22%7Bservice_name%3D~%5C%22.%2B%5C%22%7D%20%7C%20json%20%7C%20correlationId%3D%5C%22${correlationId}%5C%22%22%7D%5D,%22range%22:%7B%22from%22:%22now-24h%22,%22to%22:%22now%22%7D%7D",
+          "targetBlank": true
+        },
+        {
+          "title": "Open the trace for this correlationId in Tempo",
+          "url": "/explore?left=%7B%22datasource%22:%22tempo%22,%22queries%22:%5B%7B%22datasource%22:%7B%22type%22:%22tempo%22,%22uid%22:%22tempo%22%7D,%22queryType%22:%22traceql%22,%22query%22:%22%7B%20.correlationId%20%3D%20%5C%22${correlationId}%5C%22%20%7D%22%7D%5D,%22range%22:%7B%22from%22:%22now-24h%22,%22to%22:%22now%22%7D%7D",
+          "targetBlank": true
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": true,
+        "enableLogDetails": true,
+        "sortOrder": "Ascending",
+        "dedupStrategy": "none"
+      }
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "name": "Audit event errors",
+        "datasource": { "type": "loki", "uid": "loki" },
+        "enable": true,
+        "iconColor": "red",
+        "target": {
+          "expr": "{service_name=\"audit-service\"} |= `Failed to process audit event`",
+          "refId": "Anno"
+        }
+      }
+    ]
+  },
+  "schemaVersion": 39,
+  "version": 1
+}

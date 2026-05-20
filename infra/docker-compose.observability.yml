@@ -56,6 +56,11 @@ services:
     container_name: kinetix-grafana
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      # Dashboards as code: the version-controlled JSON under
+      # deploy/observability/dashboards/ is mounted into a sub-folder of the
+      # path the "Kinetix" file provider scans (foldersFromFilesStructure: true),
+      # so these dashboards land in a "kinetix" Grafana folder.
+      - ../deploy/observability/dashboards:/etc/grafana/provisioning/dashboards/kinetix:ro
       - grafanadata:/var/lib/grafana
     ports:
       - "3000:3000"

@@ -1,0 +1,29 @@
+{{- /*
+Provisions the Kinetix Grafana dashboards (dashboards as code) in-cluster.
+
+The dashboard JSON under charts/observability/dashboards/ is the deployable
+copy of the version-controlled dashboards in deploy/observability/dashboards/.
+Each .json file becomes a key in this ConfigMap, which the Grafana sub-chart
+mounts via `grafana.dashboardProviders` + `grafana.dashboardsConfigMaps` in
+values.yaml so the same dashboards run in prod that run locally.
+*/ -}}
+{{- if (index .Values "kube-prometheus-stack" "enabled") }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  # Fixed suffix so grafana.dashboardsConfigMaps in values.yaml can reference
+  # this ConfigMap by a deterministic "<release>-kinetix-grafana-dashboards".
+  name: {{ .Release.Name }}-kinetix-grafana-dashboards
+  labels:
+    app.kubernetes.io/name: {{ include "observability.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    # Picked up by the Grafana dashboard sidecar as well as by the
+    # dashboardsConfigMaps reference in values.yaml.
+    grafana_dashboard: "1"
+data:
+{{- range $path, $_ := .Files.Glob "dashboards/*.json" }}
+  {{ base $path }}: |-
+{{ $.Files.Get $path | indent 4 }}
+{{- end }}
+{{- end }}

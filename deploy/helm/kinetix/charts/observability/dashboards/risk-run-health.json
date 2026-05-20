@@ -1,0 +1,391 @@
+{
+  "uid": "kinetix-risk-run-health",
+  "title": "Risk Run Health",
+  "description": "Health of VaR risk runs — run volume, calculation latency, failed-run count from RISK_CALCULATION_FAILED audit events, and dead-letter-queue depth. Panels carry a correlationId / bookId drill-through to the Loki logs and Tempo trace for a selected run.",
+  "tags": ["kinetix", "risk", "audit"],
+  "timezone": "browser",
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "links": [
+    { "title": "Trade Lifecycle", "type": "link", "url": "/d/kinetix-trade-lifecycle", "icon": "dashboard" },
+    { "title": "Business Alerts & Events", "type": "link", "url": "/d/kinetix-business-alerts", "icon": "dashboard" },
+    { "title": "Service Logs", "type": "link", "url": "/d/kinetix-service-logs", "icon": "dashboard" }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "bookId",
+        "type": "query",
+        "label": "Book",
+        "datasource": { "type": "loki", "uid": "loki" },
+        "query": "label_values({service_name=\"audit-service\"} | json, bookId)",
+        "includeAll": true,
+        "allValue": ".+",
+        "current": { "text": "All", "value": "$__all" },
+        "multi": true,
+        "refresh": 2,
+        "sort": 1
+      },
+      {
+        "name": "correlationId",
+        "type": "textbox",
+        "label": "Correlation ID",
+        "description": "Paste a correlationId to follow one risk run across every service via the drill-through panel and links.",
+        "query": "",
+        "current": { "text": "", "value": "" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "VaR Runs",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Total number of VaR calculations completed over the dashboard range, derived from the risk_var_calculation_duration_seconds histogram count.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(risk_var_calculation_duration_seconds_count[$__range]))",
+          "legendFormat": "VaR runs"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0",
+          "color": { "mode": "fixed", "fixedColor": "green" }
+        }
+      },
+      "options": { "colorMode": "value", "graphMode": "area", "textMode": "value_and_name" }
+    },
+    {
+      "id": 2,
+      "title": "VaR Latency p95",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "95th-percentile VaR calculation duration over the last 5 minutes.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum(rate(risk_var_calculation_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p95"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 5 },
+              { "color": "red", "value": 15 }
+            ]
+          }
+        }
+      },
+      "options": { "colorMode": "value", "graphMode": "area", "textMode": "value_and_name" }
+    },
+    {
+      "id": 3,
+      "title": "Failed Runs",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "description": "Count of RISK_CALCULATION_FAILED audit events recorded by audit-service over the dashboard range.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({service_name=\"audit-service\"} |= `Governance audit event persisted` |= `eventType=RISK_CALCULATION_FAILED` [$__range]))",
+          "legendFormat": "Failed runs"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        }
+      },
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" }
+    },
+    {
+      "id": 4,
+      "title": "DLQ Depth",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Total consumer-group lag across all dead-letter-queue (*.dlq) topics — non-zero means messages have been parked after exhausting retries.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(kafka_consumergroup_lag{topic=~\".+\\\\.dlq\"})",
+          "legendFormat": "DLQ depth"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        }
+      },
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" }
+    },
+    {
+      "id": 5,
+      "title": "VaR Run Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 5 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "VaR calculations completed per second, derived from the risk_var_calculation_duration_seconds histogram count.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(risk_var_calculation_duration_seconds_count[$__rate_interval]))",
+          "legendFormat": "VaR runs/s"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60,
+            "lineWidth": 1
+          },
+          "color": { "mode": "fixed", "fixedColor": "blue" }
+        }
+      },
+      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list", "placement": "bottom" } }
+    },
+    {
+      "id": 6,
+      "title": "VaR Calculation Latency (p50 / p95 / p99)",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 5 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Quantiles of VaR calculation duration from the risk_var_calculation_duration_seconds histogram. p95 is the headline SLI for risk-run health.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.50, sum(rate(risk_var_calculation_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p50"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.95, sum(rate(risk_var_calculation_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p95"
+        },
+        {
+          "refId": "C",
+          "expr": "histogram_quantile(0.99, sum(rate(risk_var_calculation_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p99"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "p95" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "p99" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }]
+          }
+        ]
+      },
+      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["max"] } }
+    },
+    {
+      "id": 7,
+      "title": "Failed Runs Over Time",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 14 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "description": "RISK_CALCULATION_FAILED audit events over time, parsed from the audit-service log stream. Use the bookId variable to scope to a single book.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({service_name=\"audit-service\"} |= `Governance audit event persisted` |= `eventType=RISK_CALCULATION_FAILED` | json | bookId=~\"$bookId\" [$__auto]))",
+          "legendFormat": "Failed runs"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 70,
+            "lineWidth": 1
+          },
+          "color": { "mode": "fixed", "fixedColor": "red" }
+        }
+      },
+      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list", "placement": "bottom" } }
+    },
+    {
+      "id": 8,
+      "title": "Run Success Ratio",
+      "type": "gauge",
+      "gridPos": { "h": 9, "w": 6, "x": 12, "y": 14 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Successful VaR runs as a fraction of all attempted runs over the dashboard range. Attempts = completed runs (histogram count) plus RISK_CALCULATION_FAILED audit events are tracked separately; this gauge approximates success against the failed-counter recording rule when available.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "clamp_max(sum(increase(risk_var_calculation_duration_seconds_count[$__range])) / clamp_min(sum(increase(risk_var_calculation_total[$__range])), 1), 1)",
+          "legendFormat": "Success ratio"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.9 },
+              { "color": "green", "value": 0.99 }
+            ]
+          }
+        }
+      },
+      "options": { "showThresholdLabels": false, "showThresholdMarkers": true }
+    },
+    {
+      "id": 9,
+      "title": "DLQ Depth by Topic",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 6, "x": 18, "y": 14 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Consumer-group lag on each dead-letter-queue topic, from kafka-exporter. A rising line means messages are being parked after retry exhaustion.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (topic) (kafka_consumergroup_lag{topic=~\".+\\\\.dlq\"})",
+          "legendFormat": "{{topic}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "lineWidth": 2
+          }
+        }
+      },
+      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["last"] } }
+    },
+    {
+      "id": 10,
+      "title": "Recent Failed Runs",
+      "type": "logs",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 23 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "description": "Latest RISK_CALCULATION_FAILED audit events from audit-service. Expand a line for the structured fields (bookId, correlationId, details); click the TraceID derived field to open the trace in Tempo.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service_name=\"audit-service\"} |= `Governance audit event persisted` |= `eventType=RISK_CALCULATION_FAILED` | json | bookId=~\"$bookId\""
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": true,
+        "enableLogDetails": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none"
+      }
+    },
+    {
+      "id": 11,
+      "title": "Risk Run Drill-through",
+      "type": "logs",
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 35 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "description": "Set the correlationId variable to follow a single risk run across every service. Use the panel links to jump to the full Loki log stream and the Tempo trace for that run.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service_name=~\".+\"} | json | correlationId=`$correlationId`"
+        }
+      ],
+      "links": [
+        {
+          "title": "Open all logs for this correlationId in Loki",
+          "url": "/explore?left=%7B%22datasource%22:%22loki%22,%22queries%22:%5B%7B%22datasource%22:%7B%22type%22:%22loki%22,%22uid%22:%22loki%22%7D,%22expr%22:%22%7Bservice_name%3D~%5C%22.%2B%5C%22%7D%20%7C%20json%20%7C%20correlationId%3D%5C%22${correlationId}%5C%22%22%7D%5D,%22range%22:%7B%22from%22:%22now-24h%22,%22to%22:%22now%22%7D%7D",
+          "targetBlank": true
+        },
+        {
+          "title": "Open the trace for this correlationId in Tempo",
+          "url": "/explore?left=%7B%22datasource%22:%22tempo%22,%22queries%22:%5B%7B%22datasource%22:%7B%22type%22:%22tempo%22,%22uid%22:%22tempo%22%7D,%22queryType%22:%22traceql%22,%22query%22:%22%7B%20.correlationId%20%3D%20%5C%22${correlationId}%5C%22%20%7D%22%7D%5D,%22range%22:%7B%22from%22:%22now-24h%22,%22to%22:%22now%22%7D%7D",
+          "targetBlank": true
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": true,
+        "enableLogDetails": true,
+        "sortOrder": "Ascending",
+        "dedupStrategy": "none"
+      }
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "name": "Failed risk runs",
+        "datasource": { "type": "loki", "uid": "loki" },
+        "enable": true,
+        "iconColor": "red",
+        "target": {
+          "expr": "{service_name=\"audit-service\"} |= `Governance audit event persisted` |= `eventType=RISK_CALCULATION_FAILED`",
+          "refId": "Anno"
+        }
+      }
+    ]
+  },
+  "schemaVersion": 39,
+  "version": 1
+}
