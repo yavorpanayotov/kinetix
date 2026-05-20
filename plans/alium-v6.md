@@ -146,7 +146,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       checks) have a live path. Source: `group-d` C3 / `regime.allium:155-425`.
       Acceptance: `./gradlew :risk-orchestrator:test :risk-orchestrator:acceptanceTest`
 
-- [ ] 1.5 Remove `TRIGGERED → ESCALATED` from `AlertStatus.canTransitionTo`
+- [x] 1.5 Remove `TRIGGERED → ESCALATED` from `AlertStatus.canTransitionTo`
       (`notification-service/.../model/AlertModels.kt:24`) so the manual
       `POST /alerts/{id}/escalate` (`Application.kt:519`) can no longer skip the
       acknowledgement step. Add a test that escalating a `TRIGGERED` alert is
