@@ -112,7 +112,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
       "targets": [
         {
-          "expr": "abs(pnl_attribution_unexplained_pnl{book_id=~\"$book_id\"}) / abs(pnl_attribution_total_pnl{book_id=~\"$book_id\"} != 0)",
+          "expr": "abs(pnl_attribution_unexplained_pnl{book_id=~\"$book_id\"}) / clamp_min(abs(pnl_attribution_total_pnl{book_id=~\"$book_id\"}), 1)",
           "legendFormat": "{{book_id}} unexplained %"
         }
       ],
