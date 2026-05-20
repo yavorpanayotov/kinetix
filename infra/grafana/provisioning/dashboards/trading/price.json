@@ -155,7 +155,8 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "ops"
+          "unit": "ops",
+          "noValue": "No data"
         }
       },
       "datasource": {

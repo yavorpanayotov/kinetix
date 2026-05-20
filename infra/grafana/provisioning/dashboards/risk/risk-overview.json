@@ -101,7 +101,8 @@
               }
             ]
           },
-          "unit": "currencyUSD"
+          "unit": "currencyUSD",
+          "noValue": "No data"
         }
       },
       "datasource": {
@@ -163,7 +164,8 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "currencyUSD"
+          "unit": "currencyUSD",
+          "noValue": "No data"
         }
       },
       "datasource": {
@@ -223,6 +225,12 @@
           }
         }
       ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "noValue": "No data"
+        }
+      },
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"

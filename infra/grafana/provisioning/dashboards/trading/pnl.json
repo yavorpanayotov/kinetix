@@ -51,6 +51,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "currencyUSD",
+          "noValue": "No data",
           "thresholds": {
             "steps": [
               { "color": "red", "value": null },
@@ -93,6 +94,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "currencyUSD",
+          "noValue": "No data",
           "thresholds": {
             "steps": [
               { "color": "green", "value": null },
@@ -147,6 +149,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "currencyUSD",
+          "noValue": "No data",
           "thresholds": {
             "steps": [
               { "color": "red", "value": null },

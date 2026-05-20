@@ -19,6 +19,7 @@
   "panels": [
     {
       "title": "FIX Session State (per venue)",
+      "description": "Logon state of each FIX session. Uses the 'last' reducer (not 'lastNotNull') so that when the FIX gateway stops being scraped the panel renders 'No data' rather than holding the last UP sample green indefinitely.",
       "type": "stat",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "h": 6, "w": 24, "x": 0, "y": 0 },
@@ -31,6 +32,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "short",
+          "noValue": "No data",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -43,6 +45,9 @@
           ]
         },
         "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["last"] }
       }
     },
     {
@@ -106,6 +111,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "reqps",
+          "noValue": "No data",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -144,6 +150,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "short",
+          "noValue": "No data",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -205,7 +212,7 @@
           "legendFormat": "Partitions archived"
         }
       ],
-      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] }
+      "fieldConfig": { "defaults": { "unit": "short", "noValue": "No data" }, "overrides": [] }
     },
     {
       "title": "mTLS Handshake Failures (rate, by peer)",

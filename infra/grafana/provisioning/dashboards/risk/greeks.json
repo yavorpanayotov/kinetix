@@ -135,7 +135,7 @@
         }
       ],
       "fieldConfig": {
-        "defaults": { "unit": "reqps" },
+        "defaults": { "unit": "reqps", "noValue": "No data" },
         "overrides": []
       }
     },
@@ -152,7 +152,7 @@
         }
       ],
       "fieldConfig": {
-        "defaults": { "unit": "s" },
+        "defaults": { "unit": "s", "noValue": "No data" },
         "overrides": []
       }
     }

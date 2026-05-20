@@ -110,7 +110,8 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "currencyUSD"
+          "unit": "currencyUSD",
+          "noValue": "No data"
         },
         "overrides": []
       }
@@ -128,7 +129,8 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "currencyUSD"
+          "unit": "currencyUSD",
+          "noValue": "No data"
         },
         "overrides": []
       }
@@ -146,7 +148,8 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "currencyUSD"
+          "unit": "currencyUSD",
+          "noValue": "No data"
         },
         "overrides": []
       }
