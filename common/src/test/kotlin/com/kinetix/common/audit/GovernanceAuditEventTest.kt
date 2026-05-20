@@ -24,6 +24,7 @@ class GovernanceAuditEventTest : FunSpec({
         event.submissionId.shouldBeNull()
         event.bookId.shouldBeNull()
         event.details.shouldBeNull()
+        event.correlationId.shouldBeNull()
     }
 
     test("constructs with all optional fields") {
@@ -37,11 +38,13 @@ class GovernanceAuditEventTest : FunSpec({
             submissionId = "sub-001",
             bookId = "BOOK-A",
             details = "approved after review",
+            correlationId = "corr-123",
         )
 
         event.scenarioId shouldBe "scenario-abc"
         event.modelName shouldBe "VaR-v2"
         event.details shouldBe "approved after review"
+        event.correlationId shouldBe "corr-123"
     }
 
     test("serializes and deserializes via JSON without data loss") {
@@ -56,5 +59,29 @@ class GovernanceAuditEventTest : FunSpec({
         val decoded = Json.decodeFromString<GovernanceAuditEvent>(json)
 
         decoded shouldBe event
+    }
+
+    test("round-trips correlationId through JSON serialization") {
+        val event = GovernanceAuditEvent(
+            eventType = AuditEventType.RBAC_ACCESS_DENIED,
+            userId = "user-x",
+            userRole = "TRADER",
+            correlationId = "corr-abc-789",
+        )
+
+        val json = Json.encodeToString(event)
+        val decoded = Json.decodeFromString<GovernanceAuditEvent>(json)
+
+        decoded.correlationId shouldBe "corr-abc-789"
+        decoded shouldBe event
+    }
+
+    test("deserializes legacy JSON without correlationId as null") {
+        val legacyJson =
+            """{"eventType":"MODEL_STATUS_CHANGED","userId":"user-1","userRole":"RISK_MANAGER"}"""
+
+        val decoded = Json.decodeFromString<GovernanceAuditEvent>(legacyJson)
+
+        decoded.correlationId.shouldBeNull()
     }
 })

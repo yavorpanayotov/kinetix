@@ -14,4 +14,5 @@ data class GovernanceAuditEvent(
     val bookId: String? = null,
     val alertId: String? = null,
     val details: String? = null,
+    val correlationId: String? = null,
 )
