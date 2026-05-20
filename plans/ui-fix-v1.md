@@ -45,7 +45,11 @@ end-to-end with `/loop /work-plan plans/ui-fix-v1.md`.
   before this restructure. Checkbox 1.1 below is therefore the *fix half* of
   that pair — apply the production change and verify the test goes green.
 - **No new dependencies, no new Kafka topics, no new tables, no new API
-  contracts.** Every fix is contained to an existing module.
+  contracts.** Every fix is contained to an existing module. One approved
+  exception: PR 7.1 adds `POST /api/v1/internal/execution/cost/{bookId}`
+  to position-service under the existing `/api/v1/internal/` demo-seed
+  namespace — user-approved 2026-05-20 (see the Decision block above
+  checkbox 7.1).
 - **Demo seed touches** (M2 reconciliation/execution-cost, M3 SOD baseline,
   B4 EOD promotion) live inside `demo-orchestrator/` and reuse existing
   `DevDataSeeder` constants.
@@ -255,44 +259,31 @@ checkbox already captured this.
 
 ### PR 7 — Trades blotter: Reconciliation + Execution Cost demo data (M2)
 
-- [ ] 7.1 TDD pair (integration test + impl in one commit): add a
-      `demo-orchestrator/` integration test asserting that after the
-      simulated trading day runs,
-      `GET /api/v1/trades/reconciliation/balanced-income` returns at least
-      one reconciliation row AND
-      `GET /api/v1/trades/execution-cost/balanced-income?from=…&to=…`
-      returns at least one row. Then extend the demo-orchestrator's trade
-      simulator to emit a small stream of reconciliation breaks (~5% of
-      trades) and per-trade execution-cost samples. Reuse `DevDataSeeder`
-      instrument/book constants per `plans/demo-v2.md`. No new tables, no
-      new API contracts.
+  Decision (2026-05-20, user-approved — Option A): a new
+  `POST /api/v1/internal/execution/cost/{bookId}` route is added to
+  position-service under the EXISTING `/api/v1/internal/` namespace (which
+  already hosts `/api/v1/internal/position` and `/api/v1/internal/trades`
+  for demo/seed traffic). It is a demo/seed seam, not a public trading
+  contract — this clears the CLAUDE.md "ask before changing architecture"
+  gate. Rationale: demo-orchestrator's whole integration style is HTTP REST
+  clients; Option B (Kafka producer) would be net-new capability for the
+  module; Option C leaves the Execution Cost subtab empty.
+
+- [ ] 7.1 TDD pair (test + impl in one commit): add
+      `POST /api/v1/internal/execution/cost/{bookId}` to position-service
+      (`routes/ExecutionRoutes.kt`) — additive route + request DTO,
+      delegating to the existing `ExecutionCostRepository.save(...)`.
+      Then extend the demo-orchestrator trade simulator to (a) call that
+      endpoint with a synthetic execution-cost sample after each simulated
+      trade, and (b) for ~5% of trades, generate a reconciliation break
+      via the existing
+      `POST /api/v1/execution/reconciliation/{bookId}/statements` upload
+      endpoint. Add a `demo-orchestrator/` integration test asserting that
+      after a simulated trading day, `GET /api/v1/execution/cost/{bookId}`
+      AND `GET /api/v1/execution/reconciliation/{bookId}` each return ≥ 1
+      row. Reuse `DevDataSeeder` instrument/book constants. Add a
+      position-service acceptance test for the new internal route.
       Acceptance: `./gradlew :demo-orchestrator:integrationTest --tests "*ReconExecution*"`
-
-      Blocked: 2026-05-19 — position-service has GET-only endpoints for
-      `/api/v1/execution/cost/{bookId}` and
-      `/api/v1/execution/reconciliation/{bookId}`. There is no POST surface
-      to insert an arbitrary `ExecutionCostAnalysis` from outside the FIX
-      consumer; production rows only come from
-      `FIXExecutionReportProcessor.processFill(...)` driven by Kafka topic
-      `execution.reports`. Reconciliation has the upload-statement endpoint
-      `POST /api/v1/execution/reconciliation/{bookId}/statements` which
-      could be used; execution-cost has no equivalent.
-
-      Three unblocking options (each requires user approval per CLAUDE.md
-      "Ask before changing architecture"):
-        a) Add `POST /api/v1/execution/cost/{bookId}` to position-service —
-           additive REST route delegating to `ExecutionCostRepository.save`.
-           Lowest-risk; smallest surface area. Recommended.
-        b) Demo-orchestrator publishes `ExecutionReportEvent` to the
-           existing `execution.reports` Kafka topic to drive the existing
-           FIX fill processor. New producer of a fix-gateway-only topic;
-           requires Kafka Testcontainer for the integration test.
-        c) Drop execution-cost from M2 scope; do only the reconciliation
-           half via the existing upload-statement endpoint. Leaves the
-           Trades > Execution Cost subtab empty.
-
-      Resume by picking one of the above and re-dispatching. Subagent
-      report: `/private/tmp/.../aa584db4ed0c87d83.output`.
 - [ ] 7.2 Re-run the Playwright spec `trades-blotter.spec.ts` and add
       `ui/e2e/trades-recon-execution-cost.spec.ts` asserting both subtabs
       render non-empty grids.
