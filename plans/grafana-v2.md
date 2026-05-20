@@ -221,7 +221,7 @@ not stop mid-loop:
 
 ### PR 3 — Consistency, correctness & navigation pass (dashboard JSON only)
 
-- [ ] 3.1 Standardise dashboard chrome across all 14 JSON files: `refresh: "30s"`,
+- [x] 3.1 Standardise dashboard chrome across all 14 JSON files: `refresh: "30s"`,
       default `time` range `now-1h`, consistent `timezone`, and a folder-aligned
       `tags` entry (`infrastructure`/`overview`/`trading`/`risk`).
       Acceptance: `node plans/scripts/validate-grafana.mjs`
