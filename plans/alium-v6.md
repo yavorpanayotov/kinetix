@@ -113,7 +113,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
 
 ## Phase 1 — P0 code bugs (the punch list)
 
-- [ ] 1.1 Add the four shared instrument enums to `common/` — `OptionType`,
+- [x] 1.1 Add the four shared instrument enums to `common/` — `OptionType`,
       `ExerciseStyle`, `BondSeniority`, `SwapDirection` — one type per file under
       `common/src/main/kotlin/com/kinetix/common/model/` per `core.allium:136-144`.
       Regression of `initial-report.md` #10/#11/#12/#28. TDD: enum + a parse/round-trip
