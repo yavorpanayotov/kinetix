@@ -194,7 +194,7 @@ def test_build_brief_client_falls_back_to_canned_on_live_construction_error(
 ) -> None:
     monkeypatch.delenv("DEMO_MODE", raising=False)
 
-    def _raise(*args: object, **kwargs: object) -> None:
+    def _raise(*_args: object, **_kwargs: object) -> None:
         raise RuntimeError("boom")
 
     monkeypatch.setattr(brief_factory, "ClaudeAgentBriefClient", _raise)
