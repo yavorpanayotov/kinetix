@@ -351,6 +351,15 @@ checkbox already captured this.
       EOD timeline has entries, Regulatory tab renders the SBM table.
       Acceptance: `node plans/scripts/audit-live-ui.mjs && grep -q '"consoleErrors": \[\]' /tmp/kinetix-audit/report.json`
 
+      Status (2026-05-20): `plans/scripts/audit-live-ui.mjs` is checked in
+      and operational. It currently FAILS against the live deploy by
+      design — the deployment still runs pre-fix binaries (ticker NAV
+      $0.00, Firm Summary $0.00, no SBM table, 4 stale console 404s). This
+      is the FINAL checkbox and is gated entirely on `./deploy/redeploy.sh`
+      rolling every service + the UI bundle forward to current `main`.
+      Once redeployed, re-run the acceptance command; it should pass and
+      this box can be ticked.
+
 ## Diagnosis log
 
 ### 2.1 (2026-05-19) — "B1" was a payload-shape misdiagnosis
