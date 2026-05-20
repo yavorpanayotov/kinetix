@@ -1,7 +1,19 @@
+import { useState } from 'react'
 import { ChevronRight, ChevronDown } from 'lucide-react'
 import type { StressScenarioDto, StressTestResultDto } from '../types'
 import { formatCurrency } from '../utils/format'
 import { ScenarioTooltip } from './ScenarioTooltip'
+import { ExplainButton } from './ExplainButton'
+import { AIInsightPanel } from './AIInsightPanel'
+import { useCopilotContext } from '../hooks/useCopilotContext'
+import { chat, type ChatChunk, type ChatRequest } from '../api/copilot'
+import { buildScenarioExplainContext } from './buildScenarioExplainContext'
+
+/** Signature of the injectable `chatFn` — mirrors `chat` in `api/copilot`. */
+type ChatFn = (
+  request: ChatRequest,
+  options?: { signal?: AbortSignal },
+) => ReadableStream<ChatChunk>
 
 interface ScenarioComparisonTableProps {
   results: StressTestResultDto[]
@@ -10,6 +22,12 @@ interface ScenarioComparisonTableProps {
   checkedScenarios?: Set<string>
   onToggleCheck?: (scenario: string) => void
   scenarioMetadata?: StressScenarioDto[]
+  /**
+   * Dependency-injection seam for the streaming `chat()` client. Tests
+   * substitute a fake; production callers leave it unset and the real
+   * `chat` import is used (plan §9.4 — inline explainer on scenario rows).
+   */
+  chatFn?: ChatFn
 }
 
 const CATEGORY_BADGE_STYLES: Record<string, string> = {
@@ -59,7 +77,39 @@ export function ScenarioComparisonTable({
   checkedScenarios,
   onToggleCheck,
   scenarioMetadata,
+  chatFn = chat,
 }: ScenarioComparisonTableProps) {
+  const copilotContext = useCopilotContext()
+  // Inline explainer state (plan §9.4). At most one scenario-row explainer
+  // is ever open — `explainScenario` identifies which row's panel is
+  // showing and `explainStream` is the live `/chat` token stream feeding it.
+  const [explainScenario, setExplainScenario] = useState<string | null>(null)
+  const [explainStream, setExplainStream] =
+    useState<ReadableStream<ChatChunk> | null>(null)
+
+  /**
+   * Open the inline explainer for a specific scenario result row.
+   *
+   * Double-click protection: a second click on the scenario whose panel is
+   * already open is a no-op — neither a duplicate panel nor a duplicate
+   * `/chat` request is created. Opening a *different* scenario's explainer
+   * replaces the current one ("only one panel open"), plan §9.4.
+   */
+  function handleExplainScenario(result: StressTestResultDto) {
+    if (explainScenario === result.scenarioName) return
+    const stream = chatFn({
+      message: `Explain the ${result.scenarioName.replace(/_/g, ' ')} stress scenario — what drove the P&L impact?`,
+      page_context: buildScenarioExplainContext(copilotContext, result),
+    })
+    setExplainScenario(result.scenarioName)
+    setExplainStream(stream)
+  }
+
+  function closeExplainScenario() {
+    setExplainScenario(null)
+    setExplainStream(null)
+  }
+
   if (results.length === 0) {
     return (
       <p data-testid="no-results" className="text-sm text-slate-500">
@@ -70,6 +120,10 @@ export function ScenarioComparisonTable({
 
   const hasAnyBreaches = results.some((r) => (r.limitBreaches ?? []).length > 0)
   const showCheckboxes = !!onToggleCheck
+  const explainedResult =
+    explainScenario !== null
+      ? results.find((r) => r.scenarioName === explainScenario) ?? null
+      : null
 
   return (
     <div data-testid="scenario-comparison-table" className="overflow-x-auto">
@@ -85,6 +139,8 @@ export function ScenarioComparisonTable({
             <th className="py-2 text-right">VaR Multiplier</th>
             <th className="py-2 text-right">P&amp;L Impact</th>
             {hasAnyBreaches && <th className="py-2 text-center">Limits</th>}
+            {/* Rightmost action column — per-row inline explainer (plan §9.4). */}
+            <th className="py-2 w-8" aria-label="Explain"></th>
           </tr>
         </thead>
         <tbody>
@@ -184,11 +240,40 @@ export function ScenarioComparisonTable({
                     </span>
                   </td>
                 )}
+                {/* Per-row inline explainer (plan §9.4). The click is stopped
+                    from bubbling so it does not toggle the row selection. */}
+                <td
+                  className="py-1.5 w-8 text-right"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <ExplainButton
+                    data-testid={`explain-scenario-${r.scenarioName}`}
+                    label=""
+                    ariaLabel={`Explain ${r.scenarioName.replace(/_/g, ' ')} stress scenario`}
+                    onClick={() => handleExplainScenario(r)}
+                    className="px-1.5 py-1 text-xs"
+                  />
+                </td>
               </tr>
             )
           })}
         </tbody>
       </table>
+
+      {/* Inline AI explainer panel — plan §9.4. At most one scenario row's
+          panel is open at a time; opening another replaces this one. */}
+      {explainedResult && explainStream && (
+        <div
+          data-testid={`scenario-explain-panel-${explainedResult.scenarioName}`}
+          className="mt-2"
+        >
+          <AIInsightPanel
+            stream={explainStream}
+            title={`Explain — ${explainedResult.scenarioName.replace(/_/g, ' ')}`}
+            onClose={closeExplainScenario}
+          />
+        </div>
+      )}
     </div>
   )
 }

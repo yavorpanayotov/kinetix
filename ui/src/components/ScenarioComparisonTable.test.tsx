@@ -1,12 +1,43 @@
 import { render, screen, fireEvent } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
+import type { ChatChunk, ChatRequest } from '../api/copilot'
 import { ScenarioComparisonTable } from './ScenarioComparisonTable'
-import { ALL_STRESS_RESULTS, makeStressResult, makeLimitBreach } from '../test-utils/stressMocks'
+import {
+  ALL_STRESS_RESULTS,
+  makeStressResult,
+  makeLimitBreach,
+  makePositionImpact,
+} from '../test-utils/stressMocks'
 
 const defaultProps = {
   results: ALL_STRESS_RESULTS,
   selectedScenario: null,
   onSelectScenario: vi.fn(),
+}
+
+/** Signature of the injectable `chatFn` prop — mirrors `chat` in `api/copilot`. */
+type ChatFn = (
+  request: ChatRequest,
+  options?: { signal?: AbortSignal },
+) => ReadableStream<ChatChunk>
+
+/** Build a `ReadableStream<ChatChunk>` that emits the supplied chunks then closes. */
+function streamOf(...chunks: ChatChunk[]): ReadableStream<ChatChunk> {
+  return new ReadableStream<ChatChunk>({
+    start(controller) {
+      for (const chunk of chunks) controller.enqueue(chunk)
+      controller.close()
+    },
+  })
+}
+
+const doneChunk: ChatChunk = {
+  type: 'done',
+  session_id: 's',
+  conversation_id: 'c',
+  model: 'canned-chat',
+  mode: 'canned',
 }
 
 describe('ScenarioComparisonTable', () => {
@@ -147,5 +178,128 @@ describe('ScenarioComparisonTable', () => {
     render(<ScenarioComparisonTable {...defaultProps} />)
 
     expect(screen.queryByText('Limits')).not.toBeInTheDocument()
+  })
+
+  describe('inline explainer (plan §9.4)', () => {
+    it('renders a per-row explain button for every scenario result', () => {
+      render(<ScenarioComparisonTable {...defaultProps} />)
+
+      expect(screen.getByTestId('explain-scenario-GFC_2008')).toBeInTheDocument()
+      expect(
+        screen.getByTestId('explain-scenario-COVID_2020'),
+      ).toBeInTheDocument()
+    })
+
+    it('clicking a scenario explain button opens an inline insight panel', async () => {
+      const user = userEvent.setup()
+      const chatFn = vi.fn<ChatFn>(() => streamOf(doneChunk))
+      render(<ScenarioComparisonTable {...defaultProps} chatFn={chatFn} />)
+
+      await user.click(screen.getByTestId('explain-scenario-GFC_2008'))
+
+      expect(
+        screen.getByTestId('scenario-explain-panel-GFC_2008'),
+      ).toBeInTheDocument()
+      expect(chatFn).toHaveBeenCalledTimes(1)
+    })
+
+    it('sends scenario name, stressed PnL and top stressed positions in page_context', async () => {
+      const user = userEvent.setup()
+      const chatFn = vi.fn<ChatFn>(() => streamOf(doneChunk))
+      const result = makeStressResult({
+        scenarioName: 'GFC_2008',
+        pnlImpact: '-500000.00',
+        stressedVar: '300000.00',
+        positionImpacts: [
+          makePositionImpact({ instrumentId: 'AAPL', pnlImpact: '-50000.00' }),
+          makePositionImpact({ instrumentId: 'BIG', pnlImpact: '-900000.00' }),
+          makePositionImpact({ instrumentId: 'TINY', pnlImpact: '-100.00' }),
+        ],
+      })
+      render(
+        <ScenarioComparisonTable
+          {...defaultProps}
+          results={[result]}
+          chatFn={chatFn}
+        />,
+      )
+
+      await user.click(screen.getByTestId('explain-scenario-GFC_2008'))
+
+      const request = chatFn.mock.calls[0][0]
+      const ctx = request.page_context
+      expect(ctx.page).toBe('scenarios')
+      expect(ctx.scenario_name).toBe('GFC_2008')
+      expect(ctx.stressed_pnl).toBe('-500000.00')
+
+      const top = ctx.top_stressed_positions as { instrumentId: string }[]
+      // Ranked by absolute P&L impact, worst first.
+      expect(top.map((p) => p.instrumentId)).toEqual(['BIG', 'AAPL', 'TINY'])
+    })
+
+    it('a double-click does not open a duplicate panel or fire a duplicate request', async () => {
+      const user = userEvent.setup()
+      const chatFn = vi.fn<ChatFn>(() => streamOf(doneChunk))
+      render(<ScenarioComparisonTable {...defaultProps} chatFn={chatFn} />)
+
+      const button = screen.getByTestId('explain-scenario-GFC_2008')
+      await user.click(button)
+      await user.click(button)
+
+      expect(chatFn).toHaveBeenCalledTimes(1)
+      expect(
+        screen.getAllByTestId('scenario-explain-panel-GFC_2008'),
+      ).toHaveLength(1)
+    })
+
+    it('opening a second scenario explainer replaces the first (only one panel open)', async () => {
+      const user = userEvent.setup()
+      const chatFn = vi.fn<ChatFn>(() => streamOf(doneChunk))
+      render(<ScenarioComparisonTable {...defaultProps} chatFn={chatFn} />)
+
+      await user.click(screen.getByTestId('explain-scenario-GFC_2008'))
+      await user.click(screen.getByTestId('explain-scenario-COVID_2020'))
+
+      expect(
+        screen.queryByTestId('scenario-explain-panel-GFC_2008'),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.getByTestId('scenario-explain-panel-COVID_2020'),
+      ).toBeInTheDocument()
+      expect(chatFn).toHaveBeenCalledTimes(2)
+    })
+
+    it('closes the explainer when the panel close button is clicked', async () => {
+      const user = userEvent.setup()
+      const chatFn = vi.fn<ChatFn>(() => streamOf(doneChunk))
+      render(<ScenarioComparisonTable {...defaultProps} chatFn={chatFn} />)
+
+      await user.click(screen.getByTestId('explain-scenario-GFC_2008'))
+      expect(
+        screen.getByTestId('scenario-explain-panel-GFC_2008'),
+      ).toBeInTheDocument()
+
+      await user.click(screen.getByTestId('ai-insight-close'))
+      expect(
+        screen.queryByTestId('scenario-explain-panel-GFC_2008'),
+      ).not.toBeInTheDocument()
+    })
+
+    it('clicking the explain button does not toggle the row selection', async () => {
+      const user = userEvent.setup()
+      const onSelect = vi.fn()
+      const chatFn = vi.fn<ChatFn>(() => streamOf(doneChunk))
+      render(
+        <ScenarioComparisonTable
+          {...defaultProps}
+          onSelectScenario={onSelect}
+          chatFn={chatFn}
+        />,
+      )
+
+      await user.click(screen.getByTestId('explain-scenario-GFC_2008'))
+
+      expect(onSelect).not.toHaveBeenCalled()
+    })
   })
 })
