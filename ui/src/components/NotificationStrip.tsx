@@ -1,0 +1,342 @@
+import { useMemo, useState } from 'react'
+import { Bell, ChevronDown, ChevronUp, X } from 'lucide-react'
+import { formatRelativeTime } from '../utils/format'
+
+/**
+ * Plan §6.9 — copilot notification strip.
+ *
+ * A 36px collapsed bar that summarises current notifications (severity chips
+ * + unread count) and expands into a scrollable inbox. It sits between
+ * <SystemStatusBanner> and <RiskTickerStrip> in the App layout, but 6.9
+ * ships only the self-contained presentational component + tests; the
+ * App.tsx placement is a later concern.
+ *
+ * Later checkboxes hang more off this strip: the morning brief
+ * (<MorningBriefCard>, 6.10) and intraday push items (PR 7). For 6.9 it is
+ * driven entirely by props — the caller owns the notification list and the
+ * strip only filters out items the user has dismissed.
+ */
+export type NotificationSeverity = 'info' | 'warning' | 'critical'
+
+export interface NotificationItem {
+  id: string
+  severity: NotificationSeverity
+  title: string
+  body?: string
+  timestamp: string // ISO 8601
+  /** Optional source label, e.g. "Morning brief" or "Intraday alert". */
+  source?: string
+}
+
+export interface NotificationStripProps {
+  /** All current notifications (caller-owned; the strip filters out dismissed ones). */
+  items: NotificationItem[]
+  /** Render an error state instead of the normal bar. */
+  error?: string | null
+  /** Optional controlled-expansion. When omitted, the strip owns its own open/closed state. */
+  expanded?: boolean
+  onExpandedChange?: (expanded: boolean) => void
+}
+
+const DISMISSED_KEY = 'kinetix:copilot-inbox:dismissed'
+const INBOX_ID = 'notification-inbox-panel'
+
+/** Severities rendered in priority order for chips and the dot legend. */
+const SEVERITY_ORDER: NotificationSeverity[] = ['critical', 'warning', 'info']
+
+/** Chip colour classes keyed by severity — class-substring assertions rely on these. */
+const CHIP_CLASS: Record<NotificationSeverity, string> = {
+  critical: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+  warning: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+  info: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300',
+}
+
+/** Severity dot colour classes for individual inbox rows. */
+const DOT_CLASS: Record<NotificationSeverity, string> = {
+  critical: 'bg-red-500',
+  warning: 'bg-amber-500',
+  info: 'bg-slate-400',
+}
+
+/**
+ * Read the dismissed-id set from localStorage. Tolerates a missing or
+ * malformed value by returning an empty set — mirrors the defensive
+ * `loadRecent` idiom in <CommandPalette>.
+ */
+function loadDismissed(): Set<string> {
+  try {
+    const raw = window.localStorage.getItem(DISMISSED_KEY)
+    if (!raw) return new Set()
+    const parsed: unknown = JSON.parse(raw)
+    if (Array.isArray(parsed)) {
+      return new Set(parsed.filter((x): x is string => typeof x === 'string'))
+    }
+    return new Set()
+  } catch {
+    return new Set()
+  }
+}
+
+/**
+ * Persist the dismissed-id set. Swallows errors — localStorage may be
+ * unavailable in private mode or over quota, and dismissal persistence is
+ * a nice-to-have, not a functional requirement.
+ */
+function saveDismissed(ids: Set<string>): void {
+  try {
+    window.localStorage.setItem(DISMISSED_KEY, JSON.stringify([...ids]))
+  } catch {
+    // localStorage unavailable — swallow.
+  }
+}
+
+export interface NotificationInboxProps {
+  items: NotificationItem[] // already-filtered visible items
+  onDismiss: (id: string) => void
+  onDismissAll: () => void
+}
+
+export function NotificationInbox({ items, onDismiss, onDismissAll }: NotificationInboxProps) {
+  return (
+    <div
+      id={INBOX_ID}
+      data-testid="notification-inbox"
+      className="max-h-80 overflow-y-auto border-b border-slate-200 dark:border-surface-700 bg-white dark:bg-surface-800"
+    >
+      {items.length === 0 ? (
+        <div
+          data-testid="notification-inbox-empty"
+          className="px-4 py-6 text-sm text-center text-slate-400 dark:text-slate-500"
+        >
+          All caught up.
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center justify-end px-3 py-1.5 border-b border-slate-100 dark:border-surface-700">
+            <button
+              type="button"
+              data-testid="notification-dismiss-all"
+              onClick={onDismissAll}
+              className="text-xs font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+            >
+              Dismiss all
+            </button>
+          </div>
+          <ul>
+            {items.map((item) => (
+              <li
+                key={item.id}
+                data-testid={`notification-item-${item.id}`}
+                className="flex items-start gap-2.5 px-3 py-2 border-b border-slate-100 dark:border-surface-700 last:border-b-0"
+              >
+                <span
+                  className={`mt-1 h-2 w-2 flex-shrink-0 rounded-full ${DOT_CLASS[item.severity]}`}
+                  aria-hidden="true"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">
+                      {item.title}
+                    </span>
+                    <span className="flex-shrink-0 text-[10px] font-mono text-slate-400 dark:text-slate-500">
+                      {formatRelativeTime(item.timestamp)}
+                    </span>
+                  </div>
+                  {item.body && (
+                    <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-300">
+                      {item.body}
+                    </p>
+                  )}
+                  {item.source && (
+                    <span className="mt-0.5 inline-block text-[10px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                      {item.source}
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  data-testid={`notification-dismiss-${item.id}`}
+                  aria-label="Dismiss notification"
+                  onClick={() => onDismiss(item.id)}
+                  className="flex-shrink-0 rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-surface-700 dark:hover:text-slate-200"
+                >
+                  <X className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
+  )
+}
+
+export function NotificationStrip({
+  items,
+  error = null,
+  expanded,
+  onExpandedChange,
+}: NotificationStripProps) {
+  const [dismissed, setDismissed] = useState<Set<string>>(() => loadDismissed())
+  const [internalExpanded, setInternalExpanded] = useState(false)
+
+  // Controlled when `expanded` is supplied; uncontrolled otherwise.
+  const isControlled = expanded !== undefined
+  const isExpanded = isControlled ? expanded : internalExpanded
+
+  const visible = useMemo(
+    () => items.filter((item) => !dismissed.has(item.id)),
+    [items, dismissed],
+  )
+
+  const setExpanded = (next: boolean) => {
+    if (!isControlled) setInternalExpanded(next)
+    onExpandedChange?.(next)
+  }
+
+  const handleDismiss = (id: string) => {
+    setDismissed((prev) => {
+      const next = new Set(prev)
+      next.add(id)
+      saveDismissed(next)
+      return next
+    })
+  }
+
+  const handleDismissAll = () => {
+    setDismissed((prev) => {
+      const next = new Set(prev)
+      for (const item of visible) next.add(item.id)
+      saveDismissed(next)
+      return next
+    })
+  }
+
+  // Error takes precedence over both the empty and populated bars. The
+  // `notification-strip` element is itself the 36px bar (h-9) — the bar IS
+  // the strip's identity.
+  if (error) {
+    return (
+      <div
+        role="region"
+        aria-label="Notifications"
+        data-testid="notification-strip"
+        data-expanded="false"
+        className="h-9"
+      >
+        <div
+          data-testid="notification-strip-error"
+          role="alert"
+          className="flex h-9 items-center gap-2 px-4 text-sm font-medium bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800 text-red-700 dark:text-red-300"
+        >
+          <Bell className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+          <span>{error}</span>
+        </div>
+      </div>
+    )
+  }
+
+  // Empty state — a muted bar. It is not expandable via the toggle (no
+  // toggle is rendered), but if the strip is *already* expanded — e.g. the
+  // last visible item was just dismissed from the open inbox — the inbox
+  // stays mounted so the "All caught up" message is visible.
+  if (visible.length === 0) {
+    return (
+      <div
+        role="region"
+        aria-label="Notifications"
+        data-testid="notification-strip"
+        data-expanded={isExpanded ? 'true' : 'false'}
+        className={isExpanded ? undefined : 'h-9'}
+      >
+        <div
+          data-testid="notification-strip-empty"
+          className="flex h-9 items-center gap-2 px-4 text-xs bg-slate-50 dark:bg-surface-800 border-b border-slate-200 dark:border-surface-700 text-slate-400 dark:text-slate-500"
+        >
+          <Bell className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+          <span>No notifications</span>
+        </div>
+        {isExpanded && (
+          <NotificationInbox
+            items={visible}
+            onDismiss={handleDismiss}
+            onDismissAll={handleDismissAll}
+          />
+        )}
+      </div>
+    )
+  }
+
+  // Severity counts for the chips — render a chip only for severities present.
+  const severityCounts: Record<NotificationSeverity, number> = {
+    critical: 0,
+    warning: 0,
+    info: 0,
+  }
+  for (const item of visible) severityCounts[item.severity] += 1
+
+  return (
+    <div
+      role="region"
+      aria-label="Notifications"
+      data-testid="notification-strip"
+      data-expanded={isExpanded ? 'true' : 'false'}
+      className={isExpanded ? undefined : 'h-9'}
+    >
+      <div
+        className="flex h-9 items-center gap-3 px-4 text-sm bg-slate-50 dark:bg-surface-800 border-b border-slate-200 dark:border-surface-700"
+        onClick={() => setExpanded(!isExpanded)}
+        role="presentation"
+      >
+        <Bell className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" aria-hidden="true" />
+
+        <div className="flex items-center gap-1.5">
+          {SEVERITY_ORDER.filter((s) => severityCounts[s] > 0).map((severity) => (
+            <span
+              key={severity}
+              data-testid={`notification-chip-${severity}`}
+              className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold ${CHIP_CLASS[severity]}`}
+            >
+              {severityCounts[severity]} {severity}
+            </span>
+          ))}
+        </div>
+
+        <span
+          data-testid="notification-unread-count"
+          className="text-xs font-medium text-slate-600 dark:text-slate-300"
+        >
+          {visible.length} unread
+        </span>
+
+        <button
+          type="button"
+          data-testid="notification-strip-toggle"
+          aria-expanded={isExpanded}
+          aria-controls={INBOX_ID}
+          aria-label={isExpanded ? 'Collapse notifications' : 'Expand notifications'}
+          onClick={(e) => {
+            // Stop the click bubbling to the bar's own toggle handler.
+            e.stopPropagation()
+            setExpanded(!isExpanded)
+          }}
+          className="ml-auto rounded p-0.5 text-slate-400 hover:bg-slate-200 hover:text-slate-600 dark:hover:bg-surface-700 dark:hover:text-slate-200"
+        >
+          {isExpanded ? (
+            <ChevronUp className="h-4 w-4" aria-hidden="true" />
+          ) : (
+            <ChevronDown className="h-4 w-4" aria-hidden="true" />
+          )}
+        </button>
+      </div>
+
+      {isExpanded && (
+        <NotificationInbox
+          items={visible}
+          onDismiss={handleDismiss}
+          onDismissAll={handleDismissAll}
+        />
+      )}
+    </div>
+  )
+}
