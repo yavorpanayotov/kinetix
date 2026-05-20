@@ -18,7 +18,7 @@ from fastapi import FastAPI
 from .brief.brief_store import BriefStore
 from .brief.factory import build_brief_client
 from .brief.scheduler import run_brief_scheduler
-from .chat.conversation_store import InMemoryConversationStore
+from .chat.conversation_store_factory import build_conversation_store
 from .chat.factory import build_chat_client
 from .clients.gateway_push_client import HttpxGatewayPushClient
 from .clients.kinetix_http_client import HttpxKinetixHttpClient
@@ -96,7 +96,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """
     app.state.insight_client = build_client()
     app.state.mcp_server = build_mcp_server()
-    app.state.conversation_store = InMemoryConversationStore()
+    app.state.conversation_store = build_conversation_store()
     app.state.chat_client = build_chat_client(
         conversation_store=app.state.conversation_store,
     )
