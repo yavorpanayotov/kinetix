@@ -213,7 +213,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
 
 - [x] 8.1 Add 5 built-in saved-query templates as JSON files under `src/kinetix_insights/queries/`: `limit-breaches.json`, `pnl-vs-yesterday.json`, `var-week-drivers.json`, `top-positions-risk-contribution.json`, `vol-dislocations.json`. Each carries `{id, label, prompt_template, required_params}`.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_query_templates_load.py -m unit`
-- [ ] 8.2 Add `POST /api/v1/insights/queries/{id}/run` route — loads template by id, interpolates params from request, reuses `CopilotChatClient` for execution. Returns SSE in the same shape as `/chat`. Acceptance against `DEMO_MODE=true`.
+- [x] 8.2 Add `POST /api/v1/insights/queries/{id}/run` route — loads template by id, interpolates params from request, reuses `CopilotChatClient` for execution. Returns SSE in the same shape as `/chat`. Acceptance against `DEMO_MODE=true`.
       Acceptance: `cd ai-insights-service && DEMO_MODE=true uv run pytest tests/test_saved_queries_acceptance.py -m unit`
 - [ ] 8.3 Add `<SavedQueryChip>` component in `ui/src/components/SavedQueryChip.tsx` (pill UI per UX spec); render the 5 defaults with Lock icon at top of inbox + as a "Copilot" group in ⌘K's empty-query state. `localStorage`-backed user queries (max 12) with save-from-palette flow. Vitest + Playwright.
       Acceptance: `cd ui && npm run test -- SavedQueryChip && cd ui && npm run lint && npx playwright test e2e/saved-queries.spec.ts`
