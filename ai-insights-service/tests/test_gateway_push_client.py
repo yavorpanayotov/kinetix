@@ -160,7 +160,7 @@ async def test_push_raises_on_non_2xx_response() -> None:
     client = HttpxGatewayPushClient(
         base_url="http://gateway:8080",
         internal_token="wrong-token",
-        transport=httpx.MockTransport(lambda r: httpx.Response(403)),
+        transport=httpx.MockTransport(lambda _request: httpx.Response(403)),
     )
 
     with pytest.raises(GatewayPushError) as excinfo:
@@ -176,7 +176,7 @@ async def test_push_accepts_any_2xx_status() -> None:
     client = HttpxGatewayPushClient(
         base_url="http://gateway:8080",
         internal_token="secret-token",
-        transport=httpx.MockTransport(lambda r: httpx.Response(202)),
+        transport=httpx.MockTransport(lambda _request: httpx.Response(202)),
     )
 
     await client.push(_sample_push())  # must not raise
