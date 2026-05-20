@@ -107,7 +107,7 @@ Let support self-serve "show all events for trade X / type Y / last hour".
       Acceptance: `./gradlew :audit-service:integrationTest`
 - [x] 4.2 Extend `AuditRoutes` `/api/v1/audit/events` with optional `tradeId`, `eventType`, `from` and `to` (ISO-8601) query parameters, and the corresponding `AuditEventRepository` query methods. Keep cursor pagination. Write the failing acceptance test first.
       Acceptance: `./gradlew :audit-service:acceptanceTest --tests "*AuditRoutesAcceptanceTest"`
-- [ ] 4.3 Verify the gateway audit proxy (`auditProxyRoutes`) forwards the new query parameters unchanged.
+- [x] 4.3 Verify the gateway audit proxy (`auditProxyRoutes`) forwards the new query parameters unchanged.
       Acceptance: `./gradlew :gateway:acceptanceTest`
 
 ### PR 5 — Structured JSON logging for the risk-engine
