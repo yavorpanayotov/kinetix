@@ -1,6 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { CommandPalette, type CommandItem } from './CommandPalette'
+import type { ChatChunk, ChatRequest } from '../api/copilot'
+
+/** Signature of the injectable `chatFn` prop — mirrors `chat` in `api/copilot`. */
+type ChatFn = (
+  request: ChatRequest,
+  options?: { signal?: AbortSignal },
+) => ReadableStream<ChatChunk>
 
 function buildItems(activate: (id: string) => void): CommandItem[] {
   return [
@@ -276,5 +283,332 @@ describe('CommandPalette', () => {
     ) as string[]
     expect(updated[0]).toBe('tab:trades')
     expect(updated[1]).toBe('tab:risk')
+  })
+})
+
+/**
+ * Build a ``ReadableStream<ChatChunk>`` that emits the supplied chunks
+ * synchronously inside ``start`` and then closes. Mirrors the
+ * ``streamOf`` helpers in ``AIInsightPanel.test.tsx`` /
+ * ``StreamingNarrative.test.tsx``.
+ */
+function streamOf(...chunks: ChatChunk[]): ReadableStream<ChatChunk> {
+  return new ReadableStream<ChatChunk>({
+    start(controller) {
+      for (const chunk of chunks) controller.enqueue(chunk)
+      controller.close()
+    },
+  })
+}
+
+const doneChunk: ChatChunk = {
+  type: 'done',
+  session_id: 's-1',
+  conversation_id: 'c-1',
+  model: 'claude-opus-4-7',
+  mode: 'live',
+}
+
+describe('CommandPalette — copilot mode', () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+  })
+
+  afterEach(() => {
+    window.localStorage.clear()
+  })
+
+  it('does not render the copilot zone when copilotMode is false', () => {
+    render(
+      <CommandPalette
+        open={true}
+        onClose={vi.fn()}
+        items={buildItems(vi.fn())}
+      />,
+    )
+    expect(
+      screen.queryByTestId('command-palette-copilot-zone'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('renders the copilot zone and hint when copilotMode is true', () => {
+    render(
+      <CommandPalette
+        open={true}
+        onClose={vi.fn()}
+        items={buildItems(vi.fn())}
+        copilotMode
+      />,
+    )
+    expect(
+      screen.getByTestId('command-palette-copilot-zone'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByTestId('command-palette-copilot-hint'),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByTestId('command-palette-copilot-response'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('changes the input placeholder in copilot mode', () => {
+    render(
+      <CommandPalette
+        open={true}
+        onClose={vi.fn()}
+        items={buildItems(vi.fn())}
+        copilotMode
+      />,
+    )
+    const input = screen.getByTestId('command-palette-input')
+    expect(input.getAttribute('placeholder') ?? '').toMatch(/copilot/i)
+  })
+
+  it('fires chat() and renders StreamingNarrative when a free-form query is submitted', async () => {
+    const chatFn = vi.fn<ChatFn>(
+      (): ReadableStream<ChatChunk> =>
+        streamOf({ type: 'delta', delta: 'Your VaR rose on tech beta.' }, doneChunk),
+    )
+    render(
+      <CommandPalette
+        open={true}
+        onClose={vi.fn()}
+        items={buildItems(vi.fn())}
+        copilotMode
+        chatFn={chatFn}
+      />,
+    )
+    const input = screen.getByTestId('command-palette-input')
+    fireEvent.change(input, { target: { value: 'why is my VaR elevated' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    expect(chatFn).toHaveBeenCalledTimes(1)
+    expect(chatFn.mock.calls[0][0]).toMatchObject({
+      message: 'why is my VaR elevated',
+      page_context: {},
+    })
+    expect(
+      screen.getByTestId('command-palette-copilot-response'),
+    ).toBeInTheDocument()
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('streaming-narrative-text'),
+      ).toHaveTextContent('Your VaR rose on tech beta.'),
+    )
+  })
+
+  it('renders CitationList after the copilot stream completes with citations', async () => {
+    const chatFn = vi.fn<ChatFn>(
+      (): ReadableStream<ChatChunk> =>
+        streamOf({ type: 'delta', delta: 'VaR is 5.2M USD.' }, {
+          ...doneChunk,
+          citations: [
+            {
+              tool: 'risk.var',
+              params: { book_id: 'BOOK-1' },
+              result_field: 'value',
+              result_value: 5.2,
+              result_currency: 'USD',
+              as_of_timestamp: '2026-05-20T00:00:00Z',
+              data_source: 'risk-orchestrator',
+              freshness_seconds: 30,
+              quality_flags: [],
+            },
+          ],
+        }),
+    )
+    render(
+      <CommandPalette
+        open={true}
+        onClose={vi.fn()}
+        items={buildItems(vi.fn())}
+        copilotMode
+        chatFn={chatFn}
+      />,
+    )
+    const input = screen.getByTestId('command-palette-input')
+    fireEvent.change(input, { target: { value: 'explain my VaR breakdown' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('command-palette-copilot-citations'),
+      ).toBeInTheDocument(),
+    )
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('streaming-narrative-text'),
+      ).toHaveTextContent('VaR is 5.2M USD.'),
+    )
+  })
+
+  it('Enter still activates a matching command in copilot mode', () => {
+    const activate = vi.fn()
+    const chatFn = vi.fn<ChatFn>(
+      (): ReadableStream<ChatChunk> => streamOf(doneChunk),
+    )
+    render(
+      <CommandPalette
+        open={true}
+        onClose={vi.fn()}
+        items={buildItems(activate)}
+        copilotMode
+        chatFn={chatFn}
+      />,
+    )
+    const input = screen.getByTestId('command-palette-input')
+    fireEvent.change(input, { target: { value: 'Trades' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    expect(activate).toHaveBeenCalledWith('tab:trades')
+    expect(chatFn).not.toHaveBeenCalled()
+  })
+
+  it('Enter fires the copilot when the query matches no command', async () => {
+    const activate = vi.fn()
+    const chatFn = vi.fn<ChatFn>(
+      (): ReadableStream<ChatChunk> =>
+        streamOf({ type: 'delta', delta: 'Answer.' }, doneChunk),
+    )
+    render(
+      <CommandPalette
+        open={true}
+        onClose={vi.fn()}
+        items={buildItems(activate)}
+        copilotMode
+        chatFn={chatFn}
+      />,
+    )
+    const input = screen.getByTestId('command-palette-input')
+    fireEvent.change(input, { target: { value: 'zzznomatch what should i do' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    expect(chatFn).toHaveBeenCalledTimes(1)
+    expect(activate).not.toHaveBeenCalled()
+    // Let the injected stream settle so trailing setState calls land
+    // inside act().
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('streaming-narrative-text'),
+      ).toHaveTextContent('Answer.'),
+    )
+  })
+
+  it('renders a follow-up textarea after the first answer', async () => {
+    const chatFn = vi.fn<ChatFn>(
+      (): ReadableStream<ChatChunk> =>
+        streamOf({ type: 'delta', delta: 'First answer.' }, doneChunk),
+    )
+    render(
+      <CommandPalette
+        open={true}
+        onClose={vi.fn()}
+        items={buildItems(vi.fn())}
+        copilotMode
+        chatFn={chatFn}
+      />,
+    )
+    const input = screen.getByTestId('command-palette-input')
+    fireEvent.change(input, { target: { value: 'zzznomatch help' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('command-palette-copilot-followup'),
+      ).toBeInTheDocument(),
+    )
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('streaming-narrative-text'),
+      ).toHaveTextContent('First answer.'),
+    )
+  })
+
+  it('follow-up textarea: Enter sends, Shift+Enter inserts a newline', async () => {
+    const chatFn = vi.fn<ChatFn>(
+      (): ReadableStream<ChatChunk> =>
+        streamOf({ type: 'delta', delta: 'An answer.' }, doneChunk),
+    )
+    render(
+      <CommandPalette
+        open={true}
+        onClose={vi.fn()}
+        items={buildItems(vi.fn())}
+        copilotMode
+        chatFn={chatFn}
+      />,
+    )
+    const input = screen.getByTestId('command-palette-input')
+    fireEvent.change(input, { target: { value: 'zzznomatch help' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    const followup = await screen.findByTestId('command-palette-copilot-followup')
+    expect(chatFn).toHaveBeenCalledTimes(1)
+
+    // Shift+Enter must NOT send — the component leaves the keystroke to
+    // the browser's native textarea behaviour (newline insertion). jsdom
+    // does not synthesise that insertion, so we model it with a change
+    // event carrying the newline, then assert the value holds it.
+    fireEvent.change(followup, { target: { value: 'tell me more' } })
+    fireEvent.keyDown(followup, { key: 'Enter', shiftKey: true })
+    expect(chatFn).toHaveBeenCalledTimes(1)
+    fireEvent.change(followup, { target: { value: 'tell me more\nand more' } })
+    expect((followup as HTMLTextAreaElement).value).toContain('\n')
+    expect(chatFn).toHaveBeenCalledTimes(1)
+
+    // Enter (no shift) sends a second chat() call.
+    fireEvent.keyDown(followup, { key: 'Enter' })
+    expect(chatFn).toHaveBeenCalledTimes(2)
+    // Settle the second stream so trailing setState calls land in act().
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('streaming-narrative-text'),
+      ).toHaveTextContent('An answer.'),
+    )
+  })
+
+  it('follow-up Enter with an empty textarea does nothing', async () => {
+    const chatFn = vi.fn<ChatFn>(
+      (): ReadableStream<ChatChunk> =>
+        streamOf({ type: 'delta', delta: 'An answer.' }, doneChunk),
+    )
+    render(
+      <CommandPalette
+        open={true}
+        onClose={vi.fn()}
+        items={buildItems(vi.fn())}
+        copilotMode
+        chatFn={chatFn}
+      />,
+    )
+    const input = screen.getByTestId('command-palette-input')
+    fireEvent.change(input, { target: { value: 'zzznomatch help' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    const followup = await screen.findByTestId('command-palette-copilot-followup')
+    expect(chatFn).toHaveBeenCalledTimes(1)
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('streaming-narrative-text'),
+      ).toHaveTextContent('An answer.'),
+    )
+
+    fireEvent.keyDown(followup, { key: 'Enter' })
+    expect(chatFn).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not show the copilot zone when the palette is closed even with copilotMode', () => {
+    render(
+      <CommandPalette
+        open={false}
+        onClose={vi.fn()}
+        items={buildItems(vi.fn())}
+        copilotMode
+      />,
+    )
+    expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument()
+    expect(
+      screen.queryByTestId('command-palette-copilot-zone'),
+    ).not.toBeInTheDocument()
   })
 })

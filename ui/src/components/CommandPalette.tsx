@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Search } from 'lucide-react'
+import { Search, Sparkles } from 'lucide-react'
+import type { ChatChunk } from '../api/copilot'
+import { chat } from '../api/copilot'
+import { StreamingNarrative } from './StreamingNarrative'
+import { CitationList } from './CitationList'
+import type { Citation } from '../api/copilot'
 
 /**
  * Plan §7.1 — Cmd+K command palette.
@@ -9,6 +14,12 @@ import { Search } from 'lucide-react'
  * palette: callers supply an `id`, `group`, `label`, and `onActivate`
  * callback; the palette handles filtering, keyboard navigation, recent-item
  * persistence, and activation.
+ *
+ * Plan §5.6 — copilot mode. When `copilotMode` is enabled the palette
+ * becomes dual-purpose: a query that matches a command still navigates,
+ * but a free-form question that matches nothing is routed to the v2
+ * copilot `chat()` endpoint and answered inline via <StreamingNarrative>
+ * + <CitationList>, with a multi-turn follow-up textarea.
  */
 export interface CommandItem {
   /** Stable identity used for recents and keying. */
@@ -27,6 +38,20 @@ interface CommandPaletteProps {
   open: boolean
   onClose: () => void
   items: CommandItem[]
+  /**
+   * Plan §5.6 — when `true`, the palette doubles as an inline copilot:
+   * a free-form question that matches no command is routed to `chat()`
+   * and answered below the command list. Defaults to `false`, in which
+   * case the component renders and behaves exactly as before.
+   */
+  copilotMode?: boolean
+  /**
+   * Dependency-injection seam for the streaming `chat()` client. Tests
+   * inject a fake that returns a canned `ReadableStream<ChatChunk>` so
+   * the copilot zone can be exercised without a real network call.
+   * Defaults to the real `chat` import.
+   */
+  chatFn?: typeof chat
 }
 
 const RECENT_KEY = 'kinetix:command-palette:recent'
@@ -84,13 +109,30 @@ interface ScoredItem extends CommandItem {
   score: number
 }
 
-export function CommandPalette({ open, onClose, items }: CommandPaletteProps) {
+export function CommandPalette({
+  open,
+  onClose,
+  items,
+  copilotMode = false,
+  chatFn = chat,
+}: CommandPaletteProps) {
   const [query, setQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement | null>(null)
   // Recents are loaded once on open and re-read after each activation so the
   // displayed "Recent" group stays in sync with the persisted list.
   const [recentIds, setRecentIds] = useState<string[]>(() => loadRecent())
+
+  // Copilot zone state (§5.6). `copilotStream` is the live token stream
+  // currently being rendered; null until the user asks something. Each
+  // ask replaces it with a fresh stream so <StreamingNarrative> remounts
+  // and resets cleanly. `copilotAnswered` flips true once the first
+  // stream has completed — it gates the follow-up textarea. `followup`
+  // holds the multi-turn textarea's draft text.
+  const [copilotStream, setCopilotStream] = useState<ReadableStream<ChatChunk> | null>(null)
+  const [copilotCitations, setCopilotCitations] = useState<Citation[]>([])
+  const [copilotAnswered, setCopilotAnswered] = useState(false)
+  const [followup, setFollowup] = useState('')
 
   // Reset state every time the palette opens. The DOM is mounted by the time
   // this effect fires, so focus can move synchronously.
@@ -99,6 +141,10 @@ export function CommandPalette({ open, onClose, items }: CommandPaletteProps) {
       setQuery('')
       setSelectedIndex(0)
       setRecentIds(loadRecent())
+      setCopilotStream(null)
+      setCopilotCitations([])
+      setCopilotAnswered(false)
+      setFollowup('')
       inputRef.current?.focus()
     }
   }, [open])
@@ -163,6 +209,26 @@ export function CommandPalette({ open, onClose, items }: CommandPaletteProps) {
     onClose()
   }
 
+  /**
+   * Fire a copilot `chat()` call and route its token stream into the
+   * copilot zone.
+   *
+   * conversation_id threading: <StreamingNarrative> owns stream
+   * consumption and only surfaces an `onComplete` summary — it does not
+   * expose the terminal frame's `conversation_id`. For §5.6 we keep it
+   * simple: every ask (initial and follow-up) starts a fresh, stateless
+   * `chat()` with no `conversation_id`. The follow-up textarea is still
+   * a real multi-turn UX affordance; true server-side conversation
+   * threading is deferred to a follow-up checkbox.
+   */
+  const askCopilot = (message: string) => {
+    const trimmed = message.trim()
+    if (trimmed.length === 0) return
+    setCopilotCitations([])
+    setCopilotAnswered(false)
+    setCopilotStream(chatFn({ message: trimmed, page_context: {} }))
+  }
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault()
@@ -173,10 +239,32 @@ export function CommandPalette({ open, onClose, items }: CommandPaletteProps) {
     } else if (e.key === 'Enter') {
       e.preventDefault()
       const target = flatFiltered[selectedIndex]
-      if (target) activate(target)
+      if (target) {
+        // A matching command always wins — typing "Trades" + Enter still
+        // navigates, copilot mode or not.
+        activate(target)
+      } else if (copilotMode && flatFiltered.length === 0 && query.trim().length > 0) {
+        // No command matched and the query is non-empty: route the
+        // free-form question to the copilot instead of doing nothing.
+        askCopilot(query)
+      }
     } else if (e.key === 'Escape') {
       e.preventDefault()
       onClose()
+    }
+  }
+
+  /**
+   * Follow-up textarea key handling: Enter sends, Shift+Enter inserts a
+   * newline (the browser's default for a textarea, so we simply do not
+   * intercept it).
+   */
+  const handleFollowupKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      if (followup.trim().length === 0) return
+      askCopilot(followup)
+      setFollowup('')
     }
   }
 
@@ -209,7 +297,11 @@ export function CommandPalette({ open, onClose, items }: CommandPaletteProps) {
               setSelectedIndex(0)
             }}
             onKeyDown={handleKeyDown}
-            placeholder="Type a tab, book, instrument, counterparty, or scenario..."
+            placeholder={
+              copilotMode
+                ? 'Ask the copilot, or type to jump to a tab...'
+                : 'Type a tab, book, instrument, counterparty, or scenario...'
+            }
             aria-label="Command palette search"
             className="flex-1 bg-transparent text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none"
           />
@@ -307,6 +399,54 @@ export function CommandPalette({ open, onClose, items }: CommandPaletteProps) {
             </div>
           ))}
         </div>
+
+        {copilotMode && (
+          <div
+            data-testid="command-palette-copilot-zone"
+            className="border-t border-slate-200 dark:border-surface-700 px-3 py-3 max-h-[40vh] overflow-y-auto"
+          >
+            {!copilotStream && (
+              <div
+                data-testid="command-palette-copilot-hint"
+                className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500"
+              >
+                <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                Press Enter to ask the copilot.
+              </div>
+            )}
+
+            {copilotStream && (
+              <div data-testid="command-palette-copilot-response">
+                <StreamingNarrative
+                  stream={copilotStream}
+                  ariaLabel="Copilot answer"
+                  onComplete={({ citations }) => {
+                    setCopilotCitations(citations)
+                    setCopilotAnswered(true)
+                  }}
+                />
+                {copilotCitations.length > 0 && (
+                  <div data-testid="command-palette-copilot-citations">
+                    <CitationList citations={copilotCitations} />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {copilotAnswered && (
+              <textarea
+                data-testid="command-palette-copilot-followup"
+                value={followup}
+                onChange={(e) => setFollowup(e.target.value)}
+                onKeyDown={handleFollowupKeyDown}
+                rows={2}
+                placeholder="Ask a follow-up — Enter to send, Shift+Enter for a newline"
+                aria-label="Copilot follow-up question"
+                className="mt-3 w-full resize-none rounded border border-slate-200 dark:border-surface-700 bg-transparent px-2 py-1.5 text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            )}
+          </div>
+        )}
       </div>
     </>
   )
