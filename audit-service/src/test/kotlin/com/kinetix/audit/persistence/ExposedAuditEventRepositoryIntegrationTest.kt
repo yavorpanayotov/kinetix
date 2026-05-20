@@ -20,6 +20,7 @@ private fun auditEvent(
     priceCurrency: String = "USD",
     tradedAt: String = "2026-01-15T10:00:00Z",
     receivedAt: Instant = NOW,
+    correlationId: String? = null,
 ) = AuditEvent(
     tradeId = tradeId,
     bookId = bookId,
@@ -31,6 +32,7 @@ private fun auditEvent(
     priceCurrency = priceCurrency,
     tradedAt = tradedAt,
     receivedAt = receivedAt,
+    correlationId = correlationId,
 )
 
 class ExposedAuditEventRepositoryIntegrationTest : FunSpec({
@@ -82,6 +84,22 @@ class ExposedAuditEventRepositoryIntegrationTest : FunSpec({
         found[0].tradeId shouldBe "t-1"
         found[1].tradeId shouldBe "t-2"
         found[2].tradeId shouldBe "t-3"
+    }
+
+    test("save round-trips a correlationId") {
+        repository.save(auditEvent(tradeId = "t-corr", correlationId = "corr-abc-123"))
+
+        val found = repository.findAll()
+        found shouldHaveSize 1
+        found[0].correlationId shouldBe "corr-abc-123"
+    }
+
+    test("save accepts a null correlationId") {
+        repository.save(auditEvent(tradeId = "t-no-corr", correlationId = null))
+
+        val found = repository.findAll()
+        found shouldHaveSize 1
+        found[0].correlationId shouldBe null
     }
 
     test("save preserves all fields accurately") {

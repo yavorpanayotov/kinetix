@@ -29,6 +29,8 @@ object AuditEventsTable : Table("audit_events") {
     val submissionId = varchar("submission_id", 255).nullable()
     val details = text("details").nullable()
     val sequenceNumber = long("sequence_number").nullable()
+    // Operational metadata — not part of the hash chain (see AuditHasher).
+    val correlationId = varchar("correlation_id", 255).nullable()
 
     override val primaryKey = PrimaryKey(id)
 }

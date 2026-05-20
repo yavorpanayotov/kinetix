@@ -5,6 +5,9 @@ import java.security.MessageDigest
 
 object AuditHasher {
 
+    // Note: AuditEvent.correlationId is intentionally excluded from the hash input.
+    // It is operational metadata (a cross-reference to Loki/Tempo), not a regulatory
+    // fact — the hash chain only protects who/what/when/trade detail.
     fun computeHash(event: AuditEvent, previousHash: String?): String {
         val data = buildString {
             append(event.receivedAt)

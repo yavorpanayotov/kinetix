@@ -88,6 +88,7 @@ class ExposedAuditEventRepository(private val db: Database? = null) : AuditEvent
             it[submissionId] = event.submissionId
             it[details] = event.details
             it[sequenceNumber] = event.sequenceNumber ?: assignedSequenceNumber
+            it[correlationId] = event.correlationId
         }
     }
 
@@ -168,5 +169,6 @@ class ExposedAuditEventRepository(private val db: Database? = null) : AuditEvent
         submissionId = this[AuditEventsTable.submissionId],
         details = this[AuditEventsTable.details],
         sequenceNumber = this[AuditEventsTable.sequenceNumber],
+        correlationId = this[AuditEventsTable.correlationId],
     )
 }

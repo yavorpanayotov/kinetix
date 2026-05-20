@@ -29,4 +29,7 @@ data class AuditEvent(
     val submissionId: String? = null,
     val details: String? = null,
     val sequenceNumber: Long? = null,
+    // Operational metadata — a cross-reference pointer to Loki logs / Tempo traces.
+    // Intentionally excluded from AuditHasher's hash-chain input (see AuditHasher).
+    val correlationId: String? = null,
 )
