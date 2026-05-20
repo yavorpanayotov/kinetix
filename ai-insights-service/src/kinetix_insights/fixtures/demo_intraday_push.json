@@ -1,0 +1,35 @@
+{
+  "alert_type": "VAR_BREACH",
+  "severity": "critical",
+  "book_id": "fx-main",
+  "headline": "Critical VAR_BREACH on fx-main: VaR 7,500,000 exceeds limit 5,000,000",
+  "context_bullets": [
+    "Current VaR: 7,500,000 USD — up sharply into the ECB window",
+    "Threshold: 5,000,000 USD book VaR ceiling",
+    "Breach magnitude: 50% over limit"
+  ],
+  "sources": [
+    {
+      "tool": "get_alert_thresholds",
+      "params": {"scope": "GLOBAL", "alert_type": "VAR_BREACH"},
+      "result_field": "threshold_value",
+      "result_value": 5000000.0,
+      "result_currency": null,
+      "as_of_timestamp": "2026-05-20T09:00:00Z",
+      "data_source": "risk-orchestrator",
+      "freshness_seconds": 0,
+      "quality_flags": ["ENDPOINT_PENDING"]
+    },
+    {
+      "tool": "risk.results",
+      "params": {"book_id": "fx-main", "alert_type": "VAR_BREACH"},
+      "result_field": "varValue",
+      "result_value": 7500000.0,
+      "result_currency": "USD",
+      "as_of_timestamp": "2026-05-20T09:00:00Z",
+      "data_source": "risk-orchestrator",
+      "freshness_seconds": 0,
+      "quality_flags": []
+    }
+  ]
+}

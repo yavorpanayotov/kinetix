@@ -25,8 +25,9 @@ from .clients.user_context import UserContext
 from .factory import build_client
 from .mcp.health import router as mcp_health_router
 from .mcp.server import build_mcp_server
+from .push.factory import build_intraday_push_generator
 from .push.kafka_consumer import IntradayKafkaConsumer
-from .push.threshold_evaluator import IntradayAlert, IntradayThresholdEvaluator
+from .push.threshold_evaluator import IntradayThresholdEvaluator
 from .routes.brief import router as brief_router
 from .routes.chat import router as chat_router
 from .routes.report_commentary import router as report_router
@@ -42,26 +43,6 @@ _DEMO_BRIEF_USERS = [UserContext(user_id="demo-trader", books=("fx-main",))]
 # Demo user the intraday threshold evaluator stamps on its downstream
 # calls. Mirrors the single-tenant demo user the brief scheduler picks.
 _DEMO_INTRADAY_USER = UserContext(user_id="demo-trader", books=("fx-main",))
-
-
-class _NoopPushGenerator:
-    """Placeholder ``PushGenerator`` — logs the alert and does nothing else.
-
-    The real :class:`IntradayPushGenerator` (gateway dispatch) lands in
-    checkbox 7.4; 7.3 wires this no-op so the lifespan compiles and the
-    Kafka consumer has a collaborator. 7.4 swaps it for the real one.
-    """
-
-    async def handle_alert(self, alert: IntradayAlert) -> None:
-        _logger.info(
-            "intraday alert fired (no-op push): %s/%s book=%s current=%s "
-            "threshold=%s — real dispatch lands in checkbox 7.4",
-            alert.alert_type,
-            alert.severity,
-            alert.book_id,
-            alert.current,
-            alert.threshold,
-        )
 
 
 def _kafka_enabled() -> bool:
@@ -98,9 +79,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     only *started* when ``KINETIX_KAFKA_ENABLED=true`` — DEMO_MODE, CI,
     and the app acceptance tests leave the flag unset, so no broker
     connection is attempted there. ``stop()`` is idempotent and always
-    safe to call on shutdown. The consumer is wired with a no-op push
-    generator placeholder; the real ``IntradayPushGenerator`` and
-    gateway dispatch land in checkboxes 7.4/7.7.
+    safe to call on shutdown. The consumer is wired with the
+    ``IntradayPushGenerator`` selected by
+    :func:`build_intraday_push_generator` (canned in DEMO_MODE, live
+    otherwise); gateway dispatch via an injected push sink lands in
+    checkbox 7.7.
     """
     app.state.insight_client = build_client()
     app.state.mcp_server = build_mcp_server()
@@ -123,7 +106,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             http=HttpxKinetixHttpClient(),
             user=_DEMO_INTRADAY_USER,
         ),
-        push_generator=_NoopPushGenerator(),
+        push_generator=build_intraday_push_generator(),
     )
     if _kafka_enabled():
         await app.state.kafka_consumer.start()
