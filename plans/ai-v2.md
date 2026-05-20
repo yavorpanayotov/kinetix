@@ -224,7 +224,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
       Acceptance: `cd ui && npm run lint && npx playwright test e2e/inline-explainer-positions.spec.ts`
 - [x] 9.2 Add `<ExplainButton>` to the P&L attribution chart container (above the waterfall). Payload includes top-N drivers + date. Playwright covers the explain flow.
       Acceptance: `cd ui && npm run lint && npx playwright test e2e/inline-explainer-pnl.spec.ts`
-- [ ] 9.3 Add `<ExplainButton>` to each row in the alerts/breaches panel (`NotificationCenter`). Payload includes alertId, type, currentValue, threshold, severity. Playwright covers alert-row explain.
+- [x] 9.3 Add `<ExplainButton>` to each row in the alerts/breaches panel (`NotificationCenter`). Payload includes alertId, type, currentValue, threshold, severity. Playwright covers alert-row explain.
       Acceptance: `cd ui && npm run lint && npx playwright test e2e/inline-explainer-alerts.spec.ts`
 - [ ] 9.4 Add `<ExplainButton>` to scenario result rows in `StressTestPanel`. Payload includes scenario name, stressed PnL, top stressed positions. Playwright covers scenario-row explain.
       Acceptance: `cd ui && npm run lint && npx playwright test e2e/inline-explainer-scenarios.spec.ts`
