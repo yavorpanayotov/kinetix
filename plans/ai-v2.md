@@ -194,7 +194,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_threshold_evaluator.py -m unit`
 - [x] 7.3 Add `aiokafka` consumer in `src/kinetix_insights/push/kafka_consumer.py` on topics `risk.results` and `risk.regime.changes` with group `ai-insights-risk-consumer`. Each message passes through `IntradayThresholdEvaluator`; firing alerts call into an `IntradayPushGenerator`. Lifespan starts/stops the consumer.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_intraday_kafka_consumer.py -m unit`
-- [ ] 7.4 Add `IntradayPushGenerator` — composes a `{alert_type, severity, book_id, headline, context_bullets, sources, session_id, generated_at}` payload; sources include the original tool calls used to evaluate the threshold. Canned variant for `DEMO_MODE`. Unit tests for both modes.
+- [x] 7.4 Add `IntradayPushGenerator` — composes a `{alert_type, severity, book_id, headline, context_bullets, sources, session_id, generated_at}` payload; sources include the original tool calls used to evaluate the threshold. Canned variant for `DEMO_MODE`. Unit tests for both modes.
       Acceptance: `cd ai-insights-service && uv run pytest tests/test_intraday_push_generator.py -m unit`
 - [ ] 7.5 Add gateway internal route `POST /internal/copilot/push` in `gateway/.../routes/CopilotInternalRoutes.kt` — accepts the push payload from `ai-insights-service` (cluster-internal only; no auth challenge). Enqueues to `CopilotBroadcaster`. Test asserts external requests are rejected and internal requests flow through.
       Acceptance: `./gradlew :gateway:acceptanceTest --tests "*CopilotInternalPushAcceptanceTest"`
