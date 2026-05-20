@@ -81,6 +81,7 @@ import com.kinetix.gateway.websocket.CopilotBroadcaster
 import com.kinetix.gateway.websocket.PnlBroadcaster
 import com.kinetix.gateway.websocket.PriceBroadcaster
 import com.kinetix.gateway.websocket.alertWebSocket
+import com.kinetix.gateway.websocket.copilotWebSocket
 import com.kinetix.gateway.websocket.pnlWebSocket
 import com.kinetix.gateway.websocket.priceWebSocket
 import io.ktor.client.*
@@ -484,6 +485,7 @@ fun Application.devModule() {
         priceWebSocket(priceBroadcaster, wsJwtConfig, wsJwkProvider)
         pnlWebSocket(pnlBroadcaster, wsJwtConfig, wsJwkProvider)
         alertWebSocket(alertBroadcaster, wsJwtConfig, wsJwkProvider)
+        copilotWebSocket(copilotBroadcaster, wsJwtConfig, wsJwkProvider)
 
         // System health is public so CI/k8s probes can reach it without a JWT.
         get("/api/v1/system/health") {
@@ -683,6 +685,14 @@ fun Application.module(jwtConfig: JwtConfig, broadcaster: AlertBroadcaster, jwkP
     configureJwtAuth(jwtConfig, jwkProvider)
     routing {
         alertWebSocket(broadcaster, jwtConfig, jwkProvider)
+    }
+}
+
+fun Application.module(jwtConfig: JwtConfig, broadcaster: CopilotBroadcaster, jwkProvider: com.auth0.jwk.JwkProvider? = null) {
+    module()
+    configureJwtAuth(jwtConfig, jwkProvider)
+    routing {
+        copilotWebSocket(broadcaster, jwtConfig, jwkProvider)
     }
 }
 

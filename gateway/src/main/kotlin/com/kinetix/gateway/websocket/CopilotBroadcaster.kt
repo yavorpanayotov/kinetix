@@ -27,14 +27,17 @@ data class CopilotWebSocketMessage(
  *
  * Split across checkboxes 7.5 and 7.6 of `plans/ai-v2.md`:
  *
- *  - **7.5 (this checkbox)** introduces the *publish* side. The internal
- *    route `POST /internal/copilot/push` builds a [CopilotWebSocketMessage]
- *    from the posted payload and calls [broadcast] to enqueue it for fan-out.
- *  - **7.6** adds the `/ws/copilot` WebSocket route — JWT auth on connect and
- *    `X-User-Books` scope filtering — which registers subscriber sessions via
- *    [addSession] / [removeSession]. Until 7.6 wires that route there are no
- *    subscribers, so [broadcast] is a no-op fan-out, but the publish path is
- *    already exercised end-to-end by `CopilotInternalPushAcceptanceTest`.
+ *  - **7.5** introduced the *publish* side. The internal route
+ *    `POST /internal/copilot/push` builds a [CopilotWebSocketMessage] from the
+ *    posted payload and calls [broadcast] to fan it out.
+ *  - **7.6 (this checkbox)** adds the `/ws/copilot` WebSocket route — JWT auth
+ *    on connect and `X-User-Books` scope filtering — which registers
+ *    subscriber sessions via [addSubscriber] / [removeSession].
+ *
+ * Fan-out is **scope-filtered**: a [CopilotWebSocketMessage] is delivered only
+ * to subscribers whose book scope includes the push's `book_id`. A subscriber
+ * registered with `books = null` has wildcard scope (risk managers,
+ * compliance, admins) and receives every push. See [CopilotSubscriber].
  *
  * The class is `open` so tests can subclass it to observe enqueued messages
  * without standing up a real WebSocket client.
@@ -42,28 +45,49 @@ data class CopilotWebSocketMessage(
 open class CopilotBroadcaster {
 
     private val json = Json { encodeDefaults = true }
-    private val sessions = ConcurrentHashMap.newKeySet<WebSocketServerSession>()
+    private val subscribers = ConcurrentHashMap.newKeySet<CopilotSubscriber>()
 
-    fun addSession(session: WebSocketServerSession) {
-        sessions.add(session)
-    }
-
-    fun removeSession(session: WebSocketServerSession) {
-        sessions.remove(session)
+    /**
+     * Register a `/ws/copilot` [session] scoped to [books]. A `null` [books]
+     * grants wildcard scope — the subscriber then receives every push.
+     */
+    fun addSubscriber(session: WebSocketServerSession, books: Set<String>?) {
+        subscribers.add(CopilotSubscriber(session, books))
     }
 
     /**
-     * Enqueue [message] for fan-out to all subscribed `/ws/copilot` clients.
-     * Dead sessions (closed connections) are pruned as a side effect.
+     * Register a `/ws/copilot` [session] with wildcard scope.
+     *
+     * Retained for callers that do not carry a book scope; equivalent to
+     * `addSubscriber(session, books = null)`.
+     */
+    fun addSession(session: WebSocketServerSession) {
+        addSubscriber(session, books = null)
+    }
+
+    /** Deregister every subscriber backed by [session]. */
+    fun removeSession(session: WebSocketServerSession) {
+        subscribers.removeIf { it.session == session }
+    }
+
+    /** Number of currently registered subscribers. Exposed for tests. */
+    fun subscriberCount(): Int = subscribers.size
+
+    /**
+     * Fan [message] out to every subscribed `/ws/copilot` client whose book
+     * scope includes the push's `book_id`. Wildcard-scoped subscribers receive
+     * it unconditionally. Dead sessions (closed connections) are pruned as a
+     * side effect.
      */
     open suspend fun broadcast(message: CopilotWebSocketMessage) {
         val text = json.encodeToString(message)
         val dead = mutableListOf<WebSocketServerSession>()
-        for (session in sessions) {
+        for (subscriber in subscribers) {
+            if (!subscriber.isScopedTo(message.push.bookId)) continue
             try {
-                session.send(Frame.Text(text))
+                subscriber.session.send(Frame.Text(text))
             } catch (_: Exception) {
-                dead.add(session)
+                dead.add(subscriber.session)
             }
         }
         for (session in dead) {

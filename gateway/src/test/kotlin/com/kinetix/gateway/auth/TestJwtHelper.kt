@@ -56,6 +56,7 @@ object TestJwtHelper {
         username: String = "testuser",
         roles: List<Role> = listOf(Role.ADMIN),
         expiresInSeconds: Long = 3600,
+        books: List<String>? = null,
     ): String = JWT.create()
         .withKeyId(TEST_KEY_ID)
         .withSubject(userId)
@@ -63,6 +64,7 @@ object TestJwtHelper {
         .withIssuer(TEST_ISSUER)
         .withClaim("preferred_username", username)
         .withClaim("roles", roles.map { it.name })
+        .apply { if (books != null) withClaim("books", books) }
         .withExpiresAt(Date(System.currentTimeMillis() + expiresInSeconds * 1000))
         .sign(algorithm)
 

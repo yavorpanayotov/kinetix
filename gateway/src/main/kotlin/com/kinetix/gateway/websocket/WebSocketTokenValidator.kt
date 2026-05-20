@@ -44,5 +44,31 @@ fun ApplicationCall.validateWebSocketToken(config: JwtConfig, jwkProvider: JwkPr
     }
 }
 
+/**
+ * Extracts the book scope from the `?token=` JWT on a WebSocket upgrade request.
+ *
+ * Reads the optional `books` claim — the same claim
+ * [com.kinetix.gateway.auth.JwtToHeaderBridge] surfaces as the `X-User-Books`
+ * downstream header. Returns:
+ *
+ *  - the set of book IDs when the claim is present as a JSON string array;
+ *  - `null` when the claim is absent, JSON null, or not an array — denoting
+ *    *wildcard* scope (the user is not book-restricted).
+ *
+ * This does **not** re-verify the token: call [validateWebSocketToken] first to
+ * confirm the token is authentic, then this to read its scope.
+ */
+fun ApplicationCall.webSocketTokenBooks(): Set<String>? {
+    val rawToken = request.queryParameters["token"] ?: return null
+    return try {
+        val decoded = JWT.decode(rawToken)
+        val claim = decoded.getClaim("books")
+        if (claim.isNull) return null
+        runCatching { claim.asList(String::class.java) }.getOrNull()?.toSet()
+    } catch (_: Exception) {
+        null
+    }
+}
+
 /** Close code sent when a WebSocket connection is rejected due to auth failure. */
 val WEBSOCKET_UNAUTHORIZED_CLOSE = CloseReason(4001, "Unauthorized")
