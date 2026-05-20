@@ -181,6 +181,16 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       currency via reference data per `intraday-pnl.allium:159`
       (`book_base_currency(baseline.book_id)`). Source: `group-c` C8.
       Acceptance: `./gradlew :risk-orchestrator:test`
+      Blocked: 2026-05-20 — needs an architectural decision. No per-book base
+      currency exists anywhere in the platform: `Book` (common) has only
+      `id`/`name`/`positions`; there is no `books` table, no reference-data book
+      entity, and no endpoint to query a book's currency. `position-service`'s
+      `PortfolioAggregationService` also hardcodes `USD`. A faithful fix requires
+      NEW reference data — a `base_currency` column on book reference data plus
+      an endpoint + client wiring — which crosses the CLAUDE.md "new DB
+      table/API contract" guardrail and is not pre-approved in this plan.
+      Hiding the hardcode behind a no-op resolver would relocate the bug, not
+      fix it.
 
 - [ ] 1.10 Stop the `FactorContribution` mapper dropping fields. `GrpcRiskEngineClient.kt:171-181`
       ignores `factorExposure` and `pnlAttribution` even though the engine and
