@@ -8,6 +8,8 @@ an :class:`InsightClient` (live Claude Agent SDK or canned fallback) onto
 
 import asyncio
 import contextlib
+import logging
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -23,15 +25,55 @@ from .clients.user_context import UserContext
 from .factory import build_client
 from .mcp.health import router as mcp_health_router
 from .mcp.server import build_mcp_server
+from .push.kafka_consumer import IntradayKafkaConsumer
+from .push.threshold_evaluator import IntradayAlert, IntradayThresholdEvaluator
 from .routes.brief import router as brief_router
 from .routes.chat import router as chat_router
 from .routes.report_commentary import router as report_router
 from .routes.var_explainer import router as var_router
 
+_logger = logging.getLogger("kinetix_insights.push")
+
 # Demo single-tenant user the 06:30 scheduler pre-generates a brief for.
 # Multi-tenant brief pre-generation (one entry per signed-in trader) is
 # out of scope for v2 — the on-demand path covers any other user.
 _DEMO_BRIEF_USERS = [UserContext(user_id="demo-trader", books=("fx-main",))]
+
+# Demo user the intraday threshold evaluator stamps on its downstream
+# calls. Mirrors the single-tenant demo user the brief scheduler picks.
+_DEMO_INTRADAY_USER = UserContext(user_id="demo-trader", books=("fx-main",))
+
+
+class _NoopPushGenerator:
+    """Placeholder ``PushGenerator`` — logs the alert and does nothing else.
+
+    The real :class:`IntradayPushGenerator` (gateway dispatch) lands in
+    checkbox 7.4; 7.3 wires this no-op so the lifespan compiles and the
+    Kafka consumer has a collaborator. 7.4 swaps it for the real one.
+    """
+
+    async def handle_alert(self, alert: IntradayAlert) -> None:
+        _logger.info(
+            "intraday alert fired (no-op push): %s/%s book=%s current=%s "
+            "threshold=%s — real dispatch lands in checkbox 7.4",
+            alert.alert_type,
+            alert.severity,
+            alert.book_id,
+            alert.current,
+            alert.threshold,
+        )
+
+
+def _kafka_enabled() -> bool:
+    """Return whether the intraday Kafka consumer should actually start.
+
+    Gated behind ``KINETIX_KAFKA_ENABLED`` so DEMO_MODE / CI / the app
+    acceptance tests (which enter the lifespan) never attempt a real
+    broker connection. The consumer object is still built and attached
+    to ``app.state`` for inspection; only ``.start()`` is gated.
+    """
+
+    return os.environ.get("KINETIX_KAFKA_ENABLED", "").lower() == "true"
 
 
 @asynccontextmanager
@@ -50,6 +92,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     (:func:`run_brief_scheduler`) pre-generates briefs at 06:30 local;
     it is cancelled and awaited on shutdown so it never leaks into
     another app instance's event loop.
+
+    An :class:`IntradayKafkaConsumer` is built onto
+    ``app.state.kafka_consumer`` for the intraday-push pipeline. It is
+    only *started* when ``KINETIX_KAFKA_ENABLED=true`` — DEMO_MODE, CI,
+    and the app acceptance tests leave the flag unset, so no broker
+    connection is attempted there. ``stop()`` is idempotent and always
+    safe to call on shutdown. The consumer is wired with a no-op push
+    generator placeholder; the real ``IntradayPushGenerator`` and
+    gateway dispatch land in checkboxes 7.4/7.7.
     """
     app.state.insight_client = build_client()
     app.state.mcp_server = build_mcp_server()
@@ -66,12 +117,30 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             user_provider=lambda: list(_DEMO_BRIEF_USERS),
         )
     )
+
+    app.state.kafka_consumer = IntradayKafkaConsumer(
+        evaluator=IntradayThresholdEvaluator(
+            http=HttpxKinetixHttpClient(),
+            user=_DEMO_INTRADAY_USER,
+        ),
+        push_generator=_NoopPushGenerator(),
+    )
+    if _kafka_enabled():
+        await app.state.kafka_consumer.start()
+    else:
+        _logger.info(
+            "intraday Kafka consumer not started "
+            "(set KINETIX_KAFKA_ENABLED=true to enable)"
+        )
+
     try:
         yield
     finally:
         app.state._brief_task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await app.state._brief_task
+        # stop() is idempotent — safe even when the consumer never started.
+        await app.state.kafka_consumer.stop()
 
 
 app = FastAPI(title="Kinetix Insights", lifespan=lifespan)
