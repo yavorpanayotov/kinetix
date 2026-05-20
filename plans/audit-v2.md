@@ -134,7 +134,7 @@ The two new dependencies are **approved** (see CI/CD & guardrail approvals). Thi
 
 The single biggest "easy to track" win — version-controlled, business-event dashboards.
 
-- [ ] 7.1 Add `deploy/observability/dashboards/` and a Grafana provisioning config (`deploy/observability/grafana/provisioning/dashboards/dashboards.yml` + datasources for Prometheus, Loki, Tempo).
+- [x] 7.1 Add `deploy/observability/dashboards/` and a Grafana provisioning config (`deploy/observability/grafana/provisioning/dashboards/dashboards.yml` + datasources for Prometheus, Loki, Tempo).
       Acceptance: `test -d deploy/observability/dashboards && python3 -c "import yaml; yaml.safe_load(open('deploy/observability/grafana/provisioning/dashboards/dashboards.yml')); print('ok')"`
 - [ ] 7.2 Add `deploy/observability/dashboards/trade-lifecycle.json` — trades booked/amended/cancelled over time (by book, by user), sourced from `audit_events` via Loki/Postgres, with a `correlationId` drill-through link to Loki + Tempo.
       Acceptance: `python3 -c "import json; d=json.load(open('deploy/observability/dashboards/trade-lifecycle.json')); assert d['panels']; print('ok')"`
