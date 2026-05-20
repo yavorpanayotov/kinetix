@@ -153,7 +153,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       rejected. Source: `group-e` E-S2C-02 / `EscalationRequiresAcknowledgement`.
       Acceptance: `./gradlew :notification-service:test :notification-service:acceptanceTest`
 
-- [ ] 1.6 Fix the auto-escalation audit event to carry `alertId` in the typed
+- [x] 1.6 Fix the auto-escalation audit event to carry `alertId` in the typed
       field. `AlertEscalationService.kt:34-42` stuffs the id into free-text
       `details`; populate `GovernanceAuditEvent.alertId` like the manual
       ack/escalate/resolve paths (`Application.kt:483-491,533-542,581-590`).
