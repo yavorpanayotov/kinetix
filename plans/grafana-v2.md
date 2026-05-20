@@ -184,7 +184,7 @@ not stop mid-loop:
 
 ### PR 2 — Instrument metrics behind broken panels
 
-- [ ] 2.1 Emit a `risk_var_limit{book_id,calculation_type,confidence_level}` gauge
+- [x] 2.1 Emit a `risk_var_limit{book_id,calculation_type,confidence_level}` gauge
       from `position-service` (the limit owner) reflecting each book's configured
       VaR limit. Then rewrite the `risk/limit-utilisation.json` "VaR vs Limit"
       panel to plot utilisation
