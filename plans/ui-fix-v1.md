@@ -269,7 +269,7 @@ checkbox already captured this.
   clients; Option B (Kafka producer) would be net-new capability for the
   module; Option C leaves the Execution Cost subtab empty.
 
-- [ ] 7.1 TDD pair (test + impl in one commit): add
+- [x] 7.1 TDD pair (test + impl in one commit): add
       `POST /api/v1/internal/execution/cost/{bookId}` to position-service
       (`routes/ExecutionRoutes.kt`) — additive route + request DTO,
       delegating to the existing `ExecutionCostRepository.save(...)`.
@@ -284,10 +284,10 @@ checkbox already captured this.
       row. Reuse `DevDataSeeder` instrument/book constants. Add a
       position-service acceptance test for the new internal route.
       Acceptance: `./gradlew :demo-orchestrator:integrationTest --tests "*ReconExecution*"`
-- [ ] 7.2 Re-run the Playwright spec `trades-blotter.spec.ts` and add
+- [x] 7.2 Re-run the Playwright spec `trade-blotter.spec.ts` and add
       `ui/e2e/trades-recon-execution-cost.spec.ts` asserting both subtabs
       render non-empty grids.
-      Acceptance: `cd ui && npx playwright test trades-blotter.spec.ts trades-recon-execution-cost.spec.ts && cd ui && npm run lint`
+      Acceptance: `cd ui && npx playwright test trade-blotter.spec.ts trades-recon-execution-cost.spec.ts && cd ui && npm run lint`
 
 ### PR 8 — P&L SOD baseline auto-seeded in demo (M3)
 
