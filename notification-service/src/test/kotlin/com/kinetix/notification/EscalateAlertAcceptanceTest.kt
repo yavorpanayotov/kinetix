@@ -59,9 +59,30 @@ class EscalateAlertAcceptanceTest : FunSpec({
         status = AlertStatus.TRIGGERED,
     )
 
-    test("a TRIGGERED alert exists — POST /alerts/{alertId}/escalate with valid body — returns 200 with ESCALATED status and persists assignee from request") {
+    test("a TRIGGERED alert exists — POST /alerts/{alertId}/escalate — returns 409 Conflict because escalation requires prior acknowledgement") {
         val (eventRepo, ackRepo, rulesEngine) = newRepos()
         eventRepo.save(triggeredAlert(id = "alert-esc-1"))
+
+        testApplication {
+            application {
+                module(rulesEngine, InAppDeliveryService(eventRepo), ackRepo)
+            }
+            val response = client.post("/api/v1/notifications/alerts/alert-esc-1/escalate") {
+                contentType(ContentType.Application.Json)
+                setBody("""{"reason":"VaR breach persisted, needs management visibility","assignee":"risk-manager"}""")
+            }
+            response.status shouldBe HttpStatusCode.Conflict
+        }
+
+        val persisted = eventRepo.findById("alert-esc-1")
+        persisted?.status shouldBe AlertStatus.TRIGGERED
+        persisted?.escalatedTo shouldBe null
+        persisted?.escalatedAt shouldBe null
+    }
+
+    test("an ACKNOWLEDGED alert exists — POST /alerts/{alertId}/escalate with valid body — returns 200 with ESCALATED status and persists assignee from request") {
+        val (eventRepo, ackRepo, rulesEngine) = newRepos()
+        eventRepo.save(triggeredAlert(id = "alert-esc-1").copy(status = AlertStatus.ACKNOWLEDGED))
 
         testApplication {
             application {
@@ -85,9 +106,12 @@ class EscalateAlertAcceptanceTest : FunSpec({
         persisted?.escalatedAt shouldNotBe null
     }
 
-    test("a TRIGGERED CRITICAL alert exists — POST /alerts/{alertId}/escalate without assignee — falls back to default assignee for severity") {
+    test("an ACKNOWLEDGED CRITICAL alert exists — POST /alerts/{alertId}/escalate without assignee — falls back to default assignee for severity") {
         val (eventRepo, ackRepo, rulesEngine) = newRepos()
-        eventRepo.save(triggeredAlert(id = "alert-esc-default", severity = Severity.CRITICAL))
+        eventRepo.save(
+            triggeredAlert(id = "alert-esc-default", severity = Severity.CRITICAL)
+                .copy(status = AlertStatus.ACKNOWLEDGED),
+        )
 
         testApplication {
             application {

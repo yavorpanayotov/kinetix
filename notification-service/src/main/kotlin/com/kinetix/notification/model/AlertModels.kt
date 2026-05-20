@@ -21,7 +21,7 @@ enum class AlertStatus {
     TRIGGERED, ACKNOWLEDGED, ESCALATED, RESOLVED;
 
     fun canTransitionTo(next: AlertStatus): Boolean = when (this) {
-        TRIGGERED -> next == ACKNOWLEDGED || next == ESCALATED || next == RESOLVED
+        TRIGGERED -> next == ACKNOWLEDGED || next == RESOLVED
         ACKNOWLEDGED -> next == ESCALATED || next == RESOLVED
         ESCALATED -> next == RESOLVED
         RESOLVED -> false
