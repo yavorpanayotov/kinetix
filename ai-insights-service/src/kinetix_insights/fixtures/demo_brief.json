@@ -1,0 +1,130 @@
+[
+  {
+    "book_id": "fx-main",
+    "generated_at": "2026-05-20T07:30:00Z",
+    "mode": "canned",
+    "sections": [
+      {
+        "title": "Value at Risk",
+        "narrative": "Book VaR stands at 4,250,000 USD at 95% confidence, up 9% versus the prior session as the EUR/USD straddle book gathered exposure into the ECB window. FX remains the dominant contributor at 76% of total.",
+        "bullets": [
+          "Total VaR: 4,250,000 USD (CL_95)",
+          "FX: 3,230,000 USD (76%)",
+          "Rates: 1,020,000 USD (24%)"
+        ],
+        "severity": "info",
+        "status": "ok",
+        "sources": [
+          {
+            "tool": "get_book_var",
+            "params": {"book_id": "fx-main"},
+            "result_field": "total_var",
+            "result_value": 4250000.0,
+            "result_currency": "USD",
+            "as_of_timestamp": "2026-05-20T07:00:00Z",
+            "data_source": "risk-orchestrator",
+            "freshness_seconds": 1800,
+            "quality_flags": []
+          }
+        ]
+      },
+      {
+        "title": "P&L Attribution",
+        "narrative": "P&L vs start of day is 312,000 USD, driven mainly by a delta gain on the long EUR/USD position; vega contributed a further 84,000 USD as implied vols firmed. Unexplained P&L is a contained 11,000 USD.",
+        "bullets": [
+          "Day P&L: 312,000 USD",
+          "Delta P&L: 205,000 USD",
+          "Vega P&L: 84,000 USD",
+          "Unexplained P&L: 11,000 USD"
+        ],
+        "severity": "info",
+        "status": "ok",
+        "sources": [
+          {
+            "tool": "get_pnl_attribution",
+            "params": {"book_id": "fx-main"},
+            "result_field": "total_pnl",
+            "result_value": 312000.0,
+            "result_currency": "USD",
+            "as_of_timestamp": "2026-05-20T07:00:00Z",
+            "data_source": "risk-orchestrator",
+            "freshness_seconds": 1800,
+            "quality_flags": []
+          }
+        ]
+      },
+      {
+        "title": "Recent Breaches",
+        "narrative": "No open limit breaches; one notional breach earlier in the week has since been resolved. The book opens clean.",
+        "bullets": [
+          "Recent breaches: 1",
+          "Open breaches: 0"
+        ],
+        "severity": "info",
+        "status": "ok",
+        "sources": [
+          {
+            "tool": "get_recent_breaches",
+            "params": {"book_id": "fx-main"},
+            "result_field": "open_count",
+            "result_value": 0,
+            "result_currency": null,
+            "as_of_timestamp": "2026-05-20T07:15:00Z",
+            "data_source": "position-service",
+            "freshness_seconds": 900,
+            "quality_flags": []
+          }
+        ]
+      },
+      {
+        "title": "Limit Utilisation",
+        "narrative": "Two book-level limit definitions are in force. VaR utilisation sits at roughly 71% of the 6,000,000 USD cap — comfortable headroom, but worth watching into the ECB announcement.",
+        "bullets": [
+          "Book-level limit definitions: 2",
+          "VAR: cap 6,000,000 USD",
+          "NOTIONAL: cap 250,000,000 USD"
+        ],
+        "severity": "info",
+        "status": "ok",
+        "sources": [
+          {
+            "tool": "get_limit_utilisation",
+            "params": {"book_id": "fx-main"},
+            "result_field": "returned_count",
+            "result_value": 2,
+            "result_currency": null,
+            "as_of_timestamp": "2026-05-20T07:15:00Z",
+            "data_source": "position-service",
+            "freshness_seconds": 900,
+            "quality_flags": []
+          }
+        ]
+      },
+      {
+        "title": "Greeks",
+        "narrative": "Book Greeks vs start of day: delta is long 18,500,000 USD and vega is long 240,000 USD, leaving the book positioned to benefit from a higher EUR/USD and firmer implied volatility into the ECB decision.",
+        "bullets": [
+          "Delta: 18,500,000",
+          "Gamma: 620,000",
+          "Vega: 240,000",
+          "Theta: -32,000"
+        ],
+        "severity": "info",
+        "status": "ok",
+        "sources": [
+          {
+            "tool": "get_greeks_summary",
+            "params": {"book_id": "fx-main"},
+            "result_field": "aggregate.delta",
+            "result_value": 18500000.0,
+            "result_currency": "USD",
+            "as_of_timestamp": "2026-05-20T07:00:00Z",
+            "data_source": "risk-orchestrator",
+            "freshness_seconds": 1800,
+            "quality_flags": []
+          }
+        ]
+      }
+    ]
+  }
+]
