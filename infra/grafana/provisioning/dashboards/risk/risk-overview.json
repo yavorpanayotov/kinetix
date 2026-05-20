@@ -15,7 +15,7 @@
     { "title": "System Health", "type": "link", "url": "/d/kinetix-system-health", "icon": "dashboard" },
     { "title": "Service Overview", "type": "link", "url": "/d/kinetix-service-overview", "icon": "dashboard" },
     { "title": "Trade Flow", "type": "link", "url": "/d/kinetix-trade-flow", "icon": "dashboard" },
-    { "title": "Risk Engine", "type": "link", "url": "/d/kinetix-risk-engine?var-book_id=${book_id}", "icon": "dashboard" },
+    { "title": "Risk Engine — Throughput & Performance", "type": "link", "url": "/d/kinetix-risk-engine?var-book_id=${book_id}", "icon": "dashboard", "tooltip": "Engine-throughput view: VaR/Greeks calculation rate, latency and stress-test performance. This dashboard (Risk Overview) is the business/limit view." },
     { "title": "Risk Orchestrator", "type": "link", "url": "/d/kinetix-risk-orchestrator?var-book_id=${book_id}", "icon": "dashboard" },
     { "title": "Price", "type": "link", "url": "/d/kinetix-prices", "icon": "dashboard" },
     { "title": "Kafka Health", "type": "link", "url": "/d/kinetix-kafka-health", "icon": "dashboard" },
@@ -77,7 +77,8 @@
   "panels": [
     {
       "id": 1,
-      "title": "Current VaR",
+      "title": "Current VaR ($confidence_level confidence, 1-day)",
+      "description": "Value at Risk at the selected confidence level over a 1-day holding period (the engine default — VaRCalculationRequest.timeHorizonDays = 1). Confidence level and method follow the dashboard's Confidence and Method variables. Cumulative point-in-time figure: the latest VaR reported by the engine, not an interval aggregate.",
       "type": "gauge",
       "gridPos": {
         "h": 8,
@@ -88,7 +89,7 @@
       "targets": [
         {
           "expr": "risk_var_value{book_id=~\"$book_id\", calculation_type=\"$calculation_type\", confidence_level=\"$confidence_level\"}",
-          "legendFormat": "{{book_id}} ({{calculation_type}} @ {{confidence_level}})",
+          "legendFormat": "{{book_id}} — VaR {{confidence_level}}, 1-day ({{calculation_type}})",
           "refId": "A",
           "datasource": {
             "type": "prometheus",
@@ -125,7 +126,8 @@
     },
     {
       "id": 2,
-      "title": "VaR Trend",
+      "title": "VaR Trend ($confidence_level confidence, 1-day)",
+      "description": "Trend of 1-day Value at Risk at the selected confidence level over the dashboard time window. Each point is the engine's point-in-time VaR for that instant — the series is a history of cumulative VaR snapshots, not an interval-summed value.",
       "type": "timeseries",
       "gridPos": {
         "h": 8,
@@ -136,7 +138,7 @@
       "targets": [
         {
           "expr": "risk_var_value{book_id=~\"$book_id\", calculation_type=\"$calculation_type\", confidence_level=\"$confidence_level\"}",
-          "legendFormat": "{{book_id}}",
+          "legendFormat": "{{book_id}} — VaR {{confidence_level}}, 1-day",
           "refId": "A",
           "datasource": {
             "type": "prometheus",
@@ -156,7 +158,8 @@
     },
     {
       "id": 3,
-      "title": "Expected Shortfall (CVaR)",
+      "title": "Expected Shortfall / CVaR ($confidence_level confidence, 1-day)",
+      "description": "Expected Shortfall (Conditional VaR): the mean loss in the tail beyond the VaR threshold, at the selected confidence level over a 1-day holding period. Cumulative point-in-time figure — the latest value reported by the engine, not an interval aggregate.",
       "type": "stat",
       "gridPos": {
         "h": 8,
@@ -167,7 +170,7 @@
       "targets": [
         {
           "expr": "risk_var_expected_shortfall{book_id=~\"$book_id\", calculation_type=\"$calculation_type\", confidence_level=\"$confidence_level\"}",
-          "legendFormat": "{{book_id}}",
+          "legendFormat": "{{book_id}} — ES {{confidence_level}}, 1-day",
           "refId": "A",
           "datasource": {
             "type": "prometheus",
@@ -188,7 +191,8 @@
     },
     {
       "id": 4,
-      "title": "VaR Component Breakdown",
+      "title": "VaR Component Breakdown (1-day)",
+      "description": "Component contribution to 1-day Value at Risk, decomposed by asset class. Cumulative point-in-time figure from the latest VaR calculation. Component contributions sum to total portfolio VaR; per-asset-class contributions can be negative where a position diversifies portfolio risk.",
       "type": "barchart",
       "gridPos": {
         "h": 8,
