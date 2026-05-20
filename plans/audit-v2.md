@@ -114,7 +114,7 @@ Let support self-serve "show all events for trade X / type Y / last hour".
 
 Make `book_id` / `correlation_id` / `calculation_type` queryable fields in Loki instead of printf text.
 
-- [ ] 5.1 Add a stdlib-only JSON log formatter to the risk-engine (a `logging.Formatter` subclass emitting `json.dumps` with `timestamp`, `level`, `logger`, `message`, and any `extra` fields). Replace the plain-text `basicConfig` format in `server.py`. No new dependency. Write the test first asserting a log record serialises to parseable JSON with the expected keys.
+- [x] 5.1 Add a stdlib-only JSON log formatter to the risk-engine (a `logging.Formatter` subclass emitting `json.dumps` with `timestamp`, `level`, `logger`, `message`, and any `extra` fields). Replace the plain-text `basicConfig` format in `server.py`. No new dependency. Write the test first asserting a log record serialises to parseable JSON with the expected keys.
       Acceptance: `cd risk-engine && uv run pytest tests/test_logging.py -m unit`
 - [ ] 5.2 Thread `correlation_id`, `book_id` and `calculation_type` through as structured `extra` fields on the log calls in the VaR / Greeks / stress calculation entry points.
       Acceptance: `cd risk-engine && uv run pytest -m unit`
