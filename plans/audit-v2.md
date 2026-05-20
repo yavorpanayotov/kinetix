@@ -178,7 +178,7 @@ Give users and support a screen — no LogQL required.
 
 Prove the event trail is trustworthy under partial failure.
 
-- [ ] 11.1 Add an audit-service acceptance test that inserts a chain with a deliberate sequence-number gap and asserts `/api/v1/audit/gaps` returns the exact missing range.
+- [x] 11.1 Add an audit-service acceptance test that inserts a chain with a deliberate sequence-number gap and asserts `/api/v1/audit/gaps` returns the exact missing range.
       Acceptance: `./gradlew :audit-service:acceptanceTest --tests "*AuditGapDetection*"`
 - [ ] 11.2 Add a test asserting duplicate Kafka delivery of the same trade event to the audit consumer does not create two persisted records (idempotency contract).
       Acceptance: `./gradlew :audit-service:integrationTest`
