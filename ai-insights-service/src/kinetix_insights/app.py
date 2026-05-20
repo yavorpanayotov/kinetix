@@ -20,6 +20,7 @@ from .brief.factory import build_brief_client
 from .brief.scheduler import run_brief_scheduler
 from .chat.conversation_store import InMemoryConversationStore
 from .chat.factory import build_chat_client
+from .clients.gateway_push_client import HttpxGatewayPushClient
 from .clients.kinetix_http_client import HttpxKinetixHttpClient
 from .clients.user_context import UserContext
 from .factory import build_client
@@ -82,8 +83,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     safe to call on shutdown. The consumer is wired with the
     ``IntradayPushGenerator`` selected by
     :func:`build_intraday_push_generator` (canned in DEMO_MODE, live
-    otherwise); gateway dispatch via an injected push sink lands in
-    checkbox 7.7.
+    otherwise).
+
+    When a firing alert is composed, the live generator forwards the
+    push to the gateway via an injected ``sink``: an
+    :class:`HttpxGatewayPushClient` POSTing to ``/internal/copilot/push``
+    (checkbox 7.7). The client is built only when both
+    ``GATEWAY_INTERNAL_URL`` and ``COPILOT_INTERNAL_TOKEN`` are set —
+    DEMO_MODE / CI leave them unset, so :meth:`HttpxGatewayPushClient.
+    from_env` returns ``None`` and no live HTTP call is ever attempted.
     """
     app.state.insight_client = build_client()
     app.state.mcp_server = build_mcp_server()
@@ -101,12 +109,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         )
     )
 
+    # Live gateway dispatch sink — None unless GATEWAY_INTERNAL_URL and
+    # COPILOT_INTERNAL_TOKEN are both set, so DEMO_MODE / CI make no HTTP
+    # call. Ignored on the canned generator path (see push.factory).
+    gateway_push_client = HttpxGatewayPushClient.from_env()
+    push_sink = gateway_push_client.as_sink() if gateway_push_client else None
+    app.state.gateway_push_client = gateway_push_client
     app.state.kafka_consumer = IntradayKafkaConsumer(
         evaluator=IntradayThresholdEvaluator(
             http=HttpxKinetixHttpClient(),
             user=_DEMO_INTRADAY_USER,
         ),
-        push_generator=build_intraday_push_generator(),
+        push_generator=build_intraday_push_generator(sink=push_sink),
     )
     if _kafka_enabled():
         await app.state.kafka_consumer.start()
