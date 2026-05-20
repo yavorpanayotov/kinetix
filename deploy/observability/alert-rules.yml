@@ -1,0 +1,52 @@
+# Prometheus alerting rules for local development.
+#
+# Referenced by prometheus.yml `rule_files`. Ported from the Helm
+# observability chart (deploy/helm/kinetix/charts/observability/values.yaml,
+# additionalPrometheusRulesMap) with metric/label names corrected to match
+# what the services actually emit:
+#   - risk-engine histogram is `risk_var_calculation_duration_seconds`
+#     (so the bucket series is `risk_var_calculation_duration_seconds_bucket`)
+#   - kafka-exporter emits `kafka_consumergroup_lag`
+#   - `risk_var_value` carries a `book_id` label, not `portfolio_id`
+#   - price-service emits `price_staleness_seconds{instrument_id=...}` (correct as-is)
+groups:
+  - name: kinetix-risk
+    rules:
+      - alert: VaRBreached
+        expr: risk_var_value > 1000000
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "VaR breached threshold for book {{ $labels.book_id }}"
+          description: "VaR value {{ $value }} exceeds 1,000,000 for book {{ $labels.book_id }}"
+      - alert: RiskCalculationSlow
+        expr: histogram_quantile(0.95, rate(risk_var_calculation_duration_seconds_bucket[5m])) > 30
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Risk calculation p95 latency exceeds 30s"
+          description: "P95 VaR calculation duration is {{ $value }}s"
+
+  - name: kinetix-price
+    rules:
+      - alert: PriceStale
+        expr: price_staleness_seconds > 60
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Price data is stale for {{ $labels.instrument_id }}"
+          description: "Price staleness is {{ $value }}s for {{ $labels.instrument_id }}"
+
+  - name: kinetix-kafka
+    rules:
+      - alert: KafkaConsumerLag
+        expr: kafka_consumergroup_lag > 10000
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Kafka consumer lag is high for {{ $labels.consumergroup }}"
+          description: "Consumer group {{ $labels.consumergroup }} has lag of {{ $value }} on topic {{ $labels.topic }}"
