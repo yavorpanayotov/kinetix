@@ -32,6 +32,7 @@ import { useAlerts } from './hooks/useAlerts'
 import { useVaR } from './hooks/useVaR'
 import { useVarLimit } from './hooks/useVarLimit'
 import { useIntradayPnlStream } from './hooks/useIntradayPnlStream'
+import { useCopilotWebSocket } from './hooks/useCopilotWebSocket'
 import { useBookSelector, ALL_BOOKS } from './hooks/useBookSelector'
 import { useHierarchySelector } from './hooks/useHierarchySelector'
 import { HierarchySelector } from './components/HierarchySelector'
@@ -370,6 +371,10 @@ function AppContent() {
   const { varLimit } = useVarLimit()
   const { alerts: breachAlerts, dismissAlert: dismissBreachAlert } = useAlerts()
   const { latest: intradayLatest, connected: intradayConnected } = useIntradayPnlStream(effectiveBookId)
+  // Plan §7.8/§7.10 — intraday Copilot push channel. The hook connects to
+  // `/ws/copilot` and surfaces received pushes newest-first; they feed the
+  // notification strip's `intradayPushes` prop below.
+  const { events: copilotPushes } = useCopilotWebSocket()
   // Plan §8.2 — Hedge recommendation hook lives at the App level so the
   // panel can be opened from the global ticker strip, the breach banner, or
   // RiskTab's own button without each surface owning duplicate state.
@@ -718,12 +723,16 @@ function AppContent() {
       />
 
       {/*
-        Plan §6.9 / §6.10 — copilot notification strip. It sits between
-        <SystemStatusBanner> and <RiskTickerStrip> and currently carries
-        only the morning brief; intraday push items populate `items` in
-        a later PR.
+        Plan §6.9 / §6.10 / §7.10 — copilot notification strip. It sits
+        between <SystemStatusBanner> and <RiskTickerStrip> and carries the
+        morning brief plus intraday Copilot push events streamed over
+        `/ws/copilot` by `useCopilotWebSocket()`.
       */}
-      <NotificationStrip items={[]} morningBrief={morningBrief} />
+      <NotificationStrip
+        items={[]}
+        morningBrief={morningBrief}
+        intradayPushes={copilotPushes}
+      />
 
       <RiskTickerStrip
         bookId={effectiveBookId ?? bookId}

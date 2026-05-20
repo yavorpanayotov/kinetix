@@ -157,12 +157,14 @@ export interface NotificationInboxProps {
   morningBrief?: MorningBrief | null
   briefRef?: React.RefObject<HTMLDivElement | null>
   /**
-   * Intraday Copilot push events (plan §7.9). Rendered below the morning
-   * brief, above the notification rows; more than five collapse into a
-   * single "N more" badge. Like a brief, their presence keeps the inbox
-   * non-empty. Defaults to an empty list.
+   * Intraday Copilot push events (plan §7.9 / §7.10). Rendered below the
+   * morning brief, above the notification rows; more than five collapse
+   * into a single "N more" badge. Like a brief, their presence keeps the
+   * inbox non-empty. Defaults to an empty list.
    */
   intradayPushes?: CopilotPushEvent[]
+  /** Dismiss a single intraday push, keyed by its ``session_id``. */
+  onDismissPush?: (sessionId: string) => void
 }
 
 export function NotificationInbox({
@@ -172,6 +174,7 @@ export function NotificationInbox({
   morningBrief = null,
   briefRef,
   intradayPushes = [],
+  onDismissPush = () => {},
 }: NotificationInboxProps) {
   // More than five pushes: render the first five and collapse the rest
   // into a single "N more" badge (plan §7.9).
@@ -192,7 +195,11 @@ export function NotificationInbox({
       {intradayPushes.length > 0 && (
         <ul data-testid="intraday-push-list">
           {visiblePushes.map((push) => (
-            <IntradayPushItem key={push.session_id} push={push} />
+            <IntradayPushItem
+              key={push.session_id}
+              push={push}
+              onDismiss={onDismissPush}
+            />
           ))}
           {pushOverflow > 0 && (
             <li className="flex justify-center px-3 py-1.5 border-b border-slate-100 dark:border-surface-700">
@@ -287,6 +294,13 @@ export function NotificationStrip({
   intradayPushes = [],
 }: NotificationStripProps) {
   const [dismissed, setDismissed] = useState<Set<string>>(() => loadDismissed())
+  // Dismissed intraday-push session ids. Kept separate from the
+  // notification-item `dismissed` set: pushes are a transient WebSocket
+  // stream, so their dismissals are session-scoped (not persisted to
+  // localStorage) and never collide with caller-owned item ids.
+  const [dismissedPushes, setDismissedPushes] = useState<Set<string>>(
+    () => new Set(),
+  )
   const [internalExpanded, setInternalExpanded] = useState(false)
   const briefRef = useRef<HTMLDivElement | null>(null)
   // Guards the once-per-mount auto-expand so a brief that lands
@@ -301,6 +315,12 @@ export function NotificationStrip({
   const visible = useMemo(
     () => items.filter((item) => !dismissed.has(item.id)),
     [items, dismissed],
+  )
+
+  // Intraday pushes with the locally-dismissed ones filtered out.
+  const visiblePushes = useMemo(
+    () => intradayPushes.filter((push) => !dismissedPushes.has(push.session_id)),
+    [intradayPushes, dismissedPushes],
   )
 
   const setExpanded = (next: boolean) => {
@@ -357,6 +377,14 @@ export function NotificationStrip({
     })
   }
 
+  const handleDismissPush = (sessionId: string) => {
+    setDismissedPushes((prev) => {
+      const next = new Set(prev)
+      next.add(sessionId)
+      return next
+    })
+  }
+
   // Error takes precedence over both the empty and populated bars. The
   // `notification-strip` element is itself the 36px bar (h-9) — the bar IS
   // the strip's identity.
@@ -389,7 +417,7 @@ export function NotificationStrip({
   // A morning brief or an intraday push counts as content: when either is
   // present the strip takes the populated path below (expandable,
   // non-empty bar) even with zero notification items.
-  if (visible.length === 0 && !morningBrief && intradayPushes.length === 0) {
+  if (visible.length === 0 && !morningBrief && visiblePushes.length === 0) {
     return (
       <div
         role="region"
@@ -426,7 +454,7 @@ export function NotificationStrip({
     info: 0,
   }
   for (const item of visible) severityCounts[item.severity] += 1
-  for (const push of intradayPushes) severityCounts[pushSeverity(push.severity)] += 1
+  for (const push of visiblePushes) severityCounts[pushSeverity(push.severity)] += 1
 
   return (
     <div
@@ -497,7 +525,8 @@ export function NotificationStrip({
           onDismissAll={handleDismissAll}
           morningBrief={morningBrief}
           briefRef={briefRef}
-          intradayPushes={intradayPushes}
+          intradayPushes={visiblePushes}
+          onDismissPush={handleDismissPush}
         />
       )}
     </div>

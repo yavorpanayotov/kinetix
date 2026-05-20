@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { NotificationStrip } from './NotificationStrip'
-import type { CopilotPushEvent } from '../api/copilot'
+import type { Citation, CopilotPushEvent } from '../api/copilot'
 
 /**
  * Plan §7.9 — intraday Copilot push events rendered as items in
@@ -20,6 +20,21 @@ const BRIEF_SEEN_KEY = 'kinetix:morning-brief:last-seen-date'
 
 function todayUtc(): string {
   return new Date().toISOString().slice(0, 10)
+}
+
+function makeCitation(overrides: Partial<Citation> = {}): Citation {
+  return {
+    tool: 'get_var',
+    params: { book_id: 'fx-main' },
+    result_field: 'var_95',
+    result_value: 920000,
+    result_currency: 'USD',
+    as_of_timestamp: '2026-05-20T12:00:00Z',
+    data_source: 'risk-orchestrator',
+    freshness_seconds: 30,
+    quality_flags: [],
+    ...overrides,
+  }
 }
 
 function makePush(overrides: Partial<CopilotPushEvent> = {}): CopilotPushEvent {
@@ -167,6 +182,94 @@ describe('NotificationStrip — intraday push items', () => {
       const row = screen.getByTestId('intraday-push-item-s-unknown')
       const dot = within(row).getByTestId('intraday-push-severity-dot')
       expect(dot.className).toMatch(/slate/)
+    })
+  })
+
+  describe('sources', () => {
+    test('renders the push provenance trail as a citation list', async () => {
+      render(
+        <NotificationStrip
+          items={[]}
+          intradayPushes={[
+            makePush({
+              session_id: 's-src',
+              sources: [makeCitation({ tool: 'get_var' })],
+            }),
+          ]}
+        />,
+      )
+      await openInbox()
+      const row = screen.getByTestId('intraday-push-item-s-src')
+      expect(
+        within(row).getByTestId('intraday-push-sources'),
+      ).toBeInTheDocument()
+      expect(within(row).getByTestId('citation-list')).toBeInTheDocument()
+      expect(within(row).getByText('get_var')).toBeInTheDocument()
+    })
+
+    test('omits the sources block when a push has no citations', async () => {
+      render(
+        <NotificationStrip
+          items={[]}
+          intradayPushes={[makePush({ session_id: 's-nosrc', sources: [] })]}
+        />,
+      )
+      await openInbox()
+      const row = screen.getByTestId('intraday-push-item-s-nosrc')
+      expect(
+        within(row).queryByTestId('intraday-push-sources'),
+      ).not.toBeInTheDocument()
+    })
+  })
+
+  describe('dismiss', () => {
+    test('dismissing a push removes its row from the inbox', async () => {
+      const user = userEvent.setup()
+      render(
+        <NotificationStrip
+          items={[]}
+          intradayPushes={[
+            makePush({ session_id: 's-keep', headline: 'Keep me' }),
+            makePush({ session_id: 's-go', headline: 'Dismiss me' }),
+          ]}
+        />,
+      )
+      await openInbox()
+      expect(
+        screen.getByTestId('intraday-push-item-s-go'),
+      ).toBeInTheDocument()
+
+      await user.click(screen.getByTestId('intraday-push-dismiss-s-go'))
+
+      expect(
+        screen.queryByTestId('intraday-push-item-s-go'),
+      ).not.toBeInTheDocument()
+      // The other push is untouched.
+      expect(
+        screen.getByTestId('intraday-push-item-s-keep'),
+      ).toBeInTheDocument()
+    })
+
+    test('a dismissed push no longer counts toward the collapsed-bar chips', async () => {
+      const user = userEvent.setup()
+      render(
+        <NotificationStrip
+          items={[]}
+          intradayPushes={[
+            makePush({ session_id: 's-c', severity: 'critical' }),
+          ]}
+        />,
+      )
+      expect(
+        screen.getByTestId('notification-chip-critical'),
+      ).toHaveTextContent('1')
+
+      await openInbox()
+      await user.click(screen.getByTestId('intraday-push-dismiss-s-c'))
+
+      expect(
+        screen.queryByTestId('notification-chip-critical'),
+      ).not.toBeInTheDocument()
     })
   })
 
