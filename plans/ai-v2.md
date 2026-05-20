@@ -165,7 +165,7 @@ Each tool lives in its own file under `src/kinetix_insights/mcp/tools/`. Each ca
 
 ### PR 6 — Morning brief: pipeline + UI
 
-- [ ] 6.1 Flyway migration `position-service/.../V???__create_limit_breach_events.sql` creating `limit_breach_events(id, entity_id, book_id, limit_type, severity, current_value, limit_value, breached_at, resolved_at)` with indexes on `(book_id, breached_at DESC)` and `(severity, breached_at DESC)`. Acceptance: position-service migration tests pass.
+- [x] 6.1 Flyway migration `position-service/.../V???__create_limit_breach_events.sql` creating `limit_breach_events(id, entity_id, book_id, limit_type, severity, current_value, limit_value, breached_at, resolved_at)` with indexes on `(book_id, breached_at DESC)` and `(severity, breached_at DESC)`. Acceptance: position-service migration tests pass.
       Acceptance: `./gradlew :position-service:test --tests "*LimitBreachEventsMigrationTest"`
 - [ ] 6.2 Add `LimitBreachEventWriter` hook in position-service `LimitHierarchyService` — persists every detected breach (and resolution) to `limit_breach_events`. Acceptance tests assert breach write + resolution write + idempotency.
       Acceptance: `./gradlew :position-service:acceptanceTest --tests "*LimitBreachEventWriterAcceptanceTest"`
