@@ -25,6 +25,8 @@ dependencies {
     implementation(project(":proto"))
     implementation(libs.bundles.grpc)
     implementation(libs.grpc.netty)
+    implementation(libs.opentelemetry.api)
+    implementation(libs.opentelemetry.grpc)
     implementation(libs.bundles.exposed)
     implementation(libs.bundles.database)
     implementation(libs.kafka.clients)
@@ -41,4 +43,5 @@ dependencies {
     testImplementation(libs.testcontainers.postgresql)
     testImplementation(libs.ktor.client.mock)
     testImplementation(libs.micrometer.prometheus)
+    testImplementation(libs.opentelemetry.sdk.testing)
 }

@@ -19,6 +19,7 @@ import com.kinetix.risk.mapper.toValuationResult
 import com.kinetix.risk.margin.MarginCalculator
 import com.kinetix.risk.client.GrpcLiquidityClient
 import com.kinetix.risk.client.GrpcRiskEngineClient
+import com.kinetix.risk.client.RiskEngineTracingInterceptor
 import com.kinetix.risk.client.HttpAuditServiceClient
 import com.kinetix.risk.client.HttpHierarchyDataClient
 import com.kinetix.risk.client.HttpLimitServiceClient
@@ -216,7 +217,7 @@ fun Application.moduleWithRoutes() {
 
     val tlsEnabled = grpcConfig.propertyOrNull("tls.enabled")?.getString()?.toBoolean() ?: false
     val maxMessageSize = 50 * 1024 * 1024 // 50 MB
-    val channel = if (tlsEnabled) {
+    val managedChannel = if (tlsEnabled) {
         val caPath = grpcConfig.property("tls.caPath").getString()
         val creds = TlsChannelCredentials.newBuilder()
             .trustManager(File(caPath))
@@ -231,6 +232,14 @@ fun Application.moduleWithRoutes() {
             .maxInboundMessageSize(maxMessageSize)
             .build()
     }
+
+    // Wrap the channel with the OpenTelemetry gRPC client interceptor so every
+    // call to the risk-engine injects the active span context as a W3C
+    // `traceparent` header — stitching risk-orchestrator → risk-engine traces.
+    val channel = io.grpc.ClientInterceptors.intercept(
+        managedChannel,
+        RiskEngineTracingInterceptor.create(),
+    )
 
     val meterRegistry = attributes.getOrNull(MeterRegistryKey) ?: io.micrometer.core.instrument.simple.SimpleMeterRegistry()
 
