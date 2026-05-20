@@ -123,7 +123,7 @@ Make `book_id` / `correlation_id` / `calculation_type` queryable fields in Loki 
 
 The two new dependencies are **approved** (see CI/CD & guardrail approvals). This PR runs as normal.
 
-- [ ] 6.1 Add the OpenTelemetry gRPC client interceptor to `GrpcRiskEngineClient` (`risk-orchestrator`) so the W3C `traceparent` header propagates on every call to the risk-engine.
+- [x] 6.1 Add the OpenTelemetry gRPC client interceptor to `GrpcRiskEngineClient` (`risk-orchestrator`) so the W3C `traceparent` header propagates on every call to the risk-engine.
       Acceptance: `./gradlew :risk-orchestrator:test`
 - [ ] 6.2 Add `opentelemetry-instrumentation-grpc` server instrumentation to the risk-engine gRPC server (`server.py`) so it continues the inbound trace context.
       Acceptance: `cd risk-engine && uv run pytest -m unit`
