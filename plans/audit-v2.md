@@ -70,7 +70,7 @@ The existing alerting is silently dead. Make it actually fire before adding anyt
 
 - [x] 1.1 Create `deploy/observability/alert-rules.yml` (the file `prometheus.yml:11` already references but which does not exist). Port the four rule groups from the Helm chart, with **corrected metric names**: `var_calculation_duration_seconds_bucket` → `risk_var_calculation_duration_seconds_bucket`, `kafka_consumer_group_lag` → `kafka_consumergroup_lag`. Verify `price_staleness_seconds` against the price-service `/metrics` output and correct if needed.
       Acceptance: `test -f deploy/observability/alert-rules.yml && python3 -c "import yaml; g=yaml.safe_load(open('deploy/observability/alert-rules.yml')); assert g['groups']; print('ok')"`
-- [ ] 1.2 Fix the Helm observability chart (`deploy/helm/kinetix/charts/observability/values.yaml` `additionalPrometheusRulesMap`): correct the same metric names as 1.1, and fix the `VaRBreached` `summary`/`description` annotations to use `{{ $labels.book_id }}` instead of `{{ $labels.portfolio_id }}`.
+- [x] 1.2 Fix the Helm observability chart (`deploy/helm/kinetix/charts/observability/values.yaml` `additionalPrometheusRulesMap`): correct the same metric names as 1.1, and fix the `VaRBreached` `summary`/`description` annotations to use `{{ $labels.book_id }}` instead of `{{ $labels.portfolio_id }}`.
       Acceptance: `python3 -c "import yaml; yaml.safe_load(open('deploy/helm/kinetix/charts/observability/values.yaml')); print('ok')" && ! grep -n 'portfolio_id' deploy/helm/kinetix/charts/observability/values.yaml && grep -q 'risk_var_calculation_duration_seconds' deploy/helm/kinetix/charts/observability/values.yaml`
 
 ### PR 2 — Correlation ID end-to-end
