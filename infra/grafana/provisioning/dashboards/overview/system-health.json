@@ -3,7 +3,8 @@
   "title": "System Health",
   "tags": [
     "kinetix",
-    "system"
+    "system",
+    "overview"
   ],
   "timezone": "browser",
   "refresh": "30s",

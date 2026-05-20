@@ -3,7 +3,8 @@
   "title": "Risk Orchestrator",
   "tags": [
     "kinetix",
-    "risk-orchestrator"
+    "risk-orchestrator",
+    "risk"
   ],
   "timezone": "browser",
   "refresh": "30s",

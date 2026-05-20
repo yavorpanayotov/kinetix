@@ -1,7 +1,7 @@
 {
   "uid": "kinetix-service-logs",
   "title": "Service Logs",
-  "tags": ["kinetix", "logs"],
+  "tags": ["kinetix", "logs", "overview"],
   "timezone": "browser",
   "refresh": "30s",
   "time": {

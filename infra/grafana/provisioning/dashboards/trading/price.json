@@ -3,7 +3,8 @@
   "title": "Price",
   "tags": [
     "kinetix",
-    "price"
+    "price",
+    "trading"
   ],
   "timezone": "browser",
   "refresh": "30s",
