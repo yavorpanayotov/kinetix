@@ -40,6 +40,22 @@ value InstrumentLoading {
     method: LoadingMethod
 }
 
+value SectorAttribution {
+    -- Per-sector Brinson-Hood-Beebower effects. One row per sector that
+    -- appears in both the portfolio and the benchmark.
+    sector_label: String
+    portfolio_weight: Decimal
+    benchmark_weight: Decimal
+    portfolio_return: Decimal
+    benchmark_return: Decimal
+    allocation_effect: Decimal
+    selection_effect: Decimal
+    interaction_effect: Decimal
+
+    -- Derived: allocation + selection + interaction.
+    total_active_contribution: Decimal
+}
+
 ------------------------------------------------------------
 -- Entities and Variants
 ------------------------------------------------------------
@@ -150,6 +166,56 @@ entity FactorPnlAttribution {
         -- idiosyncratic_pnl = total_pnl - sum(factor_pnl)
         -- Uses the same independent-total-plus-residual model as
         -- intraday P&L attribution (total is truth, decomposition is overlay).
+        --
+        -- ASPIRATIONAL — the risk-engine produces this attribution
+        -- (compute_factor_pnl_attribution, reachable inside factor_server)
+        -- but no Kotlin side consumes or persists it: there is no Kotlin
+        -- FactorPnlAttribution entity, repository, route, or scheduler.
+        -- The factor_exposure and pnl_attribution fields of
+        -- FactorContribution flow over the wire from the engine but are
+        -- dropped by the orchestrator mapper (GrpcRiskEngineClient), so
+        -- the /api/v1/books/{bookId}/factor-risk payload exposes neither.
+        -- Per group-d C10 (FactorContribution) — Kotlin wiring follow-up
+        -- tracked in docs/plans/spec-weeding-followup-2026-05-18.md.
+}
+
+entity AttributionResult {
+    -- Persisted/serialised shape of a Brinson-Hood-Beebower performance
+    -- attribution run. Returned by AttributionService and surfaced by the
+    -- gateway as JSON on the benchmark-attribution route.
+    sectors: List<SectorAttribution>
+    total_active_return: Decimal
+    total_allocation_effect: Decimal
+    total_selection_effect: Decimal
+    total_interaction_effect: Decimal
+
+    @guidance
+        -- Brinson-Hood-Beebower (BHB) attribution splits a book's active
+        -- return versus a benchmark into three effects:
+        --   allocation  — over/under-weighting sectors vs the benchmark
+        --   selection   — picking better/worse instruments within a sector
+        --   interaction — the cross term between the two
+        --
+        -- total_active_return = total_allocation_effect
+        --                     + total_selection_effect
+        --                     + total_interaction_effect.
+        --
+        -- Single-period: arithmetic BHB, one AttributionPeriod.
+        -- Multi-period: geometric (Menchero) linking — each period is
+        -- attributed in log-return space and Menchero smoothing factors
+        -- distribute the compounding/linking adjustment back to the
+        -- sector effects so the decomposition links to the compound
+        -- active return with zero residual. The sector breakdown reported
+        -- for a multi-period run is the last period's snapshot.
+        --
+        -- Computed by risk-engine/brinson.py (BrinsonResult /
+        -- SectorAttribution), exposed via the gRPC
+        -- AttributionService.CalculateBrinsonAttribution RPC
+        -- (proto/kinetix/risk/attribution.proto), and surfaced by the
+        -- gateway BenchmarkAttributionRoutes on
+        -- GET /api/v1/books/{book_id}/attribution. The gateway carries
+        -- the result as an opaque JSON object — there is no typed Kotlin
+        -- AttributionResult DTO and the result is not persisted.
 }
 
 ------------------------------------------------------------
@@ -288,6 +354,47 @@ rule ComputeFactorPnlAttribution {
         --   total_pnl is independently computed (the truth).
         --   Factor attributions are an analytical overlay.
         --   idiosyncratic absorbs the residual.
+}
+
+-- Brinson benchmark attribution
+
+rule BrinsonAttribution {
+    when: BrinsonAttributionRequested(book_id, benchmark_id, as_of_date)
+
+    requires: book_id != ""
+    requires: benchmark_id != ""
+
+    @guidance
+        -- Brinson-Hood-Beebower benchmark performance attribution,
+        -- triggered from the gateway BenchmarkAttributionRoutes
+        -- (GET /api/v1/books/{book_id}/attribution?benchmarkId=...&asOfDate=...)
+        -- and served by the gRPC AttributionService.CalculateBrinsonAttribution
+        -- RPC on the risk-engine.
+        --
+        -- The request carries one or more AttributionPeriods; each period
+        -- carries a set of sector rows (sector_label, portfolio_weight,
+        -- benchmark_weight, portfolio_return, benchmark_return) plus a
+        -- scalar total_benchmark_return.
+        --
+        -- Per sector, single-period BHB:
+        --   allocation  = (w_p - w_b) * (r_b - R_b)
+        --   selection   = w_b         * (r_p - r_b)
+        --   interaction = (w_p - w_b) * (r_p - r_b)
+        -- where w = weight, r = sector return, R_b = total benchmark return.
+        --
+        -- Validation (risk-engine/brinson.py, raises ValueError ->
+        -- gRPC INVALID_ARGUMENT): each period must have at least one
+        -- sector; portfolio_weights and benchmark_weights must each sum
+        -- to 1.0 within a 1e-6 tolerance; all per-sector arrays must be
+        -- the same length.
+        --
+        -- One period => arithmetic single-period BHB. Two or more
+        -- periods => geometric multi-period attribution with Menchero
+        -- linking, so the summed effects equal the compound active
+        -- return exactly. Produces an AttributionResult.
+        --
+        -- The gateway returns this result as an opaque JSON object; it
+        -- is neither persisted nor mapped to a typed Kotlin DTO.
 }
 
 -- Factor concentration warning
