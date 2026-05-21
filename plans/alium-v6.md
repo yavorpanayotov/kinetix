@@ -181,7 +181,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       statement. Source: `group-b` C7.
       Acceptance: `./gradlew :position-service:integrationTest`
 
-- [ ] 1.9 Fix `IntradayPnlService.deriveBaseCurrency` (`IntradayPnlService.kt:341-343`)
+- [x] 1.9 Fix `IntradayPnlService.deriveBaseCurrency` (`IntradayPnlService.kt:341-343`)
       — currently hardcoded `"USD"` for every book. Resolve the book's base
       currency from book reference data per `intraday-pnl.allium:168`
       (`book_base_currency(baseline.book_id)`). Source: `group-c` C8.
