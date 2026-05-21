@@ -505,7 +505,7 @@ commit.
       `ai-insights.allium` if not already covered by 4.1.
       Acceptance: `node plans/scripts/allium-workspace.mjs`
 
-- [ ] 5.6 Final verification — run `node plans/scripts/allium-workspace.mjs`,
+- [x] 5.6 Final verification — run `node plans/scripts/allium-workspace.mjs`,
       confirm zero `error`-severity diagnostics across the whole set and that the
       `unreachableTrigger` count has dropped substantially from the 0.1 baseline.
       Record the new baseline in the script output / a comment.
