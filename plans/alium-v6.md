@@ -448,7 +448,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       Source: `coverage-gaps.md` §ML prediction + `group-d` RegimeModelConfig.
       Acceptance: `node plans/scripts/allium-workspace.mjs`
 
-- [ ] 4.11 Extend `counterparty-risk.allium` — add a persisted SA-CCR history
+- [x] 4.11 Extend `counterparty-risk.allium` — add a persisted SA-CCR history
       entity (`SaCcrResultsTable`), a `CounterpartyExposureHistory` entity, a
       `NettingSetAssignment` rule (trade ↔ netting-set association), and an
       `InternalMargin` entity + `CalculateMargin` rule (`MarginCalculator` /
