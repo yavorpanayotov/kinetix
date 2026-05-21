@@ -254,7 +254,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       Source: `group-a` spec bugs + regressions of `initial-report.md` #20/#27.
       Acceptance: `node plans/scripts/allium-workspace.mjs`
 
-- [ ] 2.5 `intraday-pnl.allium` — mark `IntradayPnlState` and `InitialiseIntradayState`
+- [x] 2.5 `intraday-pnl.allium` — mark `IntradayPnlState` and `InitialiseIntradayState`
       `@aspirational` (the live design is the stateless `recompute()` against the
       repo; no state class or `SodBaseline.created` listener exists). Close the
       stale open question at line 414 — `IntradayVaRTimeline` is already shipped in
