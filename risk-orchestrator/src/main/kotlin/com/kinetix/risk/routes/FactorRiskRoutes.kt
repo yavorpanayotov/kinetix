@@ -43,7 +43,9 @@ private fun FactorDecompositionSnapshot.toResponse() = FactorRiskResponse(
 
 private fun FactorContribution.toDto() = FactorContributionDto(
     factorType = factorType,
+    factorExposure = factorExposure,
     varContribution = varContribution,
+    pnlAttribution = pnlAttribution,
     pctOfTotal = pctOfTotal,
     loading = loading,
     loadingMethod = loadingMethod,

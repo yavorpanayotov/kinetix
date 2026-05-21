@@ -173,7 +173,9 @@ class GrpcRiskEngineClient(
             val loadingResult = response.loadingsList.find { it.factor == fc.factor }
             FactorContribution(
                 factorType = domainName,
+                factorExposure = fc.factorExposure,
                 varContribution = fc.factorVar,
+                pnlAttribution = fc.pnlAttribution,
                 pctOfTotal = fc.pctOfTotalVar,
                 loading = loadingResult?.loading ?: 0.0,
                 loadingMethod = loadingResult?.method?.name?.removePrefix("LOADING_") ?: "ANALYTICAL",

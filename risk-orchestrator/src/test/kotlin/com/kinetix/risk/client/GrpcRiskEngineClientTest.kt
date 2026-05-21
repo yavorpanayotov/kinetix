@@ -1,6 +1,9 @@
 package com.kinetix.risk.client
 
 import com.kinetix.common.model.*
+import com.kinetix.proto.risk.FactorContribution as ProtoFactorContribution
+import com.kinetix.proto.risk.FactorDecompositionResponse
+import com.kinetix.proto.risk.FactorType
 import com.kinetix.proto.risk.RiskCalculationServiceGrpcKt.RiskCalculationServiceCoroutineStub
 import com.kinetix.proto.risk.RiskCalculationType
 import com.kinetix.proto.risk.VaRComponentBreakdown
@@ -193,5 +196,40 @@ class GrpcRiskEngineClientTest : FunSpec({
         coVerify {
             deadlinedStub.valuate(match { req -> req.positionsCount == 2 }, any())
         }
+    }
+
+    test("decomposeFactorRisk carries factorExposure and pnlAttribution from proto into the snapshot") {
+        val protoResponse = FactorDecompositionResponse.newBuilder()
+            .setBookId("port-1")
+            .setTotalVar(50_000.0)
+            .setSystematicVar(38_000.0)
+            .setIdiosyncraticVar(12_000.0)
+            .setRSquared(0.576)
+            .addFactorContributions(
+                ProtoFactorContribution.newBuilder()
+                    .setFactor(FactorType.FACTOR_EQUITY_BETA)
+                    .setFactorExposure(250_000.0)
+                    .setFactorVar(30_000.0)
+                    .setPnlAttribution(4_200.0)
+                    .setPctOfTotalVar(0.60)
+            )
+            .build()
+
+        coEvery { deadlinedStub.decomposeFactorRisk(any(), any()) } returns protoResponse
+
+        val snapshot = client.decomposeFactorRisk(
+            bookId = BookId("port-1"),
+            positions = emptyList(),
+            marketData = emptyMap(),
+            totalVar = 50_000.0,
+        )
+
+        snapshot.factors shouldHaveSize 1
+        val equityFactor = snapshot.factors.single()
+        equityFactor.factorType shouldBe "EQUITY_BETA"
+        equityFactor.factorExposure shouldBe 250_000.0
+        equityFactor.varContribution shouldBe 30_000.0
+        equityFactor.pnlAttribution shouldBe 4_200.0
+        equityFactor.pctOfTotal shouldBe 0.60
     }
 })

@@ -31,7 +31,9 @@ class ExposedFactorDecompositionRepository(
                 snapshot.factors.forEach { factor ->
                     add(buildJsonObject {
                         put("factorType", factor.factorType)
+                        put("factorExposure", factor.factorExposure)
                         put("varContribution", factor.varContribution)
+                        put("pnlAttribution", factor.pnlAttribution)
                         put("pctOfTotal", factor.pctOfTotal)
                         put("loading", factor.loading)
                         put("loadingMethod", factor.loadingMethod)
@@ -100,7 +102,9 @@ class ExposedFactorDecompositionRepository(
             val obj = elem as? JsonObject ?: return@mapNotNull null
             FactorContribution(
                 factorType = obj["factorType"]?.jsonPrimitive?.content ?: return@mapNotNull null,
+                factorExposure = obj["factorExposure"]?.jsonPrimitive?.double ?: 0.0,
                 varContribution = obj["varContribution"]?.jsonPrimitive?.double ?: 0.0,
+                pnlAttribution = obj["pnlAttribution"]?.jsonPrimitive?.double ?: 0.0,
                 pctOfTotal = obj["pctOfTotal"]?.jsonPrimitive?.double ?: 0.0,
                 loading = obj["loading"]?.jsonPrimitive?.double ?: 0.0,
                 loadingMethod = obj["loadingMethod"]?.jsonPrimitive?.content ?: "ANALYTICAL",

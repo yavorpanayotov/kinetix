@@ -54,14 +54,18 @@ class FactorRiskRoutesAcceptanceTest : FunSpec({
         factors = listOf(
             FactorContribution(
                 factorType = "EQUITY_BETA",
+                factorExposure = 250_000.0,
                 varContribution = 30_000.0,
+                pnlAttribution = 4_200.0,
                 pctOfTotal = 0.60,
                 loading = 1.2,
                 loadingMethod = "OLS_REGRESSION",
             ),
             FactorContribution(
                 factorType = "RATES_DURATION",
+                factorExposure = -75_000.0,
                 varContribution = 8_000.0,
+                pnlAttribution = -1_100.0,
                 pctOfTotal = 0.16,
                 loading = -0.5,
                 loadingMethod = "ANALYTICAL",
@@ -107,7 +111,9 @@ class FactorRiskRoutesAcceptanceTest : FunSpec({
             factors.size shouldBe 2
 
             val equityFactor = factors.first { it.jsonObject["factorType"]?.jsonPrimitive?.content == "EQUITY_BETA" }.jsonObject
+            equityFactor["factorExposure"]?.jsonPrimitive?.double shouldBe 250_000.0
             equityFactor["varContribution"]?.jsonPrimitive?.double shouldBe 30_000.0
+            equityFactor["pnlAttribution"]?.jsonPrimitive?.double shouldBe 4_200.0
             equityFactor["pctOfTotal"]?.jsonPrimitive?.double shouldBe 0.60
             equityFactor["loadingMethod"]?.jsonPrimitive?.content shouldBe "OLS_REGRESSION"
         }

@@ -17,7 +17,9 @@ data class FactorRiskResponse(
 @Serializable
 data class FactorContributionDto(
     val factorType: String,
+    val factorExposure: Double,
     val varContribution: Double,
+    val pnlAttribution: Double,
     val pctOfTotal: Double,
     val loading: Double,
     val loadingMethod: String,
