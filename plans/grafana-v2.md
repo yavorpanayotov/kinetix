@@ -271,7 +271,7 @@ adds the dashboard in the same commit — one self-contained feature per checkbo
       backtesting exceptions, backtest pass/fail counts, submission outcomes) and
       add a `risk/regulatory.json` dashboard. TDD.
       Acceptance: `./gradlew :regulatory-service:test && node plans/scripts/validate-grafana.mjs && test -f infra/grafana/provisioning/dashboards/risk/regulatory.json`
-- [ ] 4.5 Instrument `volatility-service` and `correlation-service` with
+- [x] 4.5 Instrument `volatility-service` and `correlation-service` with
       surface-health metrics (last-update age, surface point count, calibration
       failures) and add a `risk/surface-health.json` dashboard. TDD.
       Acceptance: `./gradlew :volatility-service:test :correlation-service:test && node plans/scripts/validate-grafana.mjs && test -f infra/grafana/provisioning/dashboards/risk/surface-health.json`
