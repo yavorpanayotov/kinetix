@@ -59,7 +59,7 @@ entity RiskFreeRate {
     source: core/RateSource
 
     @guidance
-        -- rate is Decimal at the spec level. Persistence stores decimal(18,8)
+        -- rate is Decimal at the spec level. Persistence stores decimal(28,12)
         -- and the in-process Kotlin type is a 64-bit Double (adequate for
         -- values typically in 0.00..0.20). Consumers must tolerate the
         -- precision mismatch between spec and implementation.
@@ -133,8 +133,23 @@ value VolSurfaceDiff {
 
 value StaleInstrument {
     instrument_id: String
-    last_price_at: Timestamp
-    staleness_seconds: Integer
+    lastUpdated: Timestamp
+    ageHours: Integer
+    status: String
+
+    @guidance
+        -- Staleness is measured relative to the platform tape, not
+        -- wall-clock. `ageHours` is the gap between this instrument's
+        -- freshest PricePoint.timestamp and the platform-wide freshest
+        -- timestamp across all instruments (the market clock / tape
+        -- maximum), as ExposedPriceRepository.findStaleInstruments
+        -- computes via `EXTRACT(EPOCH FROM (global_max - last_updated))
+        -- / 3600`. This makes staleness meaningful even before a demo
+        -- tape replay has advanced the universe, and immune to clock
+        -- skew between the platform and the observer.
+        -- `lastUpdated` is the instrument's freshest PricePoint timestamp.
+        -- `status` is a free-text classification; the shipped data-quality
+        -- contract defaults it to "STALE".
 }
 
 value InterpolatedTenor {
@@ -213,15 +228,17 @@ rule IngestYieldCurve {
 -- and the threshold that classifies a row as anomalous.
 
 rule QueryStalePrices {
-    when: QueryStalePricesRequested(stale_after)
+    when: QueryStalePricesRequested(threshold_hours)
 
     @guidance
-        -- HTTP: GET /api/v1/prices/stale?staleAfter={ISO8601}
+        -- HTTP: GET /api/v1/prices/stale?thresholdHours={Long}
         -- Returns a list of StaleInstrument records for every
-        -- instrument whose most recent PricePoint.timestamp is older
-        -- than the supplied threshold (default: 1.hour for intraday,
-        -- 25.hours for EOD). Surfaced on the DataQualityIndicator
-        -- as the price-staleness anomaly contract.
+        -- instrument whose freshest PricePoint.timestamp lags the
+        -- platform-wide freshest timestamp by more than thresholdHours
+        -- (default: 24). Staleness is platform-tape-relative, not
+        -- wall-clock — see the @guidance on StaleInstrument.
+        -- Surfaced on the DataQualityIndicator as the price-staleness
+        -- anomaly contract.
 }
 
 rule QueryInterpolatedYieldCurveTenor {
@@ -301,6 +318,11 @@ rule IngestVolSurface {
         -- All implied vols must be positive.
         -- Strikes and maturity_days must be positive.
         -- Published to Kafka volatility.surfaces topic.
+        -- The VolSurfaceEvent payload is a summary, not the full
+        -- surface: it carries instrumentId, asOfDate, source and
+        -- pointCount (the number of VolPoints) only — consumers that
+        -- need the grid must fetch the surface from the volatility
+        -- service, not reconstruct it from the event.
 }
 
 -- Vol surface day-over-day diff
