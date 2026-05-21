@@ -81,7 +81,7 @@ fun Route.ratesRoutes(
                         YieldCurveTenorResponse(
                             curveId = curveId,
                             tenor = tenorLabel,
-                            value = resolved.value.toPlainString(),
+                            rate = resolved.value.toPlainString(),
                             interpolated = resolved.interpolated,
                         )
                     )

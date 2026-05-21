@@ -65,7 +65,7 @@ class YieldCurveProxyRoutesAcceptanceTest : FunSpec({
                     {
                       "curveId": "GBP",
                       "tenor": "5Y",
-                      "value": "0.052500",
+                      "rate": "0.052500",
                       "interpolated": true
                     }
                     """.trimIndent(),

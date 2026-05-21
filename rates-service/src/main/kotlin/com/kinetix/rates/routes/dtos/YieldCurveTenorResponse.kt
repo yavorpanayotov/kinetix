@@ -6,6 +6,6 @@ import kotlinx.serialization.Serializable
 data class YieldCurveTenorResponse(
     val curveId: String,
     val tenor: String,
-    val value: String,
+    val rate: String,
     val interpolated: Boolean,
 )

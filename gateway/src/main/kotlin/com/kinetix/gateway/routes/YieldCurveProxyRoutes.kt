@@ -55,7 +55,7 @@ fun Route.yieldCurveProxyRoutes(httpClient: HttpClient, ratesBaseUrl: String) {
                     YieldCurvePointResponse(
                         label = tenorLabel,
                         days = TENOR_DAYS.getValue(tenorLabel),
-                        rate = body.value,
+                        rate = body.rate,
                         interpolated = body.interpolated,
                     )
                 }
@@ -114,6 +114,6 @@ private data class UpstreamTenor(
 private data class UpstreamYieldCurveTenor(
     val curveId: String,
     val tenor: String,
-    val value: String,
+    val rate: String,
     val interpolated: Boolean,
 )

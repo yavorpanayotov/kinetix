@@ -355,7 +355,9 @@ class RatesRoutesTest : FunSpec({
             val body = response.bodyAsText()
             body shouldContain "\"tenor\":\"5Y\""
             body shouldContain "\"interpolated\":false"
-            body shouldContain "0.0445"
+            // The rate is exposed under the `rate` key, consistent with
+            // Tenor.rate / RiskFreeRate.rate — not a `value` key.
+            body shouldContain "\"rate\":\"0.0445\""
         }
     }
 
@@ -382,8 +384,8 @@ class RatesRoutesTest : FunSpec({
             body shouldContain "\"interpolated\":true"
             // Linear interp between 2Y (0.0420) and 10Y (0.0470) at 5Y (1825 days):
             //   below=730, above=3650, span=2920, offset=1095
-            //   value = 0.0420 + (0.0470-0.0420) * 1095/2920 ≈ 0.043875
-            body shouldContain "0.043875"
+            //   rate = 0.0420 + (0.0470-0.0420) * 1095/2920 ≈ 0.043875
+            body shouldContain "\"rate\":\"0.043875\""
         }
     }
 
