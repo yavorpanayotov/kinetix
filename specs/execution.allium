@@ -45,6 +45,29 @@ enum FIXSessionStatus { connected | disconnected | reconnecting }
 
 enum TimeInForce { day | gtc | ioc | fok | gtd }
 
+enum CancelAttemptStatus {
+    accepted
+    | session_down
+    | unknown_venue
+    | invalid_request
+    | rpc_failed
+}
+-- Outcome of a single cancel attempt against fix-gateway. Mirrors the Kotlin
+-- CancelAttemptStatus enum (position-service .../fix/CancelAttemptStatus.kt):
+--   accepted        - fix-gateway accepted the cancel for routing to the venue
+--   session_down    - the FIX session to the venue was down
+--   unknown_venue   - fix-gateway did not recognise the venue
+--   invalid_request - the cancel request was malformed / rejected pre-wire
+--   rpc_failed      - gRPC transport failure (DEADLINE_EXCEEDED, UNAVAILABLE,
+--                     mTLS handshake, ...)
+-- `accepted` means fix-gateway took the cancel — it is NOT a venue
+-- acknowledgement. Venue-side resolution arrives later as a FIX
+-- ExecutionReport (35=8) and is authoritative.
+
+enum VenueDirection { inbound | outbound }
+-- Direction of a FIX wire message relative to fix-gateway: inbound is a
+-- message received from the venue, outbound is a message fix-gateway sent.
+
 ------------------------------------------------------------
 -- Value Types
 ------------------------------------------------------------
@@ -84,6 +107,130 @@ entity FIXSession {
         -- QuickFIX/J handles session-level heartbeats, sequence number
         -- management, logon/logout, and resend requests.
         -- FileStoreFactory for persistent sequence numbers (not MemoryStore).
+}
+
+entity VenueSession {
+    venue: String
+    fix_version: String
+    sender_comp_id: String
+    target_comp_id: String
+    default_venue_ack_timeout_ms: Integer
+
+    @guidance
+        -- Per-venue FIX session configuration held by VenueSessionRegistry in
+        -- fix-gateway (.../fix/venue/VenueSession.kt). One row per launch venue
+        -- (NYSE, NASDAQ, LSE, TSE, HKEX per ADR-0035 phase 2). `venue` is the
+        -- normalised upper-case identifier; lookups uppercase and trim input so
+        -- routing defects surface as UNKNOWN_VENUE rather than a wrong session.
+        --
+        -- fix_version is the QuickFIX/J protocol version (e.g. "FIX.4.4").
+        -- sender_comp_id / target_comp_id identify the SenderCompID/TargetCompID
+        -- pair. default_venue_ack_timeout_ms is the per-venue PENDING_NEW ack
+        -- budget consumed by phase-4 PlaceOrder routing.
+        --
+        -- The registry is config-driven, not persisted to a database table —
+        -- it is an in-memory map seeded from VenueSessionRegistry.DEFAULT.
+}
+
+entity VenueCutoff {
+    venue: String
+    zone: String
+    day_open: String
+    day_cutoff: String
+    max_gtd_days: Integer
+
+    @guidance
+        -- Per-venue regular-session timetable held by VenueCutoffRegistry in
+        -- fix-gateway (.../fix/venue/VenueCutoff.kt). One row per launch venue.
+        --
+        -- zone is the venue's IANA time-zone id (e.g. "America/New_York").
+        -- day_open / day_cutoff are local times-of-day (e.g. "09:30", "16:00")
+        -- expressed as strings here because Allium has no time-of-day type — in
+        -- Kotlin they are java.time.LocalTime values. max_gtd_days is the
+        -- venue's policy maximum GTD horizon.
+        --
+        -- A venue is "open" when the current venue-local time is at or after
+        -- day_open and strictly before day_cutoff, on a weekday. Weekends are
+        -- always closed. Holiday calendars are deferred to ADR-0035 phase 2.5;
+        -- until then every weekday is treated as a trading day.
+        --
+        -- Like VenueSession this registry is config-driven (VenueCutoffRegistry
+        -- .DEFAULT), not a database table. position-service does not hold a
+        -- duplicate — it consults venue state via the IsVenueOpen gRPC RPC.
+        -- Unknown venues fall back to NYSE behaviour.
+}
+
+entity FixMessageLogRecord {
+    venue: String
+    direction: VenueDirection
+    msg_type: String
+    raw_message: String
+    clord_id: String?
+    venue_order_id: String?
+    order_status: String = "OPEN"
+    sent_at: Timestamp
+
+    @guidance
+        -- One row of the append-only `fix_message_log` table (fix-gateway
+        -- migrations V2/V3, .../fix/session/FixMessageLogEntry.kt). The log is
+        -- the durability, audit, and replay source for FIX wire traffic.
+        --
+        -- direction: inbound for messages received from the venue, outbound
+        -- for messages fix-gateway sent. msg_type is FIX tag 35 (e.g. "D",
+        -- "F", "8", "9"). raw_message is the pipe-delimited FIX string (SOH
+        -- replaced with '|'). clord_id is FIX tag 11 (nullable for
+        -- session-layer messages); venue_order_id is FIX tag 37 (nullable
+        -- before the venue acknowledges the order).
+        --
+        -- order_status is "OPEN" or "TERMINAL". It is set "OPEN" when an
+        -- outbound 35=D (NewOrderSingle) is logged and flipped to "TERMINAL"
+        -- when an inbound terminal 35=8 (FILL/CANCELLED/REJECTED) or 35=9
+        -- (OrderCancelReject) arrives for the same venue + clord_id. Only
+        -- outbound 35=D rows are semantically meaningful for order_status;
+        -- other rows carry the column with its default. The
+        -- SessionReconciliationCoordinator queries OPEN outbound 35=D rows on
+        -- logon to decide which clOrdIDs need a 35=H OrderStatusRequest.
+        --
+        -- The table is range-partitioned by sent_at month on Postgres; the
+        -- partitioning is transparent to the spec.
+}
+
+entity CancelAttempt {
+    order_id: String
+    venue: String
+    status: CancelAttemptStatus
+    detail: String
+    attempted_at: Timestamp
+
+    @guidance
+        -- One row of the `cancel_attempts` table (position-service migration
+        -- V23, .../fix/CancelAttemptsTable.kt + CancelAttemptRecorder.kt).
+        -- Records the outcome of every cancel attempt routed to fix-gateway —
+        -- both sweeper-initiated DAY/GTD expiries and trader-initiated cancels.
+        --
+        -- status is the CancelAttemptStatus outcome. detail carries a free-text
+        -- diagnostic (e.g. the gRPC status message or venue reason).
+        -- attempted_at is when the cancel was attempted.
+        --
+        -- Recording is fire-and-forget: a failure to persist a CancelAttempt
+        -- must NOT block the sweeper's state-side EXPIRED transition, so the
+        -- recorder catches and logs insert errors rather than propagating them.
+        -- The forensic value is letting the ghost-fill alerter correlate
+        -- EXPIRED orders that later received fills against a failed cancel.
+        --
+        -- CancelAttempt has no status state machine: each row is a single,
+        -- immutable attempt outcome. CancelAttemptStatus is the terminal
+        -- classification of that one attempt, not a lifecycle the row moves
+        -- through. A retried cancel produces a new CancelAttempt row.
+        --
+        -- @guidance
+        --   -- ASPIRATIONAL: the source coverage-gap (group-b cancel_attempts)
+        --   -- proposed a multi-state CancelAttemptStatus lifecycle
+        --   -- (REQUESTED / SENT / ACKNOWLEDGED / REJECTED / TIMED_OUT). The
+        --   -- implementation does not model that lifecycle — CancelAttempt is
+        --   -- an append-only outcome record, not a mutable entity. This spec
+        --   -- documents the code as built; a future lifecycle would need the
+        --   -- table and recorder reworked first.
 }
 
 entity Order {
@@ -246,6 +393,7 @@ entity PrimeBrokerReconciliation {
 
 config {
     risk_check_timeout: Duration = 500.milliseconds
+    read_only_check_timeout: Duration = 100.milliseconds
     arrival_price_staleness: Duration = 30.seconds
     auto_resolve_break_threshold: Decimal = 1.0
     manual_review_notional_threshold: Decimal = 10000
@@ -334,6 +482,13 @@ rule PerformPreTradeRiskCheck {
         --
         -- Limit definitions should be cached in Redis (30s TTL) to meet
         -- the latency budget.
+        --
+        -- The order-submission path above uses config.risk_check_timeout
+        -- (500ms). The standalone read-only endpoint
+        -- (GET/POST /api/v1/risk/pre-trade-check, used by the UI for a
+        -- hypothetical what-if check that books no order) runs against the
+        -- tighter config.read_only_check_timeout (100ms) — it is purely
+        -- advisory, so a tighter budget trades completeness for latency.
 }
 
 rule SendOrderToFIX {
@@ -674,6 +829,57 @@ rule ExpireDayOrder {
         -- as trades.
 }
 
+-- DAY-order expiry driven by the venue-cutoff timetable.
+
+rule DayOrderExpiry {
+    when: OrderExpiryTick(order_id)
+    let order = Order{order_id: order_id}
+    requires: order != null
+    requires: order.time_in_force = day
+    requires: order.status in {approved, sent, partial}
+
+    -- The venue's regular session has closed: the venue-local time is at or
+    -- past VenueCutoff.day_cutoff for this order's venue (VenueCutoffRegistry
+    -- .isSessionClosed). Resolved by the venue resolver / IsVenueOpen RPC.
+    requires: venue_session_closed(order)
+
+    ensures: order.status = expired
+
+    -- Every cancel attempt routed to fix-gateway for the unfilled remainder
+    -- is recorded for forensic correlation, whatever its outcome.
+    ensures: CancelAttempt.created(
+        order_id: order.order_id,
+        venue: order_venue(order),
+        status: cancel_attempt_outcome(order),
+        detail: "Auto-expired by ScheduledOrderExpirySweeper",
+        attempted_at: now
+    )
+
+    @guidance
+        -- ADR-0035. The ScheduledOrderExpirySweeper (position-service) runs a
+        -- recurring pass and, for every working DAY order whose venue session
+        -- has closed (VenueCutoffRegistry.isSessionClosed — venue-local time at
+        -- or past VenueCutoff.day_cutoff), transitions the order to
+        -- OrderStatus.expired. The same sweeper also handles GTD expiry; that
+        -- branch is covered by the broader ExpireDayOrder rule above. This rule
+        -- isolates the DAY case so the venue-cutoff dependency is explicit.
+        --
+        -- Cancel routing: the sweeper calls OrderCancelEmitter.emitCancel
+        -- best-effort (FIX 35=F via fix-gateway) for the unfilled remainder.
+        -- The state-side EXPIRED transition is authoritative locally and is
+        -- NOT gated on the cancel succeeding — the venue may have already
+        -- filled or cancelled the order, and venue-side resolution arriving
+        -- later as a 35=8 is authoritative. Every attempt, success or failure,
+        -- is recorded as a CancelAttempt row (cancel_attempts, V23); the record
+        -- is fire-and-forget and never blocks the EXPIRED transition.
+        --
+        -- Partial fills already booked remain as trades — only the unfilled
+        -- remainder is cancelled. Holiday calendars are deferred to ADR-0035
+        -- phase 2.5; until then every weekday is a trading day, so an order
+        -- may be expired on a market holiday (operationally acceptable: the
+        -- venue replies cancel-on-reopen and the trader re-submits).
+}
+
 -- Validation
 
 rule RejectInvalidFill {
@@ -713,6 +919,37 @@ invariant ArrivalPriceCaptured {
     -- the submission rule rather than retrospectively here.
     for order in Orders:
         order.arrival_price != null
+}
+
+invariant FixMessageLogDurability {
+    -- Every FIX wire message — inbound and outbound — that fix-gateway
+    -- processes is persisted as a FixMessageLogRecord, and every persisted
+    -- record carries the raw wire bytes and the send/receive timestamp
+    -- needed to replay and reconcile it. The fix_message_log table is the
+    -- append-only durability and audit source for all FIX traffic
+    -- (ADR-0035 §2.6); a record with no raw_message or no sent_at could not
+    -- be replayed and so would defeat the log's purpose.
+    --
+    -- The contract: an outbound message is logged before / as part of the
+    -- send path and an inbound message is logged on receipt, so the log is a
+    -- complete record of wire traffic. Persistence is the
+    -- FixMessageLogRepository.insert boundary
+    -- (.../fix/session/FixMessageLogRepository.kt); rows are never mutated
+    -- except for the order_status OPEN -> TERMINAL flip via markTerminal. The
+    -- SessionReconciliationCoordinator relies on this completeness: on logon
+    -- it queries OPEN outbound 35=D records to decide which clOrdIDs still
+    -- need a 35=H OrderStatusRequest, so a dropped outbound 35=D would leave
+    -- an order silently unreconciled.
+    --
+    -- This invariant asserts the per-record durability shape (raw bytes +
+    -- timestamp present). The stronger "every message that crosses the wire
+    -- produces exactly one record" property is enforced by the send/receive
+    -- code paths and exercised by FixGatewayDurabilityAcceptanceTest rather
+    -- than being expressible as a static predicate here — there is no
+    -- spec-level handle on "messages that crossed the wire but were never
+    -- logged".
+    for record in FixMessageLogRecords:
+        record.raw_message != null and record.sent_at != null
 }
 
 -- Additional properties (not expressed as machine-checkable invariants):
