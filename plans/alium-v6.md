@@ -300,7 +300,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       on `InstrumentFactorLoading`). Source: `group-d` FactorDefinition naming.
       Acceptance: `node plans/scripts/allium-workspace.mjs`
 
-- [ ] 2.12 `liquidity.allium` — clarify whether `PositionLiquidityResult.liquidity_tier`
+- [x] 2.12 `liquidity.allium` — clarify whether `PositionLiquidityResult.liquidity_tier`
       is the instrument reference tier or a recomputed per-position ADV-fraction
       tier (document the ADV-fraction thresholds if the latter); reconcile the
       field-name drift (`position_notional`/`liquidation_days`/`lvar`/`concentration_flagged`
