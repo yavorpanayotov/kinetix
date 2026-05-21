@@ -441,7 +441,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       `coverage-gaps.md` §reporting + §historical scenario tables.
       Acceptance: `node plans/scripts/allium-workspace.mjs`
 
-- [ ] 4.10 Extend `regime.allium` — add a minimal `MLPredictionRequested` /
+- [x] 4.10 Extend `regime.allium` — add a minimal `MLPredictionRequested` /
       `MLPredictionProduced` rule pair for `ml_server.py` / `MLPredictionService`
       so the ML output is governable (model-version pinning, audit). Annotate
       `RegimeModelConfig` as `@aspirational` with a `TODO(REG_D-03)` location hint.
