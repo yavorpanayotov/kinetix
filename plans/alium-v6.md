@@ -309,7 +309,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       column) and fix the `LVaRExceedsVaR` invariant reference. Source: `group-d`.
       Acceptance: `node plans/scripts/allium-workspace.mjs`
 
-- [ ] 2.13 `hierarchy-risk.allium` + `hedge.allium` — annotate `BookHierarchyMapping`
+- [x] 2.13 `hierarchy-risk.allium` + `hedge.allium` — annotate `BookHierarchyMapping`
       vs code class `BookHierarchyEntry`; document the marginal-VaR formula
       (sum-of-contributions vs drop-out reaggregation) on `ComputeMarginalContribution`;
       annotate `HedgeRecommendation.id` as serialised-string of a `UUID`. Source:
