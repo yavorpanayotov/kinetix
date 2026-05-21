@@ -27,6 +27,21 @@
 // This script is the acceptance command for the spec checkboxes in Phases 2,
 // 4 and 5 of plans/alium-v6.md — its summary is the drift baseline later
 // checkboxes compare against. Uses only Node.js built-ins.
+//
+// --- unreachableTrigger baseline (Allium v6, recorded 2026-05-21) ------------
+//   * Pre-sweep baseline:  226 unreachableTrigger findings — the count before
+//     any `surface RestApi` block existed, i.e. before the Phase 5 surface-
+//     block sweep (checkboxes 5.1–5.5).
+//   * The Phase 5 sweep drove the count down in five batches:
+//       226 → 202 → 181 → 152 → 137 → 85.
+//   * Post-sweep count:    85 unreachableTrigger findings (verified by this
+//     script on 2026-05-21 — see the Baseline summary line below).
+//   * error-severity diagnostics: 0 across all specs as of the v6 sweep
+//     completion (2026-05-21) — the script exits 0.
+//   * The residual 85 unreachableTrigger findings are the deliberately-omitted
+//     event-driven / scheduled / internal / cross-spec triggers (not HTTP-
+//     origin), which by design have no `surface RestApi` entry — per the
+//     Phase 5 design.
 
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
