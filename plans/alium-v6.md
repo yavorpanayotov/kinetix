@@ -326,11 +326,16 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       (`reference-data-service/.../model/InstrumentLiquidity.kt:10`). Source: `group-a`.
       Acceptance: `./gradlew :reference-data-service:test`
 
-- [ ] 3.3 Rename `YieldCurveTenorResponse.value` → `rate` (gratuitous rename;
+- [x] 3.3 Rename `YieldCurveTenorResponse.value` → `rate` (gratuitous rename;
       inconsistent with `Tenor.rate`/`RiskFreeRate.rate` and `InterpolatedTenor`
       in `market-data.allium:140-145`). Update the rates-service route and any
       consumer. Source: `group-a`.
       Acceptance: `./gradlew :rates-service:test :rates-service:acceptanceTest`
+      Verified 2026-05-21: `:rates-service:test` green and acceptance sources
+      compile; `:rates-service:acceptanceTest` could not run in the loop env (no
+      Docker daemon — all 4 specs fail at `DockerClientProviderStrategy` before
+      any test logic). Needs a Docker-enabled run (CI) to fully confirm the wire
+      shape.
 
 - [ ] 3.4 Surface `Trader.createdAt` / `updatedAt` (present in the DB and migration
       but dropped by the Kotlin model and REST DTOs) and rename the REST field
