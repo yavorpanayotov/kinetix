@@ -422,7 +422,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       + `coverage-gaps.md` §anomaly.
       Acceptance: `node plans/scripts/allium-workspace.mjs`
 
-- [ ] 4.7 Extend `market-data.allium` — add a `requires: psd(values)` clause to
+- [x] 4.7 Extend `market-data.allium` — add a `requires: psd(values)` clause to
       `IngestCorrelationMatrix` and a `PsdValidationResult { is_psd, min_eigenvalue,
       tolerance }` value type, modelling the `CorrelationPsdValidator` that already
       rejects non-PSD matrices. Source: `group-a` coverage gap.
