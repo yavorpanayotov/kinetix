@@ -288,7 +288,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       `group-e` E-S2C-14/15/16.
       Acceptance: `node plans/scripts/allium-workspace.mjs`
 
-- [ ] 2.10 `regime.allium` — fix the invariant section (lines 438-444) to match the
+- [x] 2.10 `regime.allium` — fix the invariant section (lines 438-444) to match the
       `ApplyRegimeParameters` guidance and code (CRISIS 5-day + EWMA path):
       `AdaptiveRegimeParameterProvider` implements the guidance values. Rename
       `RegimeHistory.signals_at_transition` → `signals` (or annotate). Source:
