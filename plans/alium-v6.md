@@ -318,7 +318,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
 
 ## Phase 3 — Remaining code bugs
 
-- [ ] 3.1 `ForwardCurve.assetClass: String` → `core/AssetClass`
+- [x] 3.1 `ForwardCurve.assetClass: String` → `core/AssetClass`
       (`common/.../ForwardCurve.kt:7`, rates-service DTOs). Source: `group-a`.
       Acceptance: `./gradlew :common:test :rates-service:test`
 
