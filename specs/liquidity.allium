@@ -43,19 +43,43 @@ value LiquidityStressFactors {
 value PositionLiquidityResult {
     instrument_id: String
     asset_class: core/AssetClass
-    position_notional: Decimal
+    market_value: Decimal
     adv_pct: Decimal?
-    liquidation_days: Decimal
-    lvar: Decimal
-    concentration_flagged: Boolean
+    horizon_days: Decimal
+    lvar_contribution: Decimal
+    concentration_status: String
     stressed_liquidation_value: Decimal
-    liquidity_tier: core/LiquidityTier
+    tier: core/LiquidityTier
     data_available: Boolean
 
     @guidance
+        -- Field names match the wire/code shape (PositionLiquidityRiskDto and
+        -- the common PositionLiquidityRisk): market_value, horizon_days,
+        -- lvar_contribution, concentration_status, tier. The earlier spec names
+        -- (position_notional / liquidation_days / lvar / concentration_flagged /
+        -- liquidity_tier) drifted on a rename and never back-propagated.
+        -- concentration_status is a String: "OK" | "WARNING" | "BREACHED"
+        -- (the per-position counterpart of the Boolean concentration_flagged
+        -- carried on the PositionLiquidityMetrics entity).
+        --
+        -- tier on this result is a RECOMPUTED per-position tier, NOT the
+        -- instrument's static reference tier (refdata/InstrumentLiquidity.
+        -- liquidity_tier). The reference tier is classified from dollar ADV
+        -- floors and spread caps (see IngestInstrumentLiquidity guidance),
+        -- whereas this tier is derived from the position's fraction of ADV:
+        --     adv_fraction = abs(market_value) / instrument_adv
+        --   adv_fraction < 0.10            → HIGH_LIQUID  (1-day horizon)
+        --   0.10 <= adv_fraction < 0.25    → LIQUID       (3-day horizon)
+        --   0.25 <= adv_fraction < 0.50    → SEMI_LIQUID  (5-day horizon)
+        --   adv_fraction >= 0.50, or no ADV data → ILLIQUID (10-day horizon)
+        -- The two classifications use different inputs, so the per-position
+        -- tier and the instrument reference tier can legitimately disagree.
+        --
         -- adv_pct is null when no ADV data exists for the instrument.
-        -- In that case, liquidation_days defaults to config.default_no_adv_horizon.
-        -- data_available = false indicates the tier and horizon are conservative defaults.
+        -- In that case, horizon_days defaults to config.default_no_adv_horizon
+        -- and tier is ILLIQUID.
+        -- data_available = false indicates the tier and horizon are conservative
+        -- defaults; it is the inverse of the wire field adv_missing.
         -- stressed_liquidation_value is the monetary cost of liquidation under
         -- stressed market conditions. stressed_liquidation_days (the time-based
         -- counterpart) would be a complementary metric for future addition.
@@ -129,7 +153,7 @@ entity LiquidityRiskSnapshot {
     book_id: String
     calculated_at: Timestamp
     var_1day: Decimal
-    lvar: Decimal
+    portfolio_lvar: Decimal
     lvar_ratio: Decimal
     weighted_avg_horizon: Decimal
     max_horizon: Decimal
@@ -148,7 +172,7 @@ entity LiquidityRiskSnapshot {
         -- data_completeness: fraction of portfolio (by notional) with ADV data.
         --   1.0 = full coverage, 0.7 = 70% of notional has ADV data.
         -- adv_data_as_of: timestamp of the most recent ADV data used.
-        -- lvar_ratio = lvar / var_1day. A ratio > 2.0 signals serious
+        -- lvar_ratio = portfolio_lvar / var_1day. A ratio > 2.0 signals serious
         --   liquidity profile concerns.
 }
 
@@ -276,7 +300,7 @@ rule CalculateLiquidityAdjustedVaR {
         book_id: book_id,
         calculated_at: now,
         var_1day: var_1day,
-        lvar: lvar,
+        portfolio_lvar: lvar,
         lvar_ratio: lvar / var_1day,
         weighted_avg_horizon: weighted_avg(position_metrics, m => m.liquidation_days, m => m.position_notional),
         max_horizon: max(position_metrics, m => m.liquidation_days),
@@ -434,7 +458,7 @@ invariant LVaRExceedsVaR {
     -- never be less than VaR (base_holding_period >= 1 day and spread
     -- cost >= 0).
     for s in LiquidityRiskSnapshots:
-        s.lvar >= s.var_1day
+        s.portfolio_lvar >= s.var_1day
 }
 
 invariant DataCompletenessRange {
