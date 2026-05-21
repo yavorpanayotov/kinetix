@@ -84,6 +84,38 @@ entity Position {
         -- An empty position has quantity=0 and all costs/prices at zero.
 }
 
+entity PositionNote {
+    id: String
+    book_id: String
+    instrument_id: String
+    note: String
+    author: String
+    created_at: Timestamp
+
+    @guidance
+        -- Persistent free-text annotation attached to a (book_id, instrument_id)
+        -- pair. Backs the `position_notes` table (V31 migration) and the
+        -- /api/v1/positions/{bookId}/notes routes.
+        --
+        -- Primary key is the generated `id` (UUID). There is no update path:
+        -- notes are append-only from the UI's perspective — a correction is a
+        -- new note, not an in-place edit. See PositionNoteCreated /
+        -- PositionNoteDeleted below; no PositionNoteUpdated rule exists.
+        --
+        -- `author` is derived server-side from the X-User request header (the
+        -- gateway sets it from the authenticated principal — ADR-0013), falling
+        -- back to "system" for unauthenticated demo/test traffic. The create
+        -- request body never carries `author`, so a client cannot impersonate
+        -- another user.
+        --
+        -- ASPIRATIONAL: retention and audit obligations are not yet enforced.
+        -- position_notes has no retention sweep, no immutability trigger, and
+        -- note create/delete is not written to the hash-chained audit trail
+        -- (audit.allium). For a regulated trading platform, user-editable
+        -- artefacts attached to positions should be audited and retained;
+        -- RetainPositionNotes below records the intended obligation.
+}
+
 entity FxRate {
     from_currency: String
     to_currency: String
@@ -214,6 +246,68 @@ rule SummariseBookCounterpartyExposure {
         --   gross_exposure = sum of all notional values.
         --   position_count = number of trades.
         --   netting_set_breakdown = list of per-netting-set results.
+}
+
+-- Position notes (CRUD)
+
+rule CreatePositionNote {
+    when: CreatePositionNoteRequested(book_id, instrument_id, note, author)
+    requires: book_id != ""
+    requires: instrument_id != ""
+    requires: note != ""
+    requires: author != ""
+
+    let position_note = PositionNote.created(
+        id: new_id,
+        book_id: book_id,
+        instrument_id: instrument_id,
+        note: note,
+        author: author
+    )
+
+    ensures: position_note
+    ensures: PositionNoteCreated(note: position_note)
+
+    @guidance
+        -- POST /api/v1/positions/{bookId}/notes. id is a system-generated
+        -- UUID assigned at creation time; created_at is a server-side
+        -- timestamp. Blank book_id, instrument_id,
+        -- note or author are rejected with HTTP 400.
+        -- `author` is supplied by the route layer from the X-User header,
+        -- not from the request body (see PositionNote @guidance).
+}
+
+rule ListPositionNotes {
+    when: ListPositionNotesRequested(book_id, instrument_id)
+
+    @guidance
+        -- GET /api/v1/positions/{bookId}/notes. Returns all notes for the
+        -- book ordered newest-first (created_at DESC). The optional
+        -- instrument_id query parameter narrows the result to a single
+        -- (book_id, instrument_id) pair. There is no read-by-id route.
+}
+
+rule DeletePositionNote {
+    when: DeletePositionNoteRequested(id)
+    let position_note = PositionNote{id: id}
+
+    @guidance
+        -- DELETE /api/v1/positions/notes/{id}. Removes the note row.
+        -- Returns HTTP 204 when a row was deleted, 404 when no note has
+        -- that id, and 400 when the path id is not a valid UUID.
+        -- No PositionNoteUpdated rule: notes are never edited in place.
+}
+
+rule RetainPositionNotes {
+    when: PositionNoteDeleted(note)
+
+    @guidance
+        -- ASPIRATIONAL: not a live contract. Records the intended
+        -- governance obligation that position-note create and delete
+        -- events should be written to the hash-chained audit trail
+        -- (audit.allium) and retained for the regulatory retention
+        -- window before physical deletion. Today position_notes are
+        -- hard-deleted with no audit record and no retention sweep.
 }
 
 ------------------------------------------------------------

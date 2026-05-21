@@ -5,6 +5,25 @@ use "./core.allium" as core
 use "./reference-data.allium" as ref
 
 ------------------------------------------------------------
+-- Enums
+------------------------------------------------------------
+
+enum StrategyType {
+    straddle
+    | strangle
+    | spread
+    | collar
+    | calendar_spread
+    | butterfly
+    | condor
+    | custom
+}
+-- Multi-leg option strategy classification. The DB stores the
+-- upper-case Kotlin enum name (STRADDLE, STRANGLE, …) in the
+-- trade_strategies.strategy_type VARCHAR(50) column; the spec uses
+-- the lower-case Allium convention for the same members.
+
+------------------------------------------------------------
 -- Entities and Variants
 ------------------------------------------------------------
 
@@ -78,9 +97,73 @@ entity TradeEvent {
         -- before V30; new events always carry it.
 }
 
+entity TradeStrategy {
+    strategy_id: String
+    book_id: String
+    strategy_type: StrategyType
+    name: String?
+    created_at: Timestamp
+
+    @guidance
+        -- A named strategy a trade can be tagged against. Backs the
+        -- `trade_strategies` table (V19 migration) and the
+        -- /api/v1/books/{bookId}/strategies routes.
+        --
+        -- Primary key is `strategy_id` (UUID). A strategy belongs to
+        -- exactly one book. `name` is an optional human-readable label.
+        --
+        -- Strategy tagging drives P&L attribution: Trade.strategy_id
+        -- (FK trade_events.strategy_id -> trade_strategies.strategy_id,
+        -- V19) and Position.strategy_id (FK positions.strategy_id, V20)
+        -- carry the assignment, so realized and unrealized P&L can be
+        -- rolled up per strategy. TradeStrategyService also aggregates
+        -- per-strategy Greeks and P&L across the strategy's legs.
+        --
+        -- TradeStrategy rows are immutable after creation: there is no
+        -- update path (no strategy_type or name edit) and no delete
+        -- route — see TradeStrategyImmutable below.
+}
+
 ------------------------------------------------------------
 -- Rules
 ------------------------------------------------------------
+
+-- Trade strategy (CRUD)
+
+rule CreateTradeStrategy {
+    when: CreateTradeStrategyRequested(book_id, strategy_type, name)
+
+    ensures: TradeStrategy.created(
+        strategy_id: new_id,
+        book_id: book_id,
+        strategy_type: strategy_type,
+        name: name
+    )
+
+    @guidance
+        -- POST /api/v1/books/{bookId}/strategies. strategy_id is a
+        -- system-generated UUID assigned at creation time; created_at
+        -- is a server-side timestamp.
+        -- `strategy_type` is parsed from the request body and must be a
+        -- valid StrategyType member. `name` is optional.
+}
+
+rule ListTradeStrategies {
+    when: ListTradeStrategiesRequested(book_id)
+
+    @guidance
+        -- GET /api/v1/books/{bookId}/strategies. Returns all strategies
+        -- for the book ordered by created_at ascending.
+}
+
+rule GetTradeStrategy {
+    when: GetTradeStrategyRequested(strategy_id)
+    let strategy = TradeStrategy{strategy_id: strategy_id}
+
+    @guidance
+        -- GET /api/v1/books/{bookId}/strategies/{strategyId}. Returns
+        -- the strategy, or HTTP 404 when no strategy has that id.
+}
 
 -- Trade booking
 
@@ -257,3 +340,10 @@ invariant TradeQuantityPositive {
 
 -- Trades are never deleted; cancellation is a status transition
 -- (live -> cancelled), preserving the full trade history.
+
+-- TradeStrategy records are immutable after creation and never
+-- deleted: there is no update route (strategy_type and name cannot
+-- change) and no delete route. Enforced by the absence of any rule
+-- that mutates or removes a TradeStrategy. This preserves the
+-- per-strategy P&L-attribution lineage carried by trade_events and
+-- positions FKs.
