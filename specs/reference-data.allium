@@ -50,6 +50,7 @@ entity Division {
 }
 
 entity Desk {
+    id: String
     name: String
     division: Division
     desk_head: String?
@@ -57,6 +58,13 @@ entity Desk {
 
     -- Relationships
     traders: Trader with desk_id = this
+
+    @guidance
+        -- id is the surrogate desk identifier (DeskId). Trader.desk_id
+        -- references a Desk by this id, and trader-creation resolves the
+        -- desk via DeskRepository.findById(deskId) — by id, never by name.
+        -- name remains the human-facing label and is unique within a
+        -- division.
 }
 
 entity Trader {
@@ -88,6 +96,14 @@ entity Instrument {
 
     -- Derived
     asset_class: core/AssetClass
+
+    @guidance
+        -- currency is the single source of truth at the Instrument level.
+        -- Persistence stores the variant-specific fields as a JSONB attributes
+        -- blob; for EquityFuture, CommodityFuture, InterestRateSwap and
+        -- CorporateBond that blob redundantly carries its own currency copy.
+        -- The two are kept consistent at write time; consumers should read
+        -- Instrument.currency, not the variant copy.
 }
 
 variant CashEquity : Instrument {}
@@ -98,7 +114,7 @@ variant EquityOption : Instrument {
     strike: Decimal
     expiry_date: String
     exercise_style: core/ExerciseStyle
-    contract_multiplier: Decimal
+    contract_multiplier: Decimal = 100.0
     dividend_yield: Decimal = 0.0
 }
 
@@ -127,17 +143,23 @@ variant CorporateBond : Instrument {
     day_count_convention: String?
 }
 
+-- @guidance for InterestRateSwap (variants take no @guidance block):
+-- float_spread and day_count_convention are nullable at the spec level but
+-- the Kotlin model carries non-null business defaults — float_spread
+-- defaults to 0.0 (no spread over the float index) and day_count_convention
+-- defaults to "ACT/360". The defaults below record those code values;
+-- callers that omit these fields get them, not null.
 variant InterestRateSwap : Instrument {
     notional: Decimal
     fixed_rate: Decimal
     float_index: String
-    float_spread: Decimal?
+    float_spread: Decimal? = 0.0
     effective_date: String
     maturity_date: String
     pay_receive: core/SwapDirection
     fixed_frequency: Integer = 2
     float_frequency: Integer = 4
-    day_count_convention: String?
+    day_count_convention: String? = "ACT/360"
 }
 
 variant FxSpot : Instrument {
@@ -186,6 +208,11 @@ entity DividendYield {
         -- and the in-process Kotlin type is a 64-bit Double (adequate for
         -- values typically in 0.00..0.10). Consumers must tolerate the
         -- precision mismatch between spec and implementation.
+        --
+        -- ex_date is String? at the spec level but the Kotlin model types
+        -- it as a typed LocalDate? (java.time.LocalDate); persistence
+        -- stores it as VARCHAR(10) in ISO-8601 yyyy-MM-dd form. Treat the
+        -- spec String as that ISO date representation.
 }
 
 entity CreditSpread {
@@ -326,7 +353,7 @@ rule CreateDesk {
 
 rule CreateTrader {
     when: CreateTraderRequested(trader_id, name, desk_id, email, notional_limit_usd)
-    let desk = Desk{name: desk_id}
+    let desk = Desk{id: desk_id}
     requires: trader_id != ""
     requires: name != ""
     requires: desk != null
@@ -341,6 +368,12 @@ rule CreateTrader {
         created_at: now,
         updated_at: now
     )
+
+    @guidance
+        -- desk_id carries the surrogate Desk id, not the desk name.
+        -- trader-creation resolves the desk with
+        -- DeskRepository.findById(deskId); an unknown id is a hard reject
+        -- ("Desk '<id>' does not exist").
 }
 
 rule GetTrader {
@@ -357,7 +390,7 @@ rule GetTrader {
 
 rule ListTradersForDesk {
     when: ListTradersForDeskRequested(desk_id)
-    let desk = Desk{name: desk_id}
+    let desk = Desk{id: desk_id}
     requires: desk != null
 
     @guidance
@@ -571,5 +604,5 @@ invariant UniqueTraderIds {
 
 invariant TraderDeskExists {
     for t in Traders:
-        exists Desk{name: t.desk_id}
+        exists Desk{id: t.desk_id}
 }
