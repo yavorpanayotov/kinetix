@@ -407,7 +407,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       representation today. Source: `coverage-gaps.md` + `group-d` C10 tail.
       Acceptance: `node plans/scripts/allium-workspace.mjs`
 
-- [ ] 4.5 Extend `audit.allium` — add a `ReplayDlqMessage` rule (must re-hash with
+- [x] 4.5 Extend `audit.allium` — add a `ReplayDlqMessage` rule (must re-hash with
       sequence-preserving semantics) with an authz invariant restricting replay to
       the operator role; tighten `RecordGovernanceAuditEvent` to name the consumed
       Kafka topic and require idempotency on `(source_service, event_id)`. Source:
