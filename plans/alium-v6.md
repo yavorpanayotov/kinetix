@@ -490,7 +490,7 @@ commit.
       `trading.allium`, `limits.allium`, `execution.allium`.
       Acceptance: `node plans/scripts/allium-workspace.mjs`
 
-- [ ] 5.3 Group C — add `surface RestApi` blocks to `risk.allium`,
+- [x] 5.3 Group C — add `surface RestApi` blocks to `risk.allium`,
       `risk-models.allium`, `intraday-pnl.allium`, `eod-close.allium`.
       Acceptance: `node plans/scripts/allium-workspace.mjs`
 
