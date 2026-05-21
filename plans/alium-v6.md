@@ -387,7 +387,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       `CannedChatClient` switch. Source: `coverage-gaps.md` §ai-insights-service.
       Acceptance: `node plans/scripts/allium-workspace.mjs`
 
-- [ ] 4.2 Extend `execution.allium` — add `VenueSession` / `VenueCutoff` entities,
+- [x] 4.2 Extend `execution.allium` — add `VenueSession` / `VenueCutoff` entities,
       a `DayOrderExpiry` rule driven by venue-cutoff timestamps, a FIX-message-log
       durability invariant (every wire message persisted), and promote
       `CancelAttempt` to a first-class entity with its `CancelAttemptStatus`
