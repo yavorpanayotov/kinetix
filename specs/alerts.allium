@@ -63,6 +63,12 @@ entity AlertEvent {
     correlation_id: String?
     contributors: String?
     suggested_action: String?
+
+    -- Forward-looking silencer set by the snooze workflow. While
+    -- snoozed_until > now, EvaluateAlertRules skips re-firing this
+    -- alert's rule for its book. Snoozing does NOT change status:
+    -- a triggered alert stays triggered (see SnoozeAlert).
+    snoozed_until: Timestamp?
 }
 
 entity AlertAcknowledgement {
@@ -366,6 +372,185 @@ rule AcknowledgeAlertRejectedAlreadyAcknowledged {
         -- Cannot acknowledge an already-acknowledged alert.
 }
 
+-- Alert snooze: silence an alert's rule until a future timestamp.
+
+rule SnoozeAlert {
+    when: SnoozeAlertRequested(alert_id, snoozed_until)
+    let alert = AlertEvent{id: alert_id}
+    requires: alert.status != resolved
+    requires: snoozed_until > now
+
+    ensures: alert.snoozed_until = snoozed_until
+
+    @guidance
+        -- Snooze sets a forward-looking silencer on an alert without
+        -- changing its lifecycle status: a triggered alert stays
+        -- triggered, an acknowledged alert stays acknowledged. The only
+        -- field written is snoozed_until.
+        --
+        -- Preconditions:
+        --   - The alert must exist (404 Not Found otherwise).
+        --   - The alert must not be resolved (409 Conflict — a resolved
+        --     alert is terminal and cannot be snoozed).
+        --   - snoozed_until must parse as an ISO-8601 timestamp
+        --     (400 Bad Request otherwise) and be strictly in the future
+        --     (400 Bad Request otherwise).
+        --
+        -- Interaction with deduplication: see the SnoozeSuppressesReFiring
+        -- guidance below. While snoozed_until > now, EvaluateAlertRules
+        -- skips re-firing the alert's rule for its book entirely — the
+        -- snooze check runs before the standard dedup check, so a snoozed
+        -- alert suppresses new alerts even after the original is resolved
+        -- (the latest alert for the (rule, book) pair carries the snooze).
+        --
+        -- Implementation: notification-service Application.kt
+        -- POST /alerts/{alertId}/snooze; AlertEventRepository.snooze;
+        -- RulesEngine.evaluate consults snoozed_until via
+        -- findLatestByRuleAndBook before the active-alert dedup query.
+        --
+        -- ASPIRATIONAL: the snooze endpoint does NOT currently emit a
+        -- GovernanceTransitionOccurred event, so a snooze is invisible
+        -- to the hash-chained audit log. The intended contract is for
+        -- snooze to emit an audit event (event_type alert_acknowledged
+        -- or a dedicated alert_snoozed type) carrying the actor and the
+        -- snoozed_until horizon. Until the audit publisher is wired into
+        -- the snooze handler this rule declares no audit ensures.
+}
+
+rule SnoozeAlertRejectedAlreadyResolved {
+    when: SnoozeAlertRequested(alert_id, snoozed_until)
+    let alert = AlertEvent{id: alert_id}
+    requires: alert.status = resolved
+
+    @guidance
+        -- Reject with HTTP 409 Conflict.
+        -- Cannot snooze an already-resolved alert (resolved is terminal).
+}
+
+invariant SnoozeSuppressesReFiring {
+    -- A snoozed alert (snoozed_until in the future) suppresses re-firing
+    -- of its rule for its book: EvaluateAlertRules must not create a new
+    -- AlertEvent for a (rule_id, book_id) that has an alert whose
+    -- snoozed_until is still ahead of the evaluation time. This is a
+    -- stronger guard than AlertDeduplication: it holds even when the
+    -- prior alert is resolved, because the snooze marker lives on the
+    -- latest alert for the (rule, book) pair regardless of its status.
+    for a in AlertEvents:
+        for b in AlertEvents:
+            (a != b and a.rule_id = b.rule_id and a.book_id = b.book_id
+                and a.snoozed_until != null and a.snoozed_until > now
+                and b.triggered_at > a.triggered_at)
+                implies b.snoozed_until != null
+}
+
+-- Manual alert escalation: a user escalates an acknowledged alert.
+
+rule EscalateAlertManually {
+    when: EscalateAlertManuallyRequested(alert_id, reason, assignee)
+    let alert = AlertEvent{id: alert_id}
+    requires: reason != ""
+    requires: alert.status = acknowledged
+
+    ensures: alert.status = escalated
+    ensures: alert.escalated_at = now
+    ensures: alert.escalated_to = assignee
+    ensures: GovernanceTransitionOccurred(
+        event_type: alert_escalated,
+        user_id: "manual",
+        user_role: "UNKNOWN",
+        model_name: null,
+        scenario_id: null,
+        limit_id: null,
+        submission_id: null,
+        alert_id: alert.id,
+        book_id: alert.book_id,
+        details: "Alert {alert.id} manually escalated to {assignee}: {reason}"
+    )
+
+    @guidance
+        -- Manual escalation transitions an alert from acknowledged to
+        -- escalated on a user request, distinct from the timeout-driven
+        -- EscalateAlert rule. The alert MUST already be acknowledged:
+        -- there is no direct triggered -> escalated transition (the
+        -- EscalatedAlertsAreAcknowledged invariant and
+        -- AlertStatus.canTransitionTo enforce this — TRIGGERED ->
+        -- ESCALATED was removed). Escalating a triggered or resolved
+        -- alert is rejected with HTTP 409 Conflict.
+        --
+        -- Preconditions:
+        --   - The alert must exist (404 Not Found otherwise).
+        --   - reason must be non-blank (400 Bad Request otherwise).
+        --   - The alert must be acknowledged (409 Conflict otherwise:
+        --     "Alert is already resolved" / "Alert is already escalated"
+        --     / "Cannot escalate alert in status {status}").
+        --
+        -- assignee is optional on the request body; when omitted the
+        -- handler picks a default target based on the alert severity.
+        -- escalated_to is set to the resolved assignee.
+        --
+        -- Unlike the timeout-driven EscalateAlert, manual escalation
+        -- does NOT promote the severity and does NOT re-route delivery
+        -- channels — it records the escalation and the audit trail only.
+        --
+        -- Emits a GovernanceTransitionOccurred event with event_type
+        -- alert_escalated, user_id "manual", and the alert identity in
+        -- the top-level alert_id field, consumed by audit.allium
+        -- (RecordGovernanceAuditEvent).
+        --
+        -- Implementation: notification-service Application.kt
+        -- POST /alerts/{alertId}/escalate with body EscalateAlertRequest
+        -- (reason, assignee?).
+}
+
+-- Manual alert resolution: a user resolves a non-terminal alert.
+
+rule ResolveAlertManually {
+    when: ResolveAlertManuallyRequested(alert_id, resolution_text)
+    let alert = AlertEvent{id: alert_id}
+    requires: resolution_text != ""
+    requires: alert.status != resolved
+
+    ensures: alert.status = resolved
+    ensures: alert.resolved_at = now
+    ensures: alert.resolved_reason = resolution_text
+    ensures: GovernanceTransitionOccurred(
+        event_type: alert_resolved,
+        user_id: "manual",
+        user_role: "UNKNOWN",
+        model_name: null,
+        scenario_id: null,
+        limit_id: null,
+        submission_id: null,
+        alert_id: alert.id,
+        book_id: alert.book_id,
+        details: "Alert {alert.id} resolved: {resolution_text}"
+    )
+
+    @guidance
+        -- Manual resolution transitions an alert to resolved on a user
+        -- request, distinct from the system-driven AutoResolveAlerts
+        -- rule. It witnesses the transition-graph edges
+        -- triggered->resolved, acknowledged->resolved and
+        -- escalated->resolved from any non-terminal state.
+        --
+        -- Preconditions:
+        --   - The alert must exist (404 Not Found otherwise).
+        --   - resolution_text must be non-blank (400 Bad Request
+        --     otherwise); it is stored in resolved_reason.
+        --   - The alert must not already be resolved (409 Conflict:
+        --     "Alert is already resolved").
+        --
+        -- Emits a GovernanceTransitionOccurred event with event_type
+        -- alert_resolved, user_id "manual", and the alert identity in
+        -- the top-level alert_id field, consumed by audit.allium
+        -- (RecordGovernanceAuditEvent). Unlike AutoResolveAlerts, the
+        -- manual resolve path DOES emit this audit event today.
+        --
+        -- Implementation: notification-service Application.kt
+        -- POST /alerts/{alertId}/resolve with body ResolveAlertRequest
+        -- (resolutionText).
+}
+
 rule EscalateAlert {
     when: EscalationCheckTriggered()
     for alert in AlertEvents where status = acknowledged:
@@ -572,15 +757,51 @@ rule EvaluateLimitBreach {
 
 -- Anomaly detection alerts (from risk.anomalies Kafka topic)
 
-rule ConsumeAnomalyEvent {
-    when: AnomalyEventReceived(event)
-    requires: event.is_anomaly = true
+rule RaiseAnomalyAlert {
+    -- The AnomalyDetected trigger carries the anomaly payload:
+    --   metric_name: String      -- the metric that tripped
+    --   anomaly_score: Decimal   -- numeric anomaly score
+    --   explanation: String      -- human-readable explanation
+    --   detected_at: Timestamp   -- detection timestamp
+    when: AnomalyDetected(metric_name, anomaly_score, explanation, detected_at)
 
     @guidance
-        -- Consumes from Kafka topic risk.anomalies via AnomalyEventConsumer.
-        -- Logs a warning when an anomaly is detected (metricName, anomalyScore,
-        -- explanation). Currently log-only; does not yet create an AlertEvent
-        -- or route through DeliveryService.
+        -- AnomalyDetected is emitted when the AnomalyEventConsumer in
+        -- notification-service decodes an AnomalyEvent (Kafka topic
+        -- risk.anomalies) whose is_anomaly flag is true. The producer is
+        -- the risk engine's anomaly-detection path; each event carries
+        -- the metric that tripped, a numeric anomaly score, a
+        -- human-readable explanation, and the detection timestamp.
+        --
+        -- Trigger implementation: notification-service
+        -- kafka/AnomalyEventConsumer.kt subscribes to risk.anomalies via
+        -- RetryableConsumer (with DLQ); kafka/AnomalyEvent.kt is the
+        -- wire DTO (metricName, isAnomaly, anomalyScore, explanation,
+        -- detectedAt). The consumer filters on isAnomaly = true.
+        --
+        -- Intended contract: turn a detected anomaly into a persisted,
+        -- delivered AlertEvent so the anomaly surfaces in the UI and
+        -- audit trail like any other alert. The alert would carry:
+        --   rule_id      = "ANOMALY"
+        --   rule_name    = "Anomaly Detected"
+        --   type         = an anomaly alert type
+        --   severity     = derived from anomaly_score
+        --   message      = formatted from metric_name + explanation
+        --   current_value = anomaly_score
+        --   book_id      = "GLOBAL" (system-wide, not book-specific)
+        --   status       = triggered
+        -- then persist via AlertEventRepository and route through
+        -- DeliveryService, mirroring EvaluateRegimeChange.
+        --
+        -- ASPIRATIONAL: the anomaly path is currently log-only. The
+        -- AnomalyEventConsumer logs a warning (metricName, anomalyScore,
+        -- explanation) when an anomaly is detected but does NOT create
+        -- an AlertEvent, does NOT persist anything, and does NOT route
+        -- through DeliveryService. This rule therefore declares no
+        -- AlertEvent.created or delivery ensures until the consumer is
+        -- extended to raise a real alert. See coverage-gaps.md
+        -- (2026-05-19) section "MarketRegimeEventConsumer / Anomaly
+        -- events in notification-service".
 }
 
 ------------------------------------------------------------
