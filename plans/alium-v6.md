@@ -455,7 +455,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       `MarginEstimate`). Source: `group-d` + `coverage-gaps.md` §MarginCalculator.
       Acceptance: `node plans/scripts/allium-workspace.mjs`
 
-- [ ] 4.12 Extend `hierarchy-risk.allium` — annotate `ScheduledHierarchyAggregation`
+- [x] 4.12 Extend `hierarchy-risk.allium` — annotate `ScheduledHierarchyAggregation`
       and the `TriggerCROReport` delegation as `@aspirational` (no scheduler exists;
       `CroReportRoutes` returns synchronous JSON, not a delegated PDF/CSV). Source:
       `group-d` aspirational findings.
