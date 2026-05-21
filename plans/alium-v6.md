@@ -261,7 +261,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       a separate table; document the design. Source: `group-c` S4 + IntradayVaRTimeline.
       Acceptance: `node plans/scripts/allium-workspace.mjs`
 
-- [ ] 2.6 `scenarios.allium` — three fixes: add the missing `pending_approval → draft`
+- [x] 2.6 `scenarios.allium` — three fixes: add the missing `pending_approval → draft`
       arc to the `SavedScenario` transitions block (E-S2C-04); update `ReplayResult`
       to the per-position shape the regulatory-service actually returns, or document
       both views (E-S2C-06); update `ReverseStressResult` to the per-instrument
