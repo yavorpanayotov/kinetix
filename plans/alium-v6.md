@@ -400,7 +400,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       What-if / Rebalancing services. Source: `coverage-gaps.md` + `group-c`.
       Acceptance: `node plans/scripts/allium-workspace.mjs`
 
-- [ ] 4.4 Extend `factor-model.allium` — add a `BrinsonAttribution` rule and
+- [x] 4.4 Extend `factor-model.allium` — add a `BrinsonAttribution` rule and
       `AttributionResult` entity (`risk-engine/brinson.py`, gRPC `AttributionService`,
       gateway `BenchmarkAttributionRoutes`), and add the `FactorPnlAttribution`
       entity / `ComputeFactorPnlAttribution` surface that has no Kotlin
