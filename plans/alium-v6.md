@@ -95,6 +95,11 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
   `created_at` / `updated_at` (checkbox 3.4).
 - **`FactorRiskResponse`** gains `factorExposure` / `pnlAttribution` — additive,
   backward-compatible (checkbox 1.10).
+- **Book base-currency reference data** (checkbox 1.9, approved by the user
+  2026-05-21). A `base_currency` column is added to `position-service`'s existing
+  `book_hierarchy` table via a new Flyway migration (plain `ALTER TABLE` —
+  transaction-safe), and the field is surfaced additively through the existing
+  `BookHierarchyRoutes` DTOs. No new table, service, or entity is created.
 - **New spec files**: `ai-insights.allium` (checkbox 4.1). No new service, module,
   library, Kafka topic, or DB table is introduced — specs document existing code.
 
@@ -178,19 +183,28 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
 
 - [ ] 1.9 Fix `IntradayPnlService.deriveBaseCurrency` (`IntradayPnlService.kt:341-343`)
       — currently hardcoded `"USD"` for every book. Resolve the book's base
-      currency via reference data per `intraday-pnl.allium:159`
+      currency from book reference data per `intraday-pnl.allium:168`
       (`book_base_currency(baseline.book_id)`). Source: `group-c` C8.
-      Acceptance: `./gradlew :risk-orchestrator:test`
-      Blocked: 2026-05-20 — needs an architectural decision. No per-book base
-      currency exists anywhere in the platform: `Book` (common) has only
-      `id`/`name`/`positions`; there is no `books` table, no reference-data book
-      entity, and no endpoint to query a book's currency. `position-service`'s
-      `PortfolioAggregationService` also hardcodes `USD`. A faithful fix requires
-      NEW reference data — a `base_currency` column on book reference data plus
-      an endpoint + client wiring — which crosses the CLAUDE.md "new DB
-      table/API contract" guardrail and is not pre-approved in this plan.
-      Hiding the hardcode behind a no-op resolver would relocate the bug, not
-      fix it.
+      Approved approach (user, 2026-05-21): books are owned by `position-service`'s
+      existing `book_hierarchy` table, so add a `base_currency` column there —
+      no new table or service entity. Concretely:
+        - New Flyway migration in `position-service` (next free `V` number):
+          `ALTER TABLE book_hierarchy ADD COLUMN base_currency VARCHAR(3) NOT NULL
+          DEFAULT 'USD'` — a plain `ALTER TABLE`, transaction-safe.
+        - Add `baseCurrency: String` (default `"USD"`) to `BookHierarchyMapping`,
+          `BookHierarchyTable`, and `ExposedBookHierarchyRepository`.
+        - Add `baseCurrency` to the `BookHierarchyRoutes` request/response DTOs
+          (additive, backward-compatible — defaults to `"USD"`).
+        - Mirror the field onto risk-orchestrator's `BookHierarchyEntry` /
+          `BookHierarchyEntryDto` and `HttpHierarchyDataClient`.
+        - Change `IntradayPnlService.deriveBaseCurrency` to resolve via the
+          `HierarchyDataClient` keyed on the in-scope `bookId` (the `recompute`
+          parameter), falling back to `"USD"` only when no mapping exists.
+          Update the affected unit/acceptance tests to supply the book's base
+          currency through the fake client.
+      TDD at every level (position-service unit + acceptance for the new column
+      and route field; risk-orchestrator unit tests for client-driven resolution).
+      Acceptance: `./gradlew :position-service:test :risk-orchestrator:test`
 
 - [ ] 1.10 Stop the `FactorContribution` mapper dropping fields. `GrpcRiskEngineClient.kt:171-181`
       ignores `factorExposure` and `pnlAttribution` even though the engine and
