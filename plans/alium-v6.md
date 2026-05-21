@@ -494,7 +494,7 @@ commit.
       `risk-models.allium`, `intraday-pnl.allium`, `eod-close.allium`.
       Acceptance: `node plans/scripts/allium-workspace.mjs`
 
-- [ ] 5.4 Group D — add `surface RestApi` blocks to `counterparty-risk.allium`,
+- [x] 5.4 Group D — add `surface RestApi` blocks to `counterparty-risk.allium`,
       `hierarchy-risk.allium`, `factor-model.allium`, `liquidity.allium`,
       `hedge.allium`, `regime.allium`.
       Acceptance: `node plans/scripts/allium-workspace.mjs`
