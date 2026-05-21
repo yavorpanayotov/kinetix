@@ -364,7 +364,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       with the truncation-ordering bug. Source: `group-d`.
       Acceptance: `./gradlew :risk-orchestrator:test`
 
-- [ ] 3.7 Fix hedge `data_quality`. `HedgeRecommendationService.kt:279` synthesises
+- [x] 3.7 Fix hedge `data_quality`. `HedgeRecommendationService.kt:279` synthesises
       `priceAgeMinutes` from `liq.advStale` instead of the real quote timestamp;
       `AnalyticalHedgeCalculator.kt:103` then applies the 15-minute threshold to a
       fake age. Read the actual price timestamp from `getLatestPrice(...)`. Source:
