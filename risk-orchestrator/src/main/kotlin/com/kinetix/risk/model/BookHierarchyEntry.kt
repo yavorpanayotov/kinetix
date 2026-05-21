@@ -5,4 +5,5 @@ data class BookHierarchyEntry(
     val deskId: String,
     val bookName: String?,
     val bookType: String?,
+    val baseCurrency: String = "USD",
 )

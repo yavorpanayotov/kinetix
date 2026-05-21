@@ -11,6 +11,7 @@ import com.kinetix.risk.model.BookHierarchyEntry
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
+import io.ktor.http.HttpStatusCode
 import org.slf4j.LoggerFactory
 
 /**
@@ -66,6 +67,20 @@ class HttpHierarchyDataClient(
         } catch (e: Exception) {
             logger.error("Failed to fetch book-hierarchy mappings from position-service", e)
             emptyList()
+        }
+    }
+
+    override suspend fun getBookMapping(bookId: String): BookHierarchyEntry? {
+        return try {
+            val response = httpClient.get("$positionServiceBaseUrl/api/v1/book-hierarchy/$bookId")
+            if (response.status == HttpStatusCode.NotFound) {
+                null
+            } else {
+                response.body<BookHierarchyEntryDto>().toDomain()
+            }
+        } catch (e: Exception) {
+            logger.error("Failed to fetch book-hierarchy mapping for book {} from position-service", bookId, e)
+            null
         }
     }
 }

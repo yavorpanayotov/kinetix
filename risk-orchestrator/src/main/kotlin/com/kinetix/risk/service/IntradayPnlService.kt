@@ -4,6 +4,7 @@ import com.kinetix.common.model.BookId
 import com.kinetix.common.model.InstrumentId
 import com.kinetix.common.model.Money
 import com.kinetix.risk.client.ClientResponse
+import com.kinetix.risk.client.HierarchyDataClient
 import com.kinetix.risk.client.PositionProvider
 import com.kinetix.risk.client.RatesServiceClient
 import com.kinetix.risk.client.VolatilityServiceClient
@@ -45,6 +46,13 @@ class IntradayPnlService(
      * built (see audit item A-3 Phase 2).
      */
     private val sodGreekSnapshotRepository: SodGreekSnapshotRepository? = null,
+    /**
+     * Resolves a book's reporting base currency from book reference data
+     * (`book_hierarchy.base_currency`) per spec [intraday-pnl.allium:168].
+     * When null or when the book has no mapping, falls back to `"USD"` —
+     * the same nullable-collaborator pattern as the other optional clients above.
+     */
+    private val hierarchyDataClient: HierarchyDataClient? = null,
 ) {
     private val logger = LoggerFactory.getLogger(IntradayPnlService::class.java)
     private val mc = MathContext(20, RoundingMode.HALF_UP)
@@ -88,7 +96,7 @@ class IntradayPnlService(
         val positions = positionProvider.getPositions(bookId)
 
         // Total P&L is the truth: computed from position state, never from Greek attribution.
-        val baseCurrency = deriveBaseCurrency(positions)
+        val baseCurrency = deriveBaseCurrency(bookId)
 
         // Pre-fetch all FX rates needed so convertToBase stays a pure function.
         val (fxRates, missingFxRates) = prefetchFxRates(positions, baseCurrency)
@@ -338,7 +346,24 @@ class IntradayPnlService(
         return money.amount.multiply(rate, mc)
     }
 
-    private fun deriveBaseCurrency(
-        @Suppress("UNUSED_PARAMETER") positions: List<com.kinetix.common.model.Position>,
-    ): String = "USD"
+    /**
+     * Resolves the reporting base currency for [bookId] from book reference data
+     * (`book_hierarchy.base_currency`) per spec [intraday-pnl.allium:168].
+     *
+     * Falls back to `"USD"` when the [hierarchyDataClient] is not wired or the book
+     * has no registered mapping — the same defensive fallback as the other optional
+     * collaborators on this service.
+     */
+    private suspend fun deriveBaseCurrency(bookId: BookId): String {
+        val client = hierarchyDataClient ?: return "USD"
+        val mapping = client.getBookMapping(bookId.value)
+        if (mapping == null) {
+            logger.debug(
+                "No book-hierarchy mapping for book {} — base currency defaults to USD",
+                bookId.value,
+            )
+            return "USD"
+        }
+        return mapping.baseCurrency
+    }
 }

@@ -116,6 +116,7 @@ private fun previousSnapshot(
 private class TestFixtures(
     fxRateProvider: FxRateProvider? = null,
     val sodGreekSnapshotRepo: SodGreekSnapshotRepository? = null,
+    hierarchyDataClient: com.kinetix.risk.client.HierarchyDataClient? = null,
 ) {
     val sodBaselineRepo = mockk<SodBaselineRepository>()
     val dailyRiskSnapshotRepo = mockk<DailyRiskSnapshotRepository>()
@@ -132,8 +133,34 @@ private class TestFixtures(
         publisher = publisher,
         fxRateProvider = fxRateProvider,
         sodGreekSnapshotRepository = sodGreekSnapshotRepo,
+        hierarchyDataClient = hierarchyDataClient,
     )
 }
+
+/**
+ * Fake [HierarchyDataClient] that resolves a single book's base currency.
+ * Only [getBookMapping] is exercised by [IntradayPnlService]; the hierarchy
+ * aggregation methods are unused here and return empty.
+ */
+private class FakeHierarchyDataClient(
+    private val bookMappings: Map<String, com.kinetix.risk.model.BookHierarchyEntry> = emptyMap(),
+) : com.kinetix.risk.client.HierarchyDataClient {
+    override suspend fun getAllDivisions() = emptyList<com.kinetix.common.model.Division>()
+    override suspend fun getDesksByDivision(divisionId: com.kinetix.common.model.DivisionId) =
+        emptyList<com.kinetix.common.model.Desk>()
+    override suspend fun getAllDesks() = emptyList<com.kinetix.common.model.Desk>()
+    override suspend fun getAllBookMappings() = bookMappings.values.toList()
+    override suspend fun getBookMapping(bookId: String) = bookMappings[bookId]
+}
+
+private fun bookEntry(bookId: String, baseCurrency: String) =
+    com.kinetix.risk.model.BookHierarchyEntry(
+        bookId = bookId,
+        deskId = "desk-1",
+        bookName = null,
+        bookType = null,
+        baseCurrency = baseCurrency,
+    )
 
 private fun pricingGreek(
     instrumentId: String,
@@ -708,5 +735,116 @@ class IntradayPnlServiceTest : FunSpec({
             snapshot.vannaPnl, snapshot.volgaPnl, snapshot.charmPnl,
         ).any { it.signum() != 0 }
         anyCrossGreekFired shouldBe true
+    }
+
+    // ------------------------------------------------------------
+    // Base currency resolution from book reference data
+    // (intraday-pnl.allium:168 book_base_currency)
+    // ------------------------------------------------------------
+
+    test("resolves the book's base currency from book reference data") {
+        val hierarchyClient = FakeHierarchyDataClient(
+            mapOf("book-1" to bookEntry("book-1", baseCurrency = "EUR")),
+        )
+        val EUR = Currency.getInstance("EUR")
+        val fxProvider = mockk<FxRateProvider>()
+        // Position is in EUR — same as the resolved base currency, so no FX conversion happens.
+        val f = TestFixtures(fxRateProvider = fxProvider, hierarchyDataClient = hierarchyClient)
+        coEvery { f.sodBaselineRepo.findByBookIdAndDate(BOOK, any()) } returns sodBaseline()
+        coEvery { f.dailyRiskSnapshotRepo.findByBookIdAndDate(BOOK, TODAY) } returns listOf(
+            sodSnapshot("DAX", quantity = "10", marketPrice = "100.00"),
+        )
+        coEvery { f.positionProvider.getPositions(BOOK) } returns listOf(
+            Position(
+                bookId = BOOK,
+                instrumentId = InstrumentId("DAX"),
+                assetClass = AssetClass.EQUITY,
+                quantity = bd("10"),
+                averageCost = Money(bd("90.00"), EUR),
+                marketPrice = Money(bd("110.00"), EUR),
+                realizedPnl = Money(bd("0.00"), EUR),
+                instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
+            ),
+        )
+        coEvery { f.pnlRepository.findLatest(BOOK) } returns null
+
+        val snapshot = f.service.recompute(BOOK, PnlTrigger.POSITION_CHANGE, correlationId = null)
+
+        snapshot.shouldNotBeNull()
+        snapshot.baseCurrency shouldBe "EUR"
+        // EUR position in an EUR book: no FX conversion, no missing rates.
+        coVerify(exactly = 0) { fxProvider.getRate(any(), any()) }
+        snapshot.missingFxRates.shouldBeEmpty()
+    }
+
+    test("converts foreign positions using the book's non-USD base currency from reference data") {
+        val hierarchyClient = FakeHierarchyDataClient(
+            mapOf("book-1" to bookEntry("book-1", baseCurrency = "GBP")),
+        )
+        val USDc = Currency.getInstance("USD")
+        val fxProvider = mockk<FxRateProvider>()
+        coEvery { fxProvider.getRate("USD", "GBP") } returns BigDecimal("0.80")
+        val f = TestFixtures(fxRateProvider = fxProvider, hierarchyDataClient = hierarchyClient)
+        coEvery { f.sodBaselineRepo.findByBookIdAndDate(BOOK, any()) } returns sodBaseline()
+        coEvery { f.dailyRiskSnapshotRepo.findByBookIdAndDate(BOOK, TODAY) } returns listOf(
+            sodSnapshot("AAPL", quantity = "100", marketPrice = "100.00"),
+        )
+        // AAPL USD: unrealised = (110 - 90) * 100 = 2000 USD → 1600 GBP at 0.80
+        coEvery { f.positionProvider.getPositions(BOOK) } returns listOf(
+            Position(
+                bookId = BOOK,
+                instrumentId = InstrumentId("AAPL"),
+                assetClass = AssetClass.EQUITY,
+                quantity = bd("100"),
+                averageCost = Money(bd("90.00"), USDc),
+                marketPrice = Money(bd("110.00"), USDc),
+                realizedPnl = Money(bd("0.00"), USDc),
+                instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
+            ),
+        )
+        coEvery { f.pnlRepository.findLatest(BOOK) } returns null
+
+        val snapshot = f.service.recompute(BOOK, PnlTrigger.POSITION_CHANGE, correlationId = null)
+
+        snapshot.shouldNotBeNull()
+        snapshot.baseCurrency shouldBe "GBP"
+        // 2000 USD * 0.80 = 1600 GBP
+        snapshot.totalPnl.compareTo(bd("1600.00")) shouldBe 0
+    }
+
+    test("falls back to USD when the book has no hierarchy mapping") {
+        val hierarchyClient = FakeHierarchyDataClient(bookMappings = emptyMap())
+        val f = TestFixtures(hierarchyDataClient = hierarchyClient)
+        coEvery { f.sodBaselineRepo.findByBookIdAndDate(BOOK, any()) } returns sodBaseline()
+        coEvery { f.dailyRiskSnapshotRepo.findByBookIdAndDate(BOOK, TODAY) } returns listOf(
+            sodSnapshot("AAPL", quantity = "100", marketPrice = "100.00"),
+        )
+        coEvery { f.positionProvider.getPositions(BOOK) } returns listOf(
+            position("AAPL", quantity = "100", avgCost = "90.00", marketPrice = "110.00"),
+        )
+        coEvery { f.pnlRepository.findLatest(BOOK) } returns null
+
+        val snapshot = f.service.recompute(BOOK, PnlTrigger.POSITION_CHANGE, correlationId = null)
+
+        snapshot.shouldNotBeNull()
+        snapshot.baseCurrency shouldBe "USD"
+    }
+
+    test("falls back to USD when no hierarchy data client is wired") {
+        // No hierarchyDataClient on the fixture → the service constructs with null.
+        val f = TestFixtures()
+        coEvery { f.sodBaselineRepo.findByBookIdAndDate(BOOK, any()) } returns sodBaseline()
+        coEvery { f.dailyRiskSnapshotRepo.findByBookIdAndDate(BOOK, TODAY) } returns listOf(
+            sodSnapshot("AAPL", quantity = "100", marketPrice = "100.00"),
+        )
+        coEvery { f.positionProvider.getPositions(BOOK) } returns listOf(
+            position("AAPL", quantity = "100", avgCost = "90.00", marketPrice = "110.00"),
+        )
+        coEvery { f.pnlRepository.findLatest(BOOK) } returns null
+
+        val snapshot = f.service.recompute(BOOK, PnlTrigger.POSITION_CHANGE, correlationId = null)
+
+        snapshot.shouldNotBeNull()
+        snapshot.baseCurrency shouldBe "USD"
     }
 })

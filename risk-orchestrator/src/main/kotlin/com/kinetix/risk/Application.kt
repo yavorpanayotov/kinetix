@@ -602,6 +602,7 @@ fun Application.moduleWithRoutes() {
         ratesServiceClient = effectiveRatesServiceClient,
         fxRateProvider = fxRateProvider,
         sodGreekSnapshotRepository = sodGreekSnapshotRepository,
+        hierarchyDataClient = hierarchyDataClient,
     )
 
     val stressTestStub = StressTestServiceGrpcKt.StressTestServiceCoroutineStub(channel)

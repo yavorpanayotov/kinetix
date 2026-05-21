@@ -9,11 +9,13 @@ data class BookHierarchyEntryDto(
     val deskId: String,
     val bookName: String? = null,
     val bookType: String? = null,
+    val baseCurrency: String = "USD",
 ) {
     fun toDomain() = BookHierarchyEntry(
         bookId = bookId,
         deskId = deskId,
         bookName = bookName,
         bookType = bookType,
+        baseCurrency = baseCurrency,
     )
 }
