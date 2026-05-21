@@ -655,3 +655,55 @@ rule RunBacktest {
 ------------------------------------------------------------
 
 open question "FRTB GIRR tenor grid: should we implement the simplified 4-tenor grid (0.25Y, 1Y, 5Y, 30Y) used in the current SBM prototype, or the full 10-tenor BCBS 352 GIRR grid (0.25Y, 0.5Y, 1Y, 2Y, 3Y, 5Y, 10Y, 15Y, 20Y, 30Y)? Inflation and cross-currency basis are separate GIRR risk factors, not additional tenor vertices. The 4-tenor approach is faster and sufficient for internal limits; the 10-tenor grid is required for regulatory submission. Decision affects CalculateKeyRateDurations tenor grid, SBM delta charge bucketing, and the GIRR correlation matrices."
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+-- Every rule in this spec is a stateless quantitative calculation
+-- exposed by the Python risk engine and invoked over the wire by the
+-- risk-orchestrator. The transport is gRPC over HTTP/2 rather than a
+-- JSON REST route, but the origin is the same as a REST request: a
+-- request arrives over the network from a calling client, it is not an
+-- event or a scheduled tick. The caller is code — the risk-orchestrator
+-- — so it is modelled as an actor with a minimal identity rather than a
+-- human user. Declaring the surface lets each `*Requested` trigger
+-- resolve in-spec: without it, single-spec analysis reports every VaR
+-- method, pricing, Greeks, stress, FRTB and backtest rule as an
+-- unreachableTrigger because the wire origin is not visible to the
+-- checker. There are no event-driven or scheduled triggers in this
+-- spec, so the surface enumerates all sixteen calculation triggers.
+
+actor RiskModelsClient {
+    identified_by: VaRResult where var_value >= 0
+}
+
+surface RestApi {
+    facing client: RiskModelsClient
+
+    provides:
+        ParametricVaRRequested(client)
+        HistoricalVaRRequested(client)
+        MonteCarloVaRRequested(client)
+        OptionPriceRequested(client)
+        ResolvePositionsRequested(client)
+        PortfolioGreeksRequested(client)
+        PricingGreeksRequested(client)
+        KeyRateDurationsRequested(client)
+        BondPriceRequested(client)
+        SwapPriceRequested(client)
+        RunStressTestRequested(client)
+        RunReverseStressTestRequested(client)
+        EwmaVolatilityRequested(client)
+        CorrelationEstimationRequested(client)
+        FrtbCalculationRequested(client)
+        BacktestRequested(client)
+
+    @guidance
+        -- One provides entry per calculation trigger. Each maps to a
+        -- gRPC RPC on the risk engine (e.g. CalculateVaR, RunStressTest,
+        -- RunReverseStress, CalculateKeyRateDurations, CalculatePricingGreeks,
+        -- CalculateFrtb). gRPC runs over HTTP/2, so these are wire-origin
+        -- request triggers and belong on the surface alongside the JSON
+        -- REST routes modelled in the other specs.
+}

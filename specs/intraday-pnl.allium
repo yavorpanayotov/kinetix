@@ -444,3 +444,40 @@ invariant HighWaterMarkBoundsTotal {
 -- intraday trade annotations and the UI renders the result as a band
 -- overlay on the P&L chart. Reusing valuation_jobs avoids a redundant
 -- table since every intraday VaR run is already recorded there.
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+-- The historical intraday-series query is driven by an HTTP request
+-- arriving over the risk-orchestrator REST API (and aggregated by the
+-- gateway). The caller is code — the UI rendering the intraday chart on
+-- initial load, or the gateway proxy — so it is modelled as an actor
+-- with a minimal identity rather than a human user. Declaring the
+-- surface lets the QueryIntradaySeries trigger resolve in-spec: without
+-- it, single-spec analysis reports IntradaySeriesRequested as an
+-- unreachableTrigger because the HTTP origin is not visible to the
+-- checker. The remaining triggers in this spec are NOT HTTP-origin and
+-- are deliberately omitted: PricePublished and TradeBooked are upstream
+-- Kafka events, PositionChanged is emitted by the trigger-chaining
+-- rules within this spec, SodBaseline.created is a cross-spec entity
+-- lifecycle event, and IntradayPnlPublished is emitted by
+-- RecomputeIntradayPnl within this spec.
+
+actor IntradayPnlClient {
+    identified_by: IntradayPnlSnapshot where book_id != ""
+}
+
+surface RestApi {
+    facing client: IntradayPnlClient
+
+    provides:
+        IntradaySeriesRequested(client)
+
+    @guidance
+        -- One provides entry per HTTP-origin trigger. QueryIntradaySeries
+        -- is a GET query route that returns the historical intraday P&L
+        -- series for a book and time window; it originates from a REST
+        -- request. Live updates beyond the queried window are pushed over
+        -- WebSocket and are not modelled as a surface trigger.
+}

@@ -284,3 +284,25 @@ invariant AtMostOneOfficialEodPerBookPerDate {
 --   - Auto-close VaR requests always include all four output types
 --     (VaR, Expected Shortfall, Greeks, PV) so the resulting official_eod
 --     job carries a complete risk snapshot.
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+-- The end-of-day close workflow is entirely scheduler-driven: it owns no
+-- HTTP-origin triggers, so its REST surface has nothing to provide.
+-- AutoCloseIntervalElapsed is a polling-loop tick, AutoCloseTick and
+-- AutoCloseBookEvaluation are emitted by rules within this spec,
+-- RiskResultPublished is a cross-spec Kafka event, and AutoClosePromoted
+-- is emitted by AutoClosePromoteOnRiskResult within this spec — none
+-- originate from a REST request. The spec still declares a `RestApi`
+-- surface for consistency with every other spec in the workspace and to
+-- document the cross-spec entity that crosses the wire boundary: the
+-- promotion workflow reads and re-labels the risk/ValuationJob produced
+-- by the auto-close VaR run, and the manual EOD-promotion REST route in
+-- risk.allium operates on the same entity.
+
+surface RestApi {
+    exposes:
+        risk/ValuationJob
+}

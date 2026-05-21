@@ -974,3 +974,50 @@ invariant OneSodBaselinePerBookPerDate {
 -- is self-contained. RecordReplayRun writes a row only after a successful
 -- replay — a missing manifest or missing market-data blob aborts before
 -- any row is written.
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+-- The on-demand risk workflows are driven by HTTP requests arriving over
+-- the risk-orchestrator REST API (and aggregated by the gateway). The
+-- caller is code — the UI, a seeder, or the gateway proxy — so it is
+-- modelled as an actor with a minimal identity rather than a human user.
+-- Declaring the surface lets each `*Requested` trigger resolve in-spec:
+-- without it, single-spec analysis reports each VaR / SOD / promotion /
+-- replay / comparison / what-if rule as an unreachableTrigger because the
+-- HTTP origin is not visible to the checker. The remaining triggers in
+-- this spec are NOT HTTP-origin and are deliberately omitted:
+-- ScheduledVaRTick, ScheduledSodSnapshotTick and TradeAuditReconciliationTick
+-- are scheduled ticks; TradeBooked / TradeAmended / TradeCancelled and
+-- PricePublished are upstream Kafka events; RiskResultPublished is emitted
+-- by CalculateVaR within this spec.
+
+actor RiskClient {
+    identified_by: ValuationJob where job_id != ""
+}
+
+surface RestApi {
+    facing client: RiskClient
+
+    provides:
+        CalculateVaRRequested(client)
+        CalculateCrossBookVaRRequested(client)
+        StressedCrossBookVaRRequested(client)
+        CreateSodSnapshotRequested(client)
+        ComputePnlAttributionRequested(client)
+        PromoteToEodRequested(client)
+        ReplayRunRequested(client)
+        CompareRunsRequested(client)
+        WhatIfAnalysisRequested(client)
+        RebalancingWhatIfRequested(client)
+
+    @guidance
+        -- One provides entry per HTTP-origin trigger. CalculateVaR,
+        -- cross-book VaR, SOD-snapshot creation, P&L attribution, EOD
+        -- promotion, run replay, run comparison and the what-if /
+        -- rebalancing analyses are all POST write or compute routes that
+        -- originate from a REST request. PromoteToEodRequested is shared
+        -- by the four promotion rules (one success path, three rejection
+        -- paths) and is enumerated once.
+}
