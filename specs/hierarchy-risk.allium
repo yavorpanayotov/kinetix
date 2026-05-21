@@ -334,6 +334,21 @@ rule TriggerCROReport {
         --
         -- The report is triggered daily post-EOD (automated)
         -- and on-demand by the CRO.
+        --
+        -- ASPIRATIONAL — the delegation described above is not live. The
+        -- implementing endpoint (CroReportRoutes.kt, POST
+        -- /api/v1/risk/reports/cro) calls
+        -- HierarchyRiskService.aggregateHierarchy(FIRM, "FIRM")
+        -- synchronously and responds with a JSON HierarchyNodeRiskResponse
+        -- (firm-level VaR, ES, P&L, limit utilisation, top contributors).
+        -- There is no regulatory-service client call, no `format`
+        -- parameter (no PDF/CSV selection), and the richer report inputs
+        -- listed above — top-10 firm-wide contributors, breaches in the
+        -- last 24h, stress scenario results, market regime — are not
+        -- assembled. The format-selecting delegation to regulatory-service
+        -- is the intended target; until it is implemented the live
+        -- behaviour is a synchronous JSON firm-node response, not a
+        -- delegated PDF/CSV report.
 }
 
 -- Scheduled aggregation
@@ -349,6 +364,18 @@ rule ScheduledHierarchyAggregation {
         -- desk-level, and persists snapshots at each level.
         -- Also triggered when a significant book-level VaR change is detected
         -- (>10% change from cached value).
+        --
+        -- ASPIRATIONAL — no scheduler exists. There is no
+        -- ScheduledHierarchyTick source, no scheduler class under
+        -- risk/schedule/, and no job wired in Application.kt;
+        -- HierarchyRiskService.aggregateHierarchy is invoked only
+        -- synchronously from the HTTP route and from CroReportRoutes. As a
+        -- result HierarchyRiskSnapshot rows land only when a user requests
+        -- a node — there is no post-EOD batch cascade and no >10%
+        -- book-VaR-change trigger. This rule documents the scheduled,
+        -- event-driven aggregation the spec models; until a scheduler is
+        -- implemented the firm/division/desk snapshot cascade is
+        -- on-demand only.
 }
 
 ------------------------------------------------------------
