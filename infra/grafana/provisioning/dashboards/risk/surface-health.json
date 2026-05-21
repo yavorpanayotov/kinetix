@@ -1,0 +1,498 @@
+{
+  "uid": "kinetix-surface-health",
+  "title": "Surface Health — Volatility & Correlation",
+  "tags": ["kinetix", "risk", "surface-health"],
+  "timezone": "browser",
+  "editable": true,
+  "graphTooltip": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "links": [
+    { "title": "Risk Overview", "type": "link", "url": "/d/kinetix-risk-overview", "icon": "dashboard" },
+    { "title": "Risk Engine", "type": "link", "url": "/d/kinetix-risk-engine", "icon": "dashboard" },
+    { "title": "Model Governance & Regulatory", "type": "link", "url": "/d/kinetix-regulatory", "icon": "dashboard" },
+    { "title": "Service Logs", "type": "link", "url": "/d/kinetix-service-logs", "icon": "dashboard" }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "label": "Data source",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "refresh": 1,
+        "regex": "",
+        "options": []
+      },
+      {
+        "name": "underlying",
+        "type": "query",
+        "label": "Vol underlying",
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        "query": "label_values(volatility_surface_points, underlying)",
+        "refresh": 2,
+        "includeAll": true,
+        "allValue": ".+",
+        "current": { "text": "All", "value": "$__all" },
+        "multi": true,
+        "sort": 1
+      },
+      {
+        "name": "matrix_id",
+        "type": "query",
+        "label": "Correlation matrix",
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        "query": "label_values(correlation_matrix_points, matrix_id)",
+        "refresh": 2,
+        "includeAll": true,
+        "allValue": ".+",
+        "current": { "text": "All", "value": "$__all" },
+        "multi": true,
+        "sort": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 100,
+      "type": "row",
+      "title": "Volatility Surfaces",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 1,
+      "title": "Oldest Vol Surface Age",
+      "description": "Time since the most stale volatility surface was last (re)built, across the selected underlyings. A large, growing value means the volatility feed has stopped delivering surface updates.",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 1 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max(time() - volatility_surface_last_update_timestamp_seconds{underlying=~\"$underlying\"})",
+          "legendFormat": "Oldest surface age"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "No data",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "green" },
+              { "value": 120, "color": "orange" },
+              { "value": 300, "color": "red" }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "title": "Vol Surfaces Tracked",
+      "description": "Number of volatility surfaces currently reporting health metrics. A drop means an underlying has stopped being instrumented or the service has lost it.",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 1 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "count(volatility_surface_points{underlying=~\"$underlying\"}) or on() vector(0)",
+          "legendFormat": "Surfaces"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "No data",
+          "color": { "mode": "fixed", "fixedColor": "blue" }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "title": "Total Vol Surface Points",
+      "description": "Sum of grid points across all selected volatility surfaces — overall surface coverage. A sudden fall indicates surfaces are arriving with fewer points than expected.",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 1 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(volatility_surface_points{underlying=~\"$underlying\"}) or on() vector(0)",
+          "legendFormat": "Points"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "No data",
+          "color": { "mode": "fixed", "fixedColor": "blue" }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "title": "Vol Calibration Failures",
+      "description": "Cumulative count of volatility-surface (re)builds that failed to calibrate across the selected underlyings. Any non-zero value warrants investigating the volatility feed.",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 1 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(volatility_surface_calibration_failures_total{underlying=~\"$underlying\"}) or on() vector(0)",
+          "legendFormat": "Failures"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "No data",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "green" },
+              { "value": 1, "color": "orange" },
+              { "value": 5, "color": "red" }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "title": "Vol Surface Last-Update Age by Underlying",
+      "description": "Time since each volatility surface was last (re)built, per underlying. Amber crosses 2 minutes of staleness, red crosses 5 minutes.",
+      "type": "bargauge",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 7 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "time() - volatility_surface_last_update_timestamp_seconds{underlying=~\"$underlying\"}",
+          "legendFormat": "{{underlying}}"
+        }
+      ],
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "No data",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "green" },
+              { "value": 120, "color": "orange" },
+              { "value": 300, "color": "red" }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "title": "Vol Surface Point Count by Underlying",
+      "description": "Grid density — the number of vol points — of the latest surface for each underlying. A surface that drops points has degraded coverage.",
+      "type": "bargauge",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 7 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "volatility_surface_points{underlying=~\"$underlying\"}",
+          "legendFormat": "{{underlying}}"
+        }
+      ],
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "No data",
+          "color": { "mode": "continuous-GrYlRd" }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 7,
+      "title": "Vol Calibration Failure Rate",
+      "description": "Rate at which volatility-surface (re)builds fail to calibrate, per underlying. A sustained non-zero series flags an underlying whose feed is producing surfaces the service rejects.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 15 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (underlying) (rate(volatility_surface_calibration_failures_total{underlying=~\"$underlying\"}[5m]))",
+          "legendFormat": "{{underlying}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "No data"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 200,
+      "type": "row",
+      "title": "Correlation Matrices",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 23 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 8,
+      "title": "Oldest Correlation Matrix Age",
+      "description": "Time since the most stale correlation matrix was last (re)built, across the selected matrices. A large, growing value means the correlation feed has stopped delivering matrix updates.",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 24 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max(time() - correlation_matrix_last_update_timestamp_seconds{matrix_id=~\"$matrix_id\"})",
+          "legendFormat": "Oldest matrix age"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "No data",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "green" },
+              { "value": 180, "color": "orange" },
+              { "value": 600, "color": "red" }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 9,
+      "title": "Correlation Matrices Tracked",
+      "description": "Number of correlation matrices currently reporting health metrics. A drop means a matrix has stopped being instrumented or the service has lost it.",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 24 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "count(correlation_matrix_points{matrix_id=~\"$matrix_id\"}) or on() vector(0)",
+          "legendFormat": "Matrices"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "No data",
+          "color": { "mode": "fixed", "fixedColor": "blue" }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 10,
+      "title": "Total Correlation Matrix Entries",
+      "description": "Sum of pairwise correlation entries across all selected matrices — overall coverage. An n×n matrix contributes n² entries; a sudden fall indicates matrices arriving with fewer labels than expected.",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 24 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(correlation_matrix_points{matrix_id=~\"$matrix_id\"}) or on() vector(0)",
+          "legendFormat": "Entries"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "No data",
+          "color": { "mode": "fixed", "fixedColor": "blue" }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 11,
+      "title": "Correlation Calibration Failures",
+      "description": "Cumulative count of correlation-matrix (re)builds that failed to calibrate — a matrix that is not positive-semi-definite, or an error while persisting it. Any non-zero value warrants investigating the correlation feed.",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 24 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(correlation_matrix_calibration_failures_total{matrix_id=~\"$matrix_id\"}) or on() vector(0)",
+          "legendFormat": "Failures"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "No data",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "green" },
+              { "value": 1, "color": "orange" },
+              { "value": 5, "color": "red" }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 12,
+      "title": "Correlation Matrix Last-Update Age by Matrix",
+      "description": "Time since each correlation matrix was last (re)built, per matrix id. Amber crosses 3 minutes of staleness, red crosses 10 minutes.",
+      "type": "bargauge",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 30 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "time() - correlation_matrix_last_update_timestamp_seconds{matrix_id=~\"$matrix_id\"}",
+          "legendFormat": "{{matrix_id}}"
+        }
+      ],
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "No data",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "green" },
+              { "value": 180, "color": "orange" },
+              { "value": 600, "color": "red" }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 13,
+      "title": "Correlation Matrix Entry Count by Matrix",
+      "description": "Number of pairwise correlation entries on the latest matrix for each matrix id. A matrix that drops labels (and so entries) has degraded coverage.",
+      "type": "bargauge",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 30 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "correlation_matrix_points{matrix_id=~\"$matrix_id\"}",
+          "legendFormat": "{{matrix_id}}"
+        }
+      ],
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "No data",
+          "color": { "mode": "continuous-GrYlRd" }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 14,
+      "title": "Correlation Calibration Failure Rate",
+      "description": "Rate at which correlation-matrix (re)builds fail to calibrate, per matrix id. A sustained non-zero series flags a matrix whose feed is producing non-PSD or otherwise unacceptable matrices.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 38 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (matrix_id) (rate(correlation_matrix_calibration_failures_total{matrix_id=~\"$matrix_id\"}[5m]))",
+          "legendFormat": "{{matrix_id}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "No data"
+        },
+        "overrides": []
+      }
+    }
+  ],
+  "schemaVersion": 39,
+  "version": 1
+}

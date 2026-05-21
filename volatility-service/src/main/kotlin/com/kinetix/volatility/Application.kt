@@ -8,6 +8,7 @@ import com.kinetix.common.model.VolatilitySource
 import com.kinetix.volatility.cache.RedisVolatilityCache
 import com.kinetix.volatility.feed.VolSurfaceFeedSimulator
 import com.kinetix.volatility.kafka.KafkaVolatilityPublisher
+import com.kinetix.volatility.metrics.VolatilitySurfaceHealthMetrics
 import com.kinetix.volatility.persistence.DatabaseConfig
 import com.kinetix.volatility.routes.demoResetRoutes
 import com.kinetix.volatility.seed.DevDataSeeder
@@ -54,9 +55,26 @@ import java.util.Properties
 
 fun main(args: Array<String>): Unit = EngineMain.main(args)
 
+/**
+ * Attribute key under which [module] stores the Prometheus registry backing the
+ * `/metrics` endpoint, so route-wiring overloads can bind additional meters
+ * (e.g. the surface-health metrics) to the same registry that is scraped.
+ */
+val MicrometerRegistryKey: io.ktor.util.AttributeKey<PrometheusMeterRegistry> =
+    io.ktor.util.AttributeKey("volatility-service-micrometer-registry")
+
 fun Application.module() {
     log.info("Starting volatility-service")
-    val appMicrometerRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
+    // Reuse a registry a caller has already installed under the attribute key
+    // (so surface-health meters bound before [module] runs share the scrape
+    // registry); otherwise create and publish one here.
+    val appMicrometerRegistry = if (attributes.contains(MicrometerRegistryKey)) {
+        attributes[MicrometerRegistryKey]
+    } else {
+        PrometheusMeterRegistry(PrometheusConfig.DEFAULT).also {
+            attributes.put(MicrometerRegistryKey, it)
+        }
+    }
     install(MicrometerMetrics) { registry = appMicrometerRegistry }
     install(ContentNegotiation) { json() }
     install(CallLogging) {
@@ -141,7 +159,13 @@ fun Application.moduleWithRoutes() {
     val kafkaProducer = KafkaProducer<String, String>(producerProps)
     val publisher = KafkaVolatilityPublisher(kafkaProducer)
 
-    val ingestionService = VolatilityIngestionService(volSurfaceRepository, cache, publisher)
+    // Publish the scrape registry under the attribute key before [module] runs
+    // so the surface-health meters and the /metrics endpoint share it.
+    val micrometerRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
+    attributes.put(MicrometerRegistryKey, micrometerRegistry)
+    val healthMetrics = VolatilitySurfaceHealthMetrics(micrometerRegistry)
+
+    val ingestionService = VolatilityIngestionService(volSurfaceRepository, cache, publisher, healthMetrics)
 
     val seedDone = AtomicBoolean(false)
     val readinessChecker = ReadinessChecker(

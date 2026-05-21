@@ -6,6 +6,7 @@ import com.kinetix.common.model.EstimationMethod
 import com.kinetix.correlation.cache.RedisCorrelationCache
 import com.kinetix.correlation.feed.CorrelationFeedSimulator
 import com.kinetix.correlation.kafka.KafkaCorrelationPublisher
+import com.kinetix.correlation.metrics.CorrelationMatrixHealthMetrics
 import com.kinetix.correlation.persistence.CorrelationMatrixRepository
 import com.kinetix.correlation.persistence.DatabaseConfig
 import com.kinetix.correlation.routes.demoResetRoutes
@@ -51,9 +52,26 @@ import java.util.Properties
 
 fun main(args: Array<String>): Unit = EngineMain.main(args)
 
+/**
+ * Attribute key under which [module] stores the Prometheus registry backing the
+ * `/metrics` endpoint, so route-wiring overloads can bind additional meters
+ * (e.g. the surface-health metrics) to the same registry that is scraped.
+ */
+val MicrometerRegistryKey: io.ktor.util.AttributeKey<PrometheusMeterRegistry> =
+    io.ktor.util.AttributeKey("correlation-service-micrometer-registry")
+
 fun Application.module() {
     log.info("Starting correlation-service")
-    val appMicrometerRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
+    // Reuse a registry a caller has already installed under the attribute key
+    // (so surface-health meters bound before [module] runs share the scrape
+    // registry); otherwise create and publish one here.
+    val appMicrometerRegistry = if (attributes.contains(MicrometerRegistryKey)) {
+        attributes[MicrometerRegistryKey]
+    } else {
+        PrometheusMeterRegistry(PrometheusConfig.DEFAULT).also {
+            attributes.put(MicrometerRegistryKey, it)
+        }
+    }
     install(MicrometerMetrics) { registry = appMicrometerRegistry }
     install(ContentNegotiation) { json() }
     install(CallLogging) {
@@ -138,7 +156,13 @@ fun Application.moduleWithRoutes() {
     val kafkaProducer = KafkaProducer<String, String>(producerProps)
     val publisher = KafkaCorrelationPublisher(kafkaProducer)
 
-    val ingestionService = CorrelationIngestionService(correlationMatrixRepository, cache, publisher)
+    // Publish the scrape registry under the attribute key before [module] runs
+    // so the surface-health meters and the /metrics endpoint share it.
+    val micrometerRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
+    attributes.put(MicrometerRegistryKey, micrometerRegistry)
+    val healthMetrics = CorrelationMatrixHealthMetrics(micrometerRegistry)
+
+    val ingestionService = CorrelationIngestionService(correlationMatrixRepository, cache, publisher, healthMetrics)
 
     val seedDone = AtomicBoolean(false)
     val readinessChecker = ReadinessChecker(
