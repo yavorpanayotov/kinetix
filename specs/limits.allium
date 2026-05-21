@@ -209,3 +209,39 @@ invariant UniqueLimitDefinition {
         for l2 in LimitDefinitions:
             l1 = l2 or not (l1.level = l2.level and l1.entity_id = l2.entity_id and l1.limit_type = l2.limit_type)
 }
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+-- The limit CRUD and temporary-increase rules are driven by HTTP
+-- requests arriving over the position-service REST API (and aggregated
+-- by the gateway). The caller is code — a risk operator tool, a seeder,
+-- or the gateway proxy — so it is modelled as an actor with a minimal
+-- identity rather than a human user. Declaring the surface lets each
+-- `*Requested` trigger resolve in-spec: without it, single-spec
+-- analysis reports every create / update / temporary-increase rule as
+-- an unreachableTrigger because the HTTP origin is not visible to the
+-- checker. The pre-trade check triggers (PreTradeLimitCheck driving
+-- CheckPositionLimit / CheckNotionalLimit / CheckConcentrationLimit and
+-- HierarchyLimitCheck driving CheckLimitHierarchy) are internal calls
+-- on the trade-booking path, not external REST stimuli, and are
+-- deliberately omitted from this surface.
+
+actor LimitsClient {
+    identified_by: LimitDefinition where entity_id != ""
+}
+
+surface RestApi {
+    facing client: LimitsClient
+
+    provides:
+        CreateLimitRequested(client)
+        UpdateLimitRequested(client)
+        TemporaryIncreaseRequested(client)
+
+    @guidance
+        -- One provides entry per HTTP-origin trigger. All three are
+        -- write routes (create / update / temporary-increase) that
+        -- originate from a REST request.
+}

@@ -371,3 +371,41 @@ invariant TradeQuantityPositive {
 -- that mutates or removes a TradeStrategy. This preserves the
 -- per-strategy P&L-attribution lineage carried by trade_events and
 -- positions FKs.
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+-- The trade-booking, lifecycle (amend / cancel) and trade-strategy
+-- rules are driven by HTTP requests arriving over the position-service
+-- REST API (and aggregated by the gateway). The caller is code — the UI,
+-- the FIX fill-processing path, a seeder, or the gateway proxy — so it
+-- is modelled as an actor with a minimal identity rather than a human
+-- user. Declaring the surface lets each `*Requested` trigger resolve
+-- in-spec: without it, single-spec analysis reports every booking /
+-- amend / cancel / strategy rule as an unreachableTrigger because the
+-- HTTP origin is not visible to the checker. Each `*Requested` trigger
+-- is enumerated once even when several rules share it (e.g.
+-- BookTradeRequested drives both BookTrade and BookTradeIdempotent).
+
+actor TradingClient {
+    identified_by: Trade where trade_id != ""
+}
+
+surface RestApi {
+    facing client: TradingClient
+
+    provides:
+        BookTradeRequested(client)
+        AmendTradeRequested(client)
+        CancelTradeRequested(client)
+        CreateTradeStrategyRequested(client)
+        ListTradeStrategiesRequested(client)
+        GetTradeStrategyRequested(client)
+
+    @guidance
+        -- One provides entry per distinct HTTP-origin trigger. Both
+        -- write routes (book / amend / cancel / create) and read routes
+        -- (list / get) are modelled here because both are external
+        -- stimuli that originate from a REST request.
+}

@@ -978,3 +978,40 @@ open question "Should FIX fills for unknown instruments (no reference data entry
 -- Resolved: pre-trade risk checks fail-closed (reject on error/timeout).
 -- See OrderSubmissionService.kt:113-120 — submission is rejected when the
 -- limit-check call throws, with the failure surfaced to the caller.
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+-- Order submission and the reconciliation-break status update are
+-- driven by HTTP requests arriving over the position-service REST API
+-- (and aggregated by the gateway). The caller is code — the UI, a
+-- seeder, or the gateway proxy — so it is modelled as an actor with a
+-- minimal identity rather than a human user. Declaring the surface lets
+-- each `*Requested` trigger resolve in-spec: without it, single-spec
+-- analysis reports SubmitOrder and UpdateReconciliationBreakStatus as
+-- unreachableTrigger because the HTTP origin is not visible to the
+-- checker. The remaining triggers in this spec are NOT HTTP-origin and
+-- are deliberately omitted: FIXExecutionReportReceived,
+-- FIXGatewayRouteFailed / RouteRejected and FIXSession status changes
+-- are FIX-wire events; PreTradeRiskCheckRequested / -Completed are
+-- internal risk-check events; PrimeBrokerStatementReceived is a daily
+-- statement-ingestion event; OrderExpiryTick is a scheduled tick; and
+-- the `Order.status becomes ...` triggers are state-transition events.
+
+actor ExecutionClient {
+    identified_by: Order where order_id != ""
+}
+
+surface RestApi {
+    facing client: ExecutionClient
+
+    provides:
+        SubmitOrderRequested(client)
+        UpdateReconciliationBreakStatusRequested(client)
+
+    @guidance
+        -- One provides entry per HTTP-origin trigger. SubmitOrder is a
+        -- POST write route; UpdateReconciliationBreakStatus is a PATCH
+        -- write route. Both originate from a REST request.
+}

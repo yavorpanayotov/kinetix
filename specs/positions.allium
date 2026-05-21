@@ -323,3 +323,40 @@ invariant PositionCurrencyConsistency {
 -- realized_pnl is strictly cumulative: it is only updated through trade
 -- applications and never reset to zero. Enforced by the absence of any rule
 -- that assigns position.realized_pnl outside ApplyTradeToPosition.
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+-- The portfolio-aggregation, counterparty-exposure and position-note
+-- rules are driven by HTTP requests arriving over the position-service
+-- REST API (and aggregated by the gateway). The caller is code — the UI,
+-- a seeder, or the gateway proxy — so it is modelled as an actor with a
+-- minimal identity rather than a human user. Declaring the surface lets
+-- each `*Requested` trigger resolve in-spec: without it, single-spec
+-- analysis reports every aggregate / query / note rule as an
+-- unreachableTrigger because the HTTP origin is not visible to the
+-- checker. The event-driven rules (ApplyTradeToPosition on TradeBooked,
+-- MarkToMarket / ExtractFxRate on PricePublished, RetainPositionNotes on
+-- PositionNoteDeleted) are NOT HTTP-origin and are deliberately omitted.
+
+actor PositionsClient {
+    identified_by: Position where book_id != ""
+}
+
+surface RestApi {
+    facing client: PositionsClient
+
+    provides:
+        AggregatePortfolioRequested(client)
+        CounterpartyExposureRequested(client)
+        CreatePositionNoteRequested(client)
+        ListPositionNotesRequested(client)
+        DeletePositionNoteRequested(client)
+
+    @guidance
+        -- One provides entry per HTTP-origin trigger. Both write routes
+        -- (create / delete) and read routes (aggregate / query / list)
+        -- are modelled here because both are external stimuli that
+        -- originate from a REST request.
+}
