@@ -482,7 +482,7 @@ resolves in-spec, killing the false-positive `unreachableTrigger` findings that
 single-spec `allium analyse` produces. Batched by spec group; each batch is one
 commit.
 
-- [ ] 5.1 Group A — add `surface RestApi` blocks to `core.allium`,
+- [x] 5.1 Group A — add `surface RestApi` blocks to `core.allium`,
       `market-data.allium`, `reference-data.allium`.
       Acceptance: `node plans/scripts/allium-workspace.mjs`
 
