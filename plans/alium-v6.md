@@ -434,7 +434,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       (`cross_greeks.py`). Source: `group-c` coverage gaps.
       Acceptance: `node plans/scripts/allium-workspace.mjs`
 
-- [ ] 4.9 Extend `regulatory.allium` — add `ReportTemplate` and `GenerateReport`
+- [x] 4.9 Extend `regulatory.allium` — add `ReportTemplate` and `GenerateReport`
       rules for the report-template engine (`report_templates`/`generated_reports`,
       `ReportRoutes`, V56 migration). Add `RunHistoricalReplay` coverage for the
       `historical_scenario_periods`/`historical_scenario_returns` tables. Source:
