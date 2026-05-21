@@ -206,7 +206,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       and route field; risk-orchestrator unit tests for client-driven resolution).
       Acceptance: `./gradlew :position-service:test :risk-orchestrator:test`
 
-- [ ] 1.10 Stop the `FactorContribution` mapper dropping fields. `GrpcRiskEngineClient.kt:171-181`
+- [x] 1.10 Stop the `FactorContribution` mapper dropping fields. `GrpcRiskEngineClient.kt:171-181`
       ignores `factorExposure` and `pnlAttribution` even though the engine and
       proto populate both (`factor_server.py:235-258`). Add the two fields to the
       Kotlin `FactorContribution`, `FactorRiskResponse` DTO, and the mapper.
