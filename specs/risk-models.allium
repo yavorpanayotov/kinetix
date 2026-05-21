@@ -202,6 +202,27 @@ value StressScenarioShocks {
         -- default to vol_multiplier = 1.0, price_multiplier = 1.0.
 }
 
+-- Reverse stress testing: rather than applying a known scenario and reading
+-- off the loss (forward stress, see RunStressTest), reverse stress starts
+-- from a target loss and solves for the shock vector that produces it.
+
+value ReverseStressShock {
+    instrument_id: String
+    shock: Decimal   -- price shock, negative (a decline); -0.30 = a 30% drop
+}
+
+-- ReverseStressResult is the risk-engine computational result of the
+-- reverse-stress solver (reverse_stress.py). It mirrors the persisted /
+-- wire-level scenarios/ReverseStressResult value (per-instrument shocks),
+-- which owns the scenario-governance and orchestration contract; this one
+-- models the calculation output as produced inside the risk engine.
+value ReverseStressResult {
+    shocks: List<ReverseStressShock>   -- one entry per portfolio instrument
+    achieved_loss: Decimal             -- loss actually produced by the shock vector
+    target_loss: Decimal               -- requested loss the solver aimed for
+    converged: Boolean                 -- false if no feasible solution was found
+}
+
 ------------------------------------------------------------
 -- Config
 ------------------------------------------------------------
@@ -223,6 +244,11 @@ config {
 
     -- Stress testing
     default_stress_correlation: Decimal = 0.90
+
+    -- Reverse stress testing (SLSQP solver)
+    reverse_stress_max_shock: Decimal = -1.0       -- most negative per-instrument shock (-100%)
+    reverse_stress_solver_max_iter: Integer = 500  -- SLSQP iteration cap
+    reverse_stress_solver_ftol: Decimal = 0.000000001  -- SLSQP convergence tolerance (1e-9)
 
     -- Default volatilities by asset class
     default_vol_equity: Decimal = 0.20
@@ -385,6 +411,34 @@ rule CalculatePricingGreeks {
         --
         -- Returns PricingGreeks per position.
         -- These are locked into SodGreekSnapshot before market open.
+
+    @guidance
+        -- Cross-Greeks (vanna, volga, charm — see the CrossGreeks value type)
+        -- and their numerical fallback path:
+        --
+        -- Preferred path — analytical (risk-engine/cross_greeks.py):
+        --   For vanilla Black-Scholes options the cross-Greeks are computed
+        --   from closed-form BSM formulae:
+        --     vanna = -pdf(d1) * d2 / sigma            (d(delta)/d(vol))
+        --     volga = vega * d1 * d2 / sigma           (d(vega)/d(vol))
+        --     charm = -pdf(d1) * (2(r-q)T - d2*sigma*sqrt(T))
+        --                / (2 * T * sigma * sqrt(T))   (-d(delta)/d(T))
+        --   For a put, charm = charm_call - q*exp(-qT) (put-call parity).
+        --   These match the analytical cross-Greeks listed in PriceOption.
+        --
+        -- Fallback path — numerical finite differences:
+        --   When the analytical formulae are unavailable — e.g. a position is
+        --   not a vanilla BS option, T <= 0 (where the analytical forms
+        --   degenerate to 0), or sigma is unusable — the engine falls back to
+        --   a numerical finite-difference computation of the cross-partials:
+        --     vanna ~= [V(S+,vol+) - V(S+) - V(vol+) + V_base]
+        --                / (price_bump * vol_bump)   (mixed second difference)
+        --     volga ~= [V(vol+2) - 2*V(vol+) + V_base] / vol_bump^2
+        --     charm ~= [delta - delta(T - time_bump_days)] / time_bump_days
+        --   using config.price_bump, config.vol_bump and config.time_bump_days
+        --   as the perturbation sizes. The finite-difference estimates are
+        --   first-order consistent with the analytical values and converge to
+        --   them as the bump sizes shrink.
 }
 
 rule CalculateKeyRateDurations {
@@ -447,6 +501,59 @@ rule RunStressTest {
         -- 5. Calculate stressed VaR.
         -- 6. pnl_impact = sum of per-position (stressed - base) market values.
         -- 7. Per-asset-class and per-position impact breakdowns.
+}
+
+-- Reverse stress testing
+
+rule RunReverseStressTest {
+    when: RunReverseStressTestRequested(positions, target_loss, max_shock)
+    requires: positions.count >= 1
+    requires: target_loss > 0
+
+    @guidance
+        -- Reverse stress testing inverts the forward-stress problem: instead of
+        -- applying a known scenario (RunStressTest) and reading off the loss,
+        -- it starts from a target loss and solves for the shock vector that
+        -- produces it. Implemented in risk-engine/reverse_stress.py.
+        --
+        -- Finds the MINIMUM-NORM shock vector achieving the target loss — the
+        -- smallest market move (in L2 sense) that loses the requested amount.
+        --
+        -- Mathematical formulation:
+        --   Variables: one price shock s_i per portfolio instrument.
+        --   Objective: minimise ||shocks||^2 (sum of squared shocks).
+        --   Constraints:
+        --     -dot(shocks, market_values) >= target_loss  (loss is linear in s)
+        --     max_shock <= s_i <= 0  for every instrument  (declines only)
+        --   Method: scipy.optimize.minimize with SLSQP (Sequential Least
+        --   Squares Programming), analytic objective gradient (2*s) and
+        --   analytic constraint Jacobian (-market_values).
+        --
+        -- max_shock defaults to config.reverse_stress_max_shock (-1.0, i.e. a
+        -- 100% decline). The solver runs for at most
+        -- config.reverse_stress_solver_max_iter iterations with convergence
+        -- tolerance config.reverse_stress_solver_ftol.
+        --
+        -- Initial guess: a uniform shock that achieves exactly the target,
+        -- uniform = -target_loss / sum(market_values).
+        --
+        -- Feasibility:
+        --   max_achievable = -max_shock * sum(market_values).
+        --   If target_loss > max_achievable the target is infeasible: return
+        --   ReverseStressResult with shocks pinned to max_shock on every
+        --   instrument, achieved_loss = max_achievable, converged = false.
+        --   No solver call is made in this case.
+        --
+        -- On a solver exception the rule degrades gracefully: returns a
+        -- zero-shock ReverseStressResult with converged = false rather than
+        -- propagating the error.
+        --
+        -- Result: ReverseStressResult carries one ReverseStressShock per
+        -- position (index-aligned to instrument_ids), achieved_loss =
+        -- -dot(shocks, market_values), the requested target_loss, and the
+        -- converged flag from the optimizer. The per-instrument shocks
+        -- contract is shared with scenarios/ReverseStressResult and the
+        -- kinetix.risk.ReverseStressResponse wire message.
 }
 
 -- EWMA volatility estimation
