@@ -132,6 +132,17 @@ entity RegimeModelConfig {
         -- Governs how the regime classifier behaves.
         -- Changes to thresholds or parameter mappings require approval
         -- (same governance model as regulatory-service model versions).
+        --
+        -- ASPIRATIONAL — RegimeModelConfig is modelled as a first-class
+        -- entity but is not yet implemented: no domain class, repository,
+        -- route, or test exists. The classifier currently runs against
+        -- inline thresholds/debounce config rather than a persisted,
+        -- approval-gated RegimeModelConfig record. The architectural intent
+        -- is captured in code as TODO(REG_D-03) in
+        -- regulatory-service/src/main/kotlin/com/kinetix/regulatory/governance/ModelRegistry.kt
+        -- (the comment block above the ModelRegistry class). Landing the
+        -- entity — with the four-eyes approval fields above — is the
+        -- follow-up that makes this construct live.
 }
 
 ------------------------------------------------------------
@@ -358,6 +369,63 @@ rule CheckModelStaleness {
         -- code and no path checks model retrain timestamps. The
         -- rule-based classifier runs independently of ML models, so
         -- regime detection is not gated on this signal. Wiring is
+        -- tracked in docs/plans/spec-weeding-followup-2026-05-18.md.
+}
+
+-- ML prediction governance
+
+rule MLPredictionRequested {
+    when: MLPredictionRequested(prediction_kind, model_version)
+
+    @guidance
+        -- Triggered whenever a consumer calls the ML prediction gRPC
+        -- service (risk-engine/src/kinetix_risk/ml_server.py,
+        -- MLPredictionServicer — proto MLPredictionService). prediction_kind
+        -- distinguishes the RPC: volatility forecast, credit score,
+        -- anomaly detection, or regime classification.
+        --
+        -- model_version pins the request to a specific trained model. When
+        -- the caller supplies a non-empty version, ModelStore loads exactly
+        -- that artefact; when it is empty the server falls back to the
+        -- manifest `latest` for the model family. Callers that need
+        -- reproducible, governable output MUST pin model_version explicitly
+        -- rather than rely on `latest`, which can move under them when a
+        -- model is retrained.
+}
+
+rule MLPredictionProduced {
+    when: MLPredictionRequested(prediction_kind, model_version)
+
+    @guidance
+        -- Every ML prediction response carries the resolved model_version
+        -- actually used (VolatilityPredictionResponse.model_version,
+        -- CreditScoreResponse.model_version,
+        -- RegimeDetectionResponse — proto in
+        -- proto/src/main/proto/kinetix/risk/ml_prediction.proto). When the
+        -- request did not pin a version, the response reports the manifest
+        -- `latest` that was resolved, so the consumer always learns which
+        -- model produced the number.
+        --
+        -- Model-version pinning obligation: the resolved model_version is
+        -- the governance anchor. Any downstream risk figure derived from an
+        -- ML prediction MUST record the model_version that produced it,
+        -- alongside the requested-vs-effective parameters captured by
+        -- OverrideVaRParameters, so an ML-influenced VaR can be traced to a
+        -- specific approved model artefact.
+        --
+        -- Audit obligation: an ML prediction is a governable output. The
+        -- prediction kind, the resolved model_version, and the predicted_at
+        -- timestamp must be recorded on the audit trail (same governance
+        -- intent as regulatory-service ModelVersion — see regulatory.allium
+        -- ModelApprovalFourEyes) so that ML-sourced inputs to risk numbers
+        -- are reconstructable after the fact.
+        --
+        -- ASPIRATIONAL — ml_server.py today returns the model_version on
+        -- the response but does not emit a governance audit event for each
+        -- prediction, and there is no challenger-vs-champion comparison.
+        -- This rule records the obligation; wiring the audit emission is a
+        -- follow-up. TODO(REG_D-03 adjacent): ML prediction audit and
+        -- model-version pinning enforcement are not yet implemented —
         -- tracked in docs/plans/spec-weeding-followup-2026-05-18.md.
 }
 
