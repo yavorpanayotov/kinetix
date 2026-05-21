@@ -439,3 +439,42 @@ invariant VolSurfacePositiveVols {
 -- yield_curve_history_retention). Queries beyond the retention window must
 -- return an explicit "data not available" response rather than silently
 -- returning stale data.
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+-- The market-data ingestion and query rules are driven by HTTP requests
+-- arriving over the price-service / rates-service / volatility-service /
+-- correlation-service REST APIs (and aggregated by the gateway). The
+-- caller is code — an upstream feed handler, a seeder, or the gateway
+-- proxy — so it is modelled as an actor with a minimal identity rather
+-- than a human user. Declaring the surface lets each `*Requested`
+-- trigger resolve in-spec: without it, single-spec analysis reports
+-- every ingestion / query rule as an unreachableTrigger because the
+-- HTTP origin is not visible to the checker.
+
+actor MarketDataClient {
+    identified_by: PricePoint where instrument_id != ""
+}
+
+surface RestApi {
+    facing client: MarketDataClient
+
+    provides:
+        IngestPriceRequested(client)
+        IngestYieldCurveRequested(client)
+        QueryStalePricesRequested(client)
+        QueryYieldCurveTenorRequested(client)
+        VolReconciliationRequested(client)
+        IngestRiskFreeRateRequested(client)
+        IngestForwardCurveRequested(client)
+        IngestVolSurfaceRequested(client)
+        CompareVolSurfacesRequested(client)
+        IngestCorrelationMatrixRequested(client)
+
+    @guidance
+        -- One provides entry per HTTP-origin trigger. Ingestion routes
+        -- (POST) and query routes (GET) are both modelled here because
+        -- both are external stimuli that originate from a REST request.
+}

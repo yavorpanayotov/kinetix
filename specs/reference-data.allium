@@ -606,3 +606,47 @@ invariant TraderDeskExists {
     for t in Traders:
         exists Desk{id: t.desk_id}
 }
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+-- The reference-data management rules are driven by HTTP requests
+-- arriving over the reference-data-service REST API (and aggregated by
+-- the gateway). The caller is code — an operator tool, a seeder, or the
+-- gateway proxy — so it is modelled as an actor with a minimal identity
+-- rather than a human user. Declaring the surface lets each
+-- `*Requested` trigger resolve in-spec: without it, single-spec
+-- analysis reports every create / register / ingest / upsert rule as an
+-- unreachableTrigger because the HTTP origin is not visible to the
+-- checker.
+
+actor ReferenceDataClient {
+    identified_by: Instrument where instrument_id != ""
+}
+
+surface RestApi {
+    facing client: ReferenceDataClient
+
+    provides:
+        CreateDivisionRequested(client)
+        CreateDeskRequested(client)
+        CreateTraderRequested(client)
+        GetTraderRequested(client)
+        ListTradersForDeskRequested(client)
+        RegisterInstrumentRequested(client)
+        IngestDividendYieldRequested(client)
+        IngestCreditSpreadRequested(client)
+        UpsertCounterpartyRequested(client)
+        UpsertNettingAgreementRequested(client)
+        CreateBenchmarkRequested(client)
+        UpdateBenchmarkConstituentsRequested(client)
+        RecordBenchmarkReturnRequested(client)
+        UpsertInstrumentLiquidityRequested(client)
+
+    @guidance
+        -- One provides entry per HTTP-origin trigger. Both write routes
+        -- (create / register / ingest / upsert / update / record) and
+        -- read routes (get / list) are modelled here because both are
+        -- external stimuli that originate from a REST request.
+}

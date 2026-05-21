@@ -194,3 +194,27 @@ enum LiquidityTier { high_liquid | liquid | semi_liquid | illiquid }
 -- `ensures:` effects are produced by at most one replica per tick.
 -- Duplicate execution across replicas is excluded by this lock, not
 -- by any rule-level guard.
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+-- core.allium is a shared-library spec: it declares no rules and owns
+-- no HTTP-origin triggers, so its REST surface has nothing to provide.
+-- It still declares a `RestApi` surface for consistency with every
+-- other spec in the workspace and to document the shared value types
+-- that cross the REST boundary — these value types are the wire shapes
+-- that platform-wide REST DTOs are built from (Money in price and P&L
+-- payloads, Tenor / CurvePoint in rate-curve responses, VolPoint in
+-- volatility-surface responses, ComponentBreakdown in VaR attribution
+-- responses, TimeRange in time-windowed query parameters).
+
+surface RestApi {
+    exposes:
+        Money
+        TimeRange
+        CurvePoint
+        VolPoint
+        ComponentBreakdown
+        Tenor
+}
