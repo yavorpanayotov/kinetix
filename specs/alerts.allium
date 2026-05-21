@@ -174,7 +174,7 @@ rule EvaluateAlertRules {
 -- Metric Extractors (pluggable, one per AlertType)
 ------------------------------------------------------------
 
-deferred extract_metric
+deferred extract_metric    -- see: notification-service/src/main/kotlin/com/kinetix/notification/engine/extractors/MetricExtractor.kt
     -- Each AlertType has a dedicated MetricExtractor that maps the payload
     -- of a RiskResultPublished trigger (a ValuationJob and its associated
     -- position-risk snapshot) to a nullable Decimal. If null, the rule does
@@ -209,13 +209,16 @@ deferred extract_metric
     --       "FACTOR_MODEL", returns 1.0; else null. A rule with
     --       threshold=0.5, operator=greater_than fires whenever the
     --       factor model reports concentration risk.
-    --   risk_budget_exceeded -> sentinel detection: if the snapshot's
+    --   risk_budget_exceeded -> graduated metric: if the snapshot's
     --       concentration list contains an entry with instrument_id =
-    --       "VAR_BUDGET", returns 1.0; else null. The producer is
+    --       "VAR_BUDGET", returns that entry's budget utilisation as a
+    --       percentage (e.g. 105.0 = 105% of the allocated VaR budget
+    --       consumed); else null. The producer is
     --       hierarchy-risk/AlertOnBudgetBreach via
-    --       KafkaBudgetBreachAlertPublisher, which encodes the breach
-    --       into the same wire-level concentration list under that
-    --       sentinel instrument_id. A rule with threshold=0.5,
+    --       KafkaBudgetBreachAlertPublisher, which encodes the real
+    --       utilisation into the entry's percentage field on the same
+    --       wire-level concentration list under that sentinel
+    --       instrument_id. A rule with threshold=100,
     --       operator=greater_than fires whenever a hierarchy entity's
     --       VaR exceeds its allocated VAR_BUDGET.
 
@@ -417,13 +420,13 @@ rule EscalateAlert {
         -- implicitly via the shared trigger; alerts does not depend on audit.
 }
 
-deferred promote_severity
+deferred promote_severity    -- see: notification-service/src/main/kotlin/com/kinetix/notification/engine/AlertEscalationService.kt (promoteSeverity)
     -- Severity promotion logic on escalation.
     --   warning  -> critical
     --   info     -> info     (not promoted)
     --   critical -> critical (already at ceiling)
 
-deferred escalation_channels
+deferred escalation_channels    -- see: notification-service/src/main/kotlin/com/kinetix/notification/engine/AlertEscalationService.kt (escalationChannelsFor)
     -- Delivery channel selection for escalated alerts.
     --   critical -> [email, webhook, pager_duty]
     --   warning  -> [email]
