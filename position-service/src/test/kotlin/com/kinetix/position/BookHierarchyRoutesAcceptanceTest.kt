@@ -76,6 +76,58 @@ class BookHierarchyRoutesAcceptanceTest : FunSpec({
         }
     }
 
+    test("POST /api/v1/book-hierarchy persists the book's base currency when provided") {
+        testApplication {
+            application { configureTestApp(repo) }
+
+            val response = client.post("/api/v1/book-hierarchy") {
+                contentType(ContentType.Application.Json)
+                setBody(
+                    """
+                    {
+                        "bookId": "FX-LDN-001",
+                        "deskId": "FX-DESK",
+                        "baseCurrency": "GBP"
+                    }
+                    """.trimIndent()
+                )
+            }
+
+            response.status shouldBe HttpStatusCode.Created
+            repo.findByBookId("FX-LDN-001")?.baseCurrency shouldBe "GBP"
+        }
+    }
+
+    test("POST /api/v1/book-hierarchy defaults base currency to USD when omitted") {
+        testApplication {
+            application { configureTestApp(repo) }
+
+            client.post("/api/v1/book-hierarchy") {
+                contentType(ContentType.Application.Json)
+                setBody("""{"bookId":"US-001","deskId":"EQ-DESK"}""")
+            }
+
+            repo.findByBookId("US-001")?.baseCurrency shouldBe "USD"
+        }
+    }
+
+    test("GET /api/v1/book-hierarchy/{bookId} returns the book's base currency") {
+        testApplication {
+            application { configureTestApp(repo) }
+
+            client.post("/api/v1/book-hierarchy") {
+                contentType(ContentType.Application.Json)
+                setBody("""{"bookId":"JP-001","deskId":"EQ-DESK","baseCurrency":"JPY"}""")
+            }
+
+            val response = client.get("/api/v1/book-hierarchy/JP-001")
+
+            response.status shouldBe HttpStatusCode.OK
+            val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+            body["baseCurrency"]!!.jsonPrimitive.content shouldBe "JPY"
+        }
+    }
+
     test("POST /api/v1/book-hierarchy returns 400 when a required field is missing") {
         testApplication {
             application { configureTestApp(repo) }

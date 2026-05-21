@@ -14,6 +14,7 @@ private data class BookHierarchyMappingRequest(
     val deskId: String,
     val bookName: String? = null,
     val bookType: String? = null,
+    val baseCurrency: String = "USD",
 )
 
 @Serializable
@@ -22,6 +23,7 @@ private data class BookHierarchyMappingResponse(
     val deskId: String,
     val bookName: String?,
     val bookType: String?,
+    val baseCurrency: String,
 )
 
 fun Route.bookHierarchyRoutes(bookHierarchyRepository: BookHierarchyRepository) {
@@ -44,6 +46,7 @@ fun Route.bookHierarchyRoutes(bookHierarchyRepository: BookHierarchyRepository) 
                     deskId = request.deskId,
                     bookName = request.bookName,
                     bookType = request.bookType,
+                    baseCurrency = request.baseCurrency,
                 )
             )
             call.respond(HttpStatusCode.Created)
@@ -74,4 +77,5 @@ private fun BookHierarchyMapping.toResponse() = BookHierarchyMappingResponse(
     deskId = deskId,
     bookName = bookName,
     bookType = bookType,
+    baseCurrency = baseCurrency,
 )
