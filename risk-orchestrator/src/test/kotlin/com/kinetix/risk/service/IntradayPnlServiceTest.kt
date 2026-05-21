@@ -316,10 +316,50 @@ class IntradayPnlServiceTest : FunSpec({
         val snapshot = f.service.recompute(BOOK, PnlTrigger.POSITION_CHANGE, correlationId = null)
 
         snapshot.shouldNotBeNull()
+        // Attribution invariant: the nine attributed components plus the unexplained
+        // residual reconstruct the total. unexplained_pnl is single-sourced from the
+        // attribution service, whose per-position arithmetic rounds at 20 significant
+        // figures (MathContext), so the reconstruction is exact only up to that rounding.
         val sumOfGreeks = snapshot.deltaPnl + snapshot.gammaPnl + snapshot.vegaPnl +
-            snapshot.thetaPnl + snapshot.rhoPnl + snapshot.unexplainedPnl
-        // Attribution invariant: sum of components == total
-        sumOfGreeks.compareTo(snapshot.totalPnl) shouldBe 0
+            snapshot.thetaPnl + snapshot.rhoPnl + snapshot.vannaPnl + snapshot.volgaPnl +
+            snapshot.charmPnl + snapshot.crossGammaPnl + snapshot.unexplainedPnl
+        sumOfGreeks.toDouble() shouldBe (snapshot.totalPnl.toDouble() plusOrMinus 1e-9)
+    }
+
+    test("unexplained P&L is single-sourced from the attribution service, not re-derived from total") {
+        // A position with no SOD risk snapshot is excluded from Greek attribution (no SOD
+        // price/Greeks to expand against), but it still contributes to total P&L. The
+        // attribution service's unexplained_pnl covers only the attributed position; a
+        // residual re-derived as total minus components would wrongly absorb the
+        // un-attributed position's P&L. The snapshot must report the attribution
+        // service's value.
+        val f = TestFixtures()
+        coEvery { f.sodBaselineRepo.findByBookIdAndDate(BOOK, any()) } returns sodBaseline()
+        // Only AAPL has a SOD snapshot; MSFT does not, so MSFT is dropped from attribution.
+        coEvery { f.dailyRiskSnapshotRepo.findByBookIdAndDate(BOOK, TODAY) } returns listOf(
+            sodSnapshot(
+                "AAPL", quantity = "100", marketPrice = "100.00",
+                delta = 0.8, gamma = 0.0, vega = 0.0, theta = 0.0, rho = 0.0,
+            ),
+        )
+        coEvery { f.positionProvider.getPositions(BOOK) } returns listOf(
+            // AAPL: unrealised = (110-90)*100 = 2000
+            position("AAPL", quantity = "100", avgCost = "90.00", marketPrice = "110.00"),
+            // MSFT: unrealised = (210-190)*50 = 1000 — included in total, excluded from attribution
+            position("MSFT", quantity = "50", avgCost = "190.00", marketPrice = "210.00"),
+        )
+        coEvery { f.pnlRepository.findLatest(BOOK) } returns null
+
+        val snapshot = f.service.recompute(BOOK, PnlTrigger.POSITION_CHANGE, correlationId = null)
+
+        snapshot.shouldNotBeNull()
+        // total = 2000 + 1000 = 3000
+        snapshot.totalPnl.compareTo(bd("3000")) shouldBe 0
+        // AAPL attributed P&L: priceChange = 110 - 100 = 10, delta = 0.8 → deltaPnl = 8.
+        // attribution.unexplainedPnl = AAPL.totalPnl(2000) - 8 = 1992 (MSFT excluded entirely).
+        // A residual re-derived as totalPnl(3000) - deltaPnl(8) would be 2992.
+        snapshot.deltaPnl.compareTo(bd("8")) shouldBe 0
+        snapshot.unexplainedPnl.compareTo(bd("1992")) shouldBe 0
     }
 
     test("respects debounce: skips snapshot within debounce interval") {

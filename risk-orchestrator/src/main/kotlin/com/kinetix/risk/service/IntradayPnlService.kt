@@ -143,9 +143,10 @@ class IntradayPnlService(
             )
         }
 
-        val unexplainedPnl = totalPnl - (attribution.deltaPnl + attribution.gammaPnl +
-            attribution.vegaPnl + attribution.thetaPnl + attribution.rhoPnl +
-            attribution.vannaPnl + attribution.volgaPnl + attribution.charmPnl + attribution.crossGammaPnl)
+        // Single-source the residual: the attribution service already computes unexplained_pnl
+        // as total_pnl minus the nine attributed components. Re-deriving it here would duplicate
+        // that arithmetic and risk drifting from the attribution service's own number.
+        val unexplainedPnl = attribution.unexplainedPnl
 
         val dataQualityWarning = if (totalPnl.signum() != 0) {
             val unexplainedRatio = unexplainedPnl.abs().toDouble() / totalPnl.abs().toDouble()
