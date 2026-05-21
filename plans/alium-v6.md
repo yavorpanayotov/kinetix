@@ -268,7 +268,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       `shocks` contract the engine implements (E-S2C-05).
       Acceptance: `node plans/scripts/allium-workspace.mjs`
 
-- [ ] 2.7 `discovery-valuation.allium` — reconcile the `FetchOutcome` enum /
+- [x] 2.7 `discovery-valuation.allium` — reconcile the `FetchOutcome` enum /
       `FetchResult` value type with the Kotlin sealed `FetchResult`
       (`FetchSuccess`/`FetchFailure`): either annotate the divergence in `@guidance`
       or align the spec to the sealed shape. Source: `group-e` E-C2S-04 / `group-a` S5.
