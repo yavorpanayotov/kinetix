@@ -360,6 +360,21 @@ checkbox already captured this.
       Once redeployed, re-run the acceptance command; it should pass and
       this box can be ticked.
 
+      Blocked: 2026-05-21 — verification failed for `node
+      plans/scripts/audit-live-ui.mjs`:
+      ✗ ticker NAV populated — NAV="$0.00"
+      ✗ Firm Summary NAV populated — total-nav="$0.00"
+      ✓ breach banners rolled up — 0 rollup banner(s)
+      ✗ Regulatory SBM table renders
+      ✗ zero console errors — 4 error(s)
+      ✓ zero api 4xx/5xx — 0 failure(s)
+      ✓ zero uncaught page errors — 0 error(s)
+      ❌ AUDIT FAILED
+      Live deploy still runs pre-fix binaries. Unblock by running
+      `./deploy/redeploy.sh` (or `/deploy`) to roll every service + the UI
+      bundle forward to current `main`, then re-run the acceptance
+      command. This is the documented operational gate — owned by the user.
+
 ## Diagnosis log
 
 ### 2.1 (2026-05-19) — "B1" was a payload-shape misdiagnosis
