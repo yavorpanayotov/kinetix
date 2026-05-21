@@ -101,7 +101,7 @@ entity RegimeHistory {
     -- Persisted as `duration_ms` (epoch-millis difference) in the DB; modelled
     -- here as the equivalent Duration. Null while the regime is still active.
     duration: Duration?
-    signals_at_transition: RegimeSignals
+    signals: RegimeSignals
     var_parameters: AdaptiveVaRParameters
 
     -- Confidence score from the regime detector at the moment of transition
@@ -211,7 +211,7 @@ rule ConfirmRegimeTransition {
         regime: current.regime,
         started_at: current.detected_at,
         ended_at: now,
-        signals_at_transition: signals,
+        signals: signals,
         var_parameters: current.var_parameters
     )
 
@@ -437,8 +437,8 @@ rule HandleDegradedSignals {
 --
 -- Parameter mapping (matches AdaptiveRegimeParameterProvider):
 --   normal        -> parametric, cl_95, 1-day, standard correlations
---   elevated_vol  -> historical, cl_99, 1-day, standard correlations
---   crisis        -> monte_carlo, cl_99, 1-day, stressed correlations
+--   elevated_vol  -> historical, cl_99, 1-day, ewma volatility
+--   crisis        -> monte_carlo, cl_99, 5-day, stressed correlations
 --   recovery      -> historical, cl_975, 1-day, standard correlations
 -- Parameter selection is a property of the rules that source
 -- RegimeModelConfig; the mapping is not re-asserted here.
