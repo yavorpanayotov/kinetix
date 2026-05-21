@@ -12,6 +12,14 @@ use "./market-data.allium" as md
 
 -- ComponentBreakdown is defined in core.allium as a shared value type.
 
+-- Classifies what kind of comparison a RunComparison represents. Mirrors
+-- the ComparisonType Kotlin enum consumed by RunComparisonService and the
+-- RunComparisonRoutes endpoints (run-over-run / day-over-day,
+-- model-governance, what-if, stress-scenario, backtest).
+enum ComparisonType {
+    run_over_run | what_if | stress_scenario | model_governance | backtest
+}
+
 value GreekValues {
     asset_class: core/AssetClass
     delta: Decimal
@@ -342,6 +350,109 @@ entity CrossBookValuationResult {
     model_version: String?
     monte_carlo_seed: Integer
     job_id: String?
+}
+
+-- Append-only audit record of a replay execution, per ADR-0018 (run
+-- reproducibility via manifests). One row is written to the replay_runs
+-- table for every replay attempt of a past ValuationJob — the run is
+-- re-executed from the frozen RunManifest inputs and the result compared
+-- against the original. Rows are never updated after insert. Retention
+-- matches run_manifests (7 years). Audited via the RunReplayRoutes
+-- endpoint and a RISK_RUN_REPLAYED audit event.
+entity ReplayRun {
+    replay_id: String
+    manifest_id: String
+    original_job_id: String
+    replayed_at: Timestamp
+
+    -- "SYSTEM" for replays triggered by the orchestrator; otherwise the
+    -- authenticated user identifier from the RunReplayRoutes request.
+    triggered_by: String
+
+    -- Outputs from re-running the valuation against the frozen inputs.
+    -- Nullable: a failed manifest may never have produced outputs.
+    replay_var_value: Decimal?
+    replay_expected_shortfall: Decimal?
+    replay_model_version: String?
+    replay_output_digest: String?
+
+    -- Original outputs, denormalised at insert time so the audit record is
+    -- self-contained and does not depend on run_manifests staying unchanged.
+    original_var_value: Decimal?
+    original_expected_shortfall: Decimal?
+
+    -- Reproducibility verdict: true when the recomputed input digest equals
+    -- the manifest's stored input_digest (same inputs + same model version).
+    input_digest_match: Boolean
+    original_input_digest: String
+    replay_input_digest: String
+
+    @guidance
+        -- var_drift / es_drift (absolute difference between replay and original
+        -- outputs) are persisted as generated columns on the replay_runs table
+        -- for efficient threshold queries; they are derived, not modelled here.
+}
+
+-- Result of an interactive what-if analysis: VaR / ES / Greeks computed
+-- both for the current book and for a hypothetical book with the requested
+-- trades applied. Produced by WhatIfAnalysisService; not persisted.
+value WhatIfAnalysis {
+    base_var: Decimal
+    base_expected_shortfall: Decimal
+    hypothetical_var: Decimal
+    hypothetical_expected_shortfall: Decimal
+    var_change: Decimal       -- hypothetical_var - base_var
+    es_change: Decimal        -- hypothetical_expected_shortfall - base_expected_shortfall
+    base_position_risk: List<PositionRisk>
+    hypothetical_position_risk: List<PositionRisk>
+    calculated_at: Timestamp
+}
+
+-- Per-trade marginal VaR contribution within a rebalancing analysis.
+-- Trades are applied sequentially; marginal_var_impact is the change in
+-- portfolio VaR caused by adding this one trade on top of the prior ones.
+value TradeVarContribution {
+    instrument_id: String
+    side: String
+    quantity: String
+    marginal_var_impact: Decimal
+    execution_cost: Decimal
+}
+
+-- Result of an interactive rebalancing what-if analysis: the VaR / ES /
+-- Greeks impact of executing a basket of trades, broken down by per-trade
+-- marginal contribution, with an estimated bid/ask execution cost.
+-- Produced by RebalancingWhatIfService; not persisted.
+value RebalancingWhatIf {
+    base_var: Decimal
+    rebalanced_var: Decimal
+    var_change: Decimal
+    var_change_pct: Decimal
+    base_expected_shortfall: Decimal
+    rebalanced_expected_shortfall: Decimal
+    es_change: Decimal
+    trade_contributions: List<TradeVarContribution>
+    estimated_execution_cost: Decimal  -- sum over trades of notional * spread_bps / 10000
+    calculated_at: Timestamp
+}
+
+-- Result of comparing two valuation runs, produced by RunComparisonService.
+-- Compares a base run against a target run and reports the portfolio-level,
+-- component-level and position-level diffs. Used for run-over-run,
+-- day-over-day and model-governance comparisons. Not persisted.
+value RunComparison {
+    comparison_id: String
+    comparison_type: ComparisonType
+    book_id: String
+    base_var: Decimal?
+    target_var: Decimal?
+    base_expected_shortfall: Decimal?
+    target_expected_shortfall: Decimal?
+    var_change: Decimal
+    es_change: Decimal
+    positions_changed: Boolean
+    market_data_changed: Boolean
+    model_version_changed: Boolean
 }
 
 ------------------------------------------------------------
@@ -695,6 +806,132 @@ rule ReconcileTradeAudit {
         -- 4. If mismatch: WARN log with delta.
 }
 
+-- Run reproducibility — replay (ADR-0018)
+
+rule RecordReplayRun {
+    when: ReplayRunRequested(job_id, triggered_by)
+    let manifest = RunManifest{job_id: job_id}
+    requires: manifest != null
+
+    let replay = ReplayRun.created(
+        replay_id: new_id,
+        manifest_id: manifest.manifest_id,
+        original_job_id: job_id,
+        replayed_at: now,
+        triggered_by: triggered_by,
+        original_input_digest: manifest.input_digest
+    )
+
+    ensures: replay
+    ensures: RunReplayedAudited(job_id: job_id, manifest_id: manifest.manifest_id)
+
+    @guidance
+        -- Implemented by ReplayService.replay, exposed via RunReplayRoutes
+        -- (POST /api/v1/risk/runs/{jobId}/replay).
+        --
+        -- 1. Load the RunManifest for job_id. If none exists, return
+        --    ManifestNotFound (HTTP 404) — no ReplayRun row is written.
+        -- 2. Load the frozen position snapshot and market-data refs from the
+        --    manifest. Resolve each non-MISSING ref's blob from the content-
+        --    addressed MarketDataBlobStore. If a blob is gone, return
+        --    BlobMissing (HTTP 422) — no ReplayRun row is written.
+        -- 3. Re-run the valuation through the risk engine with the manifest's
+        --    exact parameters (calculation_type, confidence_level,
+        --    time_horizon_days, num_simulations, monte_carlo_seed).
+        -- 4. Recompute the input digest; input_digest_match = (recomputed
+        --    digest == manifest.input_digest). Same inputs + same model
+        --    version should reproduce the original outputs bit-for-bit.
+        -- 5. Persist a ReplayRun row into the append-only replay_runs table
+        --    via ExposedReplayRunRepository — this is the audit trail.
+        --    Persistence failure is logged but does not fail the replay.
+        -- 6. Emit a RISK_RUN_REPLAYED audit event (RunReplayedAuditEvent)
+        --    carrying original vs. replay VaR / ES and the digest verdict.
+        --
+        -- triggered_by is "SYSTEM" for orchestrator-driven replays, else the
+        -- authenticated caller. The ReplayRun row is immutable once written.
+}
+
+-- Run comparison
+
+rule CompareRuns {
+    when: CompareRunsRequested(base_job_id, target_job_id, book_id, comparison_type)
+    let base_job = ValuationJob{job_id: base_job_id}
+    let target_job = ValuationJob{job_id: target_job_id}
+    requires: base_job != null
+    requires: target_job != null
+
+    ensures: RunComparison
+
+    @guidance
+        -- Implemented by RunComparisonService, exposed via RunComparisonRoutes
+        -- (POST /api/v1/risk/compare/{bookId} for run-over-run by job IDs,
+        --  GET  /api/v1/risk/compare/{bookId}/day-over-day,
+        --  POST /api/v1/risk/compare/{bookId}/model for model governance).
+        --
+        -- 1. Resolve both runs to RunSnapshots (VaR, ES, PV, Greeks,
+        --    component breakdown, position risk, model version, parameters).
+        --    compareByJobIds looks up two ValuationJobs; compareDayOverDay
+        --    resolves the Official EOD (or latest completed) job for each
+        --    date; the model endpoint runs two fresh valuations.
+        -- 2. Diff via SnapshotDiffer: portfolio-level deltas (var_change,
+        --    es_change, pv/Greek changes), matched component diffs, matched
+        --    position diffs, and parameter diffs.
+        -- 3. When both runs have a RunManifest, compute an InputChangeSummary
+        --    via InputChangeDiffer — positions_changed / market_data_changed /
+        --    model_version_changed plus per-input change detail. This explains
+        --    *why* the numbers moved.
+        -- 4. comparison_type is run_over_run for job-ID / day-over-day
+        --    comparisons and model_governance for the model endpoint
+        --    (TriggerType.model_comparison). The result is not persisted.
+}
+
+-- Interactive what-if and rebalancing analysis
+
+rule AnalyseWhatIf {
+    when: WhatIfAnalysisRequested(book_id, hypothetical_trades, calculation_type, confidence_level)
+
+    ensures: WhatIfAnalysis
+
+    @guidance
+        -- Implemented by WhatIfAnalysisService.analyzeWhatIf, exposed via
+        -- POST /api/v1/risk/what-if/{bookId} on RiskRoutes.
+        --
+        -- 1. Fetch the book's current positions from position-service.
+        -- 2. Apply the hypothetical trades on top: an existing position is
+        --    amended via Position.applyTrade; a trade on a new instrument
+        --    creates a fresh position. Positions that net to zero quantity
+        --    are dropped.
+        -- 3. Run the risk engine valuation twice — once on the current
+        --    positions (base) and once on the hypothetical positions — with
+        --    the same calculation_type and confidence_level.
+        -- 4. Report base vs. hypothetical VaR / ES / Greeks / position risk
+        --    and the var_change / es_change deltas. Interactive and
+        --    synchronous; the result is returned, not persisted.
+}
+
+rule AnalyseRebalancing {
+    when: RebalancingWhatIfRequested(book_id, trades, calculation_type, confidence_level)
+
+    ensures: RebalancingWhatIf
+
+    @guidance
+        -- Implemented by RebalancingWhatIfService.analyzeRebalancing, exposed
+        -- via POST /api/v1/risk/what-if/{bookId}/rebalance on RiskRoutes.
+        --
+        -- 1. Fetch current positions and compute the base VaR / ES / Greeks.
+        -- 2. With an empty trade basket, return the base figures unchanged
+        --    (no rebalancing, zero execution cost).
+        -- 3. Otherwise apply the trades sequentially, re-valuing after each:
+        --    marginal_var_impact for a trade is the VaR change caused by
+        --    adding that one trade on top of the prior ones — a per-trade
+        --    TradeVarContribution.
+        -- 4. Apply the full basket and compute rebalanced VaR / ES / Greeks,
+        --    var_change, var_change_pct and the Greek changes.
+        -- 5. estimated_execution_cost sums each trade's
+        --    notional * bid_ask_spread_bps / 10000.
+        -- Interactive and synchronous; the result is returned, not persisted.
+}
+
 ------------------------------------------------------------
 -- Invariants
 ------------------------------------------------------------
@@ -730,3 +967,10 @@ invariant OneSodBaselinePerBookPerDate {
 --
 -- SodGreekSnapshotImmutable. Once is_locked = true, the snapshot row is
 -- immutable for the remainder of the trading day.
+--
+-- ReplayRunsAppendOnly. The replay_runs table is an append-only audit log
+-- (ADR-0018). A ReplayRun row is never updated after insert; original
+-- outputs and digests are denormalised at insert time so the audit record
+-- is self-contained. RecordReplayRun writes a row only after a successful
+-- replay — a missing manifest or missing market-data blob aborts before
+-- any row is written.
