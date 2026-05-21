@@ -168,6 +168,27 @@ value VolReconciliation {
     within_tolerance: Boolean
 }
 
+value PsdValidationResult {
+    is_psd: Boolean
+    min_eigenvalue: Decimal
+    tolerance: Decimal
+
+    @guidance
+        -- Outcome of the positive-semi-definite (PSD) check that
+        -- CorrelationPsdValidator runs over a correlation matrix on
+        -- every ingestion. The validator symmetrises the matrix
+        -- (averaging entry (i,j) and (j,i)) then computes its
+        -- eigenvalues via the cyclic Jacobi rotation algorithm.
+        -- `min_eigenvalue` is the smallest eigenvalue of that
+        -- decomposition. `is_psd` is true when
+        -- min_eigenvalue >= -tolerance — i.e. any negative eigenvalue
+        -- is small enough to attribute to float64 numerical noise.
+        -- `tolerance` is the magnitude of a negative eigenvalue the
+        -- caller is willing to treat as noise; PsdValidationResult.kt
+        -- defaults it to 1e-6, the conventional floor for n x n
+        -- correlation matrices computed in double precision.
+}
+
 ------------------------------------------------------------
 -- Config
 ------------------------------------------------------------
@@ -356,6 +377,7 @@ rule IngestCorrelationMatrix {
     when: IngestCorrelationMatrixRequested(labels, values, window_days, method)
     requires: values.count = labels.count * labels.count
     requires: labels.count >= 1
+    requires: psd(values)
     ensures: CorrelationMatrix.created(
         labels: labels,
         values: values,
@@ -367,6 +389,19 @@ rule IngestCorrelationMatrix {
 
     @guidance
         -- Matrix must be square (n x n where n = labels.count).
+        -- psd(values) requires the matrix to be positive semi-definite:
+        -- CorrelationPsdValidator symmetrises it, computes its
+        -- eigenvalues via the cyclic Jacobi algorithm, and the matrix
+        -- passes when min_eigenvalue >= -tolerance (default tolerance
+        -- 1e-6). A non-PSD correlation matrix breaks downstream VaR and
+        -- Monte Carlo decompositions, so this is a substantive business
+        -- invariant — see the PsdValidationResult value type.
+        -- IMPLEMENTATION NOTE: CorrelationIngestionService currently runs
+        -- this check observationally — it logs / counts a non-PSD matrix
+        -- (CorrelationMatrixHealthMetrics) but still persists it rather
+        -- than rejecting the ingestion. The spec models PSD as the
+        -- intended precondition; tightening the service to reject on
+        -- failure is the convergence direction.
         -- Published to Kafka correlation.matrices topic with key=sorted comma-joined labels.
 }
 
