@@ -467,7 +467,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       (drives P&L attribution). Source: `group-b` coverage gaps.
       Acceptance: `node plans/scripts/allium-workspace.mjs`
 
-- [ ] 4.14 Add the remaining design-note coverage: a `## Out of scope` callout in
+- [x] 4.14 Add the remaining design-note coverage: a `## Out of scope` callout in
       `eod-close.allium` / `trading.allium` for `demo-orchestrator`; a distributed-lock
       protocol note for scheduled jobs in `core.allium`; and declare the Kafka
       topics + payload schemas for the budget-breach / factor-concentration /
