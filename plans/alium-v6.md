@@ -356,7 +356,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       Use the attribution service's value. Source: `group-c`.
       Acceptance: `./gradlew :risk-orchestrator:test`
 
-- [ ] 3.6 Fix the hedge candidate filter. `HedgeRecommendationService.kt:230-249`
+- [x] 3.6 Fix the hedge candidate filter. `HedgeRecommendationService.kt:230-249`
       filters on `assetClass !in {"ILLIQUID"}` — dead code, since `ILLIQUID` is a
       liquidity tier. Filter on `liquidityTier`, move tier/eligibility filtering
       **before** `.take(MAX_CANDIDATES)`, and rank by liquidity before truncation
