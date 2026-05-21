@@ -215,7 +215,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
 
 ## Phase 2 — Spec corrections (code is right, spec lags)
 
-- [ ] 2.1 `risk.allium` — rename `book_group_id` → `portfolio_group_id` at lines
+- [x] 2.1 `risk.allium` — rename `book_group_id` → `portfolio_group_id` at lines
       331, 506, 519, 523. Code, proto (`risk_calculation.proto:172,186`),
       risk-engine, gateway tests and UI all use `portfolioGroupId`; the spec is the
       only laggard. Source: `initial-report.md` C1 / `group-c`.
