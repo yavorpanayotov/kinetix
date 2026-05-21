@@ -295,7 +295,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       `group-d` regime invariant inconsistency.
       Acceptance: `node plans/scripts/allium-workspace.mjs`
 
-- [ ] 2.11 `factor-model.allium` — apply the "persisted as `factorName: String`"
+- [x] 2.11 `factor-model.allium` — apply the "persisted as `factorName: String`"
       `@guidance` note to `FactorDefinition.factor` (the same note already exists
       on `InstrumentFactorLoading`). Source: `group-d` FactorDefinition naming.
       Acceptance: `node plans/scripts/allium-workspace.mjs`
