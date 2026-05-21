@@ -371,7 +371,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       `group-d` / `hedge.allium:44-51`.
       Acceptance: `./gradlew :risk-orchestrator:test`
 
-- [ ] 3.8 Emit the missing position-resolution degradation flags in the engine.
+- [x] 3.8 Emit the missing position-resolution degradation flags in the engine.
       `position_resolver.py:23-66` only ever emits `VOL_SURFACE_*` flags; add
       `OPTION_EXPIRED_INTRINSIC`, `OPTION_NO_VOL`, `SWAP_NO_CURVE` per
       `discovery-valuation.allium:107-126`. Source: `group-e` E-S2C-13.
