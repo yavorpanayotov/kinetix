@@ -262,7 +262,7 @@ adds the dashboard in the same commit — one self-contained feature per checkbo
       `trading/position-concentration.json` dashboard showing net exposure,
       long/short split, and top-10 concentrations. TDD.
       Acceptance: `./gradlew :position-service:test && node plans/scripts/validate-grafana.mjs && test -f infra/grafana/provisioning/dashboards/trading/position-concentration.json`
-- [ ] 4.3 Instrument `risk-engine` with stress-scenario result metrics
+- [x] 4.3 Instrument `risk-engine` with stress-scenario result metrics
       (`stress_test_loss` gauge labelled by `scenario_name`/`book_id`) and add a
       `risk/stress-results.json` dashboard showing per-scenario P&L, worst scenario
       per book, and breach highlighting. TDD.
