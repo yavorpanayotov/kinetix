@@ -78,5 +78,7 @@ class ExposedTraderRepository(
         deskId = DeskId(this[TradersTable.deskId]),
         email = this[TradersTable.email],
         notionalLimitUsd = this[TradersTable.notionalLimitUsd],
+        createdAt = this[TradersTable.createdAt].toInstant(),
+        updatedAt = this[TradersTable.updatedAt].toInstant(),
     )
 }

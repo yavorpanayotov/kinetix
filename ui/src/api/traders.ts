@@ -1,11 +1,13 @@
 import { authFetch } from '../auth/authFetch'
 
 export interface TraderDto {
-  id: string
+  trader_id: string
   name: string
   deskId: string
   email?: string | null
   notionalLimitUsd?: string | null
+  created_at: string
+  updated_at: string
 }
 
 export async function fetchTraders(): Promise<TraderDto[]> {

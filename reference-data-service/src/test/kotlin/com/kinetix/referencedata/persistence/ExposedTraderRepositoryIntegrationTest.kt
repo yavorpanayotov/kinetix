@@ -5,6 +5,7 @@ import com.kinetix.common.model.Trader
 import com.kinetix.common.model.TraderId
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.comparables.shouldBeGreaterThan
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -12,6 +13,7 @@ import org.jetbrains.exposed.sql.deleteAll
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import java.math.BigDecimal
+import java.time.Instant
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 
@@ -80,6 +82,14 @@ class ExposedTraderRepositoryIntegrationTest : FunSpec({
         retrieved.deskId shouldBe DeskId("desk-momentum")
         retrieved.email shouldBe "t-001@kinetix.test"
         retrieved.notionalLimitUsd shouldBe BigDecimal("5000000.0000")
+    }
+
+    test("findById surfaces createdAt and updatedAt populated by the database") {
+        repository.save(trader(id = "t-001", deskId = "desk-momentum"))
+
+        val retrieved = repository.findById(TraderId("t-001"))!!
+        retrieved.createdAt shouldBeGreaterThan Instant.EPOCH
+        retrieved.updatedAt shouldBeGreaterThan Instant.EPOCH
     }
 
     test("findById returns null for an unknown trader id") {

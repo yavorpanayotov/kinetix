@@ -32,7 +32,7 @@ fun Route.traderRoutes(traderService: TraderService) {
         }) {
             val request = call.receive<CreateTraderRequest>()
             val trader = Trader(
-                id = TraderId(request.id),
+                id = TraderId(request.traderId),
                 name = request.name,
                 deskId = DeskId(request.deskId),
                 email = request.email,
@@ -73,9 +73,11 @@ fun Route.traderRoutes(traderService: TraderService) {
 }
 
 private fun Trader.toResponse() = TraderResponse(
-    id = id.value,
+    traderId = id.value,
     name = name,
     deskId = deskId.value,
     email = email,
     notionalLimitUsd = notionalLimitUsd?.toPlainString(),
+    createdAt = createdAt.toString(),
+    updatedAt = updatedAt.toString(),
 )

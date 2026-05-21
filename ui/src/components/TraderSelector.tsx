@@ -52,7 +52,7 @@ export function TraderSelector({
       >
         <option value="">All traders</option>
         {visibleTraders.map((trader) => (
-          <option key={trader.id} value={trader.id}>
+          <option key={trader.trader_id} value={trader.trader_id}>
             {trader.name}
           </option>
         ))}

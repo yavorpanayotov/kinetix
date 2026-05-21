@@ -4,9 +4,27 @@ import { TraderSelector } from './TraderSelector'
 import type { TraderDto } from '../api/traders'
 
 const TRADERS: TraderDto[] = [
-  { id: 't-1', name: 'Alice Chen', deskId: 'equity-growth' },
-  { id: 't-2', name: 'Brian Park', deskId: 'equity-growth' },
-  { id: 't-3', name: 'Chiara Romano', deskId: 'rates-trading' },
+  {
+    trader_id: 't-1',
+    name: 'Alice Chen',
+    deskId: 'equity-growth',
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z',
+  },
+  {
+    trader_id: 't-2',
+    name: 'Brian Park',
+    deskId: 'equity-growth',
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z',
+  },
+  {
+    trader_id: 't-3',
+    name: 'Chiara Romano',
+    deskId: 'rates-trading',
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z',
+  },
 ]
 
 describe('TraderSelector', () => {
