@@ -123,6 +123,7 @@ entity RegulatorySubmission {
     }
 
     preparer_id: String
+    created_at: Timestamp
     approver_id: String when status = approved | submitted | acknowledged
     submitted_at: Timestamp when status = submitted | acknowledged
     acknowledged_at: Timestamp when status = acknowledged
@@ -192,6 +193,25 @@ rule ValidateModel {
     let model = ModelVersion{id: model_id}
     requires: model.status = draft
     ensures: model.status = validated
+
+    ensures: GovernanceTransitionOccurred(
+        event_type: model_status_changed,
+        user_id: "SYSTEM",
+        user_role: "SYSTEM",
+        model_name: model.model_name,
+        scenario_id: null,
+        limit_id: null,
+        submission_id: null,
+        alert_id: null,
+        book_id: null,
+        details: "draft->validated"
+    )
+
+    @guidance
+        -- Emits a MODEL_STATUS_CHANGED governance audit event via
+        -- GovernanceAuditPublisher to the "governance.audit" Kafka topic.
+        -- Implementation: ModelRegistry.transitionStatus(); user_id is "SYSTEM"
+        -- because validation carries no approver. details is "<old>-><new>".
 }
 
 rule ApproveModel {
@@ -202,6 +222,25 @@ rule ApproveModel {
     ensures: model.status = approved
     ensures: model.approved_by = approved_by
     ensures: model.approved_at = now
+
+    ensures: GovernanceTransitionOccurred(
+        event_type: model_status_changed,
+        user_id: approved_by,
+        user_role: "APPROVER",
+        model_name: model.model_name,
+        scenario_id: null,
+        limit_id: null,
+        submission_id: null,
+        alert_id: null,
+        book_id: null,
+        details: "validated->approved"
+    )
+
+    @guidance
+        -- Emits a MODEL_STATUS_CHANGED governance audit event via
+        -- GovernanceAuditPublisher to the "governance.audit" Kafka topic.
+        -- Implementation: ModelRegistry.transitionStatus(); user_id is the
+        -- approver and user_role is "APPROVER". details is "<old>-><new>".
 }
 
 rule ApproveModelRejectedSelfApproval {
@@ -222,6 +261,25 @@ rule RetireModel {
     let model = ModelVersion{id: model_id}
     requires: model.status = approved
     ensures: model.status = retired
+
+    ensures: GovernanceTransitionOccurred(
+        event_type: model_status_changed,
+        user_id: "SYSTEM",
+        user_role: "SYSTEM",
+        model_name: model.model_name,
+        scenario_id: null,
+        limit_id: null,
+        submission_id: null,
+        alert_id: null,
+        book_id: null,
+        details: "approved->retired"
+    )
+
+    @guidance
+        -- Emits a MODEL_STATUS_CHANGED governance audit event via
+        -- GovernanceAuditPublisher to the "governance.audit" Kafka topic.
+        -- Implementation: ModelRegistry.transitionStatus(); user_id is "SYSTEM"
+        -- because retirement carries no approver. details is "<old>-><new>".
 }
 
 rule RejectInvalidModelTransition {
@@ -318,7 +376,8 @@ rule CreateSubmission {
         report_type: report_type,
         deadline: deadline,
         status: draft,
-        preparer_id: preparer_id
+        preparer_id: preparer_id,
+        created_at: now
     )
 
     @guidance
@@ -339,6 +398,25 @@ rule ApproveSubmission {
     requires: approver_id != submission.preparer_id
     ensures: submission.status = approved
     ensures: submission.approver_id = approver_id
+
+    ensures: GovernanceTransitionOccurred(
+        event_type: submission_approved,
+        user_id: approver_id,
+        user_role: "APPROVER",
+        model_name: null,
+        scenario_id: null,
+        limit_id: null,
+        submission_id: submission_id,
+        alert_id: null,
+        book_id: null,
+        details: submission.report_type
+    )
+
+    @guidance
+        -- Emits a SUBMISSION_APPROVED governance audit event via
+        -- GovernanceAuditPublisher to the "governance.audit" Kafka topic.
+        -- Implementation: SubmissionService.approve(); user_id is the approver
+        -- and user_role is "APPROVER". details carries the report type.
 }
 
 rule ApproveSubmissionRejectedSelfApproval {
@@ -367,12 +445,29 @@ rule AcknowledgeSubmission {
     ensures: submission.status = acknowledged
     ensures: submission.acknowledged_at = acknowledged_at
 
+    ensures: GovernanceTransitionOccurred(
+        event_type: submission_acknowledged,
+        user_id: "SYSTEM",
+        user_role: "REGULATOR",
+        model_name: null,
+        scenario_id: null,
+        limit_id: null,
+        submission_id: submission_id,
+        alert_id: null,
+        book_id: null,
+        details: submission.report_type
+    )
+
     @guidance
         -- Fired when the external regulator confirms receipt of a submitted
         -- report. The ack arrives via the regulator's webhook or inbox;
         -- the receiving service emits SubmissionAcknowledgedByRegulator
         -- with the regulator-reported timestamp.
         -- Witnesses the submitted -> acknowledged transition.
+        -- Emits a SUBMISSION_ACKNOWLEDGED governance audit event via
+        -- GovernanceAuditPublisher to the "governance.audit" Kafka topic.
+        -- Implementation: SubmissionService.acknowledge(); user_id is "SYSTEM"
+        -- and user_role is "REGULATOR". details carries the report type.
 }
 
 -- FRTB calculation storage
