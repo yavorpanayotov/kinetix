@@ -394,7 +394,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       lifecycle. Source: `coverage-gaps.md` §fix-gateway + `group-b` `cancel_attempts`.
       Acceptance: `node plans/scripts/allium-workspace.mjs`
 
-- [ ] 4.3 Extend `risk.allium` — add a `ReplayRun` entity + `RecordReplayRun` rule
+- [x] 4.3 Extend `risk.allium` — add a `ReplayRun` entity + `RecordReplayRun` rule
       (the `replay_runs` table / `RunReplayRoutes` audit trail, per ADR-0018), a
       `CompareRuns` rule (`RunComparisonService`), and surface the interactive
       What-if / Rebalancing services. Source: `coverage-gaps.md` + `group-c`.
