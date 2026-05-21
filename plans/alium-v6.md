@@ -337,11 +337,18 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       any test logic). Needs a Docker-enabled run (CI) to fully confirm the wire
       shape.
 
-- [ ] 3.4 Surface `Trader.createdAt` / `updatedAt` (present in the DB and migration
+- [x] 3.4 Surface `Trader.createdAt` / `updatedAt` (present in the DB and migration
       but dropped by the Kotlin model and REST DTOs) and rename the REST field
       `id` → `trader_id` to match `reference-data.allium:62-69` and the gRPC proto.
       Source: `group-a`.
       Acceptance: `./gradlew :reference-data-service:test :reference-data-service:acceptanceTest --tests "*Trader*"`
+      Verified 2026-05-21: `:reference-data-service:test` green and acceptance
+      sources compile; `:reference-data-service:acceptanceTest` could not run in
+      the loop env (no Docker daemon — `DockerClientProviderStrategy`). Needs a
+      Docker-enabled run (CI) to confirm the new `TraderRoutesAcceptanceTest`.
+      Note: the gRPC `trader_lookup.proto` `GetTraderResponse` field is still
+      `id` (not `trader_id`) — out of scope for this REST-only checkbox; a proto
+      rename would be a separate contract change.
 
 - [ ] 3.5 Single-source `unexplained_pnl`. `IntradayPnlService.kt:138-140` re-derives
       the residual by subtracting nine components instead of using
