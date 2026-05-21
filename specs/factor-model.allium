@@ -45,7 +45,10 @@ value InstrumentLoading {
 ------------------------------------------------------------
 
 entity FactorDefinition {
-    factor: FactorType
+    -- Persisted in code as `factorName: String` (not the FactorType enum) so
+    -- the persistence layer can carry forward labels for factors that have
+    -- been removed from the active enum without a schema migration.
+    factor: String
     proxy_instrument_id: String
     description: String
 
