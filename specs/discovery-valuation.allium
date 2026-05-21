@@ -48,8 +48,6 @@ enum InstrumentTypeKey {
 -- entry in the dependency registry documented on
 -- DiscoverMarketDataDependencies.
 
-enum FetchOutcome { fetched | not_found | client_unavailable | exception }
-
 enum PositionResolutionMethod { pass_through | delta_adjusted | dv01_based | intrinsic_value }
 -- intrinsic_value applies to options past expiry (expiry_days <= 0):
 -- effective_mv = max(0, intrinsic) for calls and max(0, strike - spot)
@@ -91,12 +89,45 @@ value DependencyManifest {
 
 value FetchResult {
     dependency: MarketDataDependency
-    outcome: FetchOutcome
+}
+-- The outcome of fetching a single MarketDataDependency. Modelled as a sum
+-- type to mirror the implementation: risk-orchestrator
+-- (com.kinetix.risk.model.FetchResult) is a sealed interface with exactly
+-- two variants — FetchSuccess and FetchFailure — sharing a `dependency`
+-- discriminator. The earlier flat `FetchResult` value type with a single
+-- `FetchOutcome` enum did not reflect that the success and failure cases
+-- carry disjoint payloads (a success carries fetched data; a failure
+-- carries error, timing, and service-call context), so it was replaced
+-- by the variant pair below.
+
+variant FetchSuccess : FetchResult {
+    data_type: MarketDataType
+    instrument_id: String     -- empty for non-per-instrument deps
+}
+-- A dependency that was fetched successfully. In code
+-- (com.kinetix.risk.model.FetchSuccess) the payload is a sealed
+-- MarketDataValue (ScalarMarketData / TimeSeriesMarketData /
+-- CurveMarketData / MatrixMarketData); the spec carries only the
+-- data_type and instrument_id discriminators, since the concrete
+-- market-data shapes are not otherwise modelled in this spec set.
+
+variant FetchFailure : FetchResult {
+    reason: String            -- e.g. "NOT_FOUND", "CLIENT_UNAVAILABLE",
+                              -- "EXCEPTION", "CIRCUIT_OPEN"
     service: String           -- e.g. "price-service", "rates-service"
-    duration_ms: Integer
+    url: String?
     http_status: Integer?
     error_message: String?
+    duration_ms: Integer
+    correlation_id: String?
 }
+-- A dependency that could not be fetched. `reason` is a free-form string
+-- rather than a closed enum because com.kinetix.risk.model.FetchFailure.reason
+-- carries arbitrary classifier strings — "NOT_FOUND" (resource absent),
+-- "CLIENT_UNAVAILABLE" (upstream client not configured), "EXCEPTION" (call
+-- threw), "CIRCUIT_OPEN" (resilience breaker tripped), and others may be
+-- added without a spec change. Consumers should treat unknown reasons as a
+-- generic failure rather than assuming a fixed set.
 
 value ResolvedExposure {
     instrument_id: String
@@ -145,8 +176,8 @@ value DegradationFlag {
 --   volatility_surface   -> volatility-service
 --   correlation_matrix   -> correlation-service
 --
--- When an upstream client is unavailable the fetch returns the
--- client_unavailable outcome rather than blocking the pipeline.
+-- When an upstream client is unavailable the fetch yields a FetchFailure
+-- with reason "CLIENT_UNAVAILABLE" rather than blocking the pipeline.
 
 ------------------------------------------------------------
 -- Config
@@ -295,10 +326,13 @@ rule FetchDiscoveredDependencies {
         -- Fetches run in parallel via coroutines, bounded by a Semaphore(10)
         -- concurrency limit (one permit per dependency, see
         -- MarketDataFetcher.kt:62-69).
-        -- Each fetch produces a FetchResult with outcome, timing, and error
-        -- details. When a service client is null (not configured), the outcome
-        -- is client_unavailable. When the resource is not found, not_found.
-        -- Exceptions produce exception with the error message captured.
+        -- Each fetch produces a FetchResult — a FetchSuccess carrying the
+        -- fetched market data, or a FetchFailure carrying reason, timing, and
+        -- error details. When a service client is null (not configured), the
+        -- failure reason is "CLIENT_UNAVAILABLE". When the resource is not
+        -- found, "NOT_FOUND". Exceptions produce "EXCEPTION" with the error
+        -- message captured; a tripped resilience breaker produces
+        -- "CIRCUIT_OPEN".
         --
         -- Missing optional dependencies are tolerated (logged as warnings).
         -- Missing required dependencies are tolerated too (graceful degradation)
