@@ -281,7 +281,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       (E-S2C-17).
       Acceptance: `node plans/scripts/allium-workspace.mjs`
 
-- [ ] 2.9 `regulatory.allium` — add the `ensures: GovernanceTransitionOccurred(...)`
+- [x] 2.9 `regulatory.allium` — add the `ensures: GovernanceTransitionOccurred(...)`
       clauses the code already emits: `RegisterModel`/`ValidateModel`/`ApproveModel`/
       `RetireModel` emit `MODEL_STATUS_CHANGED`; `ApproveSubmission`/`AcknowledgeSubmission`
       emit their events. Add `created_at` to `RegulatorySubmission`. Source:
