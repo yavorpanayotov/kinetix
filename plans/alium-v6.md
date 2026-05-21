@@ -221,7 +221,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       only laggard. Source: `initial-report.md` C1 / `group-c`.
       Acceptance: `node plans/scripts/allium-workspace.mjs`
 
-- [ ] 2.2 `market-data.allium` — align the stale-price contract to shipped code
+- [x] 2.2 `market-data.allium` — align the stale-price contract to shipped code
       (Decisions applied): `QueryStalePrices` query param `staleAfter` → `thresholdHours`;
       `StaleInstrument` fields `last_price_at`/`staleness_seconds` → `lastUpdated`/`ageHours`
       plus the `status` field; document platform-tape-relative staleness semantics.
