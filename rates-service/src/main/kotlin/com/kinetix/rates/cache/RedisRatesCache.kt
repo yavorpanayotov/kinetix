@@ -131,7 +131,7 @@ class RedisRatesCache(
         companion object {
             fun from(curve: ForwardCurve) = CachedForwardCurve(
                 instrumentId = curve.instrumentId.value,
-                assetClass = curve.assetClass,
+                assetClass = curve.assetClass.name,
                 points = curve.points.map { CachedCurvePoint.from(it) },
                 asOfDate = curve.asOfDate.toString(),
                 source = curve.source.name,
@@ -139,7 +139,7 @@ class RedisRatesCache(
         }
         fun toDomain() = ForwardCurve(
             instrumentId = InstrumentId(instrumentId),
-            assetClass = assetClass,
+            assetClass = AssetClass.valueOf(assetClass),
             points = points.map { it.toDomain() },
             asOfDate = Instant.parse(asOfDate),
             source = RateSource.valueOf(source),

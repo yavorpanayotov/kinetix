@@ -66,7 +66,7 @@ class RedisRatesCacheIntegrationTest : FunSpec({
     test("put and get forward curve") {
         val curve = ForwardCurve(
             instrumentId = InstrumentId("EURUSD"),
-            assetClass = "FX",
+            assetClass = AssetClass.FX,
             points = listOf(CurvePoint("1M", 1.0855)),
             asOfDate = NOW,
             source = RateSource.REUTERS,
@@ -76,6 +76,7 @@ class RedisRatesCacheIntegrationTest : FunSpec({
         val found = cache.getForwardCurve(InstrumentId("EURUSD"))
         found.shouldNotBeNull()
         found.instrumentId shouldBe InstrumentId("EURUSD")
+        found.assetClass shouldBe AssetClass.FX
         found.points[0].value shouldBe 1.0855
     }
 

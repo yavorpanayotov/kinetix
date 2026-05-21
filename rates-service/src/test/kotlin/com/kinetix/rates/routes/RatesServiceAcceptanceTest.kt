@@ -1,5 +1,6 @@
 package com.kinetix.rates.routes
 
+import com.kinetix.common.model.AssetClass
 import com.kinetix.common.model.CurvePoint
 import com.kinetix.common.model.ForwardCurve
 import com.kinetix.common.model.InstrumentId
@@ -129,7 +130,7 @@ class RatesServiceAcceptanceTest : FunSpec({
     test("forward curve response shape matches ForwardCurveDto consumed by risk-orchestrator") {
         val curve = ForwardCurve(
             instrumentId = InstrumentId("EURUSD"),
-            assetClass = "FX",
+            assetClass = AssetClass.FX,
             points = listOf(
                 CurvePoint("1M", 1.0855),
                 CurvePoint("3M", 1.0870),

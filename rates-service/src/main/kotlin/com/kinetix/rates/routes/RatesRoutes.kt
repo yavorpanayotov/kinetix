@@ -1,5 +1,6 @@
 package com.kinetix.rates.routes
 
+import com.kinetix.common.model.AssetClass
 import com.kinetix.common.model.CurvePoint
 import com.kinetix.common.model.ForwardCurve
 import com.kinetix.common.model.InstrumentId
@@ -232,7 +233,7 @@ fun Route.ratesRoutes(
                 require(request.points.isNotEmpty()) { "points must contain at least one entry" }
                 val curve = ForwardCurve(
                     instrumentId = InstrumentId(request.instrumentId),
-                    assetClass = request.assetClass,
+                    assetClass = AssetClass.valueOf(request.assetClass),
                     points = request.points.map { CurvePoint(it.tenor, BigDecimal(it.value).toDouble()) },
                     asOfDate = Instant.now(),
                     source = RateSource.valueOf(request.source),
@@ -285,7 +286,7 @@ private fun RiskFreeRate.toResponse() = RiskFreeRateResponse(
 
 private fun ForwardCurve.toResponse() = ForwardCurveResponse(
     instrumentId = instrumentId.value,
-    assetClass = assetClass,
+    assetClass = assetClass.name,
     points = points.map { CurvePointDto(it.tenor, it.value.toBigDecimal().toPlainString()) },
     asOfDate = asOfDate.toString(),
     source = source.name,

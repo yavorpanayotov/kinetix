@@ -17,7 +17,7 @@ data class ForwardCurveEvent(
     companion object {
         fun from(curve: ForwardCurve) = ForwardCurveEvent(
             instrumentId = curve.instrumentId.value,
-            assetClass = curve.assetClass,
+            assetClass = curve.assetClass.name,
             points = curve.points.map { CurvePointEvent(it.tenor, it.value.toBigDecimal().toPlainString()) },
             asOfDate = curve.asOfDate.toString(),
             source = curve.source.name,

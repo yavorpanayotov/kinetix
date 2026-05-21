@@ -79,7 +79,7 @@ class RateIngestionServiceTest : FunSpec({
     test("ingests forward curve by saving, caching, and publishing") {
         val curve = ForwardCurve(
             instrumentId = InstrumentId("EURUSD"),
-            assetClass = "FX",
+            assetClass = AssetClass.FX,
             points = listOf(
                 CurvePoint("1M", 1.0855),
                 CurvePoint("3M", 1.0870),

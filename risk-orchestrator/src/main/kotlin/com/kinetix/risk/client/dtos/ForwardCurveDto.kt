@@ -1,5 +1,6 @@
 package com.kinetix.risk.client.dtos
 
+import com.kinetix.common.model.AssetClass
 import com.kinetix.common.model.CurvePoint
 import com.kinetix.common.model.ForwardCurve
 import com.kinetix.common.model.InstrumentId
@@ -28,7 +29,7 @@ data class ForwardCurveDto(
 ) {
     fun toDomain(): ForwardCurve = ForwardCurve(
         instrumentId = InstrumentId(instrumentId),
-        assetClass = assetClass,
+        assetClass = AssetClass.valueOf(assetClass),
         points = points.map { it.toDomain() },
         asOfDate = Instant.parse(asOfDate),
         source = RateSource.valueOf(source),

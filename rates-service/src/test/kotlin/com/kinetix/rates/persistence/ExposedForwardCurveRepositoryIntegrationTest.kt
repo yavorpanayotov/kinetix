@@ -1,5 +1,6 @@
 package com.kinetix.rates.persistence
 
+import com.kinetix.common.model.AssetClass
 import com.kinetix.common.model.CurvePoint
 import com.kinetix.common.model.ForwardCurve
 import com.kinetix.common.model.InstrumentId
@@ -18,7 +19,7 @@ private val NOW = Instant.parse("2026-01-15T10:00:00Z")
 
 private fun forwardCurve(
     instrumentId: InstrumentId = EURUSD,
-    assetClass: String = "FX",
+    assetClass: AssetClass = AssetClass.FX,
     points: List<CurvePoint> = listOf(
         CurvePoint("1M", 1.0855),
         CurvePoint("3M", 1.0870),
@@ -51,7 +52,7 @@ class ExposedForwardCurveRepositoryIntegrationTest : FunSpec({
         val found = repository.findLatest(EURUSD)
         found.shouldNotBeNull()
         found.instrumentId shouldBe EURUSD
-        found.assetClass shouldBe "FX"
+        found.assetClass shouldBe AssetClass.FX
         found.source shouldBe RateSource.REUTERS
         found.points shouldHaveSize 2
         found.points[0].tenor shouldBe "1M"

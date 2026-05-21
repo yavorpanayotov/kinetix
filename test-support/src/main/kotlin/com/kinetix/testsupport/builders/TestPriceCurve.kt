@@ -1,5 +1,6 @@
 package com.kinetix.testsupport.builders
 
+import com.kinetix.common.model.AssetClass
 import com.kinetix.common.model.CurvePoint
 import com.kinetix.common.model.ForwardCurve
 import com.kinetix.common.model.InstrumentId
@@ -46,7 +47,7 @@ object TestPriceCurve {
     val DEFAULT_INSTRUMENT_ID: InstrumentId = InstrumentId("AAPL")
 
     /** Default asset class for fixture curves. Matches the `DevDataSeeder` convention. */
-    const val DEFAULT_ASSET_CLASS: String = "EQUITY"
+    val DEFAULT_ASSET_CLASS: AssetClass = AssetClass.EQUITY
 
     /** Default rate source for fixture curves. */
     val DEFAULT_SOURCE: RateSource = RateSource.INTERNAL

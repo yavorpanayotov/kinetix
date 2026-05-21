@@ -1,6 +1,7 @@
 package com.kinetix.rates.seed
 
 import com.kinetix.common.demo.RegimeCalendar
+import com.kinetix.common.model.AssetClass
 import com.kinetix.common.model.CurvePoint
 import com.kinetix.common.model.ForwardCurve
 import com.kinetix.common.model.InstrumentId
@@ -104,10 +105,10 @@ class DevDataSeederTest : FunSpec({
         seeder.seed()
 
         val eurusd = savedCurves.first { it.instrumentId.value == "EURUSD" }
-        eurusd.assetClass shouldBe "FX"
+        eurusd.assetClass shouldBe AssetClass.FX
         eurusd.points.size shouldBe 5
 
         val gc = savedCurves.first { it.instrumentId.value == "GC" }
-        gc.assetClass shouldBe "COMMODITY"
+        gc.assetClass shouldBe AssetClass.COMMODITY
     }
 })

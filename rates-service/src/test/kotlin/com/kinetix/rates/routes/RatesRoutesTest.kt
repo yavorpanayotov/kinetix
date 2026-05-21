@@ -110,7 +110,7 @@ class RatesRoutesTest : FunSpec({
     test("GET forward curve latest returns 200 with curve") {
         val curve = ForwardCurve(
             instrumentId = InstrumentId("EURUSD"),
-            assetClass = "FX",
+            assetClass = AssetClass.FX,
             points = listOf(
                 CurvePoint("1M", 1.0855),
                 CurvePoint("3M", 1.0870),
@@ -316,7 +316,7 @@ class RatesRoutesTest : FunSpec({
         val curves = listOf(
             ForwardCurve(
                 instrumentId = InstrumentId("EURUSD"),
-                assetClass = "FX",
+                assetClass = AssetClass.FX,
                 points = listOf(CurvePoint("1M", 1.0855)),
                 asOfDate = NOW,
                 source = RateSource.REUTERS,

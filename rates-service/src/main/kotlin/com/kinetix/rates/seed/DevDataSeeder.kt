@@ -4,6 +4,7 @@ import com.kinetix.common.demo.CurveAndVolDerivations
 import com.kinetix.common.demo.CurveDefinition
 import com.kinetix.common.demo.DemoTape
 import com.kinetix.common.demo.YieldCurveSnapshot
+import com.kinetix.common.model.AssetClass
 import com.kinetix.common.model.CurvePoint
 import com.kinetix.common.model.ForwardCurve
 import com.kinetix.common.model.InstrumentId
@@ -107,7 +108,7 @@ class DevDataSeeder(
     }
 
     internal data class ForwardCurveConfig(
-        val assetClass: String,
+        val assetClass: AssetClass,
         val values: List<Double>,
     )
 
@@ -166,12 +167,12 @@ class DevDataSeeder(
         internal val FORWARD_CURVE_TENORS = listOf("1M", "3M", "6M", "1Y", "2Y")
 
         internal val FORWARD_CURVE_DATA: Map<String, ForwardCurveConfig> = mapOf(
-            "EURUSD" to ForwardCurveConfig("FX", listOf(1.0858, 1.0865, 1.0878, 1.0905, 1.0960)),
-            "GBPUSD" to ForwardCurveConfig("FX", listOf(1.2625, 1.2638, 1.2660, 1.2710, 1.2800)),
-            "USDJPY" to ForwardCurveConfig("FX", listOf(150.60, 150.20, 149.50, 148.10, 145.50)),
-            "GC" to ForwardCurveConfig("COMMODITY", listOf(2060.5, 2065.8, 2074.2, 2092.0, 2128.5)),
-            "CL" to ForwardCurveConfig("COMMODITY", listOf(78.10, 77.50, 76.30, 74.20, 70.80)),
-            "SI" to ForwardCurveConfig("COMMODITY", listOf(23.70, 23.82, 23.98, 24.30, 24.95)),
+            "EURUSD" to ForwardCurveConfig(AssetClass.FX, listOf(1.0858, 1.0865, 1.0878, 1.0905, 1.0960)),
+            "GBPUSD" to ForwardCurveConfig(AssetClass.FX, listOf(1.2625, 1.2638, 1.2660, 1.2710, 1.2800)),
+            "USDJPY" to ForwardCurveConfig(AssetClass.FX, listOf(150.60, 150.20, 149.50, 148.10, 145.50)),
+            "GC" to ForwardCurveConfig(AssetClass.COMMODITY, listOf(2060.5, 2065.8, 2074.2, 2092.0, 2128.5)),
+            "CL" to ForwardCurveConfig(AssetClass.COMMODITY, listOf(78.10, 77.50, 76.30, 74.20, 70.80)),
+            "SI" to ForwardCurveConfig(AssetClass.COMMODITY, listOf(23.70, 23.82, 23.98, 24.30, 24.95)),
         )
 
         private fun YieldCurveSnapshot.toYieldCurve(): YieldCurve {

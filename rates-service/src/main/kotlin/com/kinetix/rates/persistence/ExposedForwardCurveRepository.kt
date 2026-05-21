@@ -1,5 +1,6 @@
 package com.kinetix.rates.persistence
 
+import com.kinetix.common.model.AssetClass
 import com.kinetix.common.model.CurvePoint
 import com.kinetix.common.model.ForwardCurve
 import com.kinetix.common.model.InstrumentId
@@ -17,7 +18,7 @@ class ExposedForwardCurveRepository(private val db: Database? = null) : ForwardC
         ForwardCurveTable.insert {
             it[instrumentId] = curve.instrumentId.value
             it[asOfDate] = asOfOffset
-            it[assetClass] = curve.assetClass
+            it[assetClass] = curve.assetClass.name
             it[dataSource] = curve.source.name
             it[createdAt] = OffsetDateTime.now(ZoneOffset.UTC)
         }
@@ -91,7 +92,7 @@ class ExposedForwardCurveRepository(private val db: Database? = null) : ForwardC
         }
         return ForwardCurve(
             instrumentId = InstrumentId(header[ForwardCurveTable.instrumentId]),
-            assetClass = header[ForwardCurveTable.assetClass],
+            assetClass = AssetClass.valueOf(header[ForwardCurveTable.assetClass]),
             points = points,
             asOfDate = header[ForwardCurveTable.asOfDate].toInstant(),
             source = RateSource.valueOf(header[ForwardCurveTable.dataSource]),

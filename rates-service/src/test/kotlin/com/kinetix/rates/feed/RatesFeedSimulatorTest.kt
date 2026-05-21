@@ -1,5 +1,6 @@
 package com.kinetix.rates.feed
 
+import com.kinetix.common.model.AssetClass
 import com.kinetix.common.model.CurvePoint
 import com.kinetix.common.model.ForwardCurve
 import com.kinetix.common.model.InstrumentId
@@ -44,7 +45,7 @@ private fun seedRiskFreeRates(): List<RiskFreeRate> = listOf(
 private fun seedForwardCurves(): List<ForwardCurve> = listOf(
     ForwardCurve(
         instrumentId = InstrumentId("EURUSD"),
-        assetClass = "FX",
+        assetClass = AssetClass.FX,
         points = listOf(CurvePoint("1M", 1.0858), CurvePoint("3M", 1.0865), CurvePoint("1Y", 1.0905)),
         asOfDate = AS_OF,
         source = RateSource.INTERNAL,
