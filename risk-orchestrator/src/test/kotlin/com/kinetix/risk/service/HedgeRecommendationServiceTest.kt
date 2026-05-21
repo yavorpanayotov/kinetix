@@ -111,6 +111,9 @@ private fun pricePoint(instrumentId: String, amount: Double = 150.0) = PricePoin
     source = PriceSource.EXCHANGE,
 )
 
+/** Mirrors the production MAX_CANDIDATES cap in HedgeRecommendationService. */
+private const val MAX_CANDIDATES_FOR_TEST = 50
+
 private val defaultConstraints = HedgeConstraints(
     maxNotional = null,
     maxSuggestions = 5,
@@ -558,6 +561,88 @@ class HedgeRecommendationServiceTest : FunSpec({
 
         candidatesSlot.captured shouldHaveSize 1
         candidatesSlot.captured.first().instrumentId shouldBe "LEGACY-STOCK"
+    }
+
+    // ------------------------------------------------------------------ tier filtering and liquidity-ranked truncation
+
+    test("excludes ILLIQUID-tier candidates from hedge selection") {
+        coEvery { varCache.get("BOOK-1") } returns varResult()
+        coEvery { referenceDataClient.getLiquidityDataBatch(any()) } returns mapOf(
+            // HIGH_LIQUID: adv >= 50M and spread <= 5
+            "LIQUID-STOCK" to liquidityDto("LIQUID-STOCK", adv = 100_000_000.0, bidAskSpreadBps = 3.0),
+            // ILLIQUID: adv < 1M
+            "ILLIQUID-STOCK" to liquidityDto("ILLIQUID-STOCK", adv = 100_000.0, bidAskSpreadBps = 100.0),
+        )
+        coEvery { instrumentServiceClient.getInstrument(any()) } returns
+            ClientResponse.Success(instrumentDto("ANY"))
+        coEvery { priceServiceClient.getLatestPrice(any()) } returns ClientResponse.Success(pricePoint("ANY"))
+
+        val candidatesSlot = slot<List<com.kinetix.risk.model.CandidateInstrument>>()
+        coEvery { calculator.suggest(any(), any(), any(), capture(candidatesSlot), any()) } returns emptyList()
+
+        service.suggestHedge(bookId, HedgeTarget.DELTA, 0.80, defaultConstraints)
+
+        val candidateIds = candidatesSlot.captured.map { it.instrumentId }
+        (candidateIds.contains("LIQUID-STOCK")) shouldBe true
+        (candidateIds.contains("ILLIQUID-STOCK")) shouldBe false
+    }
+
+    test("keeps the most-liquid eligible candidates when more than MAX_CANDIDATES exist") {
+        coEvery { varCache.get("BOOK-1") } returns varResult()
+
+        // 50 HIGH_LIQUID candidates with high ADV (most liquid) plus one
+        // LIQUID candidate with the lowest ADV. All 51 are tier-eligible, so
+        // truncation must drop the least-liquid one — not let it steal a slot.
+        val liquidityMap = buildMap {
+            repeat(MAX_CANDIDATES_FOR_TEST) { i ->
+                val id = "HIGH-LIQ-$i"
+                put(id, liquidityDto(id, adv = 100_000_000.0 + i, bidAskSpreadBps = 3.0))
+            }
+            // Least-liquid eligible candidate: still LIQUID tier, but lowest ADV.
+            put("LEAST-LIQ", liquidityDto("LEAST-LIQ", adv = 10_000_000.0, bidAskSpreadBps = 15.0))
+        }
+        coEvery { referenceDataClient.getLiquidityDataBatch(any()) } returns liquidityMap
+        coEvery { instrumentServiceClient.getInstrument(any()) } returns
+            ClientResponse.Success(instrumentDto("ANY"))
+        coEvery { priceServiceClient.getLatestPrice(any()) } returns ClientResponse.Success(pricePoint("ANY"))
+
+        val candidatesSlot = slot<List<com.kinetix.risk.model.CandidateInstrument>>()
+        coEvery { calculator.suggest(any(), any(), any(), capture(candidatesSlot), any()) } returns emptyList()
+
+        service.suggestHedge(bookId, HedgeTarget.DELTA, 0.80, defaultConstraints)
+
+        val candidateIds = candidatesSlot.captured.map { it.instrumentId }
+        candidateIds shouldHaveSize MAX_CANDIDATES_FOR_TEST
+        // The least-liquid eligible candidate is dropped in favour of more-liquid ones.
+        (candidateIds.contains("LEAST-LIQ")) shouldBe false
+    }
+
+    test("illiquid candidates do not steal top-N slots from more-liquid eligible candidates") {
+        coEvery { varCache.get("BOOK-1") } returns varResult()
+
+        // MAX_CANDIDATES_FOR_TEST illiquid candidates (filtered out) plus one liquid
+        // candidate. If tier filtering happened after truncation, the liquid
+        // candidate could be crowded out. After the fix it must survive.
+        val liquidityMap = buildMap {
+            repeat(MAX_CANDIDATES_FOR_TEST) { i ->
+                val id = "ILLIQUID-$i"
+                put(id, liquidityDto(id, adv = 100_000.0, bidAskSpreadBps = 100.0))
+            }
+            put("LIQUID-WINNER", liquidityDto("LIQUID-WINNER", adv = 100_000_000.0, bidAskSpreadBps = 3.0))
+        }
+        coEvery { referenceDataClient.getLiquidityDataBatch(any()) } returns liquidityMap
+        coEvery { instrumentServiceClient.getInstrument(any()) } returns
+            ClientResponse.Success(instrumentDto("ANY"))
+        coEvery { priceServiceClient.getLatestPrice(any()) } returns ClientResponse.Success(pricePoint("ANY"))
+
+        val candidatesSlot = slot<List<com.kinetix.risk.model.CandidateInstrument>>()
+        coEvery { calculator.suggest(any(), any(), any(), capture(candidatesSlot), any()) } returns emptyList()
+
+        service.suggestHedge(bookId, HedgeTarget.DELTA, 0.80, defaultConstraints)
+
+        val candidateIds = candidatesSlot.captured.map { it.instrumentId }
+        candidateIds shouldHaveSize 1
+        (candidateIds.contains("LIQUID-WINNER")) shouldBe true
     }
 
     // ------------------------------------------------------------------ suggestion_indices on accept (HDG-02)

@@ -239,9 +239,15 @@ class HedgeRecommendationService(
             emptyMap()
         }
 
+        // Per hedge.allium:179-198 (eligible_instruments): filter for eligibility
+        // and liquidity tier FIRST, rank by liquidity, THEN truncate to
+        // MAX_CANDIDATES. Doing tier filtering before the cap ensures the
+        // MAX_CANDIDATES slots go to the most-liquid eligible instruments —
+        // illiquid candidates never consume a slot only to be dropped later.
         return liquidityByInstrument.values
-            .filter { liq -> liq.assetClass !in setOf("ILLIQUID") }
             .filter { liq -> liq.hedgingEligible != false } // null treated as eligible (backward compatible)
+            .filter { liq -> classifyTier(liq.adv, liq.bidAskSpreadBps) in LIQUID_TIERS }
+            .sortedByDescending { liq -> liq.adv } // rank by liquidity (ADV) before truncation
             .take(MAX_CANDIDATES)
             .mapNotNull { liq ->
                 buildCandidate(liq, target)
