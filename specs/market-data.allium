@@ -261,11 +261,19 @@ rule ReconcileImpliedVsRealisedVol {
     @guidance
         -- Compares the ATM implied vol from the latest VolSurface
         -- against the rolling realised vol of the underlying tape over
-        -- a fixed window. Returns a VolReconciliation record; the
-        -- within_tolerance flag is true when |spread_bps| is below the
-        -- configured tolerance. Exercised by
-        -- VolReconciliationAcceptanceTest and surfaced as a data-quality
-        -- signal on the VolatilityDashboard.
+        -- a fixed window. The within_tolerance flag is true when
+        -- |spread_bps| is below the configured tolerance.
+        --
+        -- ASPIRATIONAL — seeder-only. This rule is exercised solely by
+        -- the seeder acceptance test (VolReconciliationAcceptanceTest)
+        -- in volatility-service. There is no runtime /reconcile HTTP
+        -- route in gateway, price-service, or volatility-service; no
+        -- VolReconciliation DTO exists in the main source tree (only
+        -- the test class references one); and no UI dashboard component
+        -- surfaces this signal — the UI ReconciliationPanel covers
+        -- trade/execution reconciliation, not implied-vs-realised vol.
+        -- This rule documents the data-quality contract the spec
+        -- models, not a live runtime workflow.
 }
 
 -- Risk-free rate ingestion
