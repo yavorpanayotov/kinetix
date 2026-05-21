@@ -240,7 +240,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       Source: `group-a` S2 + StaleInstrument + RiskFreeRate precision.
       Acceptance: `node plans/scripts/allium-workspace.mjs`
 
-- [ ] 2.3 `market-data.allium` — downgrade `ReconcileImpliedVsRealisedVol` to a
+- [x] 2.3 `market-data.allium` — downgrade `ReconcileImpliedVsRealisedVol` to a
       seeder-only / `@aspirational` rule (no runtime `/reconcile` route, no
       `VolReconciliation` DTO, no UI dashboard component exist — only the seeder
       acceptance test). Source: `group-a` aspirational finding.
