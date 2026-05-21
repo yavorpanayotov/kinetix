@@ -5,6 +5,30 @@ use "./core.allium" as core
 use "./reference-data.allium" as ref
 
 ------------------------------------------------------------
+-- Out of scope: demo-orchestrator
+------------------------------------------------------------
+--
+-- The `demo-orchestrator` service (Kotlin module at the repo root) is
+-- intentionally NOT covered by this spec or any other Allium spec.
+--
+-- demo-orchestrator is operational tooling, not a governed runtime
+-- surface: its scheduled simulated-trader job drives the BookTrade
+-- sequence specified below to seed the synthetic demo dataset, and it
+-- also seeds demo limits, observes the EOD cycle, and consumes the
+-- official-EOD Kafka event. It exists so demonstrations and local
+-- development have realistic trading activity; it never runs in a
+-- production deployment.
+--
+-- It is the only authorised producer of synthetic strategy traffic.
+-- Every trade it books still flows through the BookTrade rule and is
+-- subject to the same validation and invariants as a real booking —
+-- demo-orchestrator adds no trading behaviour of its own. Its
+-- scheduling, profile selection, and seed logic are governed by code
+-- review alone, not by a spec contract, and are deliberately omitted
+-- here so the spec does not imply a governance obligation that does
+-- not exist.
+
+------------------------------------------------------------
 -- Enums
 ------------------------------------------------------------
 

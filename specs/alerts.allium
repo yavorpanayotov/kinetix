@@ -96,6 +96,143 @@ entity LimitBreachEvent {
 }
 
 ------------------------------------------------------------
+-- Risk-orchestrator alert publishers: Kafka topics + payload schemas
+------------------------------------------------------------
+--
+-- The budget-breach, factor-concentration, liquidity-concentration and
+-- regime-event publishers in risk-orchestrator
+-- (risk-orchestrator/.../kafka/{KafkaBudgetBreachAlertPublisher,
+-- KafkaFactorConcentrationAlertPublisher,
+-- KafkaLiquidityConcentrationAlertPublisher,
+-- KafkaRegimeEventPublisher}.kt) all emit onto a Kafka topic. The
+-- rules that consume them (EvaluateAlertRules via the budget /
+-- factor / liquidity metric extractors, and EvaluateRegimeChange)
+-- describe the alert behaviour; the entities below pin down the WIRE
+-- contract — topic name and payload shape — so it is spec-checked.
+--
+-- Three of the four publishers (budget, factor, liquidity) share ONE
+-- payload schema and ONE topic: they all emit a RiskResultEvent onto
+-- `risk.results`, the same topic and DTO that ordinary VaR results
+-- travel on. They are differentiated only by `calculation_type` and
+-- by a sentinel marker the matching MetricExtractor recognises (see
+-- the extract_metric deferred block below). The regime-event
+-- publisher is distinct: its own topic and its own payload.
+
+-- Shared alert/result payload on Kafka topic `risk.results`.
+-- Emitted by KafkaBudgetBreachAlertPublisher,
+-- KafkaFactorConcentrationAlertPublisher,
+-- KafkaLiquidityConcentrationAlertPublisher (and by the ordinary VaR
+-- result path). The implementation DTO is
+-- common/.../kafka/events/RiskResultEvent.kt (fields camelCase on the
+-- wire; snake_case here per the Allium convention).
+entity RiskResultEvent {
+    -- For the alert publishers this is a partition key, not always a
+    -- real book: KafkaBudgetBreachAlertPublisher sets it to
+    -- "{entityLevel}:{entityId}" (e.g. "DESK:eq-desk"); the factor
+    -- and liquidity publishers set it to the real book_id.
+    book_id: String
+    var_value: String
+    expected_shortfall: String
+    -- Discriminates the publisher: "BUDGET_BREACH",
+    -- "FACTOR_DECOMPOSITION", "LIQUIDITY_CONCENTRATION", or an
+    -- ordinary VaR calculation type for the non-alert path.
+    calculation_type: String
+    calculated_at: String
+    confidence_level: String
+    component_breakdown: List<ComponentBreakdownEvent>
+    correlation_id: String?
+    position_breakdown: List<PositionBreakdownItem>?
+    aggregate_delta: String?
+    aggregate_vega: String?
+    margin_utilisation: Decimal?
+    -- Carries the sentinel ConcentrationItem entries that the budget
+    -- and factor extractors recognise.
+    concentration_by_instrument: List<ConcentrationItem>?
+    -- Populated by KafkaLiquidityConcentrationAlertPublisher from
+    -- LiquidityRiskResult.portfolioConcentrationStatus
+    -- ("breached" / "warning" / "ok").
+    liquidity_concentration_status: String?
+
+    @guidance
+        -- budget-breach publisher: calculation_type = "BUDGET_BREACH",
+        --   concentration_by_instrument carries one ConcentrationItem
+        --   with instrument_id = "VAR_BUDGET" and percentage = the
+        --   real budget-utilisation %. var_value = the entity's
+        --   current VaR. Producer: hierarchy-risk/AlertOnBudgetBreach.
+        -- factor-concentration publisher: calculation_type =
+        --   "FACTOR_DECOMPOSITION", concentration_by_instrument
+        --   carries one ConcentrationItem with instrument_id =
+        --   "FACTOR_MODEL" and percentage = 100.0 (a pure presence
+        --   sentinel). var_value = snapshot total VaR.
+        -- liquidity-concentration publisher: calculation_type =
+        --   "LIQUIDITY_CONCENTRATION", liquidity_concentration_status
+        --   carries the portfolio concentration status string;
+        --   concentration_by_instrument is absent. var_value =
+        --   portfolio LVaR.
+        -- All three send best-effort: a Kafka failure is logged and
+        -- swallowed, never propagated to the caller.
+}
+
+-- Sentinel/contribution entry inside RiskResultEvent.concentration_by_instrument.
+-- Implementation DTO: common/.../kafka/events/RiskResultEvent.kt
+-- (ConcentrationItem).
+value ConcentrationItem {
+    -- A real instrument id for ordinary concentration breakdown, or a
+    -- sentinel ("VAR_BUDGET", "FACTOR_MODEL") for the alert publishers.
+    instrument_id: String
+    -- Real budget-utilisation % for the VAR_BUDGET sentinel; 100.0
+    -- (presence marker) for the FACTOR_MODEL sentinel.
+    percentage: Decimal
+}
+
+-- Component VaR breakdown entry inside RiskResultEvent.component_breakdown.
+-- Implementation DTO: common/.../kafka/events/ComponentBreakdownEvent.kt.
+value ComponentBreakdownEvent {
+    asset_class: String
+    var_contribution: String
+    percentage_of_total: String
+}
+
+-- Regime-change payload on Kafka topic `risk.regime.changes`.
+-- Emitted by KafkaRegimeEventPublisher with a constant partition key
+-- ("regime") so transitions stay globally ordered on a single
+-- partition. Consumed by notification-service (EvaluateRegimeChange)
+-- and by the UI via the gateway WebSocket. Implementation DTO:
+-- common/.../kafka/events/MarketRegimeEvent.kt.
+entity MarketRegimeEvent {
+    -- The confirmed regime after the transition
+    -- (NORMAL / ELEVATED_VOL / CRISIS / RECOVERY).
+    regime: String
+    -- The regime active before the transition.
+    previous_regime: String
+    transitioned_at: String
+    confidence: String
+    -- True when classified with degraded (two-factor) signals.
+    degraded_inputs: Boolean
+    consecutive_observations: Integer
+    realised_vol_20d: String
+    cross_asset_correlation: String
+    credit_spread_bps: String?
+    pnl_volatility: String?
+    -- VaR parameters in effect after the transition.
+    effective_calculation_type: String
+    effective_confidence_level: String
+    effective_time_horizon_days: Integer
+    effective_correlation_method: String
+    effective_num_simulations: Integer?
+    correlation_id: String?
+
+    @guidance
+        -- KafkaRegimeEventPublisher publishes one MarketRegimeEvent per
+        -- confirmed regime transition (only confirmed transitions —
+        -- the debounce machinery in regime.allium gates this). The
+        -- payload is best-effort: a Kafka send failure is logged and
+        -- swallowed. notification-service's MarketRegimeEventConsumer
+        -- decodes it and drives EvaluateRegimeChange, which raises a
+        -- book_id = "GLOBAL" AlertEvent for any to-regime != normal.
+}
+
+------------------------------------------------------------
 -- Config
 ------------------------------------------------------------
 

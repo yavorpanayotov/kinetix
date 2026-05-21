@@ -7,6 +7,32 @@ use "./core.allium" as core
 use "./risk.allium" as risk
 
 ------------------------------------------------------------
+-- Out of scope: demo-orchestrator
+------------------------------------------------------------
+--
+-- The `demo-orchestrator` service (Kotlin module at the repo root) is
+-- intentionally NOT covered by this spec or any other Allium spec.
+--
+-- demo-orchestrator is operational tooling, not a governed runtime
+-- surface: a scheduled simulated-trader job, a limit-seed job, an EOD
+-- cycle observer, an official-EOD Kafka consumer, and a demo book /
+-- profile catalogue that together drive the synthetic demo dataset
+-- end to end. It exists so demonstrations and local development have
+-- realistic data; it never runs in a production deployment.
+--
+-- It touches surfaces this spec set DOES govern — it consumes the
+-- `OfficialEodPromotedEvent` emitted by AutoClosePromotion above, and
+-- it drives the trade-booking sequence specified in trading.allium
+-- (BookTrade) — but it adds no production behaviour of its own. It is
+-- the only authorised producer of synthetic strategy traffic, and its
+-- behaviour is governed by code review alone, not by a spec contract.
+--
+-- Any rule that would describe simulated-trader scheduling,
+-- limit seeding, or demo profile selection is deliberately omitted:
+-- those are demo-only concerns and modelling them would imply a
+-- governance obligation that does not exist.
+
+------------------------------------------------------------
 -- Config
 ------------------------------------------------------------
 

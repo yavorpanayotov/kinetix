@@ -146,3 +146,51 @@ enum SnapshotType { auto | manual }
 enum LiquidityTier { high_liquid | liquid | semi_liquid | illiquid }
 -- Liquidity classification based on ADV and bid-ask spread. Used by
 -- reference-data (InstrumentLiquidity) and liquidity risk calculations.
+
+------------------------------------------------------------
+-- Distributed-lock protocol for scheduled jobs
+------------------------------------------------------------
+--
+-- Every recurring scheduled job in the platform runs inside a polling
+-- coroutine loop and must execute on at most ONE replica per tick.
+-- Cross-replica mutual exclusion is provided by a shared distributed
+-- lock (the `DistributedLock` abstraction in
+-- risk-orchestrator/.../schedule/DistributedLock.kt). This is a design
+-- note, not a machine-checkable construct — Allium has no first-class
+-- lock primitive — but the protocol is uniform and is documented here
+-- once so per-job specs can refer to it instead of redefining it.
+--
+-- Protocol:
+--   1. The scheduled loop runs `while (active) { lock.withLock(name,
+--      ttlSeconds) { tick() }; delay(interval) }`.
+--   2. `name` is a stable per-job string key, unique to that job
+--      (e.g. "scheduled-regime-detector", "scheduled-factor-
+--      decomposition", "scheduled-counterparty-risk-calculator",
+--      "scheduled-auto-close", "scheduled-hedge-expiry"). Each job
+--      owns exactly one key; two jobs never share a key.
+--   3. `ttlSeconds` is the job's poll interval (intervalMillis / 1000).
+--      The TTL bounds how long a crashed holder can block the lock:
+--      the lock self-expires after one interval even if the holder
+--      dies without releasing.
+--
+-- Acquisition semantics (RedisDistributedLock):
+--   - Backed by a single Redis `SET key "1" NX EX ttlSeconds` on
+--     `lock:{name}`. NX means the set succeeds only if the key is
+--     absent, so exactly one replica wins the tick.
+--   - If the SET returns null the lock is already held by another
+--     replica; the action is SKIPPED silently (no error, no retry —
+--     the next tick will try again).
+--   - The winning replica runs the action, then DELETEs the key in a
+--     `finally` block so the lock is released even if the action
+--     throws. The TTL is a backstop for the crash-before-finally case.
+--
+-- NoOpDistributedLock is the single-instance fallback (used when Redis
+-- is not configured, typically local dev): it always runs the action
+-- with no mutual exclusion. Selecting NoOp vs Redis is a deployment
+-- wiring decision, not a behavioural one.
+--
+-- Consequence for spec readers: a scheduled rule's `when:` trigger
+-- (an interval-elapsed event) fires on every replica, but the rule's
+-- `ensures:` effects are produced by at most one replica per tick.
+-- Duplicate execution across replicas is excluded by this lock, not
+-- by any rule-level guard.
