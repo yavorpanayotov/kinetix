@@ -486,7 +486,7 @@ commit.
       `market-data.allium`, `reference-data.allium`.
       Acceptance: `node plans/scripts/allium-workspace.mjs`
 
-- [ ] 5.2 Group B — add `surface RestApi` blocks to `positions.allium`,
+- [x] 5.2 Group B — add `surface RestApi` blocks to `positions.allium`,
       `trading.allium`, `limits.allium`, `execution.allium`.
       Acceptance: `node plans/scripts/allium-workspace.mjs`
 
