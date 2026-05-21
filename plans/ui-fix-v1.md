@@ -191,7 +191,7 @@ checkbox already captured this.
 
 ### PR 4 — Reports generation 500 (B3 + M4)
 
-- [ ] 4.1 Diagnose: capture the live `POST /api/v1/reports/generate` 500
+- [x] 4.1 Diagnose: capture the live `POST /api/v1/reports/generate` 500
       from gateway + regulatory-service logs (it's the report-service /
       regulatory-service producing the upstream_error). Append a dated entry
       to `## Diagnosis log` with the root-cause line.
