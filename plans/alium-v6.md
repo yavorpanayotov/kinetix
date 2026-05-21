@@ -428,7 +428,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       rejects non-PSD matrices. Source: `group-a` coverage gap.
       Acceptance: `node plans/scripts/allium-workspace.mjs`
 
-- [ ] 4.8 Extend `risk-models.allium` — add a `RunReverseStressTest` rule
+- [x] 4.8 Extend `risk-models.allium` — add a `RunReverseStressTest` rule
       (`risk-engine/reverse_stress.py`) and a `@guidance` note on
       `CalculatePricingGreeks` for the numerical cross-Greeks fallback path
       (`cross_greeks.py`). Source: `group-c` coverage gaps.
