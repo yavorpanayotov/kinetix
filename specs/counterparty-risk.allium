@@ -225,6 +225,116 @@ entity CounterpartyExposureSnapshot {
         --   pfe_95_1y: Decimal?       -- 95th percentile PFE at 1-year horizon
 }
 
+-- Persisted SA-CCR history: every CalculateSaCcr run is appended here for the
+-- regulatory audit trail and time-series reporting.
+entity SaCcrResultRecord {
+    id: Integer
+    counterparty_id: String
+    netting_set_id: String
+    calculated_at: Timestamp
+    replacement_cost: Decimal
+    pfe_addon: Decimal
+    multiplier: Decimal
+    ead: Decimal
+    alpha: Decimal
+    collateral_net: Decimal
+    position_count: Integer
+
+    @guidance
+        -- Persistence backing for the SaCcrResult value type. Each SA-CCR
+        -- computation (one per netting set) is written as one row; the table
+        -- is append-only — results are never updated in place.
+        -- Code: risk-orchestrator SaCcrResultsTable / ExposedSaCcrResultRepository,
+        -- migration V63__create_sa_ccr_results.sql.
+        -- Storage: TimescaleDB hypertable partitioned by calculated_at
+        -- (7-day chunks), compressed after 90 days, retained for 1095 days
+        -- (config.exposure_history_retention) for regulatory record-keeping.
+        -- Composite primary key (id, calculated_at) — the partition key must
+        -- be part of the key on a hypertable.
+        -- collateral_net = net collateral (RECEIVED - POSTED, after haircut)
+        -- used in the RC/multiplier calculation; position_count = number of
+        -- trades in the netting set at calculation time.
+        -- ExposedSaCcrResultRepository.findLatestByCounterparty returns the
+        -- most recent record for a counterparty (orders by calculated_at DESC).
+        -- The SaCcrResult value type is the in-flight result shape;
+        -- SaCcrResultRecord is its durable, time-stamped form.
+}
+
+-- Persisted counterparty exposure history: every CalculateCounterpartyExposure
+-- snapshot is appended here for historical queries and trend reporting.
+entity CounterpartyExposureHistoryRecord {
+    id: Integer
+    counterparty_id: String
+    calculated_at: Timestamp
+    pfe_profile: List<ExposureAtTenor>
+    netting_set_exposures: List<NettingSetExposure>
+    wrong_way_risk_flags: List<String>
+    current_net_exposure: Decimal
+    peak_pfe: Decimal
+    cva: Decimal?
+    cva_estimated: Boolean
+    currency: String
+    collateral_held: Decimal
+    collateral_posted: Decimal
+    net_net_exposure: Decimal?
+
+    @guidance
+        -- Persistence backing for CounterpartyExposureSnapshot. The live
+        -- snapshot is the latest read-model; this entity is the append-only
+        -- time series of every snapshot ever computed.
+        -- Code: risk-orchestrator CounterpartyExposureHistoryTable /
+        -- ExposedCounterpartyExposureRepository, migration
+        -- V42__create_counterparty_exposure_history.sql (collateral and
+        -- net_net_exposure columns added by V48).
+        -- Storage: TimescaleDB hypertable partitioned by calculated_at
+        -- (7-day chunks). Composite primary key (id, calculated_at).
+        -- pfe_profile, netting_set_exposures and wrong_way_risk_flags are
+        -- stored as JSONB columns (pfe_profile_json, netting_set_exposures_json,
+        -- wrong_way_risk_flags_json), each defaulting to an empty array.
+        -- Retention is governed by config.exposure_history_retention
+        -- (1095 days) — see also the unused-but-reserved retention config.
+        -- Derived fields on CounterpartyExposureSnapshot (has_pfe,
+        -- has_wrong_way_risk, agreement_status) are read-time overlays and
+        -- are NOT persisted on this history record.
+}
+
+-- Internal margin estimate for a book: initial + variation margin computed
+-- from current positions using an asset-class margin-rate table.
+entity InternalMargin {
+    book_id: String
+    initial_margin: Decimal
+    variation_margin: Decimal
+    total_margin: Decimal
+    currency: String
+
+    @guidance
+        -- An internal, house-model margin estimate — distinct from SA-CCR EAD
+        -- (regulatory capital) and from MC PFE (economic exposure). It is a
+        -- simplified clearing/funding margin number and must not be conflated
+        -- with either regulatory or economic counterparty risk figures.
+        -- Code: risk-orchestrator margin/MarginEstimate (the in-flight result),
+        -- computed by margin/MarginCalculator, surfaced via MarginRoutes
+        -- (GET /api/v1/books/{bookId}/margin).
+        -- This entity is the spec name for MarginEstimate; MarginCalculator
+        -- is the calculator that produces it (see the CalculateMargin rule).
+        -- initial_margin = sum over positions of |market_value| * margin_rate,
+        -- where market_value = market_price * quantity and margin_rate comes
+        -- from an asset-class table.
+        -- variation_margin = |current_total_MtM - previous_MtM| when a
+        -- previous mark is supplied; 0 otherwise.
+        -- total_margin = initial_margin + variation_margin.
+        -- currency is taken from the first position; an empty book yields a
+        -- zero-margin estimate in USD.
+        -- This estimate is not persisted — it is computed on demand per
+        -- request and returned directly.
+        --
+        -- ASPIRATIONAL: the margin-rate table is currently a hard-coded
+        -- default in MarginCalculator (EQUITY 0.15, FIXED_INCOME 0.05,
+        -- FX 0.03, COMMODITY 0.20, DERIVATIVE 0.25; fallback 0.10). It is
+        -- not yet a governed, versioned config and is not modelled in the
+        -- config block below.
+}
+
 ------------------------------------------------------------
 -- Config
 ------------------------------------------------------------
@@ -466,6 +576,112 @@ rule CalculateSaCcr {
         --   must coexist. SA-CCR is the regulatory capital number reported to supervisors.
         --   Internal MC PFE drives economic limits and risk appetite. They must never be
         --   conflated or substituted for each other in reporting.
+}
+
+-- Trade <-> netting-set association
+
+rule NettingSetAssignment {
+    when: TradeBooked(trade_id, counterparty_id)
+
+    let agreements = NettingAgreements where counterparty.counterparty_id = counterparty_id
+    requires: counterparty_id != null
+    requires: agreements.count > 0
+
+    let netting_set = first(agreements)
+
+    ensures: NettingSetTrade.created(
+        trade_id: trade_id,
+        netting_set: netting_set
+    )
+
+    @guidance
+        -- Records which netting agreement a trade belongs to. CalculateSaCcr
+        -- and the Monte Carlo PFE pipeline both partition a counterparty's
+        -- trades by this association (see checkbox 1.3 / SaCcrService and
+        -- CounterpartyRiskOrchestrationService): trades may NOT be netted
+        -- across legal netting boundaries, so each ISDA/GMRA set is computed
+        -- independently.
+        --
+        -- Code: position-service NettingSetAssigner.assignIfApplicable,
+        -- backed by NettingSetTradesTable / ExposedNettingSetTradeRepository
+        -- (table netting_set_trades, migration V17). The persisted row is
+        -- (trade_id, netting_set_id, created_at) keyed by trade_id.
+        --
+        -- Assignment is best-effort and non-blocking — it never fails trade
+        -- booking:
+        --   - counterparty_id null  -> no assignment, return silently
+        --   - reference-data lookup throws -> warn and skip
+        --   - no netting agreements found -> debug-log and skip
+        -- A trade with no assignment is treated as UNASSIGNED downstream:
+        --   SaCcrService buckets it into "$counterpartyId-UNASSIGNED" and
+        --   calculates it standalone with no cross-set netting benefit.
+        --
+        -- The current code assigns the trade to the FIRST netting agreement
+        -- returned for the counterparty. The risk-orchestrator reads the
+        -- instrument -> netting-set map from position-service via
+        -- GET /api/v1/counterparties/{id}/instrument-netting-sets.
+        --
+        -- ASPIRATIONAL: "first agreement" is a simplification. A counterparty
+        -- with multiple agreements (e.g. an ISDA-2002 plus a separate GMRA)
+        -- should route each trade to the agreement that legally governs that
+        -- product/asset class; per-product agreement selection is not yet
+        -- modelled.
+}
+
+-- Internal margin estimation
+
+rule CalculateMargin {
+    when: CalculateMarginRequested(book_id, previous_mtm)
+
+    let positions = positions_for_book(book_id)
+
+    let initial = sum(positions, p =>
+        abs(p.market_price * p.quantity) * margin_rate(p.asset_class))
+
+    let current_mtm = sum(positions, p => p.market_price * p.quantity)
+
+    let variation = if previous_mtm != null:
+        abs(current_mtm - previous_mtm)
+    else:
+        0
+
+    ensures: InternalMargin{
+        book_id: book_id,
+        initial_margin: initial,
+        variation_margin: variation,
+        total_margin: initial + variation,
+        currency: if positions.count > 0: first(positions).currency
+                  else: config.exposure_reporting_currency
+    }
+
+    @guidance
+        -- Estimates initial + variation margin for a book from its current
+        -- positions. This is a house-model funding/clearing margin number —
+        -- NOT regulatory capital (SA-CCR EAD) and NOT economic exposure
+        -- (MC PFE). It must never be substituted for either in reporting.
+        --
+        -- Code: risk-orchestrator MarginCalculator.calculate, producing a
+        -- MarginEstimate (modelled here as InternalMargin); surfaced via
+        -- MarginRoutes GET /api/v1/books/{bookId}/margin with an optional
+        -- previousMTM query parameter.
+        --
+        -- initial_margin = sum over positions of
+        --   |market_price * quantity| * margin_rate(asset_class)
+        -- and is rounded to 2 decimal places (HALF_UP).
+        -- variation_margin = |current_total_MtM - previous_mtm| when a
+        --   previous mark is supplied, else 0; also rounded to 2 dp.
+        -- total_margin = initial_margin + variation_margin.
+        --
+        -- An empty book returns a zero-margin estimate in USD; otherwise the
+        -- currency is taken from the first position (positions in a book are
+        -- assumed to share a currency).
+        --
+        -- margin_rate(asset_class) is a table lookup — see the InternalMargin
+        -- entity guidance for the current hard-coded rates and the
+        -- aspirational note on governing them as versioned config.
+        --
+        -- The result is computed on demand and returned directly; it is not
+        -- persisted (contrast SaCcrResultRecord / CounterpartyExposureHistoryRecord).
 }
 
 -- Daily batch
