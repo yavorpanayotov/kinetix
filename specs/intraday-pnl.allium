@@ -123,6 +123,17 @@ entity IntradayPnlState {
         -- attribution — not the VaR sensitivities on DailyRiskSnapshot.
         -- high_water_mark and last_snapshot_at are mutable running state.
         -- Cleared when a new SOD baseline is created for the same book.
+        --
+        -- ASPIRATIONAL MODELLING — IntradayPnlState is a conceptual
+        -- abstraction, not a literal object in the implementation. The
+        -- live design (IntradayPnlService.recompute) is stateless: it
+        -- holds no per-book state object. Each recompute re-queries the
+        -- SOD baseline and the most recent IntradayPnlSnapshot from the
+        -- repository and re-derives this state inline. high_water_mark
+        -- is recovered from the previous snapshot's high_water_mark
+        -- field (max'd with the new total_pnl), and sod_total_pnl is
+        -- read from the snapshot itself. See the InitialiseIntradayState
+        -- rule.
 }
 
 ------------------------------------------------------------
@@ -165,6 +176,12 @@ rule InitialiseIntradayState {
         -- sod_total_pnl is the book's total P&L at the moment of SOD snapshot.
         -- Frozen SOD pricing Greeks from SodGreekSnapshots are held in memory
         -- for the duration of the trading day.
+        --
+        -- ASPIRATIONAL — no code reacts to SodBaseline.created to
+        -- materialise an IntradayPnlState. The implementation derives SOD
+        -- state lazily on the first recompute of the day rather than
+        -- eagerly on baseline creation. This rule documents the
+        -- event-driven initialisation the spec models.
 }
 
 -- Core computation: recompute P&L on position change
@@ -408,7 +425,22 @@ invariant HighWaterMarkBoundsTotal {
 -- computation time.
 
 ------------------------------------------------------------
--- Open Questions
+-- Resolved Questions
 ------------------------------------------------------------
 
-open question "Should the intraday P&L chart also display a VaR timeline alongside P&L — i.e. VaR recalculated at each snapshot point and plotted through the day? This would allow traders to see whether P&L moves are tracking within the intraday VaR envelope, and surface early warning when a drawdown is consuming a significant fraction of the VaR budget. Requires risk-orchestrator to persist per-snapshot VaR alongside each IntradayPnlSnapshot, and the UI chart to render a dual-axis or band overlay."
+-- RESOLVED: the intraday P&L chart now displays a VaR timeline alongside
+-- P&L — VaR is recalculated through the day so traders can see whether
+-- P&L moves track within the intraday VaR envelope.
+--
+-- Shipped design (risk-orchestrator): there is NO dedicated timeline
+-- table and no var_value field on IntradayPnlSnapshot. The timeline is
+-- derived from the existing valuation_jobs table — each completed VaR
+-- valuation already persists var_value, expected_shortfall and Greeks
+-- per job. IntradayVaRTimelineService / IntradayVaRTimelineRepository
+-- (ExposedIntradayVaRTimelineRepository) query valuation_jobs for the
+-- book over the requested window, filtering to status = COMPLETED rows
+-- with a non-null var_value and ordering by started_at, to produce the
+-- ordered IntradayVaRPoint series. The service joins these points with
+-- intraday trade annotations and the UI renders the result as a band
+-- overlay on the P&L chart. Reusing valuation_jobs avoids a redundant
+-- table since every intraday VaR run is already recorded there.
