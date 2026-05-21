@@ -532,6 +532,45 @@ rule RunBatchStressTest {
 -- values directly in the orchestrator.
 
 ------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+-- Every replay / reverse-stress / custom-scenario / saved-scenario /
+-- batch trigger in this spec originates from a REST request to
+-- regulatory-service. The caller is never an interactive human user —
+-- it is a UI client, a seeder, or the gateway proxy — so it is modelled
+-- as an actor with a minimal identity rather than a human user.
+-- Declaring the surface lets each `*Requested` trigger resolve in-spec:
+-- without it, single-spec analysis reports every replay / reverse-stress
+-- / scenario-creation / run rule as an unreachableTrigger because the
+-- HTTP origin is not visible to the checker. BatchStressTestCompleted is
+-- emitted by RunBatchStressTest within this spec, not received over a
+-- REST request, so it is deliberately omitted.
+
+actor ScenariosClient {
+    identified_by: SavedScenario where name != ""
+}
+surface RestApi {
+    facing client: ScenariosClient
+
+    provides:
+        ReplayHistoricalScenarioRequested(client)
+        ReplayCustomDateRangeRequested(client)
+        ReverseStressTestRequested(client)
+        CreateCustomScenarioRequested(client)
+        SaveReverseStressAsScenarioRequested(client)
+        RunSavedScenarioRequested(client)
+        RunBatchStressTestRequested(client)
+
+    @guidance
+        -- One provides entry per HTTP-origin trigger. Historical replay,
+        -- custom-date replay, reverse stress testing, custom-scenario
+        -- creation, saving a reverse-stress result as a scenario, running
+        -- a saved scenario and the batch stress run are all POST compute
+        -- / write routes that originate from a REST request.
+}
+
+------------------------------------------------------------
 -- Open Questions
 ------------------------------------------------------------
 

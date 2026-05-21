@@ -942,6 +942,49 @@ rule RaiseAnomalyAlert {
 }
 
 ------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+-- The alert-rule management, acknowledgement, snooze and manual
+-- escalation / resolution triggers originate from REST requests to
+-- notification-service. The caller is never an interactive human user
+-- modelled directly — it is a UI client or the gateway proxy — so it is
+-- modelled as an actor with a minimal identity. Declaring the surface
+-- lets each `*Requested` trigger resolve in-spec: without it, single-spec
+-- analysis reports the rule-CRUD, acknowledge, snooze and manual
+-- escalate / resolve rules as unreachableTrigger because the HTTP origin
+-- is not visible to the checker. The remaining triggers in this spec are
+-- NOT HTTP-origin and are deliberately omitted: RiskResultPublished,
+-- LimitBreachEventReceived, RegimeTransitioned and AnomalyDetected are
+-- Kafka events; EscalationCheckTriggered is a scheduled escalation tick;
+-- AlertTriggered and AlertEscalated are emitted by rules within this
+-- spec.
+
+actor AlertsClient {
+    identified_by: AlertEvent where id != ""
+}
+surface RestApi {
+    facing client: AlertsClient
+
+    provides:
+        CreateAlertRuleRequested(client)
+        DeleteAlertRuleRequested(client)
+        AcknowledgeAlertRequested(client)
+        SnoozeAlertRequested(client)
+        EscalateAlertManuallyRequested(client)
+        ResolveAlertManuallyRequested(client)
+
+    @guidance
+        -- One provides entry per HTTP-origin trigger. Alert-rule create
+        -- and delete, alert acknowledgement, snooze, and the manual
+        -- escalate / resolve actions are all REST write routes that
+        -- originate from a user request. AcknowledgeAlertRequested is
+        -- shared by AcknowledgeAlert and its two rejection rules;
+        -- SnoozeAlertRequested is shared by SnoozeAlert and its rejection
+        -- rule — each shared trigger is enumerated once.
+}
+
+------------------------------------------------------------
 -- Invariants
 ------------------------------------------------------------
 

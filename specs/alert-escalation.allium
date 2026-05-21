@@ -203,6 +203,41 @@ rule EscalatedAlertCannotBeReAcknowledged {
 }
 
 ------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+-- The escalation pipeline is overwhelmingly scheduler- and event-driven:
+-- ScheduledEscalationPoll fires on a Timer, ProcessEscalation and
+-- EscalationDebounce consume the EscalationCheckTriggered tick,
+-- PromoteSeverity / ResolveEscalationTarget consume the internal
+-- EscalationProcessing event, and RouteEscalationDelivery consumes the
+-- AlertEscalated event emitted within alerts.allium. The single
+-- HTTP-origin trigger this spec consumes is AcknowledgeAlertRequested —
+-- the POST /alerts/{id}/acknowledge route declared in alerts.allium and
+-- guarded here by EscalatedAlertCannotBeReAcknowledged. The surface
+-- provides that one trigger; the caller is a UI client or the gateway
+-- proxy, modelled as an actor with a minimal identity rooted on
+-- alerts/AlertEvent (the entity this spec's escalation rules govern,
+-- declared authoritatively in alerts.allium).
+
+actor AlertEscalationClient {
+    identified_by: alerts/AlertEvent where id != ""
+}
+surface RestApi {
+    facing client: AlertEscalationClient
+
+    provides:
+        AcknowledgeAlertRequested(client)
+
+    @guidance
+        -- One provides entry for the single HTTP-origin trigger this
+        -- spec consumes: AcknowledgeAlertRequested is a POST write route.
+        -- The Timer / EscalationCheckTriggered / EscalationProcessing /
+        -- AlertEscalated triggers are scheduled or internal-event origin
+        -- and are deliberately not enumerated.
+}
+
+------------------------------------------------------------
 -- Invariants
 ------------------------------------------------------------
 

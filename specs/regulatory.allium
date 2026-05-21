@@ -631,3 +631,60 @@ invariant ModelApprovalFourEyes {
 -- config.stress_test_result_retention window for regulatory audit; this is
 -- a data-retention policy documented here and enforced in the persistence
 -- layer.
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+-- The model-governance lifecycle, stress-test execution, backtest
+-- recording / comparison, regulatory-submission workflow, FRTB storage,
+-- report generation and historical-replay triggers all originate from
+-- REST requests to regulatory-service. The caller is never an
+-- interactive human user modelled directly — it is a UI client, a
+-- batch job, or the gateway proxy — so it is modelled as an actor with a
+-- minimal identity rooted on ModelVersion. Declaring the surface lets
+-- each `*Requested` trigger resolve in-spec: without it, single-spec
+-- analysis reports every governance / backtest / submission / FRTB /
+-- report rule as an unreachableTrigger because the HTTP origin is not
+-- visible to the checker. SubmissionAcknowledgedByRegulator is NOT
+-- HTTP-origin — it arrives via the external regulator's webhook / inbox
+-- and is emitted by the receiving service — so it is deliberately
+-- omitted. GovernanceTransitionOccurred is emitted by the governance
+-- rules and consumed by audit.allium, not received here.
+
+actor RegulatoryClient {
+    identified_by: ModelVersion where id != ""
+}
+surface RestApi {
+    facing client: RegulatoryClient
+
+    provides:
+        RegisterModelRequested(client)
+        ValidateModelRequested(client)
+        ApproveModelRequested(client)
+        RetireModelRequested(client)
+        TransitionModelRequested(client)
+        RunGovernedStressTestRequested(client)
+        RunReverseStressTestRequested(client)
+        RecordBacktestRequested(client)
+        CompareBacktestsRequested(client)
+        CreateSubmissionRequested(client)
+        SubmitForReviewRequested(client)
+        ApproveSubmissionRequested(client)
+        SubmitSubmissionRequested(client)
+        StoreFrtbRequested(client)
+        GenerateReportRequested(client)
+        RunHistoricalReplayRequested(client)
+
+    @guidance
+        -- One provides entry per HTTP-origin trigger. The model-governance
+        -- transitions (register / validate / approve / retire / transition),
+        -- stress-test execution (governed and reverse), backtest recording
+        -- and comparison, the regulatory-submission workflow (create /
+        -- submit-for-review / approve / submit), FRTB storage, report
+        -- generation and historical replay are all REST compute / write
+        -- routes. ApproveModelRequested is shared by ApproveModel and
+        -- ApproveModelRejectedSelfApproval; ApproveSubmissionRequested is
+        -- shared by ApproveSubmission and ApproveSubmissionRejectedSelfApproval
+        -- — each shared trigger is enumerated once.
+}

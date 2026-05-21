@@ -442,6 +442,55 @@ invariant VersionAtLeastOne {
 -- unreachable.
 
 ------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+-- Every lifecycle trigger in this spec — creation, the status
+-- transitions, update, the execution gate, correlated-scenario creation
+-- and the query routes — originates from a REST request to
+-- regulatory-service's stress-scenario API. The caller is never an
+-- interactive human user; it is a UI client, a seeder, or the gateway
+-- proxy, so it is modelled as an actor with a minimal identity.
+-- Declaring the surface lets each `*Requested` trigger resolve in-spec:
+-- without it, single-spec analysis reports every lifecycle rule as an
+-- unreachableTrigger because the HTTP origin is not visible to the
+-- checker. The actor is rooted on scenarios/SavedScenario — the entity
+-- this spec's lifecycle rules govern, declared authoritatively in
+-- scenarios.allium and referenced here via the qualified name.
+-- GovernanceTransitionOccurred is emitted by the approval / retirement
+-- / execution rules and consumed by audit.allium, not received over a
+-- REST request, so it is deliberately omitted.
+
+actor ScenarioLifecycleClient {
+    identified_by: scenarios/SavedScenario where name != ""
+}
+surface RestApi {
+    facing client: ScenarioLifecycleClient
+
+    provides:
+        CreateScenarioRequested(client)
+        SubmitForApprovalRequested(client)
+        ApproveScenarioRequested(client)
+        RetireScenarioRequested(client)
+        UpdateScenarioRequested(client)
+        RunScenarioRequested(client)
+        CreateCorrelatedScenarioRequested(client)
+        ListAllScenariosRequested(client)
+        ListApprovedScenariosRequested(client)
+        FindScenarioByIdRequested(client)
+
+    @guidance
+        -- One provides entry per HTTP-origin trigger. The write routes
+        -- (create, submit, approve, retire, update, run, correlated
+        -- creation) and the read routes (list-all, list-approved,
+        -- find-by-id) are all REST endpoints on the stress-scenario API.
+        -- ApproveScenarioRequested is shared by ApproveScenario and
+        -- RejectApprovalFromDraft; RetireScenarioRequested is shared by
+        -- RetireScenario and RejectRetireFromNonApproved — each shared
+        -- trigger is enumerated once.
+}
+
+------------------------------------------------------------
 -- Open Questions
 ------------------------------------------------------------
 

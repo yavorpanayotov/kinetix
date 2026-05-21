@@ -465,6 +465,47 @@ invariant DlqReplayRestrictedToOperator {
         e.details = "DLQ_REPLAY" implies e.user_role = "operator"
 }
 
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+-- The audit trail is overwhelmingly event-driven: the three
+-- RecordAuditEventOn* rules consume the TradeBooked / TradeAmended /
+-- TradeCancelled Kafka events; RecordGovernanceAuditEvent consumes
+-- GovernanceTransitionOccurred (the governance.audit Kafka topic);
+-- RecordRiskCalculationAuditEvent consumes RiskCalculationCompleted;
+-- RecordAccessDenialAuditEvent / RecordBookAccessDenialAuditEvent
+-- consume gateway RBAC-denial events; RecordReportGenerationAuditEvent
+-- consumes ReportGenerated. None of those originate from a REST request.
+-- Three triggers ARE HTTP-origin — the audit-service administrative
+-- routes: VerifyAuditChainRequested (chain verification),
+-- DetectAuditSequenceGapsRequested (GET /api/v1/audit/gaps) and
+-- DlqReplayRequested (POST /api/v1/audit/dlq/replay). The surface
+-- provides those three; the caller is an operator or the gateway proxy,
+-- modelled as an actor with a minimal identity rooted on AuditEvent.
+
+actor AuditClient {
+    identified_by: AuditEvent where record_hash != ""
+}
+surface RestApi {
+    facing client: AuditClient
+
+    provides:
+        VerifyAuditChainRequested(client)
+        DetectAuditSequenceGapsRequested(client)
+        DlqReplayRequested(client)
+
+    @guidance
+        -- One provides entry per HTTP-origin trigger. Chain
+        -- verification, sequence-gap detection and DLQ replay are all
+        -- audit-service admin REST routes. The Kafka-event triggers
+        -- (TradeBooked / TradeAmended / TradeCancelled,
+        -- GovernanceTransitionOccurred, RiskCalculationCompleted,
+        -- RbacAccessDenied, BookAccessDenied, ReportGenerated) are
+        -- deliberately omitted — they do not originate from a REST
+        -- request.
+}
+
 -- GOVERNANCE EVENT IDEMPOTENCY (intended contract, not yet a quantified
 -- invariant). At most one audit event must exist per consumed governance
 -- message identity: a redelivered or DLQ-replayed governance event must

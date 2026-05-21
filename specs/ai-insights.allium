@@ -534,6 +534,41 @@ rule SelectChatClient {
 }
 
 ------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+-- The conversational chat endpoint is the single HTTP-origin trigger in
+-- this spec: ChatRequestReceived models the inbound POST to
+-- /api/v1/insights/chat, consumed by StampMissingConversationIds and
+-- StreamChatResponse. The caller is the UI's copilot chat panel (or the
+-- gateway proxy), modelled as an actor with a minimal identity rooted on
+-- ChatRequest. Declaring the surface lets ChatRequestReceived resolve
+-- in-spec: without it, single-spec analysis reports the request-handling
+-- rules as unreachableTrigger because the HTTP origin is not visible to
+-- the checker. The remaining triggers in this spec are NOT HTTP-origin
+-- and are deliberately omitted: NarrativeGenerated, ChatUpstreamFailed
+-- and ChatMessageTimedOut are internal generation-pipeline events;
+-- McpToolsRegistrationRequested and ChatClientRequested are in-process
+-- factory / registry calls; ChatResponseStreamed is emitted by the
+-- streaming rules; ConversationExpires is a TTL-elapsed event.
+
+actor AiInsightsClient {
+    identified_by: ChatRequest where message != ""
+}
+surface RestApi {
+    facing client: AiInsightsClient
+
+    provides:
+        ChatRequestReceived(client)
+
+    @guidance
+        -- One provides entry for the single HTTP-origin trigger:
+        -- ChatRequestReceived is the inbound POST to the SSE chat
+        -- endpoint. It is shared by StampMissingConversationIds and
+        -- StreamChatResponse and is enumerated once.
+}
+
+------------------------------------------------------------
 -- Invariants
 ------------------------------------------------------------
 
