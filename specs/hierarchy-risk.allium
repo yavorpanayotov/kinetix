@@ -406,3 +406,46 @@ rule ScheduledHierarchyAggregation {
 -- HierarchyRiskSnapshot also records is_partial (the per-book missing
 -- list is captured in service logs, not on the snapshot row). The
 -- firm-level result is never null.
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+-- The hierarchy resolution / aggregation, drill-down, marginal
+-- contribution, risk-budget CRUD and CRO-report rules are driven by HTTP
+-- requests arriving over the risk-orchestrator REST API (and aggregated
+-- by the gateway). The caller is code — the UI, a seeder, or the gateway
+-- proxy — so it is modelled as an actor with a minimal identity rather
+-- than a human user. Declaring the surface lets each `*Requested`
+-- trigger resolve in-spec: without it, single-spec analysis reports each
+-- aggregation / drill-down / budget / report rule as an
+-- unreachableTrigger because the HTTP origin is not visible to the
+-- checker. The remaining triggers are NOT HTTP-origin and are
+-- deliberately omitted: HierarchyRiskCompleted (driving
+-- TrackBudgetUtilisation / AlertOnBudgetBreach) is emitted by the
+-- aggregation rules within this spec, and ScheduledHierarchyTick is a
+-- scheduled batch tick.
+
+actor HierarchyRiskClient {
+    identified_by: HierarchyRiskSnapshot where entity_id != ""
+}
+
+surface RestApi {
+    facing client: HierarchyRiskClient
+
+    provides:
+        HierarchyRiskRequested(client)
+        HierarchyDrillDownRequested(client)
+        MarginalContributionRequested(client)
+        CreateRiskBudgetRequested(client)
+        UpdateRiskBudgetRequested(client)
+        CROReportRequested(client)
+
+    @guidance
+        -- One provides entry per HTTP-origin trigger. Hierarchy risk,
+        -- drill-down, marginal contribution and CRO report are GET / POST
+        -- compute routes; budget create and update are POST / PUT write
+        -- routes — all originate from a REST request. HierarchyRiskRequested
+        -- is shared by the ResolveHierarchy and AggregateHierarchyVaR
+        -- rules and is enumerated once.
+}

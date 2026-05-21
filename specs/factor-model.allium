@@ -455,3 +455,45 @@ invariant RSquaredRange {
 -- AnalyticalFallback. Instruments with fewer than config.min_history_for_ols
 -- days of return history use analytical loadings; these carry r_squared =
 -- null and method = analytical.
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+-- The loading-estimation, factor-decomposition, factor-P&L-attribution
+-- and Brinson-attribution rules are driven by HTTP requests arriving
+-- over the risk-orchestrator / gateway REST API. The caller is code —
+-- the UI, a seeder, or the gateway proxy — so it is modelled as an actor
+-- with a minimal identity rather than a human user. Declaring the
+-- surface lets each `*Requested` trigger resolve in-spec: without it,
+-- single-spec analysis reports each estimation / decomposition /
+-- attribution rule as an unreachableTrigger because the HTTP origin is
+-- not visible to the checker. The remaining triggers are NOT HTTP-origin
+-- and are deliberately omitted: FactorReturnReceived (driving
+-- IngestFactorReturn) is an upstream ingestion event,
+-- FactorDecompositionCompleted (driving WarnOnFactorConcentration) is
+-- emitted by DecomposeFactorRisk within this spec, and ScheduledLoadingTick
+-- and ScheduledFactorTick are scheduled batch ticks.
+
+actor FactorModelClient {
+    identified_by: FactorDecompositionSnapshot where book_id != ""
+}
+
+surface RestApi {
+    facing client: FactorModelClient
+
+    provides:
+        EstimateLoadingsRequested(client)
+        FactorDecompositionRequested(client)
+        FactorPnlAttributionRequested(client)
+        BrinsonAttributionRequested(client)
+
+    @guidance
+        -- One provides entry per HTTP-origin trigger. Loading estimation,
+        -- factor VaR decomposition, factor P&L attribution and Brinson
+        -- benchmark attribution are all compute routes that originate
+        -- from a REST request. FactorDecompositionRequested and
+        -- FactorPnlAttributionRequested are also emitted by the scheduled
+        -- batch, but each has an HTTP-origin route too and is enumerated
+        -- once here.
+}

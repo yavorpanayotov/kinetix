@@ -487,3 +487,47 @@ invariant StressedHorizonExceedsNormal {
 open question "Should the participation rate be configurable per instrument tier (e.g., 25% for HIGH_LIQUID, 15% for SEMI_LIQUID) or a single global rate?"
 
 open question "When Direction 5 (FIX integration) ships, should the pre-trade ADV check run on FIX-originated orders with the same latency budget (<100ms)?"
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+-- The position-liquidity, portfolio-LVaR and stressed-liquidity rules
+-- are driven by HTTP requests arriving over the risk-orchestrator /
+-- gateway REST API. The caller is code — the UI, a seeder, or the
+-- gateway proxy — so it is modelled as an actor with a minimal identity
+-- rather than a human user. Declaring the surface lets each `*Requested`
+-- trigger resolve in-spec: without it, single-spec analysis reports each
+-- position-liquidity / LVaR / stressed-liquidity rule as an
+-- unreachableTrigger because the HTTP origin is not visible to the
+-- checker. The remaining triggers are NOT HTTP-origin and are
+-- deliberately omitted: InstrumentLiquidityReceived (driving
+-- IngestInstrumentLiquidity) is a daily-batch ingestion event,
+-- PreTradeLimitCheck (driving CheckADVConcentration) is an internal call
+-- on the trade-booking path rather than an external REST stimulus
+-- (mirrors the limits.allium treatment), LVaRCalculated (driving
+-- AlertOnConcentration) is emitted by CalculateLiquidityAdjustedVaR
+-- within this spec, TradeBooked (driving RecomputeLiquidityOnTrade) is an
+-- upstream Kafka event, and ScheduledLiquidityTick is a scheduled batch
+-- tick.
+
+actor LiquidityClient {
+    identified_by: LiquidityRiskSnapshot where book_id != ""
+}
+
+surface RestApi {
+    facing client: LiquidityClient
+
+    provides:
+        ComputePositionLiquidityRequested(client)
+        LVaRRequested(client)
+        StressedLiquidityRequested(client)
+
+    @guidance
+        -- One provides entry per HTTP-origin trigger. Position-liquidity
+        -- computation, liquidity-adjusted VaR and stressed liquidity are
+        -- all compute routes that originate from a REST request.
+        -- ComputePositionLiquidityRequested and LVaRRequested are also
+        -- emitted by the scheduled batch, but each has an HTTP-origin
+        -- route too and is enumerated once here.
+}

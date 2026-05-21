@@ -359,3 +359,42 @@ invariant ExpiredRecommendationsNotAcceptable {
 open question "Should the hedge engine suggest multi-leg strategies (e.g., a collar: buy put + sell call) or only single-instrument hedges?"
 
 open question "When Direction 4 (factor model) ships, should the target metric include factor exposures (e.g., 'minimise equity beta') in addition to raw Greeks?"
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+-- The hedge-suggestion, acceptance and rejection rules are driven by
+-- HTTP requests arriving over the risk-orchestrator / gateway REST API.
+-- The caller is code — the UI, a seeder, or the gateway proxy — so it is
+-- modelled as an actor with a minimal identity rather than a human user.
+-- Declaring the surface lets each `*Requested` trigger resolve in-spec:
+-- without it, single-spec analysis reports each suggest / accept / reject
+-- rule as an unreachableTrigger because the HTTP origin is not visible to
+-- the checker. The remaining triggers are NOT HTTP-origin and are
+-- deliberately omitted: HedgeExpiryTickTriggered (driving
+-- ScheduledHedgeExpiryJob) is a scheduled polling tick, and the
+-- ExpireHedgeRecommendations rule fires on a reactive state condition
+-- (HedgeRecommendation.expires_at <= now), not a REST request.
+
+actor HedgeClient {
+    identified_by: HedgeRecommendation where book_id != ""
+}
+
+surface RestApi {
+    facing client: HedgeClient
+
+    provides:
+        SuggestHedgeRequested(client)
+        AcceptHedgeRequested(client)
+        RejectHedgeRequested(client)
+
+    @guidance
+        -- One provides entry per HTTP-origin trigger. Hedge suggestion,
+        -- acceptance and rejection are all POST routes that originate
+        -- from a REST request. SuggestHedgeRequested is shared by the
+        -- SuggestHedge and SuggestHedgeNoCandidates rules, and
+        -- AcceptHedgeRequested by the AcceptHedgeRecommendation and
+        -- AcceptHedgeRejectedExpired rules — each shared trigger is
+        -- enumerated once.
+}

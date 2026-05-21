@@ -745,3 +745,48 @@ open question "Should DVA (Debit Valuation Adjustment) be computed alongside CVA
 open question "For FX collateral: should the FX conversion rate for haircut calculation use the same rate as position valuation, or a more conservative rate?"
 
 open question "Should SA-CVA (BCBS 325) be implemented alongside SA-CCR? CVA capital charge is a separate regulatory exercise but uses similar inputs (supervisory delta, hedging set classifications). Implementing SA-CVA would complete the Basel IV CCR capital stack."
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+-- The counterparty-exposure, PFE, CVA, SA-CCR, collateral-posting and
+-- margin-estimation rules are driven by HTTP requests arriving over the
+-- risk-orchestrator REST API (and aggregated by the gateway). The caller
+-- is code — the UI, a seeder, or the gateway proxy — so it is modelled as
+-- an actor with a minimal identity rather than a human user. Declaring
+-- the surface lets each `*Requested` trigger resolve in-spec: without it,
+-- single-spec analysis reports each exposure / PFE / CVA / SA-CCR /
+-- collateral / margin rule as an unreachableTrigger because the HTTP
+-- origin is not visible to the checker. The remaining triggers are NOT
+-- HTTP-origin and are deliberately omitted: TradeBooked (driving
+-- NettingSetAssignment) is an upstream Kafka event, and
+-- ScheduledCounterpartyRiskTick is a scheduled batch tick.
+-- CalculateCounterpartyExposureRequested, CalculatePFERequested and
+-- CalculateCVARequested are also emitted by the scheduled batch, but each
+-- has an HTTP-origin route too and is enumerated once here.
+
+actor CounterpartyRiskClient {
+    identified_by: CounterpartyExposureSnapshot where counterparty_id != ""
+}
+
+surface RestApi {
+    facing client: CounterpartyRiskClient
+
+    provides:
+        CalculateCounterpartyExposureRequested(client)
+        CalculatePFERequested(client)
+        CalculateCVARequested(client)
+        PostCollateralRequested(client)
+        CalculateSaCcrRequested(client)
+        CalculateMarginRequested(client)
+
+    @guidance
+        -- One provides entry per HTTP-origin trigger. Counterparty
+        -- exposure, PFE, CVA and SA-CCR are POST compute routes;
+        -- collateral posting is a POST write route; margin estimation is
+        -- a GET compute route — all originate from a REST request.
+        -- CalculateCounterpartyExposureRequested is shared by the
+        -- CalculateCounterpartyExposure and DetectWrongWayRisk rules and
+        -- is enumerated once.
+}

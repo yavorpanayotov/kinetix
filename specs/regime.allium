@@ -537,3 +537,28 @@ invariant HoldOnDegradedInputs {
     for s in RegimeStates:
         s.degraded_inputs implies s.regime = previous_regime(s)
 }
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+-- The regime-detection workflow owns no HTTP-origin triggers, so its
+-- REST surface has nothing to provide. ScheduledRegimeDetectionTick is a
+-- scheduled detection tick; RegimeClassified and RegimeTransitioned are
+-- emitted by rules within this spec; MLPredictionRequested originates
+-- from a gRPC call to the risk-engine ML prediction service; and
+-- CalculateVaRRequested (driving OverrideVaRParameters) is a cross-spec
+-- trigger owned by risk.allium. None originate from a REST request.
+-- The spec still declares a `RestApi` surface for consistency with every
+-- other spec in the workspace and to document the cross-spec value type
+-- that crosses the wire boundary: the regime detector reads the
+-- StressScenarioShocks shock bundle defined in risk-models.allium, and
+-- the active regime's AdaptiveVaRParameters are surfaced to consumers
+-- (the regime badge, VaR parameter overrides) over the REST API.
+
+surface RestApi {
+    exposes:
+        AdaptiveVaRParameters
+        EarlyWarning
+        RegimeSignals
+}
