@@ -76,6 +76,11 @@ value HedgeConstraints {
 ------------------------------------------------------------
 
 entity HedgeRecommendation {
+    -- Carried on the wire and modelled here as a String; the Kotlin
+    -- class `HedgeRecommendation` (risk-orchestrator/.../model/
+    -- HedgeRecommendation.kt) holds `id` as a `java.util.UUID`. Routes
+    -- serialise the UUID to its canonical string form, so the value is
+    -- always the serialised-string representation of a UUID.
     id: String
     book_id: String
     target_metric: HedgeTarget

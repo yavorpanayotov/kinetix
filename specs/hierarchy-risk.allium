@@ -78,6 +78,13 @@ entity BookHierarchyMapping {
         -- Desk → Division mapping comes from reference-data-service.
         -- This closes the gap: books in position-service are not
         -- currently linked to the desks in reference-data-service.
+        --
+        -- Naming: this entity is realised in code as the Kotlin class
+        -- `BookHierarchyEntry`
+        -- (risk-orchestrator/.../model/BookHierarchyEntry.kt). The fields
+        -- match exactly; only the type name differs. This is a minor
+        -- naming-only divergence recorded here rather than resolved by
+        -- renaming the code class.
 }
 
 entity RiskBudgetAllocation {
@@ -212,14 +219,28 @@ rule ComputeMarginalContribution {
     @guidance
         -- "If I remove this entity, how does the parent's VaR change?"
         --
+        -- Intended (drop-out reaggregation) definition:
         -- For a desk within a division:
         --   marginal_var = division_var - var_without_this_desk
         --   where var_without_this_desk = cross-book VaR of all books
         --   in the division EXCEPT this desk's books.
+        -- At higher levels: aggregate the marginal VaRs of child entities.
         --
-        -- This reuses the incremental_var already computed in
-        -- CrossBookValuationResult.BookVaRContribution.
-        -- At higher levels: aggregate the incremental VaRs of child entities.
+        -- Formula realised in code: NEITHER drop-out reaggregation NOR a
+        -- summed-contribution decomposition is currently computed. The
+        -- per-book `marginalVar` / `incrementalVar` fields on
+        -- `BookVaRContribution` are left at their `0.0` defaults by
+        -- `CrossBookVaRCalculationService.computeBookContributions`
+        -- (which only derives varContribution, standaloneVar and the
+        -- diversification benefit). `HierarchyRiskService` then sums those
+        -- zero values into the node-level `marginalVar` / `incrementalVar`,
+        -- so a hierarchy node reports `marginalVar = 0.0` whenever it has
+        -- book contributions.
+        --
+        -- There is also no `MarginalContributionRequested` trigger handler:
+        -- the rule above is aspirational. The drop-out reaggregation
+        -- formula is the intended target; until it is implemented the
+        -- emitted marginal/incremental VaR carries no risk signal.
 }
 
 -- Risk budget tracking
