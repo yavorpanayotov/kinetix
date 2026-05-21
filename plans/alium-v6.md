@@ -75,6 +75,16 @@ after every commit (CLAUDE.md "Commit Practices").
 - **Minor naming-only divergences** (`id: String` vs `UUID`, `BookHierarchyMapping`
   vs `BookHierarchyEntry`, etc.) are resolved by a spec `@guidance` annotation, not
   by code churn — unless the wire contract is affected.
+- **`@aspirational` means an `-- ASPIRATIONAL` `@guidance` comment, not an
+  annotation.** Allium has no `@aspirational` annotation — `allium check` rejects
+  it as an `error` (the only valid annotations are `@invariant` / `@guidance` /
+  `@guarantee`). The spec set's established convention for "documented but not a
+  live runtime contract" is an `-- ASPIRATIONAL` / `-- Aspirational` comment line
+  inside a `@guidance` block (see `eod-close.allium:140`, `intraday-pnl.allium:127,178`,
+  `counterparty-risk.allium:42`). Wherever a checkbox below says "mark
+  `@aspirational`" / "downgrade to `@aspirational`", it means: add or extend a
+  `@guidance` comment of that form on the rule/entity, keeping it a `rule` — never
+  add a literal `@aspirational` token. Applies to checkboxes 2.3, 2.5, 4.10, 4.12.
 - **Overlap with `docs/plans/spec-weeding-followup-2026-05-18.md`.** That plan
   remains the owner of its ~20 code items. v6 does **not** re-checkbox them; see
   the *Cross-reference* section. Only genuinely-new findings are checkboxed here.
