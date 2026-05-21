@@ -279,6 +279,19 @@ adds the dashboard in the same commit — one self-contained feature per checkbo
       connections, messages pushed, delivery failures, dropped connections) and add
       an `overview/notification-service.json` dashboard. TDD.
       Acceptance: `./gradlew :notification-service:test && node plans/scripts/validate-grafana.mjs && test -f infra/grafana/provisioning/dashboards/overview/notification-service.json`
+      Blocked: 2026-05-21 — architectural mismatch. `notification-service` has
+      NO WebSocket server: it only consumes Kafka and persists alerts to Postgres
+      (`InAppDeliveryService` → `AlertEventRepository`); `build.gradle.kts` has no
+      `ktor-server-websockets` dependency. The WebSocket push-to-UI lives entirely
+      in `gateway` (`gateway/.../websocket/AlertWebSocketRoute.kt` serves
+      `/ws/alerts`; `AlertBroadcaster` owns the session set / broadcast / drop
+      lifecycle). The four mandated metrics (active connections, messages pushed,
+      delivery failures, dropped connections) map onto the gateway's
+      `AlertBroadcaster`, not notification-service. Adding a WebSocket server to
+      notification-service would be a new cross-service API contract — a guardrail
+      hard stop. Awaiting user decision: retarget 4.6 to the `gateway` (Option A)
+      or redefine it as honest in-app delivery metrics on `notification-service`'s
+      `InAppDeliveryService` (Option B).
 - [ ] 4.7 Instrument `audit-service` with audit-trail metrics (append rate,
       hash-chain verification pass/fail, write latency, chain length) and add an
       `overview/audit-service.json` dashboard. TDD.
