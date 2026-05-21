@@ -269,20 +269,25 @@ class HedgeRecommendationService(
             if (tier !in LIQUID_TIERS) return null
 
             val priceResp = priceServiceClient.getLatestPrice(InstrumentId(liq.instrumentId))
-            val pricePerUnit = when (priceResp) {
-                is ClientResponse.Success -> priceResp.value.price.amount.toDouble()
+            val pricePoint = when (priceResp) {
+                is ClientResponse.Success -> priceResp.value
                 else -> {
                     logger.debug("No price found for candidate {}, excluding", liq.instrumentId)
                     return null
                 }
             }
+            val pricePerUnit = pricePoint.price.amount.toDouble()
             if (pricePerUnit <= 0.0) {
                 logger.debug("Zero or negative price for candidate {}, excluding", liq.instrumentId)
                 return null
             }
 
-            // Price age in minutes — use staleness flag from DTO
-            val priceAgeMinutes = if (liq.advStale) 20 else 5
+            // Price age in minutes — derived from the actual quote timestamp, not the
+            // ADV-staleness flag. Drives the FRESH/STALE data_quality signal (>= 15 min = STALE).
+            val priceAgeMinutes = Duration.between(pricePoint.timestamp, Instant.now())
+                .toMinutes()
+                .coerceAtLeast(0L)
+                .toInt()
 
             // For VEGA hedges, require vol surface data to be available.
             // Fail-open: if the vol client is unavailable or throws, include the candidate.

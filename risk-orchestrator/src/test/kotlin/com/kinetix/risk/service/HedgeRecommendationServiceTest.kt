@@ -104,10 +104,14 @@ private fun liquidityDto(
     updatedAt = "2026-03-24T09:00:00Z",
 )
 
-private fun pricePoint(instrumentId: String, amount: Double = 150.0) = PricePoint(
+private fun pricePoint(
+    instrumentId: String,
+    amount: Double = 150.0,
+    timestamp: Instant = Instant.now(),
+) = PricePoint(
     instrumentId = InstrumentId(instrumentId),
     price = Money(BigDecimal.valueOf(amount), Currency.getInstance("USD")),
-    timestamp = Instant.now(),
+    timestamp = timestamp,
     source = PriceSource.EXCHANGE,
 )
 
@@ -399,6 +403,65 @@ class HedgeRecommendationServiceTest : FunSpec({
 
         candidatesSlot.captured shouldHaveSize 1
         candidatesSlot.captured.first().pricePerUnit shouldBe 42.50
+    }
+
+    test("derives candidate price age from the actual quote timestamp — fresh quote") {
+        coEvery { varCache.get("BOOK-1") } returns varResult()
+        coEvery { referenceDataClient.getLiquidityDataBatch(any()) } returns mapOf(
+            "AAPL" to liquidityDto("AAPL"),
+        )
+        coEvery { instrumentServiceClient.getInstrument(any()) } returns ClientResponse.Success(instrumentDto("AAPL"))
+        coEvery { priceServiceClient.getLatestPrice(any()) } returns ClientResponse.Success(
+            pricePoint("AAPL", timestamp = Instant.now().minusSeconds(3 * 60)),
+        )
+
+        val candidatesSlot = slot<List<com.kinetix.risk.model.CandidateInstrument>>()
+        coEvery { calculator.suggest(any(), any(), any(), capture(candidatesSlot), any()) } returns emptyList()
+
+        service.suggestHedge(bookId, HedgeTarget.DELTA, 0.80, defaultConstraints)
+
+        candidatesSlot.captured shouldHaveSize 1
+        candidatesSlot.captured.first().priceAgeMinutes shouldBe 3
+    }
+
+    test("derives candidate price age from the actual quote timestamp — stale quote") {
+        coEvery { varCache.get("BOOK-1") } returns varResult()
+        coEvery { referenceDataClient.getLiquidityDataBatch(any()) } returns mapOf(
+            "AAPL" to liquidityDto("AAPL"),
+        )
+        coEvery { instrumentServiceClient.getInstrument(any()) } returns ClientResponse.Success(instrumentDto("AAPL"))
+        coEvery { priceServiceClient.getLatestPrice(any()) } returns ClientResponse.Success(
+            pricePoint("AAPL", timestamp = Instant.now().minusSeconds(42 * 60)),
+        )
+
+        val candidatesSlot = slot<List<com.kinetix.risk.model.CandidateInstrument>>()
+        coEvery { calculator.suggest(any(), any(), any(), capture(candidatesSlot), any()) } returns emptyList()
+
+        service.suggestHedge(bookId, HedgeTarget.DELTA, 0.80, defaultConstraints)
+
+        candidatesSlot.captured shouldHaveSize 1
+        candidatesSlot.captured.first().priceAgeMinutes shouldBe 42
+    }
+
+    test("price age ignores the advStale liquidity flag — a fresh quote is fresh even when ADV is stale") {
+        coEvery { varCache.get("BOOK-1") } returns varResult()
+        coEvery { referenceDataClient.getLiquidityDataBatch(any()) } returns mapOf(
+            "AAPL" to liquidityDto("AAPL", advStale = true),
+        )
+        coEvery { instrumentServiceClient.getInstrument(any()) } returns ClientResponse.Success(instrumentDto("AAPL"))
+        coEvery { priceServiceClient.getLatestPrice(any()) } returns ClientResponse.Success(
+            pricePoint("AAPL", timestamp = Instant.now().minusSeconds(2 * 60)),
+        )
+
+        val candidatesSlot = slot<List<com.kinetix.risk.model.CandidateInstrument>>()
+        coEvery { calculator.suggest(any(), any(), any(), capture(candidatesSlot), any()) } returns emptyList()
+
+        service.suggestHedge(bookId, HedgeTarget.DELTA, 0.80, defaultConstraints)
+
+        candidatesSlot.captured shouldHaveSize 1
+        // advStale=true would have synthesised an age of 20 min (the old bug);
+        // the real 2-minute-old quote must drive the age instead.
+        candidatesSlot.captured.first().priceAgeMinutes shouldBe 2
     }
 
     test("excludes candidate when price not found") {
