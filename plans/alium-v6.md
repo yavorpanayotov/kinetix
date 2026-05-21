@@ -461,7 +461,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       `group-d` aspirational findings.
       Acceptance: `node plans/scripts/allium-workspace.mjs`
 
-- [ ] 4.13 Extend `positions.allium` + `trading.allium` — add a `PositionNote`
+- [x] 4.13 Extend `positions.allium` + `trading.allium` — add a `PositionNote`
       entity with CRUD rules (`position_notes` table, retention/audit obligations)
       and a `TradeStrategy` entity with the `StrategyType` enum and CRUD rules
       (drives P&L attribution). Source: `group-b` coverage gaps.
