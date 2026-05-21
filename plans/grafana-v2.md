@@ -267,7 +267,7 @@ adds the dashboard in the same commit — one self-contained feature per checkbo
       `risk/stress-results.json` dashboard showing per-scenario P&L, worst scenario
       per book, and breach highlighting. TDD.
       Acceptance: `( cd risk-engine && uv run pytest -m unit ) && node plans/scripts/validate-grafana.mjs && test -f infra/grafana/provisioning/dashboards/risk/stress-results.json`
-- [ ] 4.4 Instrument `regulatory-service` with model-governance metrics (VaR
+- [x] 4.4 Instrument `regulatory-service` with model-governance metrics (VaR
       backtesting exceptions, backtest pass/fail counts, submission outcomes) and
       add a `risk/regulatory.json` dashboard. TDD.
       Acceptance: `./gradlew :regulatory-service:test && node plans/scripts/validate-grafana.mjs && test -f infra/grafana/provisioning/dashboards/risk/regulatory.json`
