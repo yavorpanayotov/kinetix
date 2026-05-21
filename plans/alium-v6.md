@@ -379,7 +379,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
 
 ## Phase 4 — New specs & coverage extensions
 
-- [ ] 4.1 Write `specs/ai-insights.allium` — a new spec for `ai-insights-service`
+- [x] 4.1 Write `specs/ai-insights.allium` — a new spec for `ai-insights-service`
       (~41 source files, currently zero coverage). Required surfaces: chat
       request/response contract, conversation persistence, the citation-verification
       invariant (every numeric claim cites a source), the banned-phrase policy
