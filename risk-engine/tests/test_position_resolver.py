@@ -314,9 +314,10 @@ class TestDefaultVolFallback:
         )
         bundle = MarketDataBundle()  # No spot, no surface
         result, flags = resolve_positions([opt], bundle=bundle)
-        # Option passes through since neither spot nor vol could be enriched
+        # Option passes through since neither spot nor vol could be enriched.
+        # A live option left with no usable volatility emits OPTION_NO_VOL.
         assert result[0] is opt
-        assert len(flags) == 0
+        assert flags == ["OPTION_NO_VOL:AAPL-C"]
 
     def test_default_vol_not_applied_when_already_populated(self):
         opt = OptionPosition(
@@ -371,3 +372,126 @@ class TestOptionExpiryGuard:
         assert type(resolved) is PositionRisk
         # OTM put at expiry: intrinsic = 0
         assert resolved.market_value == 0.0
+
+
+@pytest.mark.unit
+class TestDegradationFlags:
+    def test_expired_option_emits_option_expired_intrinsic_flag(self):
+        """An option past expiry valued at intrinsic emits OPTION_EXPIRED_INTRINSIC."""
+        opt = OptionPosition(
+            instrument_id="AAPL-C",
+            underlying_id="AAPL",
+            option_type=OptionType.CALL,
+            strike=190.0,
+            expiry_days=0,
+            spot_price=195.0,
+            implied_vol=0.25,
+            quantity=10.0,
+            contract_multiplier=100.0,
+        )
+        result, flags = resolve_positions([opt])
+        assert type(result[0]) is PositionRisk
+        assert any(f.startswith("OPTION_EXPIRED_INTRINSIC:AAPL-C") for f in flags)
+
+    def test_negative_expiry_option_emits_option_expired_intrinsic_flag(self):
+        """An option with negative expiry_days is also treated as expired."""
+        opt = OptionPosition(
+            instrument_id="AAPL-P",
+            underlying_id="AAPL",
+            option_type=OptionType.PUT,
+            strike=200.0,
+            expiry_days=-5,
+            spot_price=195.0,
+            implied_vol=0.25,
+            quantity=10.0,
+            contract_multiplier=100.0,
+        )
+        result, flags = resolve_positions([opt])
+        assert type(result[0]) is PositionRisk
+        assert any(f.startswith("OPTION_EXPIRED_INTRINSIC:AAPL-P") for f in flags)
+
+    def test_live_option_does_not_emit_option_expired_intrinsic_flag(self):
+        opt = OptionPosition(
+            instrument_id="AAPL-C",
+            underlying_id="AAPL",
+            option_type=OptionType.CALL,
+            strike=190.0,
+            expiry_days=30,
+            spot_price=195.0,
+            implied_vol=0.25,
+            quantity=10.0,
+            contract_multiplier=100.0,
+        )
+        _, flags = resolve_positions([opt])
+        assert not any("OPTION_EXPIRED_INTRINSIC" in f for f in flags)
+
+    def test_option_with_no_vol_emits_option_no_vol_flag(self):
+        """An option that cannot obtain a vol (spot present, surface missing)
+        is distinct from VOL_SURFACE_MISSING only when no vol is usable.
+
+        When spot is unavailable AND the surface is missing, vol stays 0.0
+        and the option passes through — OPTION_NO_VOL records that no
+        volatility was available to value the option."""
+        opt = OptionPosition(
+            instrument_id="AAPL-C",
+            underlying_id="AAPL",
+            option_type=OptionType.CALL,
+            strike=200.0,
+            expiry_days=30,
+            spot_price=0.0,
+            implied_vol=0.0,
+        )
+        bundle = MarketDataBundle()  # no spot, no vol surface
+        result, flags = resolve_positions([opt], bundle=bundle)
+        assert result[0] is opt  # passes through unresolved
+        assert any(f.startswith("OPTION_NO_VOL:AAPL-C") for f in flags)
+
+    def test_option_with_vol_does_not_emit_option_no_vol_flag(self):
+        opt = OptionPosition(
+            instrument_id="AAPL-C",
+            underlying_id="AAPL",
+            option_type=OptionType.CALL,
+            strike=200.0,
+            expiry_days=30,
+            spot_price=195.0,
+            implied_vol=0.25,
+        )
+        _, flags = resolve_positions([opt])
+        assert not any("OPTION_NO_VOL" in f for f in flags)
+
+    def test_default_vol_fallback_does_not_emit_option_no_vol_flag(self):
+        """VOL_SURFACE_MISSING fallback (vol defaulted to 0.25) is NOT
+        OPTION_NO_VOL — a usable vol was obtained."""
+        opt = OptionPosition(
+            instrument_id="AAPL-C",
+            underlying_id="AAPL",
+            option_type=OptionType.CALL,
+            strike=200.0,
+            expiry_days=30,
+            spot_price=0.0,
+            implied_vol=0.0,
+        )
+        bundle = MarketDataBundle(spot_prices={"AAPL": 195.0})
+        _, flags = resolve_positions([opt], bundle=bundle)
+        assert not any("OPTION_NO_VOL" in f for f in flags)
+        assert any("VOL_SURFACE_MISSING" in f for f in flags)
+
+    def test_swap_with_no_curve_emits_swap_no_curve_flag(self):
+        """A swap with no discount/rate curve available emits SWAP_NO_CURVE."""
+        swap = _make_swap(currency="EUR")
+        bundle = _make_bundle(currency="USD")  # no EUR curve
+        result, flags = resolve_positions([swap], bundle=bundle)
+        assert result[0] is swap  # passes through unresolved
+        assert any(f.startswith("SWAP_NO_CURVE:USD-SOFR-5Y") for f in flags)
+
+    def test_swap_with_no_bundle_emits_swap_no_curve_flag(self):
+        swap = _make_swap()
+        result, flags = resolve_positions([swap])
+        assert result[0] is swap
+        assert any(f.startswith("SWAP_NO_CURVE:USD-SOFR-5Y") for f in flags)
+
+    def test_swap_with_curve_does_not_emit_swap_no_curve_flag(self):
+        swap = _make_swap()
+        bundle = _make_bundle()
+        _, flags = resolve_positions([swap], bundle=bundle)
+        assert not any("SWAP_NO_CURVE" in f for f in flags)

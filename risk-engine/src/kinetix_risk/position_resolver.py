@@ -57,10 +57,18 @@ def resolve_positions(
                     market_value=intrinsic,
                     currency=pos.currency,
                 ))
+                flags.append(f"OPTION_EXPIRED_INTRINSIC:{pos.instrument_id}")
             else:
+                # Option could not be resolved: passes through unchanged.
+                # If a live option still has no usable volatility, record it
+                # — distinct from VOL_SURFACE_* fallbacks, which obtained a vol.
+                if pos.expiry_days > 0 and pos.implied_vol <= 0:
+                    flags.append(f"OPTION_NO_VOL:{pos.instrument_id}")
                 resolved.append(pos)
         elif isinstance(pos, SwapPosition):
-            resolved.append(_resolve_swap(pos, bundle))
+            resolved_swap, swap_flags = _resolve_swap(pos, bundle)
+            resolved.append(resolved_swap)
+            flags.extend(swap_flags)
         else:
             resolved.append(pos)
     return resolved, flags
@@ -122,18 +130,24 @@ def _enrich_option(
     ), flags
 
 
-def _resolve_swap(pos: SwapPosition, bundle: "MarketDataBundle | None") -> PositionRisk:
+def _resolve_swap(
+    pos: SwapPosition,
+    bundle: "MarketDataBundle | None",
+) -> tuple[PositionRisk, list[str]]:
     """Convert a swap to DV01-based effective exposure for VaR.
 
     If no yield curve is available for the swap's currency, the swap passes
-    through unchanged (graceful degradation to market_value).
+    through unchanged (graceful degradation to market_value) and a
+    SWAP_NO_CURVE degradation flag is emitted.
+
+    Returns (resolved_position, degradation_flags).
     """
     if bundle is None:
-        return pos
+        return pos, [f"SWAP_NO_CURVE:{pos.instrument_id}"]
 
     yield_curve = bundle.yield_curves.get(pos.currency)
     if yield_curve is None:
-        return pos
+        return pos, [f"SWAP_NO_CURVE:{pos.instrument_id}"]
 
     from kinetix_risk.swap_pricing import swap_dv01
     dv01 = swap_dv01(pos, yield_curve)
@@ -142,4 +156,4 @@ def _resolve_swap(pos: SwapPosition, bundle: "MarketDataBundle | None") -> Posit
         asset_class=pos.asset_class,
         market_value=dv01,
         currency=pos.currency,
-    )
+    ), []
