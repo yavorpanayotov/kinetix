@@ -414,7 +414,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       `coverage-gaps.md` §Audit DLQ replay + §governance consumer.
       Acceptance: `node plans/scripts/allium-workspace.mjs`
 
-- [ ] 4.6 Extend `alerts.allium` — spec the snooze workflow (`snoozed_until` field,
+- [x] 4.6 Extend `alerts.allium` — spec the snooze workflow (`snoozed_until` field,
       snooze rule, dedup interaction), add `EscalateAlertManually` and
       `ResolveAlertManually` rules with their preconditions and audit `ensures`,
       and add an `AnomalyDetected` trigger + `RaiseAnomalyAlert` rule for the
