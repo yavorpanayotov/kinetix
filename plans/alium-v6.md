@@ -350,7 +350,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       `id` (not `trader_id`) — out of scope for this REST-only checkbox; a proto
       rename would be a separate contract change.
 
-- [ ] 3.5 Single-source `unexplained_pnl`. `IntradayPnlService.kt:138-140` re-derives
+- [x] 3.5 Single-source `unexplained_pnl`. `IntradayPnlService.kt:138-140` re-derives
       the residual by subtracting nine components instead of using
       `attribution.unexplainedPnl` already returned by `pnlAttributionService.attribute()`.
       Use the attribution service's value. Source: `group-c`.
