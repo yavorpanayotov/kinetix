@@ -100,4 +100,26 @@ class BacktestRoutesTest : FunSpec({
             body shouldContain "\"bookId\":\"port-1\""
         }
     }
+
+    test("POST /backtest exposes governance metrics on /metrics at the real call site") {
+        val frtbRepo = mockk<FrtbCalculationRepository>()
+        val backtestRepo = mockk<BacktestResultRepository>()
+        val client = mockk<RiskOrchestratorClient>()
+        coEvery { backtestRepo.save(any()) } returns Unit
+
+        testApplication {
+            application { module(frtbRepo, client, backtestRepo) }
+            // Three days, one VaR breach (day 2: -150 loss vs 100 VaR) — GREEN zone.
+            this.client.post("/api/v1/regulatory/backtest/port-metrics") {
+                contentType(ContentType.Application.Json)
+                setBody("""{"dailyVarPredictions":[100.0,100.0,100.0],"dailyPnl":[-50.0,-150.0,-80.0],"confidenceLevel":0.99}""")
+            }
+
+            val metrics = this.client.get("/metrics").bodyAsText()
+            metrics shouldContain "regulatory_backtest_runs_total{"
+            metrics shouldContain "regulatory_backtest_exceptions_total{"
+            metrics shouldContain "regulatory_backtest_current_exceptions{"
+            metrics shouldContain "book_id=\"port-metrics\""
+        }
+    }
 })

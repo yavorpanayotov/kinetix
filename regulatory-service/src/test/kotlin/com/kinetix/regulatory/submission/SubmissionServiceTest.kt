@@ -1,9 +1,11 @@
 package com.kinetix.regulatory.submission
 
+import com.kinetix.regulatory.metrics.RegulatoryGovernanceMetrics
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -180,6 +182,61 @@ class SubmissionServiceTest : FunSpec({
         val result = service.listAll()
 
         result.size shouldBe 2
+    }
+
+    test("final submit records a SUBMITTED governance metric outcome") {
+        val meterRegistry = SimpleMeterRegistry()
+        val instrumentedService = SubmissionService(
+            repository = repository,
+            governanceMetrics = RegulatoryGovernanceMetrics(meterRegistry),
+        )
+        val id = UUID.randomUUID().toString()
+        val submission = aSubmission(id = id, status = SubmissionStatus.APPROVED, reportType = "FRTB_SBM")
+        coEvery { repository.findById(id) } returns submission
+        coEvery { repository.save(any()) } returns Unit
+
+        instrumentedService.submit(id)
+
+        meterRegistry.counter(
+            "regulatory_submission_outcomes_total",
+            "report_type", "FRTB_SBM", "outcome", "SUBMITTED",
+        ).count() shouldBe 1.0
+    }
+
+    test("acknowledgement records an ACKNOWLEDGED governance metric outcome") {
+        val meterRegistry = SimpleMeterRegistry()
+        val instrumentedService = SubmissionService(
+            repository = repository,
+            governanceMetrics = RegulatoryGovernanceMetrics(meterRegistry),
+        )
+        val id = UUID.randomUUID().toString()
+        val submission = aSubmission(id = id, status = SubmissionStatus.SUBMITTED, reportType = "FRTB_DRC")
+        coEvery { repository.findById(id) } returns submission
+        coEvery { repository.save(any()) } returns Unit
+
+        instrumentedService.acknowledge(id, acknowledgedAt = Instant.parse("2026-04-15T09:30:00Z"))
+
+        meterRegistry.counter(
+            "regulatory_submission_outcomes_total",
+            "report_type", "FRTB_DRC", "outcome", "ACKNOWLEDGED",
+        ).count() shouldBe 1.0
+    }
+
+    test("a rejected final submit does not record a SUBMITTED outcome") {
+        val meterRegistry = SimpleMeterRegistry()
+        val instrumentedService = SubmissionService(
+            repository = repository,
+            governanceMetrics = RegulatoryGovernanceMetrics(meterRegistry),
+        )
+        val id = UUID.randomUUID().toString()
+        val submission = aSubmission(id = id, status = SubmissionStatus.PENDING_REVIEW)
+        coEvery { repository.findById(id) } returns submission
+
+        shouldThrow<IllegalStateException> {
+            instrumentedService.submit(id)
+        }
+
+        meterRegistry.find("regulatory_submission_outcomes_total").counter() shouldBe null
     }
 })
 

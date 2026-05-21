@@ -1,0 +1,343 @@
+{
+  "uid": "kinetix-regulatory",
+  "title": "Model Governance & Regulatory",
+  "tags": ["kinetix", "risk", "regulatory"],
+  "timezone": "browser",
+  "editable": true,
+  "graphTooltip": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "links": [
+    { "title": "Risk Overview", "type": "link", "url": "/d/kinetix-risk-overview", "icon": "dashboard" },
+    { "title": "Stress Test Results", "type": "link", "url": "/d/kinetix-stress-results", "icon": "dashboard" },
+    { "title": "Risk Engine", "type": "link", "url": "/d/kinetix-risk-engine", "icon": "dashboard" },
+    { "title": "Service Logs", "type": "link", "url": "/d/kinetix-service-logs", "icon": "dashboard" }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "label": "Data source",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "refresh": 1,
+        "regex": "",
+        "options": []
+      },
+      {
+        "name": "book_id",
+        "type": "query",
+        "label": "Book",
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        "query": "label_values(regulatory_backtest_runs_total, book_id)",
+        "refresh": 2,
+        "includeAll": true,
+        "allValue": ".+",
+        "current": { "text": "All", "value": "$__all" },
+        "multi": true,
+        "sort": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Backtest Runs — Passed",
+      "description": "Total VaR-backtest test runs that passed (Kupiec POF and Christoffersen independence) across the selected books. Each backtest contributes one run per statistical test; a healthy model accumulates passes.",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(regulatory_backtest_runs_total{book_id=~\"$book_id\", outcome=\"PASS\"}) or on() vector(0)",
+          "legendFormat": "Passed"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "No data",
+          "color": { "mode": "fixed", "fixedColor": "green" }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "title": "Backtest Runs — Failed",
+      "description": "Total VaR-backtest test runs that failed across the selected books. A non-zero, growing count means a model is being rejected by Kupiec or Christoffersen and warrants model review.",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(regulatory_backtest_runs_total{book_id=~\"$book_id\", outcome=\"FAIL\"}) or on() vector(0)",
+          "legendFormat": "Failed"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "No data",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "green" },
+              { "value": 1, "color": "orange" },
+              { "value": 5, "color": "red" }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "title": "Backtest Pass Rate",
+      "description": "Share of VaR-backtest test runs that passed, as PASS divided by all runs over the selected books. Below 1.0 means at least one test rejection has been recorded.",
+      "type": "gauge",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(regulatory_backtest_runs_total{book_id=~\"$book_id\", outcome=\"PASS\"}) / clamp_min(sum(regulatory_backtest_runs_total{book_id=~\"$book_id\"}), 1)",
+          "legendFormat": "Pass rate"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "No data",
+          "min": 0,
+          "max": 1,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "red" },
+              { "value": 0.8, "color": "orange" },
+              { "value": 0.95, "color": "green" }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "title": "Total VaR Backtesting Exceptions",
+      "description": "Cumulative VaR backtesting exceptions — days on which the realised loss breached the predicted VaR — across the selected books and all traffic-light zones.",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(regulatory_backtest_exceptions_total{book_id=~\"$book_id\"}) or on() vector(0)",
+          "legendFormat": "Exceptions"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "No data",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "green" },
+              { "value": 5, "color": "orange" },
+              { "value": 10, "color": "red" }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "title": "Backtest Pass / Fail Counts Over Time",
+      "description": "Rate of passing and failing VaR-backtest test runs across the selected books. Divergence — failures rising while passes flatten — flags model degradation.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (outcome) (rate(regulatory_backtest_runs_total{book_id=~\"$book_id\"}[5m]))",
+          "legendFormat": "{{outcome}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "No data"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "title": "VaR Backtesting Exceptions Over Time",
+      "description": "Rate at which VaR backtesting exceptions accrue, split by Basel traffic-light zone (GREEN / YELLOW / RED). A rising RED-zone series indicates a book where the VaR model is materially understating risk.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (zone) (rate(regulatory_backtest_exceptions_total{book_id=~\"$book_id\"}[5m]))",
+          "legendFormat": "{{zone}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "No data"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 7,
+      "title": "Current Backtest Exceptions by Book",
+      "description": "VaR backtesting exception count of the most recent backtest for each book. Amber crosses into the Basel yellow zone (5), red into the red zone (10).",
+      "type": "bargauge",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "regulatory_backtest_current_exceptions{book_id=~\"$book_id\"}",
+          "legendFormat": "{{book_id}}"
+        }
+      ],
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "No data",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "green" },
+              { "value": 5, "color": "orange" },
+              { "value": 10, "color": "red" }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 8,
+      "title": "Regulatory Submission Outcomes",
+      "description": "Rate at which regulatory submissions reach a terminal outcome: SUBMITTED when filed with the regulator and ACKNOWLEDGED when the regulator confirms receipt, broken out by report type.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (report_type, outcome) (rate(regulatory_submission_outcomes_total[5m]))",
+          "legendFormat": "{{report_type}} — {{outcome}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "No data"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 9,
+      "title": "Submissions Filed",
+      "description": "Cumulative count of regulatory submissions filed with the regulator (SUBMITTED outcome) across all report types.",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 22 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(regulatory_submission_outcomes_total{outcome=\"SUBMITTED\"}) or on() vector(0)",
+          "legendFormat": "Submitted"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "No data",
+          "color": { "mode": "fixed", "fixedColor": "blue" }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 10,
+      "title": "Submissions Acknowledged",
+      "description": "Cumulative count of regulatory submissions whose receipt has been confirmed by the regulator (ACKNOWLEDGED outcome) across all report types.",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 22 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(regulatory_submission_outcomes_total{outcome=\"ACKNOWLEDGED\"}) or on() vector(0)",
+          "legendFormat": "Acknowledged"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "No data",
+          "color": { "mode": "fixed", "fixedColor": "green" }
+        },
+        "overrides": []
+      }
+    }
+  ],
+  "schemaVersion": 39,
+  "version": 1
+}

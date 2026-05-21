@@ -10,6 +10,7 @@ import com.kinetix.regulatory.historical.HistoricalReplayService
 import com.kinetix.regulatory.historical.HistoricalScenarioRepository
 import com.kinetix.regulatory.historical.historicalScenarioPeriodRoutes
 import com.kinetix.regulatory.historical.historicalScenarioRoutes
+import com.kinetix.regulatory.metrics.RegulatoryGovernanceMetrics
 import com.kinetix.regulatory.persistence.BacktestResultRepository
 import com.kinetix.regulatory.persistence.DatabaseConfig
 import com.kinetix.regulatory.persistence.DatabaseFactory
@@ -55,9 +56,19 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 fun main(args: Array<String>): Unit = EngineMain.main(args)
 
+/**
+ * Attribute key under which [module] stores the Prometheus registry backing the
+ * `/metrics` endpoint, so the route-wiring [module] overload can bind additional
+ * meters (e.g. the model-governance metrics) to the same registry that is
+ * scraped.
+ */
+val MicrometerRegistryKey: io.ktor.util.AttributeKey<PrometheusMeterRegistry> =
+    io.ktor.util.AttributeKey("regulatory-service-micrometer-registry")
+
 fun Application.module() {
     log.info("Starting regulatory-service")
     val appMicrometerRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
+    attributes.put(MicrometerRegistryKey, appMicrometerRegistry)
     install(MicrometerMetrics) { registry = appMicrometerRegistry }
     install(ContentNegotiation) { json() }
     install(CallLogging) {
@@ -123,10 +134,16 @@ fun Application.module(
     correlationServiceClient: CorrelationServiceClient? = null,
 ) {
     module()
+    val governanceMetrics = RegulatoryGovernanceMetrics(attributes[MicrometerRegistryKey])
     routing {
         regulatoryRoutes(repository, client, auditPublisher)
         if (backtestRepository != null) {
-            backtestRoutes(backtestRepository, BacktestComparisonService(backtestRepository), auditPublisher)
+            backtestRoutes(
+                backtestRepository,
+                BacktestComparisonService(backtestRepository),
+                auditPublisher,
+                governanceMetrics,
+            )
         }
         if (stressScenarioRepository != null) {
             stressScenarioRoutes(

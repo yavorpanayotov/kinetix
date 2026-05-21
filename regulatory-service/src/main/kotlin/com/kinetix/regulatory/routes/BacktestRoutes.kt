@@ -7,6 +7,7 @@ import com.kinetix.regulatory.dtos.BacktestComparisonResponse
 import com.kinetix.regulatory.dtos.BacktestHistoryResponse
 import com.kinetix.regulatory.dtos.BacktestRequest
 import com.kinetix.regulatory.dtos.BacktestResultResponse
+import com.kinetix.regulatory.metrics.RegulatoryGovernanceMetrics
 import com.kinetix.regulatory.model.BacktestComparison
 import com.kinetix.regulatory.model.BacktestResultRecord
 import com.kinetix.regulatory.persistence.BacktestResultRepository
@@ -32,6 +33,7 @@ fun Route.backtestRoutes(
     repository: BacktestResultRepository,
     comparisonService: BacktestComparisonService? = null,
     auditPublisher: GovernanceAuditPublisher? = null,
+    governanceMetrics: RegulatoryGovernanceMetrics? = null,
 ) {
     route("/api/v1/regulatory/backtest/{bookId}") {
         post({
@@ -81,6 +83,13 @@ fun Route.backtestRoutes(
 
             repository.save(record)
             backtestLogger.info("Backtest completed for book={}, violations={}/{}, zone={}", bookId, record.violationCount, record.totalDays, record.trafficLightZone)
+            governanceMetrics?.recordBacktest(
+                bookId = bookId,
+                violationCount = record.violationCount,
+                kupiecPass = record.kupiecPass,
+                christoffersenPass = record.christoffersenPass,
+                trafficLightZone = record.trafficLightZone,
+            )
             auditPublisher?.publish(
                 GovernanceAuditEvent(
                     eventType = AuditEventType.REPORT_GENERATED,

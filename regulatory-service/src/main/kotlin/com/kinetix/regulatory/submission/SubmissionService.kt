@@ -3,6 +3,7 @@ package com.kinetix.regulatory.submission
 import com.kinetix.common.audit.AuditEventType
 import com.kinetix.common.audit.GovernanceAuditEvent
 import com.kinetix.regulatory.audit.GovernanceAuditPublisher
+import com.kinetix.regulatory.metrics.RegulatoryGovernanceMetrics
 import org.slf4j.MDC
 import java.time.Instant
 import java.util.UUID
@@ -10,6 +11,7 @@ import java.util.UUID
 class SubmissionService(
     private val repository: SubmissionRepository,
     private val auditPublisher: GovernanceAuditPublisher? = null,
+    private val governanceMetrics: RegulatoryGovernanceMetrics? = null,
 ) {
 
     suspend fun create(reportType: String, preparerId: String, deadline: Instant): RegulatorySubmission {
@@ -74,6 +76,10 @@ class SubmissionService(
             submittedAt = Instant.now(),
         )
         repository.save(updated)
+        governanceMetrics?.recordSubmissionOutcome(
+            reportType = submission.reportType,
+            outcome = RegulatoryGovernanceMetrics.OUTCOME_SUBMITTED,
+        )
         return updated
     }
 
@@ -87,6 +93,10 @@ class SubmissionService(
             acknowledgedAt = acknowledgedAt,
         )
         repository.save(updated)
+        governanceMetrics?.recordSubmissionOutcome(
+            reportType = submission.reportType,
+            outcome = RegulatoryGovernanceMetrics.OUTCOME_ACKNOWLEDGED,
+        )
         auditPublisher?.publish(
             GovernanceAuditEvent(
                 eventType = AuditEventType.SUBMISSION_ACKNOWLEDGED,
