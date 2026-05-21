@@ -274,7 +274,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       or align the spec to the sealed shape. Source: `group-e` E-C2S-04 / `group-a` S5.
       Acceptance: `node plans/scripts/allium-workspace.mjs`
 
-- [ ] 2.8 `alerts.allium` — correct the `BudgetBreachExtractor` description: it
+- [x] 2.8 `alerts.allium` — correct the `BudgetBreachExtractor` description: it
       returns the actual `utilisationPct` from the sentinel, not a `1.0` flag
       (E-S2C-03). Add `@guidance` location hints to the three location-less
       `deferred` blocks: `extract_metric`, `promote_severity`, `escalation_channels`
