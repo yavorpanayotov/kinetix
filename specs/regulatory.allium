@@ -163,6 +163,53 @@ entity FrtbCalculationRecord {
     stored_at: Timestamp
 }
 
+-- Report template engine
+-- Self-service report generation: a ReportTemplate defines a parameterised,
+-- regulator-facing report; users select a template plus parameters (never raw
+-- SQL); GenerateReport produces a ReportOutput.
+
+enum ReportTemplateType { risk_summary | stress_test_summary | pnl_attribution }
+
+enum ReportOutputFormat { json | csv }
+
+entity ReportTemplate {
+    template_id: String
+    name: String
+    template_type: ReportTemplateType
+    owner_user_id: String
+    definition: String
+    created_at: Timestamp
+    updated_at: Timestamp
+
+    @guidance
+        -- Migration V56 (V56__create_report_tables.sql) creates the
+        -- report_templates table in the risk-orchestrator database.
+        -- definition is a JSONB document describing the report shape:
+        -- description, source view, columns, ordering, and optional topN.
+        -- Three built-in templates are seeded as immutable, SYSTEM-owned rows:
+        -- "Risk Summary", "Stress Test Summary", "P&L Attribution".
+        -- template_type selects which query the engine runs.
+}
+
+entity ReportOutput {
+    output_id: String
+    template: ReportTemplate
+    generated_at: Timestamp
+    output_format: ReportOutputFormat
+    row_count: Integer
+    output_data: String?
+
+    @guidance
+        -- Migration V56 creates the report_outputs table; output_data is a
+        -- JSONB array of result rows. Code name for the persisted output is
+        -- ReportOutput; the engine returns it from ReportService.generateReport
+        -- and exposes it via ReportRoutes (/api/v1/reports/...).
+        -- output_data is queried back as JSON or rendered to CSV on demand.
+        -- "GeneratedReport" is the conceptual name for this entity in the
+        -- coverage-gaps source; the live table and class are both "report
+        -- output" — the two terms denote the same persisted artefact.
+}
+
 -- HistoricalScenarioPeriod is declared authoritatively in scenarios.allium;
 -- this spec references it via scenarios/HistoricalScenarioPeriod.
 
@@ -490,20 +537,54 @@ rule StoreFrtbCalculation {
     )
 }
 
+-- Report template engine
+
+rule GenerateReport {
+    when: GenerateReportRequested(template_id, book_id, date, format)
+    let template = ReportTemplate{template_id: template_id}
+    ensures: ReportOutput.created(
+        template: template,
+        generated_at: now,
+        output_format: format,
+        row_count: row_count
+    )
+
+    @guidance
+        -- The template must exist; otherwise ReportTemplateNotFoundException
+        -- is raised (HTTP 404 from ReportRoutes POST /api/v1/reports/generate).
+        -- Implementation: ReportService.generateReport(). The engine dispatches
+        -- on template.template_type to a parameterised query (risk summary,
+        -- stress test summary, or P&L attribution) scoped by book_id and the
+        -- optional date, never raw user SQL.
+        -- output_id is a system-generated UUID assigned at generation time.
+        -- row_count is the number of result rows; if it exceeds the engine
+        -- row cap (100000) ReportRowLimitExceededException is raised
+        -- (HTTP 422). The output is persisted to report_outputs and can be
+        -- retrieved as JSON (GET /api/v1/reports/{outputId}) or CSV
+        -- (GET /api/v1/reports/{outputId}/csv).
+}
+
 -- Historical scenario replay
 
 rule RunHistoricalReplay {
     when: RunHistoricalReplayRequested(period_id, book_id)
     let period = scenarios/HistoricalScenarioPeriod{period_id: period_id}
+    let returns = scenarios/HistoricalScenarioReturns where period = period
 
     @guidance
-        -- Loads the historical period metadata and its stored daily returns,
-        -- groups returns by instrument, then delegates the replay calculation
-        -- to risk-orchestrator (which proxies to the risk-engine gRPC
+        -- Loads the historical period metadata (historical_scenario_periods)
+        -- and its stored daily returns (historical_scenario_returns) via
+        -- HistoricalReplayService in regulatory-service, groups returns by
+        -- instrument, then delegates the replay calculation to
+        -- risk-orchestrator (which proxies to the risk-engine gRPC
         -- StressTestService.RunHistoricalReplay).
         -- Returns per-position P&L impacts including daily P&L series
         -- and a flag indicating whether a proxy instrument was used.
         -- The period must exist; otherwise a not-found error is raised.
+        -- regulatory-service owns period metadata and stored returns;
+        -- risk-orchestrator owns position loading and gRPC communication.
+        -- Scenario lifecycle for these periods is authoritative in
+        -- scenarios.allium (ReplayHistoricalScenario / ReplayCustomDateRange).
 }
 
 ------------------------------------------------------------
