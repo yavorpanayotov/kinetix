@@ -246,7 +246,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       acceptance test). Source: `group-a` aspirational finding.
       Acceptance: `node plans/scripts/allium-workspace.mjs`
 
-- [ ] 2.4 `reference-data.allium` — add `@guidance` for: variant `currency`
+- [x] 2.4 `reference-data.allium` — add `@guidance` for: variant `currency`
       duplication on `EquityFuture`/`CommodityFuture`/`InterestRateSwap`/`CorporateBond`;
       `EquityOption.contract_multiplier` default of 100; `InterestRateSwap.floatSpread`/
       `dayCountConvention` non-null defaults; `DividendYield.exDate` as typed
