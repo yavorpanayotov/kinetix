@@ -23,38 +23,103 @@ enum ScenarioType { historical_replay | parametric | reverse_stress }
 -- Value Types
 ------------------------------------------------------------
 
-value DailyReplayPnl {
-    date: String
-    daily_pnl: Decimal
-    cumulative_pnl: Decimal
+value PositionReplayImpact {
+    instrument_id: String
+    asset_class: String
+    market_value: Decimal
+    pnl_impact: Decimal
+    daily_pnl: List<Decimal>
+    proxy_used: Boolean
+
+    @guidance
+        -- Per-instrument replay outcome. daily_pnl is the ordered series
+        -- of daily P&L for this instrument across the replay window;
+        -- index 0 is the first trading day. pnl_impact is the total over
+        -- the window (the sum of daily_pnl).
+        -- proxy_used is true when the instrument had no historical returns
+        -- in the period and an asset-class index proxy was substituted.
+        -- Implementation: PositionReplayImpact (regulatory-service).
 }
 
 value ReplayResult {
-    start_date: String
-    end_date: String
-    daily_pnl: List<DailyReplayPnl>
-    worst_day_pnl: Decimal
-    worst_day_date: String
-    total_period_pnl: Decimal
-    max_drawdown: Decimal
-    var_breach_count: Integer
-    instruments_with_data: Integer
-    instruments_without_data: Integer
-    proxy_used: Boolean
+    period_id: String
+    scenario_name: String
+    book_id: String
+    total_pnl_impact: Decimal
+    position_impacts: List<PositionReplayImpact>
+    window_start: String?
+    window_end: String?
+    calculated_at: Timestamp
+
+    @guidance
+        -- The replay result is per-position, not per-day at the envelope
+        -- level. The implementation (regulatory-service
+        -- ReplayResultResponse) returns:
+        --   period_id, scenario_name, book_id — identity of the run.
+        --   total_pnl_impact — portfolio-level P&L over the window.
+        --   position_impacts — one PositionReplayImpact per instrument;
+        --     the per-day series lives inside each entry's daily_pnl.
+        --   window_start / window_end — the replayed date range (null for
+        --     pre-defined periods where the dates come from the period).
+        --   calculated_at — when the replay was computed.
+        --
+        -- Spec view vs wire view: an earlier spec draft modelled
+        -- ReplayResult per-day with envelope-level summary metrics
+        -- (worst_day_pnl, max_drawdown, var_breach_count,
+        -- instruments_with[out]_data, a single proxy_used flag). None of
+        -- those exist on the wire. Summary metrics, where needed, are
+        -- derived by the caller from position_impacts: the per-day
+        -- portfolio series is the index-wise sum of each position's
+        -- daily_pnl, and proxy coverage is the count of position_impacts
+        -- entries with proxy_used = true. The spec is aligned to the wire
+        -- contract here; the derived metrics remain a UI/analytics concern.
+        -- Numeric fields are serialised as strings on the wire for
+        -- precision-safe transport.
+}
+
+value InstrumentShock {
+    instrument_id: String
+    shock: Decimal
+
+    @guidance
+        -- A per-instrument price shock from the reverse-stress solver.
+        -- shock is negative (a price decline); -0.30 means a 30% drop.
+        -- Implementation: InstrumentShock in risk-orchestrator and
+        -- regulatory-service; the proto message kinetix.risk.InstrumentShock.
 }
 
 value ReverseStressResult {
+    shocks: List<InstrumentShock>
+    achieved_loss: Decimal
     target_loss: Decimal
-    resulting_loss: Decimal
     converged: Boolean
-    iterations: Integer
-    asset_class_shocks: List<AssetClassShock>
-    tolerance_met: Boolean
 
     @guidance
-        -- converged = true if the solver found a scenario within 10%
-        -- of the target loss.
-        -- tolerance_met = abs(resulting_loss - target_loss) / target_loss < 0.10.
+        -- Output of the reverse-stress solver. Granularity is
+        -- per-instrument: shocks carries one entry per portfolio position
+        -- (instrument_id + shock), not a per-asset-class roll-up.
+        --
+        -- achieved_loss is the actual loss produced by the shock vector;
+        -- target_loss is the requested loss. converged = false when the
+        -- solver could not find a feasible solution (e.g. target_loss
+        -- exceeds the maximum achievable loss under the shock bounds).
+        --
+        -- Implementation contract (all per-instrument, end to end):
+        --   risk-engine: ReverseStressResult in reverse_stress.py exposes
+        --     shocks: list[float] paired with instrument_ids: list[str]
+        --     (index-aligned) plus achieved_loss, target_loss, converged.
+        --   proto: kinetix.risk.ReverseStressResponse — repeated
+        --     InstrumentShock shocks, achieved_loss, target_loss,
+        --     converged, calculated_at.
+        --   risk-orchestrator: ReverseStressResponse / InstrumentShockDto.
+        --   regulatory-service: ReverseStressResultResponse /
+        --     InstrumentShock, with an added calculatedAt timestamp.
+        --
+        -- The wire contract carries no iteration count and no separate
+        -- tolerance flag: convergence within tolerance is folded into the
+        -- single converged boolean. The solver's tolerance and iteration
+        -- cap are config (reverse_stress_tolerance,
+        -- reverse_stress_max_iterations) and not echoed in the result.
 }
 
 value AssetClassShock {
@@ -189,6 +254,7 @@ entity SavedScenario {
     transitions status {
         draft -> pending_approval
         pending_approval -> approved
+        pending_approval -> draft
         approved -> retired
         approved -> draft
         terminal: retired
@@ -273,15 +339,14 @@ rule ReplayHistoricalScenario {
         --      Look up daily returns from HistoricalScenarioReturn for the period.
         --      If instrument not in historical data:
         --        Use asset class index proxy return (e.g., SPX for equities).
-        --        Flag the instrument as proxy-covered.
-        -- 2. For each trading day in the period:
-        --      daily_pnl = sum_i(position_mv[i] * return[i, date])
-        --      cumulative_pnl = running sum of daily_pnl
-        -- 3. Compute summary metrics:
-        --      worst_day: min(daily_pnl)
-        --      max_drawdown: max peak-to-trough decline in cumulative series
-        --      var_breach_count: days where |daily_pnl| > current 1-day VaR
-        -- 4. Return ReplayResult.
+        --        Flag the instrument as proxy-covered (proxy_used = true).
+        --      Build the per-instrument daily_pnl series:
+        --        daily_pnl[date] = position_mv * return[instrument, date].
+        --      pnl_impact = sum of the instrument's daily_pnl series.
+        -- 2. total_pnl_impact = sum of pnl_impact across all instruments.
+        -- 3. Return ReplayResult — one PositionReplayImpact per instrument,
+        --    each carrying its daily_pnl series, plus the run identity
+        --    (period_id, scenario_name, book_id) and window dates.
         --
         -- This applies ACTUAL historical returns to CURRENT positions.
         -- It answers: "what would my current book have lost?"
@@ -313,11 +378,11 @@ rule ReverseStressTest {
     @guidance
         -- Find the minimum-norm shock vector that produces the target loss.
         --
-        -- Algorithm (bisection/gradient descent):
-        --   Variables: per-asset-class price_shock and vol_shock.
-        --   Objective: minimize |stress_pnl(shocks) - target_loss|.
-        --   Constraints: shocks bounded by user-specified ranges
-        --     (e.g., max equity shock = -50%, max vol shock = 5×).
+        -- Algorithm:
+        --   Variables: one price shock per portfolio instrument.
+        --   Objective: minimize ||shocks||^2 (squared L2 norm).
+        --   Constraints: -dot(shocks, market_values) >= target_loss, and
+        --     max_shock <= shock_i <= 0 for every instrument.
         --   Method: scipy.optimize.minimize with SLSQP.
         --
         -- The "minimum-norm" solution finds the SMALLEST market move
@@ -325,13 +390,17 @@ rule ReverseStressTest {
         -- Alternative: "most likely shock given historical correlations"
         -- (more complex, deferred).
         --
-        -- If solver does not converge within config.reverse_stress_max_iterations:
+        -- If solver does not converge within config.reverse_stress_max_iterations,
+        -- or the target loss exceeds the maximum achievable loss under the
+        -- shock bounds:
         --   Return ReverseStressResult with converged=false.
         --   Message: "No feasible scenario found within constraints."
         --
         -- If converged:
-        --   Return the shock vector and the actual resulting loss.
-        --   tolerance_met = abs(resulting - target) / target < 0.10.
+        --   Return ReverseStressResult with the per-instrument shocks list
+        --   and the actual achieved_loss. The converged flag already
+        --   reflects whether the achieved loss is within tolerance
+        --   (config.reverse_stress_tolerance) of the target.
 }
 
 -- Custom multi-factor scenarios
@@ -379,7 +448,7 @@ rule SaveReverseStressAsScenario {
         name: name,
         scenario_type: reverse_stress,
         version: 1,
-        shocks: serialize_shocks(reverse_result.asset_class_shocks),
+        shocks: serialize_shocks(reverse_result.shocks),
         target_loss: reverse_result.target_loss,
         created_by: created_by,
         created_at: now
@@ -454,8 +523,8 @@ rule RunBatchStressTest {
 -- user is warned that the matrix was adjusted.
 --
 -- ProxyReturnsFlagged. When historical replay substitutes a proxy return
--- for an instrument, ReplayResult.proxy_used is true and
--- instruments_without_data > 0. The UI surfaces this as a data coverage
+-- for an instrument, that instrument's PositionReplayImpact.proxy_used is
+-- true. The UI surfaces any proxy-covered position as a data coverage
 -- warning.
 --
 -- ScenarioPnlImpactFromRiskEngine. Scenario P&L impact is computed by the
