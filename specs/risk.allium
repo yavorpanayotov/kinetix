@@ -328,7 +328,7 @@ entity PnlAttribution {
 }
 
 entity CrossBookValuationResult {
-    book_group_id: String
+    portfolio_group_id: String
     book_ids: List<String>
     calculation_type: String
     confidence_level: String
@@ -503,7 +503,7 @@ rule RecalculateOnPricePublished {
 -- Cross-book VaR
 
 rule CalculateCrossBookVaR {
-    when: CalculateCrossBookVaRRequested(book_ids, book_group_id, calculation_type, confidence_level, num_simulations)
+    when: CalculateCrossBookVaRRequested(book_ids, portfolio_group_id, calculation_type, confidence_level, num_simulations)
 
     @guidance
         -- 1. Fetch positions for all books in parallel.
@@ -516,11 +516,11 @@ rule CalculateCrossBookVaR {
         --      diversification_benefit = sum(standalone) - aggregate_var
         --      marginal_var, incremental_var per book
         -- 7. Publish to risk.cross-book-results Kafka topic.
-        -- 8. Cache result with book_group_id key.
+        -- 8. Cache result with portfolio_group_id key.
 }
 
 rule CalculateStressedCrossBookVaR {
-    when: StressedCrossBookVaRRequested(book_ids, book_group_id, stress_correlation)
+    when: StressedCrossBookVaRRequested(book_ids, portfolio_group_id, stress_correlation)
 
     @guidance
         -- Takes base cross-book result.
