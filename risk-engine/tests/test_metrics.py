@@ -13,6 +13,7 @@ from kinetix_risk.metrics import (
     risk_var_calculation_total,
     risk_var_expected_shortfall,
     risk_var_value,
+    stress_test_loss,
 )
 from kinetix_risk.models import (
     AssetClass,
@@ -120,3 +121,38 @@ class TestCrossBookGauges:
     def test_diversification_benefit_gauge_accepts_portfolio_group_id(self):
         cross_book_diversification_benefit.labels(portfolio_group_id="firm-wide").set(25000.0)
         assert cross_book_diversification_benefit.labels(portfolio_group_id="firm-wide")._value.get() == 25000.0
+
+
+class TestStressTestLossGauge:
+    def test_loss_gauge_accepts_scenario_name_and_book_id_labels(self):
+        stress_test_loss.labels(scenario_name="GFC_2008", book_id="desk-a").set(-400000.0)
+        assert (
+            stress_test_loss.labels(scenario_name="GFC_2008", book_id="desk-a")._value.get()
+            == -400000.0
+        )
+
+    def test_record_stress_test_loss_sets_gauge_from_result(self):
+        from kinetix_risk.models import (
+            AssetClass, CalculationType, ConfidenceLevel, PositionRisk,
+        )
+        from kinetix_risk.stress.engine import run_stress_test
+        from kinetix_risk.stress.scenarios import get_scenario
+        from kinetix_risk.stress_metrics import record_stress_test_loss
+
+        positions = [PositionRisk("AAPL", AssetClass.EQUITY, 1_000_000.0, "USD")]
+        result = run_stress_test(
+            positions,
+            get_scenario("GFC_2008"),
+            CalculationType.PARAMETRIC,
+            ConfidenceLevel.CL_95,
+            1,
+        )
+
+        record_stress_test_loss(result, book_id="desk-stress")
+
+        recorded = stress_test_loss.labels(
+            scenario_name=result.scenario_name, book_id="desk-stress",
+        )._value.get()
+        assert recorded == result.pnl_impact
+        # GFC stresses equity down — the recorded P&L impact is a loss.
+        assert recorded < 0.0

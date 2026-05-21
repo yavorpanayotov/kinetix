@@ -59,6 +59,12 @@ stress_test_total = Counter(
     ["scenario_name"],
 )
 
+stress_test_loss = Gauge(
+    "stress_test_loss",
+    "P&L impact of a stress scenario for a book (negative is a loss)",
+    ["scenario_name", "book_id"],
+)
+
 greeks_delta = Gauge(
     "greeks_delta",
     "Current net delta by book and asset class",

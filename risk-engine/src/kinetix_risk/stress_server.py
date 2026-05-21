@@ -44,6 +44,7 @@ from kinetix_risk.metrics import (
 from kinetix_risk.reverse_stress import ReverseStressRequest, run_reverse_stress
 from kinetix_risk.stress.engine import run_stress_test
 from kinetix_risk.stress.scenarios import get_scenario, list_scenarios
+from kinetix_risk.stress_metrics import record_stress_test_loss
 
 
 class StressTestServicer(stress_testing_pb2_grpc.StressTestServiceServicer):
@@ -84,6 +85,7 @@ class StressTestServicer(stress_testing_pb2_grpc.StressTestServiceServicer):
             )
 
             stress_test_total.labels(scenario_name=result.scenario_name).inc()
+            record_stress_test_loss(result, book_id=request.book_id.value)
             logger.info(
                 "Completed stress test",
                 extra={

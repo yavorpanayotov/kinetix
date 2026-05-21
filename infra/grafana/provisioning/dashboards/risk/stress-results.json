@@ -1,0 +1,227 @@
+{
+  "uid": "kinetix-stress-results",
+  "title": "Stress Test Results",
+  "tags": ["kinetix", "risk"],
+  "timezone": "browser",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [
+    { "title": "Risk Engine", "type": "link", "url": "/d/kinetix-risk-engine", "icon": "dashboard", "tooltip": "Engine-throughput view: VaR/Greeks/stress calculation rate and duration." },
+    { "title": "Risk Overview — Business & Limits", "type": "link", "url": "/d/kinetix-risk-overview", "icon": "dashboard" },
+    { "title": "Limit Utilisation", "type": "link", "url": "/d/kinetix-limit-utilisation", "icon": "dashboard" }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "label": "Data source",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "refresh": 1,
+        "regex": "",
+        "options": []
+      },
+      {
+        "name": "book_id",
+        "type": "query",
+        "label": "Book",
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        "query": "label_values(stress_test_loss, book_id)",
+        "refresh": 2,
+        "includeAll": true,
+        "allValue": ".+",
+        "current": { "text": "All", "value": "$__all" },
+        "multi": true,
+        "sort": 1
+      },
+      {
+        "name": "scenario_name",
+        "type": "query",
+        "label": "Scenario",
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        "query": "label_values(stress_test_loss, scenario_name)",
+        "refresh": 2,
+        "includeAll": true,
+        "allValue": ".+",
+        "current": { "text": "All", "value": "$__all" },
+        "multi": true,
+        "sort": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Worst Stress Loss (All Books)",
+      "description": "The single most severe stress-test outcome across all books and scenarios. stress_test_loss records each scenario's P&L impact directly — a negative value is a loss — so the worst result is the minimum of the gauge.",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "min(stress_test_loss{book_id=~\"$book_id\", scenario_name=~\"$scenario_name\"})",
+          "legendFormat": "Worst loss"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "noValue": "No data",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "red" },
+              { "value": -500000, "color": "orange" },
+              { "value": -100000, "color": "green" }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "title": "Scenarios In Breach",
+      "description": "Number of scenario/book results whose stress loss is at or beyond the -500k breach limit. 0 is healthy; any non-zero count warrants review.",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "count(stress_test_loss{book_id=~\"$book_id\", scenario_name=~\"$scenario_name\"} <= -500000) or on() vector(0)",
+          "legendFormat": "In breach"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "No data",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "green" },
+              { "value": 1, "color": "orange" },
+              { "value": 3, "color": "red" }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "title": "Worst Scenario Per Book",
+      "description": "The most severe stress loss each book is exposed to, taken as the minimum stress_test_loss across all scenarios for that book.",
+      "type": "bargauge",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "min by (book_id) (stress_test_loss{book_id=~\"$book_id\", scenario_name=~\"$scenario_name\"})",
+          "legendFormat": "{{book_id}}"
+        }
+      ],
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "noValue": "No data",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "red" },
+              { "value": -500000, "color": "orange" },
+              { "value": -100000, "color": "green" }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "title": "Per-Scenario P&L Impact",
+      "description": "Stress-test P&L impact over time, one series per scenario/book. A negative value is a loss under that scenario.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "stress_test_loss{book_id=~\"$book_id\", scenario_name=~\"$scenario_name\"}",
+          "legendFormat": "{{scenario_name}} — {{book_id}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "title": "Stress Loss by Scenario",
+      "description": "Current stress loss for each scenario/book, with breach highlighting: green is a contained loss, amber crosses -100k, red is at or beyond the -500k breach limit.",
+      "type": "bargauge",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "stress_test_loss{book_id=~\"$book_id\", scenario_name=~\"$scenario_name\"}",
+          "legendFormat": "{{scenario_name}} — {{book_id}}"
+        }
+      ],
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "noValue": "No data",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "red" },
+              { "value": -500000, "color": "orange" },
+              { "value": -100000, "color": "green" }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    }
+  ],
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  }
+}
