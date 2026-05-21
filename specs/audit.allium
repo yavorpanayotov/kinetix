@@ -231,11 +231,29 @@ rule RecordGovernanceAuditEvent {
         -- Covers model_status_changed, limit_breached, limit_increase_approved,
         -- scenario_approved, scenario_retired, eod_promoted, submission_approved,
         -- alert_acknowledged, alert_escalated, alert_resolved.
-        -- Triggered by the relevant service (regulatory-service, position-service,
-        -- notification-service) publishing a GovernanceTransitionOccurred event
-        -- to the audit Kafka topic. All governance transitions must flow through
-        -- the hash-chained trail to satisfy four-eyes principle auditability
-        -- requirements.
+        -- CONSUMED TOPIC: the audit-service GovernanceAuditEventConsumer subscribes
+        -- to the Kafka topic "governance.audit". The relevant service
+        -- (regulatory-service, position-service, notification-service) publishes a
+        -- GovernanceAuditEvent to that topic; GovernanceTransitionOccurred is the
+        -- spec-side trigger name for one such message. All governance transitions
+        -- must flow through the hash-chained trail to satisfy four-eyes principle
+        -- auditability requirements.
+        -- IDEMPOTENCY: a duplicate governance event must not create a second audit
+        -- row. The consumer runs through RetryableConsumer with a dead-letter
+        -- topic on failure (see ReplayDlqMessage). Delivery is at-least-once, so
+        -- the consumer must dedup: the intended contract is idempotency keyed on
+        -- (source_service, event_id) — the publishing service identity paired with
+        -- the event's stable identifier — so that a redelivered or DLQ-replayed
+        -- governance event collapses onto the existing row rather than appending a
+        -- second one. See the GOVERNANCE EVENT IDEMPOTENCY note below.
+        -- ASPIRATIONAL: the wire schema (common GovernanceAuditEvent) carries
+        -- neither a source_service nor an event_id field today. The audit-service
+        -- consumer currently dedups on the Kafka inbox coordinates
+        -- (source_topic, source_partition, source_offset) recorded on each row
+        -- (ExposedAuditEventRepository.save skips an insert when a row with the
+        -- same triple already exists). That offset-based dedup is the live
+        -- behaviour; (source_service, event_id) is the target contract and
+        -- requires a schema + column change before it can be enforced.
         -- Exactly one of model_name, scenario_id, limit_id, submission_id, alert_id
         -- will be non-null depending on event_type. alert_id is a top-level field
         -- on the wire event (GovernanceAuditEvent.alertId) — it is NOT embedded in
@@ -369,6 +387,45 @@ rule DetectAuditSequenceGaps {
         -- Returns GapDetectionResponse(gap_count, gaps).
 }
 
+-- Dead-letter-queue replay
+
+rule ReplayDlqMessage {
+    when: DlqReplayRequested()
+    let latest_hash = latest_audit_event_hash
+
+    ensures: AuditEvent.created(
+        received_at: now,
+        previous_hash: latest_hash,
+        record_hash: compute_hash(all_fields, latest_hash),
+        details: "DLQ_REPLAY"
+    )
+
+    @guidance
+        -- Re-consumes messages that failed primary processing and landed on the
+        -- audit-events dead-letter topic, re-applying each one to the
+        -- hash-chained audit log. Implementation: DlqReplayService.replay()
+        -- iterates the DlqMessage batch returned by the injected message source
+        -- (KafkaDlqMessageSource in production) and calls
+        -- AuditEventRepository.save for each. HTTP: POST /api/v1/audit/dlq/replay
+        -- (DlqReplayRoutes.kt). Returns DlqReplayResult(success_count,
+        -- failure_count, total).
+        -- SEQUENCE-PRESERVING RE-HASH: a replayed message is NOT spliced back
+        -- into its original chain position. It is appended at the current tail —
+        -- save() reads the latest record_hash as previous_hash, recomputes
+        -- record_hash over all fields, and assigns the next monotonic
+        -- sequence_number (max(sequence_number) + 1). Appending preserves both
+        -- the hash chain (EveryAuditEventIsHashed, FirstEventHasNoPredecessor)
+        -- and the strictly-increasing sequence ordering
+        -- (DetectAuditSequenceGaps stays gap-free), so a replay can never break
+        -- chain verification or fabricate a sequence gap.
+        -- details is set to the marker "DLQ_REPLAY" so replayed rows are
+        -- distinguishable from real-time entries in the trail.
+        -- Kafka inbox-dedup still applies: if the DLQ message carries
+        -- (source_topic, source_partition, source_offset) coordinates that
+        -- match an already-persisted row, save() skips it — a replay of an
+        -- event that did ultimately persist will not double-write.
+}
+
 ------------------------------------------------------------
 -- Invariants
 ------------------------------------------------------------
@@ -388,3 +445,41 @@ invariant FirstEventHasNoPredecessor {
             (a != b and a.previous_hash = null and b.previous_hash = null)
                 implies false
 }
+
+invariant DlqReplayRestrictedToOperator {
+    -- AUTHZ: dead-letter-queue replay is a privileged operation — it appends
+    -- arbitrary previously-failed messages back into the immutable audit trail
+    -- — and must be restricted to the "operator" role. The DlqReplayRequested
+    -- trigger (POST /api/v1/audit/dlq/replay) may only be invoked by a
+    -- principal holding that role; no other role (trader, risk_manager,
+    -- viewer, etc.) may replay the DLQ. Stated structurally over persisted
+    -- state: every audit event written by the replay path — identified by its
+    -- details marker "DLQ_REPLAY" — must carry user_role = "operator".
+    -- ASPIRATIONAL: DlqReplayRoutes.kt does not gate the endpoint on the
+    -- operator role today — there is no RBAC check on the replay route, and
+    -- DlqReplayService writes replayed rows without stamping the invoking
+    -- principal's role. This invariant records the intended
+    -- four-eyes/least-privilege contract; the code-side fix must add the
+    -- operator-role authorization guard and stamp user_role on replayed rows.
+    for e in AuditEvents:
+        e.details = "DLQ_REPLAY" implies e.user_role = "operator"
+}
+
+-- GOVERNANCE EVENT IDEMPOTENCY (intended contract, not yet a quantified
+-- invariant). At most one audit event must exist per consumed governance
+-- message identity: a redelivered or DLQ-replayed governance event must
+-- collapse onto the existing row, never append a second one. The target
+-- contract keys idempotency on the pair (source_service, event_id) — the
+-- publishing service identity and the event's stable identifier — as
+-- described in RecordGovernanceAuditEvent's @guidance.
+-- ASPIRATIONAL: this is deliberately NOT written as an `invariant` block.
+-- The wire schema (common GovernanceAuditEvent) carries neither a
+-- source_service nor an event_id field, and the AuditEvent entity above has
+-- no column for either, so the property cannot honestly be quantified over
+-- entity state today. The audit-service consumer currently enforces
+-- idempotency via the Kafka inbox coordinates (source_topic,
+-- source_partition, source_offset) recorded on each row —
+-- ExposedAuditEventRepository.save skips an insert when a row with the same
+-- triple already exists. Promoting this to a structural `invariant` keyed on
+-- (source_service, event_id) requires the schema + column change noted in
+-- RecordGovernanceAuditEvent's @guidance.
