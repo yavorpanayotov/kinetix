@@ -1,6 +1,7 @@
 package com.kinetix.referencedata.seed
 
 import com.kinetix.common.demo.SeedProfile
+import com.kinetix.common.model.AssetClass
 import com.kinetix.common.model.BondSeniority
 import com.kinetix.common.model.CreditSpread
 import com.kinetix.common.model.Desk
@@ -229,7 +230,7 @@ class DevDataSeeder(
     private data class LiquidityConfig(
         val adv: Double,
         val bidAskSpreadBps: Double,
-        val assetClass: String,
+        val assetClass: AssetClass,
         val advShares: Double? = null,
         val marketDepthScore: Double? = null,
         val source: String = "bloomberg",
@@ -668,47 +669,47 @@ class DevDataSeeder(
         //                25-50% = SEMI_LIQUID (5d), >50% or no ADV = ILLIQUID (10d).
         private val LIQUIDITY_DATA: Map<String, LiquidityConfig> = mapOf(
             // Large-cap equities — highly liquid
-            "AAPL"                  to LiquidityConfig(adv = 80_000_000.0,  bidAskSpreadBps = 1.0,   assetClass = "EQUITY", advShares = 450_000.0, marketDepthScore = 9.5, source = "bloomberg"),
+            "AAPL"                  to LiquidityConfig(adv = 80_000_000.0,  bidAskSpreadBps = 1.0,   assetClass = AssetClass.EQUITY, advShares = 450_000.0, marketDepthScore = 9.5, source = "bloomberg"),
             // Equity option on AAPL — liquid via underlying, wider spread
-            "AAPL-C-200-20260620"   to LiquidityConfig(adv = 5_000_000.0,   bidAskSpreadBps = 20.0,  assetClass = "EQUITY", advShares = null, marketDepthScore = 6.0, source = "bloomberg"),
+            "AAPL-C-200-20260620"   to LiquidityConfig(adv = 5_000_000.0,   bidAskSpreadBps = 20.0,  assetClass = AssetClass.EQUITY, advShares = null, marketDepthScore = 6.0, source = "bloomberg"),
             // Index future — highly liquid
-            "SPX-SEP26"             to LiquidityConfig(adv = 120_000_000.0, bidAskSpreadBps = 0.5,   assetClass = "EQUITY", advShares = 2_400_000.0, marketDepthScore = 9.8, source = "exchange"),
+            "SPX-SEP26"             to LiquidityConfig(adv = 120_000_000.0, bidAskSpreadBps = 0.5,   assetClass = AssetClass.EQUITY, advShares = 2_400_000.0, marketDepthScore = 9.8, source = "exchange"),
             // On-the-run US Treasury — highly liquid
-            "US10Y"                 to LiquidityConfig(adv = 500_000_000.0, bidAskSpreadBps = 0.25,  assetClass = "FIXED_INCOME", advShares = null, marketDepthScore = 9.0, source = "exchange"),
+            "US10Y"                 to LiquidityConfig(adv = 500_000_000.0, bidAskSpreadBps = 0.25,  assetClass = AssetClass.FIXED_INCOME, advShares = null, marketDepthScore = 9.0, source = "exchange"),
             // Investment-grade corporate bond — liquid but wider spread
-            "JPM-BOND-2031"         to LiquidityConfig(adv = 15_000_000.0,  bidAskSpreadBps = 10.0,  assetClass = "FIXED_INCOME", advShares = null, marketDepthScore = 5.5, source = "bloomberg"),
+            "JPM-BOND-2031"         to LiquidityConfig(adv = 15_000_000.0,  bidAskSpreadBps = 10.0,  assetClass = AssetClass.FIXED_INCOME, advShares = null, marketDepthScore = 5.5, source = "bloomberg"),
             // Vanilla IRS — semi-liquid OTC instrument
-            "USD-SOFR-5Y"           to LiquidityConfig(adv = 8_000_000.0,   bidAskSpreadBps = 5.0,   assetClass = "FIXED_INCOME", advShares = null, marketDepthScore = 4.0, source = "bloomberg"),
+            "USD-SOFR-5Y"           to LiquidityConfig(adv = 8_000_000.0,   bidAskSpreadBps = 5.0,   assetClass = AssetClass.FIXED_INCOME, advShares = null, marketDepthScore = 4.0, source = "bloomberg"),
             // Spot FX — most liquid market
-            "EURUSD"                to LiquidityConfig(adv = 1_000_000_000.0, bidAskSpreadBps = 0.1, assetClass = "FX", advShares = null, marketDepthScore = 10.0, source = "reuters"),
+            "EURUSD"                to LiquidityConfig(adv = 1_000_000_000.0, bidAskSpreadBps = 0.1, assetClass = AssetClass.FX, advShares = null, marketDepthScore = 10.0, source = "reuters"),
             // FX forward — liquid but less than spot
-            "GBPUSD-3M"             to LiquidityConfig(adv = 200_000_000.0, bidAskSpreadBps = 1.0,   assetClass = "FX", advShares = null, marketDepthScore = 8.0, source = "reuters"),
+            "GBPUSD-3M"             to LiquidityConfig(adv = 200_000_000.0, bidAskSpreadBps = 1.0,   assetClass = AssetClass.FX, advShares = null, marketDepthScore = 8.0, source = "reuters"),
             // FX option — semi-liquid OTC
-            "EURUSD-P-1.08-SEP26"   to LiquidityConfig(adv = 20_000_000.0,  bidAskSpreadBps = 15.0,  assetClass = "FX", advShares = null, marketDepthScore = 5.0, source = "bloomberg"),
+            "EURUSD-P-1.08-SEP26"   to LiquidityConfig(adv = 20_000_000.0,  bidAskSpreadBps = 15.0,  assetClass = AssetClass.FX, advShares = null, marketDepthScore = 5.0, source = "bloomberg"),
             // WTI crude futures — highly liquid exchange-traded
-            "WTI-AUG26"             to LiquidityConfig(adv = 350_000_000.0, bidAskSpreadBps = 2.0,   assetClass = "COMMODITY", advShares = 350_000.0, marketDepthScore = 8.5, source = "exchange"),
+            "WTI-AUG26"             to LiquidityConfig(adv = 350_000_000.0, bidAskSpreadBps = 2.0,   assetClass = AssetClass.COMMODITY, advShares = 350_000.0, marketDepthScore = 8.5, source = "exchange"),
             // Gold option — semi-liquid
-            "GC-C-2200-DEC26"       to LiquidityConfig(adv = 10_000_000.0,  bidAskSpreadBps = 25.0,  assetClass = "COMMODITY", advShares = null, marketDepthScore = 4.5, source = "exchange"),
+            "GC-C-2200-DEC26"       to LiquidityConfig(adv = 10_000_000.0,  bidAskSpreadBps = 25.0,  assetClass = AssetClass.COMMODITY, advShares = null, marketDepthScore = 4.5, source = "exchange"),
             // Additional equities
-            "AMD"                   to LiquidityConfig(adv = 60_000_000.0,  bidAskSpreadBps = 1.5,   assetClass = "EQUITY"),
-            "BAC"                   to LiquidityConfig(adv = 50_000_000.0,  bidAskSpreadBps = 1.0,   assetClass = "EQUITY"),
-            "GS"                    to LiquidityConfig(adv = 30_000_000.0,  bidAskSpreadBps = 2.0,   assetClass = "EQUITY"),
-            "XOM"                   to LiquidityConfig(adv = 40_000_000.0,  bidAskSpreadBps = 1.5,   assetClass = "EQUITY"),
-            "KO"                    to LiquidityConfig(adv = 25_000_000.0,  bidAskSpreadBps = 1.0,   assetClass = "EQUITY"),
+            "AMD"                   to LiquidityConfig(adv = 60_000_000.0,  bidAskSpreadBps = 1.5,   assetClass = AssetClass.EQUITY),
+            "BAC"                   to LiquidityConfig(adv = 50_000_000.0,  bidAskSpreadBps = 1.0,   assetClass = AssetClass.EQUITY),
+            "GS"                    to LiquidityConfig(adv = 30_000_000.0,  bidAskSpreadBps = 2.0,   assetClass = AssetClass.EQUITY),
+            "XOM"                   to LiquidityConfig(adv = 40_000_000.0,  bidAskSpreadBps = 1.5,   assetClass = AssetClass.EQUITY),
+            "KO"                    to LiquidityConfig(adv = 25_000_000.0,  bidAskSpreadBps = 1.0,   assetClass = AssetClass.EQUITY),
             // Additional FX spot
-            "AUDUSD"                to LiquidityConfig(adv = 500_000_000.0, bidAskSpreadBps = 0.2,   assetClass = "FX"),
-            "USDCAD"                to LiquidityConfig(adv = 400_000_000.0, bidAskSpreadBps = 0.3,   assetClass = "FX"),
+            "AUDUSD"                to LiquidityConfig(adv = 500_000_000.0, bidAskSpreadBps = 0.2,   assetClass = AssetClass.FX),
+            "USDCAD"                to LiquidityConfig(adv = 400_000_000.0, bidAskSpreadBps = 0.3,   assetClass = AssetClass.FX),
             // Additional fixed income
-            "US5Y"                  to LiquidityConfig(adv = 400_000_000.0, bidAskSpreadBps = 0.3,   assetClass = "FIXED_INCOME"),
-            "AAPL-BOND-2030"        to LiquidityConfig(adv = 12_000_000.0,  bidAskSpreadBps = 8.0,   assetClass = "FIXED_INCOME"),
+            "US5Y"                  to LiquidityConfig(adv = 400_000_000.0, bidAskSpreadBps = 0.3,   assetClass = AssetClass.FIXED_INCOME),
+            "AAPL-BOND-2030"        to LiquidityConfig(adv = 12_000_000.0,  bidAskSpreadBps = 8.0,   assetClass = AssetClass.FIXED_INCOME),
             // Additional commodity futures
-            "NG"                    to LiquidityConfig(adv = 200_000_000.0, bidAskSpreadBps = 3.0,   assetClass = "COMMODITY"),
-            "HG"                    to LiquidityConfig(adv = 100_000_000.0, bidAskSpreadBps = 4.0,   assetClass = "COMMODITY"),
+            "NG"                    to LiquidityConfig(adv = 200_000_000.0, bidAskSpreadBps = 3.0,   assetClass = AssetClass.COMMODITY),
+            "HG"                    to LiquidityConfig(adv = 100_000_000.0, bidAskSpreadBps = 4.0,   assetClass = AssetClass.COMMODITY),
             // Additional equity futures
-            "NDX-SEP26"             to LiquidityConfig(adv = 80_000_000.0,  bidAskSpreadBps = 0.8,   assetClass = "EQUITY"),
+            "NDX-SEP26"             to LiquidityConfig(adv = 80_000_000.0,  bidAskSpreadBps = 0.8,   assetClass = AssetClass.EQUITY),
             // Additional equity options
-            "MSFT-C-450-20260620"   to LiquidityConfig(adv = 4_000_000.0,   bidAskSpreadBps = 22.0,  assetClass = "EQUITY"),
-            "TSLA-C-280-20260620"   to LiquidityConfig(adv = 6_000_000.0,   bidAskSpreadBps = 25.0,  assetClass = "EQUITY"),
+            "MSFT-C-450-20260620"   to LiquidityConfig(adv = 4_000_000.0,   bidAskSpreadBps = 22.0,  assetClass = AssetClass.EQUITY),
+            "TSLA-C-280-20260620"   to LiquidityConfig(adv = 6_000_000.0,   bidAskSpreadBps = 25.0,  assetClass = AssetClass.EQUITY),
         )
 
         private val DESKS: Map<String, DeskConfig> = mapOf(

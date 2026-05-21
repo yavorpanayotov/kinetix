@@ -1,5 +1,6 @@
 package com.kinetix.referencedata.seed
 
+import com.kinetix.common.model.AssetClass
 import com.kinetix.common.model.CreditSpread
 import com.kinetix.common.model.Desk
 import com.kinetix.common.model.Division
@@ -194,7 +195,7 @@ class DevDataSeederTest : FunSpec({
 
         val aapl = savedLiquidity.first { it.instrumentId == "AAPL" }
         (aapl.adv > 10_000_000.0) shouldBe true
-        aapl.assetClass shouldBe "EQUITY"
+        aapl.assetClass shouldBe AssetClass.EQUITY
     }
 
     // ── Phase 1 Gap 5 — 30-counterparty universe ─────────────────────────────

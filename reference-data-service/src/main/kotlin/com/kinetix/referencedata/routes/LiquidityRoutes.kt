@@ -1,5 +1,6 @@
 package com.kinetix.referencedata.routes
 
+import com.kinetix.common.model.AssetClass
 import com.kinetix.referencedata.model.InstrumentLiquidity
 import com.kinetix.referencedata.routes.dtos.InstrumentLiquidityResponse
 import com.kinetix.referencedata.routes.dtos.UpsertInstrumentLiquidityRequest
@@ -37,7 +38,7 @@ fun Route.liquidityRoutes(liquidityService: InstrumentLiquidityService) {
                 instrumentId = request.instrumentId,
                 adv = request.adv,
                 bidAskSpreadBps = request.bidAskSpreadBps,
-                assetClass = request.assetClass,
+                assetClass = AssetClass.valueOf(request.assetClass),
                 liquidityTier = InstrumentLiquidityService.classifyTier(request.adv, request.bidAskSpreadBps),
                 advUpdatedAt = now,
                 createdAt = now,
@@ -98,7 +99,7 @@ private fun InstrumentLiquidity.toResponse(
     instrumentId = instrumentId,
     adv = adv,
     bidAskSpreadBps = bidAskSpreadBps,
-    assetClass = assetClass,
+    assetClass = assetClass.name,
     liquidityTier = liquidityTier.name,
     advUpdatedAt = advUpdatedAt.toString(),
     advStale = service.isStale(this, now),

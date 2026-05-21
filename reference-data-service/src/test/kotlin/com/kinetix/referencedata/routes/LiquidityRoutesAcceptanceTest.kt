@@ -1,5 +1,6 @@
 package com.kinetix.referencedata.routes
 
+import com.kinetix.common.model.AssetClass
 import com.kinetix.common.model.CreditSpread
 import com.kinetix.common.model.DividendYield
 import com.kinetix.common.model.InstrumentId
@@ -61,7 +62,7 @@ class LiquidityRoutesAcceptanceTest : FunSpec({
         instrumentId = instrumentId,
         adv = adv,
         bidAskSpreadBps = 5.0,
-        assetClass = "EQUITY",
+        assetClass = AssetClass.EQUITY,
         liquidityTier = LiquidityTier.LIQUID,
         advUpdatedAt = NOW,
         createdAt = NOW,
