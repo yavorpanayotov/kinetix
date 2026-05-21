@@ -499,7 +499,7 @@ commit.
       `hedge.allium`, `regime.allium`.
       Acceptance: `node plans/scripts/allium-workspace.mjs`
 
-- [ ] 5.5 Group E — add `surface RestApi` blocks to `scenarios.allium`,
+- [x] 5.5 Group E — add `surface RestApi` blocks to `scenarios.allium`,
       `scenario-lifecycle.allium`, `discovery-valuation.allium`, `alerts.allium`,
       `alert-escalation.allium`, `audit.allium`, `regulatory.allium`, plus
       `ai-insights.allium` if not already covered by 4.1.
