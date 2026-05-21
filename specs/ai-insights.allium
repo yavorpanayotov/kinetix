@@ -1,0 +1,581 @@
+-- allium: 3
+-- AI insights service: an LLM-fronted risk copilot.
+--
+-- Scope: the conversational chat endpoint (request/response contract,
+--         SSE streaming), conversation-history persistence, the
+--         post-generation safety nets (citation verification and the
+--         banned-phrase policy guard), the in-process MCP read-tool
+--         registry, and the canned-vs-Claude chat-client switch.
+-- Excludes:
+--   - The VaR explainer / report commentary insight routes (one-shot,
+--     non-streaming) and the daily-brief and push-notification
+--     subsystems — those live in the same service but are not part of
+--     the conversational chat contract this spec governs.
+--   - Prompt engineering, model selection internals, and the wire
+--     details of upstream Kinetix HTTP services the MCP tools call.
+--   - UI rendering of citation footnotes and staleness indicators.
+-- Dependencies: none. This spec is intentionally self-contained — it
+--   declares its own entities and value types rather than importing
+--   from the Kotlin-service specs, because ai-insights-service is a
+--   Python service whose contract surface (chat SSE, MCP tools) is
+--   distinct from the trade/risk wire contracts.
+
+------------------------------------------------------------
+-- Enumerations
+------------------------------------------------------------
+
+-- The role of a single conversation turn. Matches the SDK message-role
+-- vocabulary the conversation store records.
+enum ConversationRole { user | assistant | system }
+
+-- Which client produced a chat response. ``canned`` is the
+-- fixture-driven deterministic client; ``live`` is the Claude Agent
+-- SDK-backed client.
+enum ChatMode { canned | live }
+
+-- Terminal error codes stamped on an aborted chat stream. Exactly one
+-- is set on the terminal frame when generation fails a safety net or
+-- the upstream model errors.
+--   policy_violation     — the narrative contained a banned phrase.
+--   citation_unverifiable — a numeric token or ticker-shaped symbol
+--                           in the narrative lacked a backing citation.
+--   upstream_error       — the Claude Agent SDK was unavailable or
+--                           raised mid-stream.
+enum ChatErrorCode {
+    policy_violation
+    | citation_unverifiable
+    | upstream_error
+}
+
+-- The terminal verdict of a completed chat response — the safety-net
+-- outcome of streaming a request to completion.
+--   ok               — clean response; citations attached, turn
+--                       eligible for persistence.
+--   policy_blocked   — a banned phrase was found.
+--   citation_blocked — a numeric token or ticker-shaped symbol lacked
+--                       a backing citation.
+--   upstream_failed  — the Claude Agent SDK was unavailable or raised.
+--   timed_out        — a per-message timeout fired mid-stream.
+enum ChatVerdict {
+    ok
+    | policy_blocked
+    | citation_blocked
+    | upstream_failed
+    | timed_out
+}
+
+------------------------------------------------------------
+-- Value Types
+------------------------------------------------------------
+
+-- Machine-readable provenance for a single numeric value (or
+-- ticker-shaped symbol) an AI response emits. Every number in a
+-- narrative must carry a Citation linking it back to the MCP tool call
+-- that produced it. The UI renders these as inline footnotes and
+-- staleness indicators; the post-generation verifier flags numeric
+-- tokens that lack a matching Citation.
+value Citation {
+    tool: String
+    params: String
+    result_field: String
+    result_value: String
+    result_currency: String?
+    as_of_timestamp: Timestamp
+    data_source: String
+    freshness_seconds: Integer
+    quality_flags: List<String>
+
+    @guidance
+        -- Source: citations/models.py — a frozen Pydantic model.
+        -- tool + params together identify the MCP tool call that
+        -- produced the value. params is a free-form key/value map in
+        -- the code (dict[str, Any]); modelled here as String because
+        -- its shape is tool-specific and not part of the contract.
+        -- result_field is a dotted/JSON-pointer path into the tool
+        -- result (e.g. "total_var", "var_by_asset_class[0].value").
+        -- result_value is the value itself — usually numeric, but a
+        -- pre-formatted string like "5.2M USD" is accepted; modelled
+        -- as String here since the wire type is float | int | str.
+        -- result_currency is the ISO 4217 code for monetary values,
+        -- null for ratios and dimensionless quantities.
+        -- as_of_timestamp is when the underlying data was captured
+        -- (distinct from when the Citation object was created);
+        -- freshness_seconds is the integer staleness at citation time.
+        -- quality_flags carries non-blocking caveats — STALE_PRICE,
+        -- EXTRAPOLATED, INCOMPLETE_BOOK, LOOKBACK_UNAVAILABLE, and the
+        -- TIMEOUT sentinel (citations/models.py TIMEOUT_FLAG).
+}
+
+-- One frame of the outbound Server-Sent-Events chat stream. The chat
+-- endpoint streams a sequence of ChatChunk frames serialised as
+-- ``data: <chunk-json>\n\n`` on the wire.
+value ChatChunk {
+    delta: String?
+    done: Boolean
+    citations: List<Citation>?
+    model: String?
+    mode: ChatMode?
+    error_code: ChatErrorCode?
+
+    @guidance
+        -- Source: chat/models.py ChatChunk.
+        -- done is the only required field — it marks the terminal
+        -- frame. delta carries an incremental piece of generated text
+        -- on non-terminal frames and is null on pure metadata frames.
+        -- citations populates terminal frames (and dedicated
+        -- "event: source" frames) with provenance. model and mode are
+        -- stamped on the final chunk to record which LLM produced the
+        -- output and whether it came from a live call or a canned
+        -- fixture. error_code is set when an upstream failure, policy
+        -- block, or unverifiable citation aborts the stream.
+        -- See the ErrorFramesAreTerminal invariant below: when
+        -- error_code is set, done must be true (enforced by a Pydantic
+        -- model_validator in the code).
+
+    invariant ErrorFramesAreTerminal {
+        -- An error frame is always the last frame of the stream.
+        error_code != null implies done = true
+    }
+}
+
+------------------------------------------------------------
+-- Entities and Variants
+------------------------------------------------------------
+
+-- An inbound chat request from the UI. The UI POSTs one of these to
+-- ``POST /api/v1/insights/chat``; the service streams back ChatChunk
+-- frames.
+entity ChatRequest {
+    message: String
+    page_context: String
+    session_id: String?
+    conversation_id: String?
+
+    @guidance
+        -- Source: chat/models.py ChatRequest.
+        -- message is the user's prompt — it must be non-empty and not
+        -- whitespace-only (a Pydantic field_validator rejects blank
+        -- input; see the MessageMustNotBeBlank invariant).
+        -- page_context is a free-form, intentionally-untyped bag of
+        -- metadata captured from wherever the user opened the chat
+        -- (current route, selected book, filters). The wire type is
+        -- dict[str, Any]; modelled here as String because its shape
+        -- is not part of the contract. The canned client reads
+        -- page_context["page"] for deterministic transcript selection.
+        -- session_id and conversation_id are opaque strings with no
+        -- format constraints. The route handler stamps any missing id
+        -- with a fresh UUID hex (chat/sse.py ensure_ids) so the
+        -- terminal frame can echo back ids the UI reuses on its next
+        -- turn — see the StampsMissingConversationIds rule.
+
+    invariant MessageMustNotBeBlank {
+        -- A request's message is never empty or whitespace-only.
+        message != ""
+    }
+}
+
+-- One role+content entry in a conversation's history. The conversation
+-- store keys a list of these by conversation_id.
+entity ConversationTurn {
+    conversation_id: String
+    role: ConversationRole
+    content: String
+    timestamp: Timestamp
+
+    @guidance
+        -- Source: chat/conversation_store.py ConversationTurn — a
+        -- frozen dataclass. role is one of user / assistant / system,
+        -- matching the SDK's message-role vocabulary. timestamp is the
+        -- wall-clock time the turn was generated; the store does not
+        -- derive or override it. conversation_id is the store key —
+        -- the dataclass itself does not carry it, but every turn is
+        -- stored against a conversation_id, so it is modelled as a
+        -- field here for spec-level addressability.
+}
+
+-- A persisted conversation: the accumulated turns of one chat session,
+-- addressed by conversation_id.
+entity Conversation {
+    conversation_id: String
+    turns: ConversationTurn with conversation_id = this.conversation_id
+    last_touched_at: Timestamp
+
+    @guidance
+        -- Source: chat/conversation_store.py (ConversationStore
+        -- protocol) and its two implementations.
+        -- A Conversation is not a literal object in the code — the
+        -- store is a map of conversation_id -> list[ConversationTurn].
+        -- It is modelled as an entity here so the persistence contract
+        -- (append / get / clear, TTL) is addressable.
+        -- last_touched_at is the time of the most recent append; reads
+        -- do NOT refresh it.
+        -- TTL is 24h from last_touched_at — see ConversationTtl config
+        -- and the ConversationExpires rule. Two implementations of the
+        -- ConversationStore protocol exist:
+        --   * InMemoryConversationStore — process-local, lazy TTL
+        --     eviction on every append/get/clear (no background
+        --     sweeper). The v2 default for DEMO_MODE, CI, single-
+        --     replica local dev.
+        --   * RedisConversationStore — production-grade; conversation
+        --     history is a JSON array under the Redis key
+        --     "ai-insights:conversation:<id>", with TTL enforced by
+        --     native Redis key expiry re-armed on every append.
+        -- conversation_store_factory.build_conversation_store() picks
+        -- RedisConversationStore when REDIS_URL is set, else the
+        -- in-memory store.
+}
+
+-- A completed chat response — the narrative an AI chat turn produced,
+-- together with its provenance citations and the safety-net verdict.
+-- One ChatResponse is the logical result of streaming a ChatRequest to
+-- completion; it is not a literal object in the code (the response is a
+-- sequence of ChatChunk frames) but is modelled here so the
+-- generation contract and its invariants are addressable.
+entity ChatResponse {
+    request: ChatRequest
+    narrative: String
+    citations: List<Citation>
+    mode: ChatMode
+    model: String
+    verdict: ChatVerdict
+    persisted: Boolean
+
+    @guidance
+        -- Source: chat/claude_agent_chat_client.py (live client) and
+        -- chat/canned.py (canned client).
+        -- narrative is the concatenation of every delta the stream
+        -- emitted. verdict records the terminal outcome:
+        --   ok             — clean response; citations attached.
+        --   policy_blocked — banned phrase found; terminal frame
+        --                    carries error_code=policy_violation and
+        --                    NO citations.
+        --   citation_blocked — a numeric token or ticker-shaped symbol
+        --                    lacked a citation; error_code=
+        --                    citation_unverifiable.
+        --   upstream_failed — the Claude Agent SDK was unavailable or
+        --                    raised mid-stream; error_code=
+        --                    upstream_error.
+        --   timed_out      — a per-message timeout fired; the stream
+        --                    completes (no error_code) with a
+        --                    synthetic TIMEOUT citation appended.
+        -- persisted records whether the turn was written back to the
+        -- conversation store — see the PersistCleanChatTurn rule and
+        -- the OnlyCleanTurnsArePersisted invariant. Only an ok
+        -- response with a non-null conversation_id is persisted.
+        -- The canned client always produces verdict=ok, mode=canned,
+        -- model="canned-chat"; it runs no safety nets.
+}
+
+------------------------------------------------------------
+-- Config
+------------------------------------------------------------
+
+config {
+    -- Time-to-live for a conversation, measured from its most recent
+    -- append. A write at t=23h keeps the conversation alive a further
+    -- 24h; reads never refresh the TTL. Source: the _DEFAULT_TTL of
+    -- both ConversationStore implementations.
+    conversation_ttl: Duration = 24.hours
+
+    -- Artificial inter-frame delay the canned client inserts between
+    -- streamed deltas so the UI gets a streamed feel. Tests pass 0.
+    -- Source: chat/canned.py _DEFAULT_DELAY_SECONDS.
+    canned_chat_frame_delay: Duration = 20.seconds
+
+    -- Canonical internal bind port for the in-process MCP server.
+    -- Source: mcp/server.py MCP_PORT.
+    mcp_server_port: Integer = 8096
+}
+
+------------------------------------------------------------
+-- Rules
+------------------------------------------------------------
+
+-- Chat request handling
+
+rule StampMissingConversationIds {
+    when: ChatRequestReceived(request)
+    requires: request.conversation_id = null
+
+    ensures: request.conversation_id = generate_uuid_hex()
+
+    @guidance
+        -- Source: chat/sse.py ensure_ids. A request that arrives with
+        -- no conversation_id (or no session_id) has the missing id
+        -- stamped with a fresh UUID hex before streaming begins, so
+        -- the terminal frame can echo back ids the UI reuses on its
+        -- next turn. Caller-supplied ids pass through unchanged.
+        -- A symmetric rule applies to session_id; both are modelled
+        -- as one rule because the code stamps them together.
+}
+
+rule StreamChatResponse {
+    when: ChatRequestReceived(request)
+    requires: request.message != ""
+
+    ensures: ChatResponseStreamed(request: request)
+
+    @guidance
+        -- Source: routes/chat.py + chat/sse.py stream_chat_response.
+        -- The route pulls the configured CopilotChatClient off
+        -- app.state, resolves the session / conversation ids, and
+        -- hands the request to the shared SSE streamer. The streamer
+        -- emits one "data:" frame per ChatChunk; a chunk carrying
+        -- citations is preceded by an "event: source" frame whose
+        -- data line is a JSON list of Citation objects; the terminal
+        -- frame merges session_id and conversation_id into the JSON
+        -- payload alongside the client's model / mode stamps.
+        -- Exactly one structured audit record is emitted once the
+        -- stream is fully drained (chat/sse.py) — capturing the user
+        -- id, a prompt hash, the MCP tool calls cited, the terminal
+        -- mode, an estimated token count, and wall-clock latency.
+}
+
+-- Conversation persistence
+
+rule PersistCleanChatTurn {
+    when: ChatResponseStreamed(request)
+    requires: request.conversation_id != null
+
+    @guidance
+        -- Source: claude_agent_chat_client.py _persist_turn.
+        -- After a CLEAN terminal frame (verdict=ok) the live client
+        -- writes the user prompt and the assistant narrative back to
+        -- the conversation store as two ConversationTurn entries
+        -- (roles user then assistant), sharing one timestamp.
+        -- Persistence is conditional on a non-null conversation_id so
+        -- anonymous calls do not leak turns into the store. Policy /
+        -- citation / upstream-error / timed-out responses are NOT
+        -- persisted — see PersistOnlyCleanTurns and the
+        -- OnlyCleanTurnsArePersisted invariant. The canned client
+        -- does not persist at all (it ignores conversation history).
+        -- The next chat turn for the same conversation_id reads these
+        -- turns back out as history and threads them into the prompt.
+}
+
+rule ConversationExpires {
+    when: conversation: Conversation.last_touched_at + conversation_ttl <= now
+
+    ensures: not exists conversation
+
+    @guidance
+        -- Source: chat/conversation_store.py (lazy eviction) and
+        -- chat/redis_conversation_store.py (native key expiry).
+        -- A conversation is evicted 24h after its most recent append.
+        -- The in-memory store evicts lazily — every append/get/clear
+        -- first walks the head of an OrderedDict and pops entries
+        -- whose last-touched timestamp is older than now - ttl. The
+        -- Redis store relies on native key expiry: every append
+        -- re-writes the key with "SET ... PX" so the TTL is reset to
+        -- the full 24h window. Reads never touch the TTL in either
+        -- implementation. There is no background sweeper for the
+        -- in-memory store, so a conversation may briefly sit past its
+        -- TTL until the next store operation triggers a sweep.
+}
+
+-- Live-client safety nets (post-generation)
+
+rule BlockPolicyViolatingResponse {
+    when: NarrativeGenerated(request, narrative)
+    requires: contains_banned_phrase(narrative)
+
+    ensures: ChatResponseStreamed(request: request)
+
+    @guidance
+        -- Source: policy/banned_phrases.py check_narrative, applied in
+        -- claude_agent_chat_client.py before the terminal frame.
+        -- The banned-phrase guard runs FIRST — policy beats citations.
+        -- A narrative containing any banned phrase yields a terminal
+        -- frame with error_code=policy_violation and NO citations,
+        -- and the turn is NOT persisted.
+        -- The banned-phrase set is a closed, curated list compiled
+        -- into one word-boundary-anchored, case-insensitive regex:
+        -- advisory / recommendation / "escalate to a human" language
+        -- ("you should", "i recommend", "consider hedging",
+        -- "consider reducing", "you might want to", "my advice",
+        -- "i suggest", "you ought to", a verification-hedge phrase,
+        -- "please confirm with"). The match is phrase-level, not a
+        -- fuzzy normaliser. See the NoBannedPhraseInCleanResponse
+        -- invariant.
+}
+
+rule BlockUncitedNumericResponse {
+    when: NarrativeGenerated(request, narrative)
+    requires: not contains_banned_phrase(narrative)
+    requires: has_uncited_numeric_or_symbol(narrative)
+
+    ensures: ChatResponseStreamed(request: request)
+
+    @guidance
+        -- Source: citations/verifier.py find_uncited_tokens and
+        -- citations/symbol_verifier.py find_uncited_symbols, applied
+        -- in claude_agent_chat_client.py after the policy guard.
+        -- Two-pass verification, OR'd: either firing aborts the
+        -- stream with error_code=citation_unverifiable and skips
+        -- persistence.
+        --   * find_uncited_tokens scans for numeric tokens
+        --     ($?[\d,]+(?:\.\d+)?%?) and returns any whose value does
+        --     not match a Citation.result_value within half-a-unit at
+        --     the token's own decimal precision (currency-agnostic).
+        --   * find_uncited_symbols scans for uppercase ticker-shaped
+        --     tokens (3-6 capitals) not present in any citation's
+        --     params values, excluding a curated stopword set (VAR,
+        --     USD, EUR, ...).
+        -- Both checks run unconditionally so logs can attribute the
+        -- cause. See the CitationVerification invariant.
+}
+
+rule EmitVerifiedChatResponse {
+    when: NarrativeGenerated(request, narrative)
+    requires: not contains_banned_phrase(narrative)
+    requires: not has_uncited_numeric_or_symbol(narrative)
+
+    ensures: ChatResponseStreamed(request: request)
+
+    @guidance
+        -- Source: claude_agent_chat_client.py — the clean terminal
+        -- frame. A narrative that passes both the policy guard and
+        -- the citation verifier is emitted as a terminal frame with
+        -- done=true, mode=live, the model stamp, and whatever
+        -- citations were gathered. This is the only path that leads
+        -- to persistence (PersistCleanChatTurn).
+}
+
+rule EmitUpstreamErrorFrame {
+    when: ChatUpstreamFailed(request)
+
+    ensures: ChatResponseStreamed(request: request)
+
+    @guidance
+        -- Source: claude_agent_chat_client.py _upstream_error_frame.
+        -- The live client's returned async iterator ALWAYS closes
+        -- cleanly. If the lazy claude_agent_sdk import fails, or the
+        -- SDK's async iterator raises mid-stream, the client swallows
+        -- the exception and yields exactly one terminal frame with
+        -- error_code=upstream_error. Callers never see a raised
+        -- exception while iterating the chat stream. The
+        -- COPILOT_SDK_ERROR_TOTAL metric is incremented once per
+        -- failure at this single chokepoint. Upstream-error turns are
+        -- not persisted.
+}
+
+rule EmitTimeoutChatResponse {
+    when: ChatMessageTimedOut(request)
+
+    ensures: ChatResponseStreamed(request: request)
+
+    @guidance
+        -- Source: claude_agent_chat_client.py — the per-message
+        -- timeout path. When per_message_timeout_seconds is set, each
+        -- pull from the SDK iterator is wrapped in asyncio.wait_for.
+        -- On timeout the loop exits cleanly, a synthetic Citation
+        -- with quality_flags=["TIMEOUT"] and result_value="timeout"
+        -- is appended, and a terminal frame is emitted with done=true
+        -- and NO error_code (a timeout is a structured signal, not an
+        -- upstream error). Timed-out turns are NOT persisted — same
+        -- treatment as the policy / citation error paths.
+}
+
+-- MCP read-tool registry
+
+rule RegisterMcpReadTools {
+    when: McpToolsRegistrationRequested(server)
+
+    @guidance
+        -- Source: mcp/server.py register_tools, called with a
+        -- per-request UserContext + KinetixHttpClient.
+        -- Registers the 10 read-only Copilot tools on the in-process
+        -- FastMCP server ("kinetix-copilot"): get_book_var,
+        -- get_positions, get_greeks_summary, get_limit_utilisation,
+        -- get_pnl_attribution, get_vol_surface, get_stress_scenarios,
+        -- get_correlation_matrix, get_active_alerts,
+        -- get_market_data_snapshot.
+        -- Every tool is a "get_*" READ surface — see the
+        -- McpToolsAreReadOnly invariant. Each tool dispatches an
+        -- HTTP GET to an upstream Kinetix service, maps the response
+        -- to a v2 tool-output shape, and attaches a Citation
+        -- describing the headline value's provenance (the upstream
+        -- service, the as_of timestamp, freshness_seconds).
+        -- Book-scoped tools fail closed: a book_id outside the
+        -- caller's UserContext.books raises UNAUTHORIZED/403 without
+        -- touching the HTTP client.
+        -- Each tool call is instrumented (COPILOT_TOOL_CALL_DURATION_
+        -- SECONDS, labelled by tool name). Re-registering the same
+        -- tool name is idempotent — FastMCP warns and keeps the
+        -- existing entry — so register_tools can be called per
+        -- request without coordination.
+}
+
+-- Chat-client selection
+
+rule SelectChatClient {
+    when: ChatClientRequested()
+
+    @guidance
+        -- Source: chat/factory.py build_chat_client.
+        -- Resolves the CopilotChatClient for the current environment:
+        --   1. DEMO_MODE=true (case-insensitive) -> CannedCopilot-
+        --      ChatClient — a fixture-driven, deterministic client
+        --      that replays one of a directory of transcript JSON
+        --      files (selected by SHA-256 of message + page) as
+        --      ChatChunk frames. It runs NO safety nets, ignores
+        --      conversation history, and always stamps mode=canned,
+        --      model="canned-chat".
+        --   2. Otherwise -> ClaudeAgentCopilotChatClient, the live
+        --      client backed by claude_agent_sdk.query. On ANY
+        --      construction error it falls back to the canned client
+        --      with a warning, so demo / CI environments stay green.
+        -- Both clients satisfy the same narrow CopilotChatClient
+        -- protocol (a single chat() method returning an async
+        -- iterator of ChatChunk), so the route handler depends on the
+        -- protocol and swaps the concrete client per environment.
+        -- The COPILOT_DEMO_MODE_FALLBACK_TOTAL metric counts both the
+        -- explicit DEMO_MODE selection and the fallback path.
+}
+
+------------------------------------------------------------
+-- Invariants
+------------------------------------------------------------
+
+invariant CitationVerification {
+    -- Every numeric (or ticker-shaped) claim in a delivered AI chat
+    -- response cites a source. A clean (ok) response carries no
+    -- uncited numeric token or symbol — anything uncited is caught by
+    -- the post-generation verifier and downgrades the response to
+    -- citation_blocked instead.
+    for r in ChatResponses:
+        r.verdict = ok implies not has_uncited_numeric_or_symbol(r.narrative)
+}
+
+invariant NoBannedPhraseInCleanResponse {
+    -- A delivered (ok) AI chat response never contains a banned
+    -- advisory / recommendation phrase. A narrative that does is
+    -- blocked by the policy guard and downgraded to policy_blocked.
+    for r in ChatResponses:
+        r.verdict = ok implies not contains_banned_phrase(r.narrative)
+}
+
+invariant OnlyCleanTurnsArePersisted {
+    -- A chat turn is written back to the conversation store ONLY when
+    -- the response is clean. Policy-blocked, citation-blocked,
+    -- upstream-failed and timed-out responses are never persisted, so
+    -- a partial or unsafe turn never leaks into conversation history.
+    for r in ChatResponses:
+        r.persisted = true implies r.verdict = ok
+}
+
+invariant CannedClientProducesNoErrors {
+    -- The canned client is deterministic and runs no safety nets, so
+    -- every canned response is a clean ok response.
+    for r in ChatResponses:
+        r.mode = canned implies r.verdict = ok
+}
+
+invariant ConversationTurnsBelongToOneConversation {
+    -- Every persisted turn is keyed to exactly the conversation that
+    -- owns it — the store is a strict map from conversation_id to a
+    -- list of turns.
+    for c in Conversations:
+        for t in c.turns:
+            t.conversation_id = c.conversation_id
+}
