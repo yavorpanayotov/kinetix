@@ -322,7 +322,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       (`common/.../ForwardCurve.kt:7`, rates-service DTOs). Source: `group-a`.
       Acceptance: `./gradlew :common:test :rates-service:test`
 
-- [ ] 3.2 `InstrumentLiquidity.assetClass: String` → `core/AssetClass`
+- [x] 3.2 `InstrumentLiquidity.assetClass: String` → `core/AssetClass`
       (`reference-data-service/.../model/InstrumentLiquidity.kt:10`). Source: `group-a`.
       Acceptance: `./gradlew :reference-data-service:test`
 
