@@ -303,7 +303,7 @@ adds the dashboard in the same commit — one self-contained feature per checkbo
       commit `e8768c9d~1` with the 4.7 changes absent; the 4.7 commit never touched
       that test file. The acceptance command goes fully green on a Docker-capable
       runner.
-- [ ] 4.8 Instrument P&L attribution by Greek component (delta / gamma / vega /
+- [x] 4.8 Instrument P&L attribution by Greek component (delta / gamma / vega /
       theta / rho P&L, plus dollar-delta / dollar-gamma) in `risk-engine`, and
       extend `trading/pnl.json` with a P&L-decomposition panel set so a desk can
       see whether a move was delta-, vega-, or theta-driven. TDD.
