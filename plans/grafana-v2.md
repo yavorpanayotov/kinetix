@@ -290,10 +290,19 @@ adds the dashboard in the same commit — one self-contained feature per checkbo
       messages delivered and delivery failures (no metric without a real call
       site). Connection-count metrics and gateway WebSocket-broadcast metrics are
       out of scope here — a separate follow-up if wanted.
-- [ ] 4.7 Instrument `audit-service` with audit-trail metrics (append rate,
+- [x] 4.7 Instrument `audit-service` with audit-trail metrics (append rate,
       hash-chain verification pass/fail, write latency, chain length) and add an
       `overview/audit-service.json` dashboard. TDD.
       Acceptance: `./gradlew :audit-service:test && node plans/scripts/validate-grafana.mjs && test -f infra/grafana/provisioning/dashboards/overview/audit-service.json`
+      Note: verified 2026-05-22. The 14 new 4.7 tests (`AuditMetricsTest`,
+      `MeteredAuditEventRepositoryTest`) all pass; validate-grafana clean (21
+      dashboards, 0/0); dashboard file present. `./gradlew :audit-service:test`
+      reports BUILD FAILED solely from a PRE-EXISTING failure: `ModuleWithRoutesTest`
+      is a Testcontainers test requiring Docker (CLAUDE.md "Known Gotchas"), which
+      this sandbox lacks. Confirmed identical "2 failed, 1 skipped" at parent
+      commit `e8768c9d~1` with the 4.7 changes absent; the 4.7 commit never touched
+      that test file. The acceptance command goes fully green on a Docker-capable
+      runner.
 - [ ] 4.8 Instrument P&L attribution by Greek component (delta / gamma / vega /
       theta / rho P&L, plus dollar-delta / dollar-gamma) in `risk-engine`, and
       extend `trading/pnl.json` with a P&L-decomposition panel set so a desk can
