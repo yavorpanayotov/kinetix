@@ -176,8 +176,258 @@
         "orientation": "horizontal",
         "displayMode": "gradient"
       }
+    },
+    {
+      "id": 100,
+      "title": "P&L Decomposition by Greek",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 16 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 6,
+      "title": "P&L Attribution by Greek",
+      "description": "Per-Greek P&L contribution (delta / gamma / vega / theta / rho) — shows whether a move was delta-, vega- or theta-driven.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 17 },
+      "targets": [
+        {
+          "expr": "sum by (greek) (pnl_attribution_greek_pnl{book_id=~\"$book_id\"})",
+          "legendFormat": "{{greek}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "noValue": "No data",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 25,
+            "stacking": { "mode": "normal", "group": "A" }
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 7,
+      "title": "Greek P&L Contribution (current)",
+      "description": "Stacked breakdown of the latest P&L decomposition — which Greek drove the move right now.",
+      "type": "bargauge",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 17 },
+      "targets": [
+        {
+          "expr": "sum by (greek) (pnl_attribution_greek_pnl{book_id=~\"$book_id\"})",
+          "legendFormat": "{{greek}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "noValue": "No data",
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 0 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient"
+      }
+    },
+    {
+      "id": 8,
+      "title": "Delta P&L",
+      "description": "Directional P&L — first-order spot contribution.",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 25 },
+      "targets": [
+        {
+          "expr": "sum(pnl_attribution_greek_pnl{book_id=~\"$book_id\", greek=\"delta\"})",
+          "legendFormat": "delta P&L"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "noValue": "No data",
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 0 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 9,
+      "title": "Gamma P&L",
+      "description": "Convexity P&L — second-order spot contribution.",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 25 },
+      "targets": [
+        {
+          "expr": "sum(pnl_attribution_greek_pnl{book_id=~\"$book_id\", greek=\"gamma\"})",
+          "legendFormat": "gamma P&L"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "noValue": "No data",
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 0 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 10,
+      "title": "Vega P&L",
+      "description": "Volatility P&L contribution.",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 25 },
+      "targets": [
+        {
+          "expr": "sum(pnl_attribution_greek_pnl{book_id=~\"$book_id\", greek=\"vega\"})",
+          "legendFormat": "vega P&L"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "noValue": "No data",
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 0 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 11,
+      "title": "Theta P&L",
+      "description": "Time-decay P&L contribution.",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 25 },
+      "targets": [
+        {
+          "expr": "sum(pnl_attribution_greek_pnl{book_id=~\"$book_id\", greek=\"theta\"})",
+          "legendFormat": "theta P&L"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "noValue": "No data",
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 0 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 12,
+      "title": "Dollar-Delta",
+      "description": "delta x spot — cash exposure of the book to a 100% spot move.",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 31 },
+      "targets": [
+        {
+          "expr": "sum(pnl_attribution_dollar_delta{book_id=~\"$book_id\"})",
+          "legendFormat": "dollar-delta"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "noValue": "No data",
+          "thresholds": {
+            "steps": [
+              { "color": "blue", "value": null }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 13,
+      "title": "Dollar-Gamma",
+      "description": "gamma x spot^2 — cash convexity of the book.",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 31 },
+      "targets": [
+        {
+          "expr": "sum(pnl_attribution_dollar_gamma{book_id=~\"$book_id\"})",
+          "legendFormat": "dollar-gamma"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "noValue": "No data",
+          "thresholds": {
+            "steps": [
+              { "color": "purple", "value": null }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 14,
+      "title": "Dollar-Delta / Dollar-Gamma Trend",
+      "description": "Cash delta and cash gamma exposure over time.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 31 },
+      "targets": [
+        {
+          "expr": "sum(pnl_attribution_dollar_delta{book_id=~\"$book_id\"})",
+          "legendFormat": "dollar-delta"
+        },
+        {
+          "expr": "sum(pnl_attribution_dollar_gamma{book_id=~\"$book_id\"})",
+          "legendFormat": "dollar-gamma"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "noValue": "No data"
+        },
+        "overrides": []
+      }
     }
   ],
   "schemaVersion": 39,
-  "version": 1
+  "version": 2
 }

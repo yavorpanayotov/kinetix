@@ -127,6 +127,25 @@ pnl_attribution_unexplained_pnl = Gauge(
     ["book_id"],
 )
 
+pnl_attribution_greek_pnl = Gauge(
+    "pnl_attribution_greek_pnl",
+    "P&L contribution of a single Greek component for a book "
+    "(delta / gamma / vega / theta / rho) — the Taylor-expansion P&L decomposition",
+    ["book_id", "greek"],
+)
+
+pnl_attribution_dollar_delta = Gauge(
+    "pnl_attribution_dollar_delta",
+    "Dollar-delta (delta x spot) — cash exposure of a book to a 100% spot move",
+    ["book_id"],
+)
+
+pnl_attribution_dollar_gamma = Gauge(
+    "pnl_attribution_dollar_gamma",
+    "Dollar-gamma (gamma x spot^2) — cash convexity of a book",
+    ["book_id"],
+)
+
 cross_book_diversification_benefit = Gauge(
     "cross_book_diversification_benefit",
     "VaR diversification benefit across books (total standalone VaR minus portfolio VaR)",

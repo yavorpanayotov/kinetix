@@ -29,8 +29,19 @@ from datetime import date as _date, timedelta as _timedelta
 
 from kinetix_risk.black_scholes import bs_greeks
 from kinetix_risk.bond_pricing import bond_dv01
-from kinetix_risk.greeks import calculate_greeks
+from kinetix_risk.greeks import (
+    PRICE_BUMP,
+    RATE_BUMP,
+    VOL_BUMP,
+    calculate_greeks,
+)
 from kinetix_risk.log_formatter import JsonLogFormatter
+from kinetix_risk.pnl_attribution import (
+    MarketMove,
+    aggregate_book_greeks,
+    decompose_greek_pnl,
+)
+from kinetix_risk.pnl_attribution_metrics import record_greek_pnl_attribution
 from kinetix_risk.models import AssetClass, BondPosition, OptionPosition, OptionType
 
 
@@ -153,6 +164,30 @@ class RiskCalculationServicer(risk_calculation_pb2_grpc.RiskCalculationServiceSe
                     greeks_vega.labels(book_id=book_id, asset_class=ac.value).set(val)
                 greeks_theta.labels(book_id=book_id).set(gr.theta)
                 greeks_rho.labels(book_id=book_id).set(gr.rho)
+
+                # Greek-component P&L attribution: decompose the book's P&L
+                # against the standardised 1-day market move the VaR engine
+                # uses to derive its Greeks, so the desk can see whether the
+                # move is delta-, gamma-, vega- or theta-driven.
+                book_spot = sum(abs(p.market_value) for p in positions)
+                book_greeks = aggregate_book_greeks(
+                    delta_by_asset_class=gr.delta,
+                    gamma_by_asset_class=gr.gamma,
+                    vega_by_asset_class=gr.vega,
+                    theta=gr.theta,
+                    rho=gr.rho,
+                    spot=book_spot,
+                )
+                standard_move = MarketMove(
+                    price_change=PRICE_BUMP,
+                    vol_change=VOL_BUMP,
+                    time_change_days=1.0,
+                    rate_change=RATE_BUMP,
+                )
+                record_greek_pnl_attribution(
+                    decompose_greek_pnl(book_greeks, standard_move),
+                    book_id=book_id,
+                )
             except Exception:
                 logger.warning("Greeks calculation failed in CalculateVaR for book %s", book_id, exc_info=True)
 
