@@ -275,7 +275,7 @@ adds the dashboard in the same commit — one self-contained feature per checkbo
       surface-health metrics (last-update age, surface point count, calibration
       failures) and add a `risk/surface-health.json` dashboard. TDD.
       Acceptance: `./gradlew :volatility-service:test :correlation-service:test && node plans/scripts/validate-grafana.mjs && test -f infra/grafana/provisioning/dashboards/risk/surface-health.json`
-- [ ] 4.6 Instrument `notification-service` with in-app delivery metrics on
+- [x] 4.6 Instrument `notification-service` with in-app delivery metrics on
       `InAppDeliveryService` — in-app messages delivered and delivery failures —
       and add an `overview/notification-service.json` dashboard. TDD.
       Acceptance: `./gradlew :notification-service:test && node plans/scripts/validate-grafana.mjs && test -f infra/grafana/provisioning/dashboards/overview/notification-service.json`
