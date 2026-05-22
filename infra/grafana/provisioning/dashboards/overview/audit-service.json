@@ -1,0 +1,326 @@
+{
+  "uid": "kinetix-audit-service",
+  "title": "Audit Service",
+  "tags": [
+    "kinetix",
+    "audit-service",
+    "overview"
+  ],
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "links": [
+    { "title": "Service Overview", "type": "link", "url": "/d/kinetix-service-overview", "icon": "dashboard" },
+    { "title": "System Health", "type": "link", "url": "/d/kinetix-system-health", "icon": "dashboard" },
+    { "title": "Service Logs", "type": "link", "url": "/d/kinetix-service-logs", "icon": "dashboard" }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "label": "Data source",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "refresh": 1,
+        "regex": "",
+        "options": []
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Audit Append Rate",
+      "type": "stat",
+      "description": "Rate of audit records appended to the hash chain. Owner: audit-service, MeteredAuditEventRepository.save().",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(rate(audit_records_appended_total{job=\"audit-service\"}[5m]))",
+          "legendFormat": "Appends/s",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "noValue": "No data",
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Audit Chain Length",
+      "type": "stat",
+      "description": "Number of records currently in the audit hash chain.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "targets": [
+        {
+          "expr": "max(audit_chain_length{job=\"audit-service\"})",
+          "legendFormat": "Chain length",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "No data",
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Write Latency (P95)",
+      "type": "stat",
+      "description": "95th-percentile latency of persisting a single audit record over the last 5m.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(audit_record_write_seconds_bucket{job=\"audit-service\"}[5m])))",
+          "legendFormat": "p95",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "No data",
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 0.05 },
+              { "color": "red", "value": 0.25 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Chain Verification Failures (5m)",
+      "type": "stat",
+      "description": "Count of audit-chain verification runs that failed in the last 5m. Any non-zero value means tampering or corruption was detected — investigate immediately.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(increase(audit_chain_verifications_total{job=\"audit-service\", outcome=\"FAIL\"}[5m]))",
+          "legendFormat": "Failures",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "No data",
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "links": [
+        {
+          "title": "View Logs",
+          "type": "link",
+          "url": "/d/kinetix-service-logs?from=${__from}&to=${__to}",
+          "targetBlank": false
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Audit Append Rate Over Time",
+      "type": "timeseries",
+      "description": "Audit-record append rate over time — the throughput of the hash-chained audit trail.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "targets": [
+        {
+          "expr": "sum(rate(audit_records_appended_total{job=\"audit-service\"}[5m]))",
+          "legendFormat": "Appends/s",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "noValue": "No data"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "title": "Write Latency Percentiles",
+      "type": "timeseries",
+      "description": "p50/p95/p99 latency of persisting a single audit record, derived from the audit_record_write_seconds histogram.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(audit_record_write_seconds_bucket{job=\"audit-service\"}[5m])))",
+          "legendFormat": "p50",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" }
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(audit_record_write_seconds_bucket{job=\"audit-service\"}[5m])))",
+          "legendFormat": "p95",
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" }
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(audit_record_write_seconds_bucket{job=\"audit-service\"}[5m])))",
+          "legendFormat": "p99",
+          "refId": "C",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "No data"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 7,
+      "title": "Chain Verification Rate by Outcome",
+      "type": "timeseries",
+      "description": "Rate of audit-chain verification runs split by outcome (PASS / FAIL). A FAIL series means the hash chain failed integrity verification.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (rate(audit_chain_verifications_total{job=\"audit-service\"}[5m]))",
+          "legendFormat": "{{outcome}}",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "noValue": "No data"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 8,
+      "title": "Cumulative Chain Verifications by Outcome",
+      "type": "timeseries",
+      "description": "Running total of audit-chain verification runs by outcome. A rising FAIL line is a hard regulatory signal that the audit trail has been tampered with.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (audit_chain_verifications_total{job=\"audit-service\"})",
+          "legendFormat": "{{outcome}}",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "No data"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 9,
+      "title": "Audit Chain Length Over Time",
+      "type": "timeseries",
+      "description": "Growth of the audit hash chain over time — the cumulative count of audit records persisted.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "targets": [
+        {
+          "expr": "max(audit_chain_length{job=\"audit-service\"})",
+          "legendFormat": "Chain length",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "No data"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 10,
+      "title": "HTTP Request Rate by Route",
+      "type": "timeseries",
+      "description": "Ktor server request rate for the audit-service API routes (event query, chain verification, gap detection).",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "targets": [
+        {
+          "expr": "sum by (route) (rate(ktor_http_server_requests_seconds_count{job=\"audit-service\"}[5m]))",
+          "legendFormat": "{{route}}",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "noValue": "No data"
+        },
+        "overrides": []
+      }
+    }
+  ],
+  "schemaVersion": 39,
+  "version": 1
+}

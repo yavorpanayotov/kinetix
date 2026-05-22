@@ -4,10 +4,12 @@ import com.kinetix.audit.dlq.DlqReplayService
 import com.kinetix.audit.dlq.KafkaDlqMessageSource
 import com.kinetix.audit.dtos.ErrorResponse
 import com.kinetix.audit.kafka.AuditEventConsumer
+import com.kinetix.audit.metrics.AuditMetrics
 import com.kinetix.audit.persistence.AuditEventRepository
 import com.kinetix.audit.persistence.DatabaseConfig
 import com.kinetix.audit.persistence.DatabaseFactory
 import com.kinetix.audit.persistence.ExposedAuditEventRepository
+import com.kinetix.audit.persistence.MeteredAuditEventRepository
 import com.kinetix.audit.persistence.ExposedVerificationCheckpointRepository
 import com.kinetix.audit.persistence.VerificationCheckpointRepository
 import com.kinetix.audit.routes.auditRoutes
@@ -48,9 +50,18 @@ import java.util.Properties
 
 fun main(args: Array<String>): Unit = EngineMain.main(args)
 
+/**
+ * Attribute key under which [module] stores the Prometheus registry backing the
+ * `/metrics` endpoint, so the route-wiring overloads can bind additional meters
+ * (e.g. the audit-trail metrics) to the same registry that is scraped.
+ */
+val MicrometerRegistryKey: io.ktor.util.AttributeKey<PrometheusMeterRegistry> =
+    io.ktor.util.AttributeKey("audit-service-micrometer-registry")
+
 fun Application.module() {
     log.info("Starting audit-service")
     val appMicrometerRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
+    attributes.put(MicrometerRegistryKey, appMicrometerRegistry)
     install(MicrometerMetrics) { registry = appMicrometerRegistry }
     install(ContentNegotiation) {
         json(Json {
@@ -103,8 +114,9 @@ fun Application.module(
     dlqReplayService: DlqReplayService? = null,
 ) {
     module()
+    val auditMetrics = AuditMetrics(attributes[MicrometerRegistryKey])
     routing {
-        auditRoutes(repository, checkpointRepository)
+        auditRoutes(repository, checkpointRepository, auditMetrics)
         internalRoutes(repository)
         if (dlqReplayService != null) {
             dlqReplayRoutes(dlqReplayService)
@@ -121,7 +133,11 @@ fun Application.moduleWithRoutes() {
             password = dbConfig.property("password").getString(),
         )
     )
-    val repository = ExposedAuditEventRepository(db)
+    module()
+
+    val auditMetrics = AuditMetrics(attributes[MicrometerRegistryKey])
+    val repository: AuditEventRepository =
+        MeteredAuditEventRepository(ExposedAuditEventRepository(db), auditMetrics)
     val checkpointRepository = ExposedVerificationCheckpointRepository(db)
 
     val kafkaConfig = environment.config.config("kafka")
@@ -164,8 +180,6 @@ fun Application.moduleWithRoutes() {
         seedComplete = { seedDone.get() },
     )
 
-    module()
-
     routing {
         get("/health/ready") {
             val response = readinessChecker.check()
@@ -179,7 +193,7 @@ fun Application.moduleWithRoutes() {
     }
 
     routing {
-        auditRoutes(repository, checkpointRepository)
+        auditRoutes(repository, checkpointRepository, auditMetrics)
         internalRoutes(repository)
         dlqReplayRoutes(dlqReplayService)
 

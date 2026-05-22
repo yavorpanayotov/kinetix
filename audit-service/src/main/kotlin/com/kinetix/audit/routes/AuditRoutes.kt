@@ -1,6 +1,7 @@
 package com.kinetix.audit.routes
 
 import com.kinetix.audit.dtos.toResponse
+import com.kinetix.audit.metrics.AuditMetrics
 import com.kinetix.audit.persistence.AuditEventRepository
 import com.kinetix.audit.persistence.AuditHasher
 import com.kinetix.audit.persistence.ChainVerificationResult
@@ -25,6 +26,7 @@ private const val VERIFY_BATCH_SIZE = 10000
 fun Route.auditRoutes(
     repository: AuditEventRepository,
     checkpointRepository: VerificationCheckpointRepository? = null,
+    metrics: AuditMetrics? = null,
 ) {
     route("/api/v1/audit") {
         get("/events", {
@@ -128,6 +130,7 @@ fun Route.auditRoutes(
             }
 
             val result = ChainVerificationResult(valid = valid, eventCount = totalVerified.toInt())
+            metrics?.recordVerification(passed = result.valid)
             logger.info("Audit chain verification complete: valid={}, eventCount={}", result.valid, result.eventCount)
             call.respond(result)
         }
