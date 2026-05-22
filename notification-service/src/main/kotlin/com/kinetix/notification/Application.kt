@@ -6,6 +6,7 @@ import com.kinetix.common.kafka.RetryableConsumer
 import com.kinetix.notification.audit.KafkaGovernanceAuditPublisher
 import com.kinetix.notification.delivery.DeliveryRouter
 import com.kinetix.notification.delivery.EmailDeliveryService
+import com.kinetix.notification.delivery.InAppDeliveryMetrics
 import com.kinetix.notification.delivery.InAppDeliveryService
 import com.kinetix.notification.delivery.PagerDutyDeliveryService
 import com.kinetix.notification.delivery.WebhookDeliveryService
@@ -70,9 +71,18 @@ import java.util.UUID
 
 fun main(args: Array<String>): Unit = EngineMain.main(args)
 
+/**
+ * Attribute key under which [module] stores the Prometheus registry backing the
+ * `/metrics` endpoint, so the route-wiring overloads can bind additional meters
+ * (e.g. the in-app delivery metrics) to the same registry that is scraped.
+ */
+val MicrometerRegistryKey: io.ktor.util.AttributeKey<PrometheusMeterRegistry> =
+    io.ktor.util.AttributeKey("notification-service-micrometer-registry")
+
 fun Application.module() {
     log.info("Starting notification-service")
     val appMicrometerRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
+    attributes.put(MicrometerRegistryKey, appMicrometerRegistry)
     install(MicrometerMetrics) { registry = appMicrometerRegistry }
     install(ContentNegotiation) { json() }
     install(CallLogging) {
@@ -127,6 +137,8 @@ fun Application.module(
 }
 
 fun Application.moduleWithRoutes() {
+    module()
+
     val dbConfig = environment.config.config("database")
     val db = DatabaseFactory.init(
         DatabaseConfig(
@@ -139,7 +151,8 @@ fun Application.moduleWithRoutes() {
     val ruleRepository = ExposedAlertRuleRepository(db)
     val eventRepository = ExposedAlertEventRepository(db)
     val rulesEngine = RulesEngine(ruleRepository)
-    val inAppDelivery = InAppDeliveryService(eventRepository)
+    val inAppDeliveryMetrics = InAppDeliveryMetrics(attributes[MicrometerRegistryKey])
+    val inAppDelivery = InAppDeliveryService(eventRepository, inAppDeliveryMetrics)
     val emailDelivery = EmailDeliveryService()
     val webhookDelivery = WebhookDeliveryService()
     val pagerDutyDelivery = PagerDutyDeliveryService()
@@ -240,7 +253,9 @@ fun Application.moduleWithRoutes() {
     }
     val ackAuditPublisher = KafkaGovernanceAuditPublisher(KafkaProducer(ackAuditProducerProps))
 
-    module(rulesEngine, inAppDelivery, ackRepository, ackAuditPublisher)
+    routing {
+        notificationRoutes(rulesEngine, inAppDelivery, ackRepository, ackAuditPublisher)
+    }
 
     routing {
         get("/health/ready") {

@@ -1,11 +1,14 @@
 package com.kinetix.notification.delivery
 
 import com.kinetix.notification.model.*
+import com.kinetix.notification.persistence.AlertEventRepository
 import com.kinetix.notification.persistence.InMemoryAlertEventRepository
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import java.time.Instant
 
 private fun sampleAlert(id: String = "evt-1") = AlertEvent(
@@ -47,7 +50,93 @@ class InAppDeliveryServiceTest : FunSpec({
         val alerts = service.getRecentAlerts(limit = 3)
         alerts shouldHaveSize 3
     }
+
+    test("deliver increments the in-app delivered counter on a successful persist") {
+        val registry = SimpleMeterRegistry()
+        val service = InAppDeliveryService(
+            InMemoryAlertEventRepository(),
+            InAppDeliveryMetrics(registry),
+        )
+
+        service.deliver(sampleAlert())
+
+        registry.counter("notification_inapp_messages_delivered_total", "severity", "CRITICAL")
+            .count() shouldBe 1.0
+        registry.counter("notification_inapp_delivery_failures_total", "severity", "CRITICAL")
+            .count() shouldBe 0.0
+    }
+
+    test("deliver tags the delivered counter with the alert severity") {
+        val registry = SimpleMeterRegistry()
+        val service = InAppDeliveryService(
+            InMemoryAlertEventRepository(),
+            InAppDeliveryMetrics(registry),
+        )
+
+        service.deliver(sampleAlert().copy(severity = Severity.WARNING))
+
+        registry.counter("notification_inapp_messages_delivered_total", "severity", "WARNING")
+            .count() shouldBe 1.0
+    }
+
+    test("deliver increments the failure counter and rethrows when the persist fails") {
+        val registry = SimpleMeterRegistry()
+        val service = InAppDeliveryService(
+            FailingAlertEventRepository(),
+            InAppDeliveryMetrics(registry),
+        )
+
+        shouldThrow<IllegalStateException> {
+            service.deliver(sampleAlert())
+        }
+
+        registry.counter("notification_inapp_delivery_failures_total", "severity", "CRITICAL")
+            .count() shouldBe 1.0
+        registry.counter("notification_inapp_messages_delivered_total", "severity", "CRITICAL")
+            .count() shouldBe 0.0
+    }
+
+    test("deliver works without a metrics collaborator") {
+        val service = InAppDeliveryService(InMemoryAlertEventRepository())
+        service.deliver(sampleAlert())
+        service.getRecentAlerts() shouldHaveSize 1
+    }
 })
+
+/**
+ * An [AlertEventRepository] whose `save` always fails — used to exercise the
+ * delivery-failure metric path of [InAppDeliveryService.deliver].
+ */
+private class FailingAlertEventRepository : AlertEventRepository {
+    private val delegate = InMemoryAlertEventRepository()
+    override suspend fun save(event: AlertEvent): Unit =
+        throw IllegalStateException("persist failed")
+    override suspend fun findRecent(limit: Int, status: AlertStatus?) =
+        delegate.findRecent(limit, status)
+    override suspend fun findActiveByRuleAndBook(ruleId: String, bookId: String) =
+        delegate.findActiveByRuleAndBook(ruleId, bookId)
+    override suspend fun findLatestByRuleAndBook(ruleId: String, bookId: String) =
+        delegate.findLatestByRuleAndBook(ruleId, bookId)
+    override suspend fun findActiveByBook(bookId: String) = delegate.findActiveByBook(bookId)
+    override suspend fun updateStatus(
+        id: String,
+        status: AlertStatus,
+        resolvedAt: Instant?,
+        resolvedReason: String?,
+    ) = delegate.updateStatus(id, status, resolvedAt, resolvedReason)
+    override suspend fun acknowledge(id: String, acknowledgedAt: Instant) =
+        delegate.acknowledge(id, acknowledgedAt)
+    override suspend fun escalate(
+        id: String,
+        escalatedAt: Instant,
+        escalatedTo: String,
+        promotedSeverity: Severity?,
+    ) = delegate.escalate(id, escalatedAt, escalatedTo, promotedSeverity)
+    override suspend fun findAcknowledgedBefore(cutoff: Instant) =
+        delegate.findAcknowledgedBefore(cutoff)
+    override suspend fun findById(id: String) = delegate.findById(id)
+    override suspend fun snooze(id: String, until: Instant) = delegate.snooze(id, until)
+}
 
 class EmailDeliveryServiceTest : FunSpec({
 
