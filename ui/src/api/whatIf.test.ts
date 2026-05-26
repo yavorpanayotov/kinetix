@@ -104,6 +104,7 @@ describe('whatIf API', () => {
       trades: [
         {
           instrumentId: 'AAPL',
+          instrumentType: 'CASH_EQUITY',
           assetClass: 'EQUITY',
           side: 'SELL',
           quantity: '50',

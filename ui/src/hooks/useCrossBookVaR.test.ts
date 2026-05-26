@@ -47,7 +47,7 @@ describe('useCrossBookVaR', () => {
     })
 
     expect(mockTrigger).toHaveBeenCalledTimes(1)
-    const requestArg = mockTrigger.mock.calls[0][0] as Record<string, unknown>
+    const requestArg = mockTrigger.mock.calls[0][0] as unknown as Record<string, unknown>
     expect(requestArg).toMatchObject({
       bookIds: ['port-1', 'port-2'],
       portfolioGroupId: 'firm',

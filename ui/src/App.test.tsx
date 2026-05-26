@@ -149,6 +149,9 @@ function setupDefaults() {
     createRule: vi.fn(),
     deleteRule: vi.fn(),
     acknowledgeAlert: vi.fn(),
+    escalateAlert: vi.fn(),
+    resolveAlert: vi.fn(),
+    snoozeAlert: vi.fn(),
   })
   mockUseSystemHealth.mockReturnValue({
     health: {
@@ -511,6 +514,9 @@ describe('App', () => {
       createRule: vi.fn(),
       deleteRule: vi.fn(),
       acknowledgeAlert: vi.fn(),
+      escalateAlert: vi.fn(),
+      resolveAlert: vi.fn(),
+      snoozeAlert: vi.fn(),
     })
 
     render(<App />)
@@ -549,6 +555,9 @@ describe('App', () => {
       createRule: vi.fn(),
       deleteRule: vi.fn(),
       acknowledgeAlert: vi.fn(),
+      escalateAlert: vi.fn(),
+      resolveAlert: vi.fn(),
+      snoozeAlert: vi.fn(),
     })
 
     render(<App />)
@@ -707,6 +716,9 @@ describe('App', () => {
         createRule: vi.fn(),
         deleteRule: vi.fn(),
         acknowledgeAlert: vi.fn(),
+        escalateAlert: vi.fn(),
+        resolveAlert: vi.fn(),
+        snoozeAlert: vi.fn(),
       })
 
       render(<App />)
@@ -1123,7 +1135,7 @@ describe('App', () => {
       expectedShortfall: '95000.00',
       componentBreakdown: [],
       calculatedAt: '2026-03-24T09:31:00Z',
-    } as const
+    }
 
     function withVarBreach() {
       mockUseVaR.mockReturnValue({
@@ -1250,7 +1262,7 @@ describe('App', () => {
       expectedShortfall: '95000.00',
       componentBreakdown: [],
       calculatedAt: '2026-03-24T09:31:00Z',
-    } as const
+    }
 
     function withVarBreach() {
       mockUseVaR.mockReturnValue({
@@ -1350,6 +1362,10 @@ describe('App', () => {
         error: 'Failed to load notifications',
         createRule: vi.fn(),
         deleteRule: vi.fn(),
+        acknowledgeAlert: vi.fn(),
+        escalateAlert: vi.fn(),
+        resolveAlert: vi.fn(),
+        snoozeAlert: vi.fn(),
       })
 
       render(<App />)
@@ -1385,6 +1401,10 @@ describe('App', () => {
         error: 'Connection error',
         createRule: vi.fn(),
         deleteRule: vi.fn(),
+        acknowledgeAlert: vi.fn(),
+        escalateAlert: vi.fn(),
+        resolveAlert: vi.fn(),
+        snoozeAlert: vi.fn(),
       })
 
       render(<App />)

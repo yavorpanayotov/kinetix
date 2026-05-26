@@ -27,6 +27,8 @@ COPY rates-service/ rates-service/
 COPY reference-data-service/ reference-data-service/
 COPY volatility-service/ volatility-service/
 COPY correlation-service/ correlation-service/
+COPY demo-orchestrator/ demo-orchestrator/
+COPY test-support/ test-support/
 
 # Remove test-only modules from settings (excluded by .dockerignore)
 RUN sed -i '/"end2end-tests"/d; /"schema-tests"/d; /"smoke-tests"/d' settings.gradle.kts
