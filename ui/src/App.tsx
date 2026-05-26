@@ -64,6 +64,7 @@ import { useAuth } from './auth/useAuth'
 import { DEMO_MODE } from './auth/demoPersonas'
 import { PersonaSwitcher } from './components/PersonaSwitcher'
 import { DemoWelcomeStrip } from './components/DemoWelcomeStrip'
+import { BootstrapBanner } from './components/BootstrapBanner'
 import { KeyboardShortcutsOverlay } from './components/KeyboardShortcutsOverlay'
 import { CommandPalette, type CommandItem } from './components/CommandPalette'
 import type { SavedQuery } from './api/savedQueries'
@@ -745,6 +746,7 @@ function AppContent() {
       </nav>
 
       <DemoWelcomeStrip />
+      <BootstrapBanner />
 
       <SystemStatusBanner
         exhausted={exhausted}
