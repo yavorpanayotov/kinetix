@@ -54,7 +54,7 @@ import kotlin.random.Random
  * After each successfully booked trade the job posts one synthetic
  * execution-cost sample via
  * [PositionServiceClient.recordExecutionCost] so the Trades > Execution Cost
- * subtab renders non-empty data. For a deterministically sampled ~5% of
+ * subtab renders non-empty data. For a deterministically sampled ~1% of
  * trades it also uploads a prime-broker statement that deliberately
  * mismatches the book's internal positions via
  * [PositionServiceClient.uploadPrimeBrokerStatement], so the server-side
@@ -290,8 +290,8 @@ class SimulatedTraderJob(
     }
 
     companion object {
-        /** ~5% of booked trades also produce a reconciliation break. */
-        const val DEFAULT_RECONCILIATION_BREAK_PROBABILITY: Double = 0.05
+        /** ~1% of booked trades also produce a reconciliation break (kx-3rm). */
+        const val DEFAULT_RECONCILIATION_BREAK_PROBABILITY: Double = 0.01
 
         /** Decimal scale for basis-point execution-cost metrics. */
         private const val SLIPPAGE_SCALE: Int = 4

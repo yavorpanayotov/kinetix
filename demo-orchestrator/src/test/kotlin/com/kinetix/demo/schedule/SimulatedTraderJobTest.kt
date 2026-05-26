@@ -395,4 +395,10 @@ class SimulatedTraderJobTest : FunSpec({
             (notional <= tightBook.notionalRangeUsd.last + 100L) shouldBe true
         }
     }
+
+    test("DEFAULT_RECONCILIATION_BREAK_PROBABILITY is 1% — demo breaks are rare") {
+        // Earlier seed value of 5% produced too many reconciliation breaks
+        // for a realistic demo; kx-3rm lowers the rate to 1%.
+        SimulatedTraderJob.DEFAULT_RECONCILIATION_BREAK_PROBABILITY shouldBe 0.01
+    }
 })
