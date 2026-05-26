@@ -55,6 +55,7 @@ services:
       - "8095"
     volumes:
       - ~/.claude:/home/kinetix/.claude:ro
+      - ~/.claude.json:/home/kinetix/.claude.json:ro
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8095/health')"]
       interval: 10s

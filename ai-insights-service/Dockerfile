@@ -34,9 +34,11 @@ RUN apt-get update \
 
 # Give the kinetix user a real HOME so the SDK can find ~/.claude. The
 # compose / Helm mount lands at $HOME/.claude (see docker-compose.services.yml
-# and charts/ai-insights-service/templates/deployment.yaml).
-RUN groupadd -r kinetix \
- && useradd -r -g kinetix -m -d /home/kinetix kinetix
+# and charts/ai-insights-service/templates/deployment.yaml). The uid/gid is
+# pinned to 1000 to match the typical host user that owns the bind-mounted
+# ~/.claude credentials (mode 600), so the SDK can read them.
+RUN groupadd -g 1000 kinetix \
+ && useradd -u 1000 -g kinetix -m -d /home/kinetix kinetix
 
 WORKDIR /app
 
