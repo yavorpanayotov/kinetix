@@ -265,3 +265,40 @@ async def test_chat_endpoint_is_registered_under_correct_prefix(
         )
     assert wrong.status_code == 404
     assert right.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_chat_terminal_frame_includes_tool_calls_from_fixture(
+    app_in_demo: Any,
+) -> None:
+    """The terminal SSE frame carries tool_calls populated from the canned fixture.
+
+    The ``var-explainer-default.json`` fixture includes a ``tool_calls``
+    block with two entries (get_book_var, get_greeks_summary). This test
+    verifies the field is serialised on the wire so the UI can render the
+    reasoning panel.
+    """
+
+    _, frames = await _post_chat(
+        app_in_demo,
+        {"message": "explain", "page_context": {"page": "var-dashboard"}},
+    )
+    terminal = _frame_data(frames[-1])
+    assert isinstance(terminal, dict)
+    assert terminal["done"] is True
+    assert "tool_calls" in terminal, (
+        "expected tool_calls on the terminal frame; "
+        f"keys present: {list(terminal.keys())!r}"
+    )
+    tool_calls = terminal["tool_calls"]
+    assert isinstance(tool_calls, list)
+    assert len(tool_calls) >= 1
+    # Each entry must carry the required wire fields.
+    first = tool_calls[0]
+    assert isinstance(first, dict)
+    assert "name" in first
+    assert "params" in first
+    assert "status" in first
+    assert first["status"] in ("ok", "error", "timeout")
+    assert "started_at" in first
+    assert "completed_at" in first
