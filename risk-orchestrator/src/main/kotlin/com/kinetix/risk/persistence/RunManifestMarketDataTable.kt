@@ -12,6 +12,7 @@ object RunManifestMarketDataTable : Table("run_manifest_market_data") {
     val status = varchar("status", 20)
     val sourceService = varchar("source_service", 50)
     val sourcedAt = timestampWithTimeZone("sourced_at")
+    val isRequired = bool("is_required").default(true)
 
     override val primaryKey = PrimaryKey(manifestId, dataType, instrumentId)
 }

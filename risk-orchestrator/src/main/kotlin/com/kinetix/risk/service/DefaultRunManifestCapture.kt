@@ -72,6 +72,7 @@ class DefaultRunManifestCapture(
                             status = MarketDataSnapshotStatus.FETCHED,
                             sourceService = resolveServiceName(fetchResult.value.dataType),
                             sourcedAt = capturedAt,
+                            required = fetchResult.dependency.required,
                         )
                     )
                 }
@@ -86,6 +87,7 @@ class DefaultRunManifestCapture(
                             status = MarketDataSnapshotStatus.MISSING,
                             sourceService = fetchResult.service,
                             sourcedAt = fetchResult.timestamp,
+                            required = fetchResult.dependency.required,
                         )
                     )
                 }

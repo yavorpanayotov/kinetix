@@ -48,6 +48,7 @@ class DependenciesDiscoverer(
                 instrumentId = instrumentId,
                 assetClass = dep.assetClass,
                 parameters = dep.parametersMap,
+                required = dep.required,
             )
         }.toMutableList()
 

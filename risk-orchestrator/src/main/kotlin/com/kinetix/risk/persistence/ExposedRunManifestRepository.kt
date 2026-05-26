@@ -66,6 +66,7 @@ class ExposedRunManifestRepository(private val db: Database? = null) : RunManife
             this[RunManifestMarketDataTable.status] = ref.status.name
             this[RunManifestMarketDataTable.sourceService] = ref.sourceService
             this[RunManifestMarketDataTable.sourcedAt] = OffsetDateTime.ofInstant(ref.sourcedAt, ZoneOffset.UTC)
+            this[RunManifestMarketDataTable.isRequired] = ref.required
         }
     }
 
@@ -119,6 +120,7 @@ class ExposedRunManifestRepository(private val db: Database? = null) : RunManife
                         status = MarketDataSnapshotStatus.valueOf(row[RunManifestMarketDataTable.status]),
                         sourceService = row[RunManifestMarketDataTable.sourceService],
                         sourcedAt = row[RunManifestMarketDataTable.sourcedAt].toInstant(),
+                        required = row[RunManifestMarketDataTable.isRequired],
                     )
                 }
         }

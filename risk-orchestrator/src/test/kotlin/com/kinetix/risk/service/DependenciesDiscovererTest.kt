@@ -35,11 +35,13 @@ private fun dependency(
     instrumentId: String = "AAPL",
     assetClass: String = "EQUITY",
     parameters: Map<String, String> = emptyMap(),
+    required: Boolean = true,
 ) = MarketDataDependency.newBuilder()
     .setDataType(dataType)
     .setInstrumentId(instrumentId)
     .setAssetClass(assetClass)
     .putAllParameters(parameters)
+    .setRequired(required)
     .build()
 
 class DependenciesDiscovererTest : FunSpec({

@@ -315,7 +315,7 @@ class EodPromotionServiceTest : FunSpec({
             clearMocks(manifestRepository)
         }
 
-        fun missingRef(instrumentId: String) = MarketDataRef(
+        fun missingRef(instrumentId: String, required: Boolean = true) = MarketDataRef(
             dataType = "SPOT_PRICE",
             instrumentId = instrumentId,
             assetClass = "EQUITY",
@@ -323,6 +323,7 @@ class EodPromotionServiceTest : FunSpec({
             status = MarketDataSnapshotStatus.MISSING,
             sourceService = "price-service",
             sourcedAt = Instant.parse("2026-03-13T17:00:00Z"),
+            required = required,
         )
 
         fun fetchedRef(instrumentId: String) = MarketDataRef(
@@ -335,7 +336,7 @@ class EodPromotionServiceTest : FunSpec({
             sourcedAt = Instant.parse("2026-03-13T17:00:00Z"),
         )
 
-        test("rejects EOD promotion when market data is incomplete") {
+        test("rejects EOD promotion when required market data is incomplete") {
             val job = completedJob().copy(manifestId = manifestId)
             coEvery { jobRecorder.findByJobId(JOB_ID) } returns job
             coEvery { manifestRepository.findMarketDataRefs(manifestId) } returns listOf(
@@ -346,8 +347,35 @@ class EodPromotionServiceTest : FunSpec({
             val ex = shouldThrow<IncompleteMarketDataException> {
                 serviceWithManifest.promoteToOfficialEod(JOB_ID, "user-b")
             }
-            ex.message shouldContain "1 market data entries are MISSING"
+            ex.message shouldContain "1 required market data entries are MISSING"
             ex.message shouldContain "TSLA"
+        }
+
+        test("allows EOD promotion when only optional market data is missing") {
+            // The risk-engine marks several feeds as optional (e.g. DIVIDEND_YIELD
+            // for derivative positions, cross-asset CORRELATION_MATRIX). Those
+            // routinely fail without compromising the run, so the gate must let
+            // promotion through.
+            val job = completedJob().copy(manifestId = manifestId)
+            val promoted = job.copy(
+                runLabel = RunLabel.OFFICIAL_EOD,
+                promotedAt = Instant.parse("2026-03-13T18:00:00Z"),
+                promotedBy = "user-b",
+            )
+            coEvery { jobRecorder.findByJobId(JOB_ID) } returns job
+            coEvery { manifestRepository.findMarketDataRefs(manifestId) } returns listOf(
+                fetchedRef("AAPL"),
+                missingRef("AAPL-C-200-20260620", required = false),
+                missingRef("CORRELATION_PROXY", required = false),
+            )
+            coEvery { jobRecorder.findOfficialEodByDate("port-1", VALUATION_DATE) } returns null
+            coEvery { jobRecorder.promoteToOfficialEod(JOB_ID, "user-b", any()) } returns promoted
+            coEvery { eventPublisher.publish(any()) } just Runs
+
+            val result = serviceWithManifest.promoteToOfficialEod(JOB_ID, "user-b")
+
+            result.runLabel shouldBe RunLabel.OFFICIAL_EOD
+            coVerify { jobRecorder.promoteToOfficialEod(JOB_ID, "user-b", any()) }
         }
 
         test("allows forced EOD promotion with incomplete market data when force flag is set") {

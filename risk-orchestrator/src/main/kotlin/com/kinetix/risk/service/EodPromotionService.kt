@@ -68,22 +68,39 @@ class EodPromotionService(
                 throw EodPromotionException.AlreadyPromoted(jobId)
             }
 
-            // Market data completeness gate: reject promotion when any market data
-            // entry is MISSING, unless the caller explicitly sets force=true.
+            // Market data completeness gate: reject promotion when a *required*
+            // market data entry is MISSING, unless the caller explicitly sets
+            // force=true. Optional entries (e.g. DIVIDEND_YIELD for vanilla
+            // derivative positions, cross-asset CORRELATION_MATRIX) routinely
+            // fail in environments that don't have data for them and the engine
+            // already tolerates their absence — gating on them blocks promotion
+            // for legitimate runs.
             if (manifestRepository != null && job.manifestId != null) {
                 val marketDataRefs = manifestRepository.findMarketDataRefs(job.manifestId)
-                val incompleteRefs = marketDataRefs.filter { it.status == MarketDataSnapshotStatus.MISSING }
+                val incompleteRefs = marketDataRefs.filter {
+                    it.status == MarketDataSnapshotStatus.MISSING && it.required
+                }
+                val optionalMisses = marketDataRefs.count {
+                    it.status == MarketDataSnapshotStatus.MISSING && !it.required
+                }
+                if (optionalMisses > 0) {
+                    logger.info(
+                        "EOD promotion for job {}: {} optional market data entries are MISSING (tolerated)",
+                        jobId,
+                        optionalMisses,
+                    )
+                }
                 if (incompleteRefs.isNotEmpty()) {
                     if (!force) {
                         val summary = incompleteRefs
                             .take(5)
                             .joinToString { "${it.dataType}/${it.instrumentId}" }
                         throw IncompleteMarketDataException(
-                            "EOD promotion rejected: ${incompleteRefs.size} market data entries are MISSING for job $jobId ($summary)"
+                            "EOD promotion rejected: ${incompleteRefs.size} required market data entries are MISSING for job $jobId ($summary)"
                         )
                     }
                     logger.warn(
-                        "Force-promoting job {} with {} incomplete market data entries: {}",
+                        "Force-promoting job {} with {} required market data entries missing: {}",
                         jobId,
                         incompleteRefs.size,
                         incompleteRefs.take(5).joinToString { "${it.dataType}/${it.instrumentId}" },
