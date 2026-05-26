@@ -26,4 +26,11 @@ data class StrategyTradeRequest(
     val instrumentType: String,
     val userId: String? = null,
     val userRole: String? = null,
+    /**
+     * Optional counterparty identifier. Demo orchestrators rotate this across
+     * the seeded counterparties (kx-i72) so the Counterparty Exposure tile in
+     * the UI has non-trivial concentration to render. `null` is accepted by
+     * `position-service` for backwards compatibility.
+     */
+    val counterpartyId: String? = null,
 )
