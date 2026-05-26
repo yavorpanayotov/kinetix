@@ -116,6 +116,36 @@ class DemoVaRBootstrapJob(
             successCount, books.size, failedBooks.size, durationMillis,
         )
 
+        // Seed the firm-level cross-book aggregate.
+        //
+        // Per-book VaR alone is not sufficient to answer
+        // GET /api/v1/risk/var/cross-book/firm — that endpoint reads from
+        // risk-orchestrator's in-memory CrossBookVaRCache which is only
+        // populated by an explicit POST to /api/v1/risk/var/cross-book.
+        // Without this call the firm endpoint returns 404. See Phase 3.4
+        // acceptance test CrossBookVaRFirmAfterBootstrapAcceptanceTest for
+        // the regression that proved this.
+        if (succeededBooks.isNotEmpty()) {
+            try {
+                riskOrchestratorClient.calculateCrossBookVaR(
+                    bookIds = succeededBooks,
+                    portfolioGroupId = FIRM_PORTFOLIO_GROUP_ID,
+                    confidenceLevel = confidenceLevel,
+                    horizonDays = horizonDays,
+                    method = method,
+                )
+                logger.info(
+                    "Firm cross-book VaR aggregate seeded for portfolioGroupId={} with {} books",
+                    FIRM_PORTFOLIO_GROUP_ID, succeededBooks.size,
+                )
+            } catch (e: Exception) {
+                logger.warn(
+                    "Firm cross-book VaR aggregate failed — GET /api/v1/risk/var/cross-book/{} will return 404 until retry",
+                    FIRM_PORTFOLIO_GROUP_ID, e,
+                )
+            }
+        }
+
         // Capture SOD baselines for books that had successful VaR calculations.
         val (sodSuccessCount, sodFailureCount, sodFailedBooks) = if (sodJob != null) {
             captureSodBaselines(succeededBooks, sodJob)
@@ -240,5 +270,12 @@ class DemoVaRBootstrapJob(
 
     private companion object {
         val HTTP_5XX_PATTERN = Regex("""returned 5\d{2}""")
+
+        /**
+         * Cache key used when seeding the firm-level cross-book VaR aggregate.
+         * Must match the `groupId` path parameter the UI passes to
+         * `GET /api/v1/risk/var/cross-book/{groupId}`.
+         */
+        const val FIRM_PORTFOLIO_GROUP_ID = "firm"
     }
 }

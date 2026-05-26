@@ -8,6 +8,7 @@ import com.kinetix.demo.client.dtos.HierarchyRiskResponse
 import com.kinetix.demo.client.dtos.PaginatedJobsResponseDto
 import com.kinetix.demo.client.dtos.PromoteEodRequest
 import com.kinetix.demo.client.dtos.SodBaselineStatusDto
+import com.kinetix.demo.client.dtos.CrossBookVaRRequestBody
 import com.kinetix.demo.client.dtos.VaRCalculationRequestBody
 import com.kinetix.demo.client.dtos.ValuationJobSummary
 import io.ktor.client.HttpClient
@@ -240,6 +241,38 @@ class RiskOrchestratorHttpClient(
                 e,
             )
         }
+    }
+
+    override suspend fun calculateCrossBookVaR(
+        bookIds: List<String>,
+        portfolioGroupId: String,
+        confidenceLevel: String,
+        horizonDays: Int,
+        method: String,
+    ) {
+        val url = "$baseUrl/api/v1/risk/var/cross-book"
+        val request = CrossBookVaRRequestBody(
+            bookIds = bookIds,
+            portfolioGroupId = portfolioGroupId,
+            calculationType = method,
+            confidenceLevel = confidenceLevel,
+            timeHorizonDays = horizonDays.toString(),
+            numSimulations = "10000",
+        )
+        val body = json.encodeToString(CrossBookVaRRequestBody.serializer(), request)
+        logger.debug(
+            "Cross-book VaR aggregate: portfolioGroupId={} bookCount={} method={} confidenceLevel={} horizonDays={}",
+            portfolioGroupId, bookIds.size, method, confidenceLevel, horizonDays,
+        )
+        val response = httpClient.post(url) {
+            contentType(ContentType.Application.Json)
+            setBody(body)
+        }
+        if (!response.status.isSuccess()) {
+            failLoudly("POST", url, response)
+        }
+        // Result body is discarded — the aggregate is now cached in
+        // risk-orchestrator under portfolioGroupId and accessible via GET.
     }
 
     override suspend fun seedLimit(bookId: String, limitType: LimitType, threshold: BigDecimal) {

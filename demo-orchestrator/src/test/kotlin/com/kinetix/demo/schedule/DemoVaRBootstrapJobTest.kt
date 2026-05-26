@@ -46,6 +46,7 @@ class DemoVaRBootstrapJobTest : FunSpec({
     fun happyClient(): RiskOrchestratorClient {
         val client = mockk<RiskOrchestratorClient>()
         coEvery { client.calculateVaRWithParams(any(), any(), any(), any(), any()) } returns Unit
+        coEvery { client.calculateCrossBookVaR(any(), any(), any(), any(), any()) } returns Unit
         return client
     }
 
@@ -194,6 +195,77 @@ class DemoVaRBootstrapJobTest : FunSpec({
     // ──────────────────────────────────────────────────────────────────────
     // (f) transient 5xx recovers on third attempt — recorded as success
     // ──────────────────────────────────────────────────────────────────────
+
+    test("calls calculateCrossBookVaR with all successful books and portfolioGroupId=firm after per-book sweep") {
+        // Phase 3.4 regression fix: per-book VaR alone is insufficient to populate
+        // GET /api/v1/risk/var/cross-book/firm — an explicit cross-book POST is required.
+        val client = happyClient()
+        val job = DemoVaRBootstrapJob(
+            riskOrchestratorClient = client,
+            bookProvider = { allBooks },
+            clock = fixedClock,
+        )
+
+        runTest { job.runOnce() }
+
+        coVerify(exactly = 1) {
+            client.calculateCrossBookVaR(
+                bookIds = match { it.size == 8 && it.containsAll(allBooks) },
+                portfolioGroupId = "firm",
+                any(),
+                any(),
+                any(),
+            )
+        }
+    }
+
+    test("cross-book aggregate includes only books whose per-book VaR succeeded") {
+        // If some books fail, the firm aggregate should be seeded with only the
+        // succeeded books rather than the full set — a partial aggregate is better
+        // than no aggregate at all.
+        val client = happyClient()
+        coEvery {
+            client.calculateVaRWithParams(bookA, any(), any(), any(), any())
+        } throws RuntimeException("pricing unavailable")
+
+        val job = DemoVaRBootstrapJob(
+            riskOrchestratorClient = client,
+            bookProvider = { allBooks },
+            clock = fixedClock,
+        )
+
+        runTest { job.runOnce() }
+
+        coVerify(exactly = 1) {
+            client.calculateCrossBookVaR(
+                bookIds = match { !it.contains(bookA) && it.size == 7 },
+                portfolioGroupId = "firm",
+                any(),
+                any(),
+                any(),
+            )
+        }
+    }
+
+    test("skips cross-book aggregate call when all per-book VaR calculations fail") {
+        val client = mockk<RiskOrchestratorClient>()
+        coEvery { client.calculateVaRWithParams(any(), any(), any(), any(), any()) } throws
+            RuntimeException("pricing unavailable")
+
+        val job = DemoVaRBootstrapJob(
+            riskOrchestratorClient = client,
+            bookProvider = { setOf(bookA, bookB) },
+            clock = fixedClock,
+            retryDelayMillis = 0L,
+        )
+
+        runTest { job.runOnce() }
+
+        // No succeeded books — cross-book aggregate must not be called
+        coVerify(exactly = 0) {
+            client.calculateCrossBookVaR(any(), any(), any(), any(), any())
+        }
+    }
 
     test("retries transient 5xx and eventually succeeds") {
         val client = happyClient()

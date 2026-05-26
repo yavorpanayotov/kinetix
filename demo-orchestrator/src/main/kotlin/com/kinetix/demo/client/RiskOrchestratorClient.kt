@@ -124,4 +124,28 @@ interface RiskOrchestratorClient {
         method: String,
         valuationDate: java.time.LocalDate,
     )
+
+    /**
+     * Triggers a cross-book VaR aggregation for the supplied [bookIds] via
+     * `POST /api/v1/risk/var/cross-book`, using [portfolioGroupId] as the
+     * cache key in risk-orchestrator's `CrossBookVaRCache`.
+     *
+     * Used by [com.kinetix.demo.schedule.DemoVaRBootstrapJob] at the end of
+     * the per-book sweep to seed the firm-level aggregate. Without this call
+     * the cache key `"firm"` is never populated and
+     * `GET /api/v1/risk/var/cross-book/firm` returns 404.
+     *
+     * @param bookIds the books to include in the aggregate.
+     * @param portfolioGroupId the cache key, e.g. `"firm"`.
+     * @param confidenceLevel wire string, e.g. `"CL_95"`.
+     * @param horizonDays time horizon in days, e.g. `10`.
+     * @param method calculation method string, e.g. `"PARAMETRIC"`.
+     */
+    suspend fun calculateCrossBookVaR(
+        bookIds: List<String>,
+        portfolioGroupId: String,
+        confidenceLevel: String,
+        horizonDays: Int,
+        method: String,
+    )
 }

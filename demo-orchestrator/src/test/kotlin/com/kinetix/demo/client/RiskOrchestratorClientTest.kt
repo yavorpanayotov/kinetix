@@ -216,4 +216,85 @@ class RiskOrchestratorClientTest : FunSpec({
             thrown.message!! shouldContain "Invalid hierarchy level"
         }
     }
+
+    test("calculateCrossBookVaR POSTs to /api/v1/risk/var/cross-book with the expected body shape") {
+        var capturedUrl: String? = null
+        var capturedMethod: HttpMethod? = null
+        var capturedBody: String? = null
+        var capturedContentType: String? = null
+
+        val client = RiskOrchestratorHttpClient(
+            httpClient = mockHttpClient { request ->
+                capturedUrl = request.url.toString()
+                capturedMethod = request.method
+                capturedContentType = request.body.contentType?.toString()
+                capturedBody = String(request.body.toByteArray())
+                // Return a minimal valid cross-book VaR response
+                respond(
+                    content = """
+                        {
+                          "portfolioGroupId":"firm",
+                          "bookIds":["equity-growth","tech-momentum"],
+                          "calculationType":"PARAMETRIC",
+                          "confidenceLevel":"CL_95",
+                          "varValue":"800000.00",
+                          "expectedShortfall":"960000.00",
+                          "componentBreakdown":[],
+                          "bookContributions":[],
+                          "totalStandaloneVar":"900000.00",
+                          "diversificationBenefit":"100000.00",
+                          "calculatedAt":"2026-05-26T08:00:00Z"
+                        }
+                    """.trimIndent(),
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+            },
+            baseUrl = "http://orchestrator",
+        )
+
+        runTest {
+            client.calculateCrossBookVaR(
+                bookIds = listOf("equity-growth", "tech-momentum"),
+                portfolioGroupId = "firm",
+                confidenceLevel = "CL_95",
+                horizonDays = 10,
+                method = "PARAMETRIC",
+            )
+        }
+
+        capturedUrl shouldBe "http://orchestrator/api/v1/risk/var/cross-book"
+        capturedMethod shouldBe HttpMethod.Post
+        capturedContentType!! shouldContain "application/json"
+        val body = capturedBody!!
+        body shouldContain "\"portfolioGroupId\":\"firm\""
+        body shouldContain "equity-growth"
+        body shouldContain "tech-momentum"
+        body shouldContain "\"calculationType\":\"PARAMETRIC\""
+        body shouldContain "\"confidenceLevel\":\"CL_95\""
+        body shouldContain "\"timeHorizonDays\":\"10\""
+    }
+
+    test("calculateCrossBookVaR throws IllegalStateException on 5xx") {
+        val client = RiskOrchestratorHttpClient(
+            httpClient = mockHttpClient {
+                respond(content = "VaR service down", status = HttpStatusCode.ServiceUnavailable)
+            },
+            baseUrl = "http://orchestrator",
+        )
+
+        runTest {
+            val thrown = shouldThrow<IllegalStateException> {
+                client.calculateCrossBookVaR(
+                    bookIds = listOf("equity-growth"),
+                    portfolioGroupId = "firm",
+                    confidenceLevel = "CL_95",
+                    horizonDays = 10,
+                    method = "PARAMETRIC",
+                )
+            }
+            thrown.message!! shouldContain "503"
+            thrown.message!! shouldContain "POST"
+            thrown.message!! shouldContain "VaR service down"
+        }
+    }
 })
