@@ -33,6 +33,17 @@ Each yielded message satisfies both extraction paths in
 
 This lets the fake plug into any client regardless of which extraction
 path it prefers.
+
+Tool-use and tool-result events
+-------------------------------
+
+Tests that exercise the tool-call accumulation path script events using
+:class:`FakeToolUseEvent` and :class:`FakeToolResultEvent`. These produce
+yielded messages whose ``.content`` contains a single block with
+``.type == "tool_use"`` or ``.type == "tool_result"`` respectively,
+mirroring the real SDK's content-block shapes. The yielded message's
+``.text`` attribute is the empty string for both event types so the
+existing text-extraction path is unaffected.
 """
 
 from __future__ import annotations
@@ -41,7 +52,7 @@ import asyncio
 from collections import deque
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Union
 
 from kinetix_insights.citations.models import Citation
 
@@ -52,7 +63,7 @@ class FakeSdkError(Exception):
 
 @dataclass(frozen=True)
 class FakeMessage:
-    """One scripted message in the fake stream.
+    """One scripted text message in the fake stream.
 
     ``content`` is the text the message should yield. ``delay_seconds`` is
     the wall-clock delay applied *before* the message is yielded — set it
@@ -69,10 +80,61 @@ class FakeMessage:
 
 
 @dataclass(frozen=True)
+class FakeToolUseEvent:
+    """Scripts a tool-use event in the fake stream.
+
+    Produces a yielded message with a single ``ToolUseBlock``-shaped
+    content block (``type="tool_use"``, ``id``, ``name``, ``input``).
+    """
+
+    tool_use_id: str
+    name: str
+    input: dict[str, Any] = field(default_factory=dict)
+    delay_seconds: float = 0.0
+
+
+@dataclass(frozen=True)
+class FakeToolResultEvent:
+    """Scripts a tool-result event in the fake stream.
+
+    Produces a yielded message with a single ``ToolResultBlock``-shaped
+    content block (``type="tool_result"``, ``tool_use_id``, ``is_error``).
+    """
+
+    tool_use_id: str
+    is_error: bool = False
+    delay_seconds: float = 0.0
+
+
+# Union of all scriptable event types. The list union keeps the type
+# explicit while allowing _FakeStreamingSdk.messages to hold any mix.
+_ScriptedEvent = Union[FakeMessage, FakeToolUseEvent, FakeToolResultEvent]
+
+
+@dataclass(frozen=True)
 class FakeTextBlock:
     """Mimics the SDK's ``TextBlock`` — a single ``text`` field."""
 
     text: str
+
+
+@dataclass(frozen=True)
+class FakeToolUseBlock:
+    """Mimics the SDK's ``ToolUseBlock`` content block."""
+
+    type: str = "tool_use"
+    id: str = ""
+    name: str = ""
+    input: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class FakeToolResultBlock:
+    """Mimics the SDK's ``ToolResultBlock`` content block."""
+
+    type: str = "tool_result"
+    tool_use_id: str = ""
+    is_error: bool = False
 
 
 @dataclass(frozen=True)
@@ -87,24 +149,76 @@ class _FakeMessage:
     """
 
     text: str
-    content: list[FakeTextBlock]
+    content: list[Any]
     citations: list[Citation] = field(default_factory=list)
+
+
+class FakeToolUseMessage:
+    """Convenience constructor that builds a message containing one ToolUseBlock.
+
+    Used by tests to assert on the yielded-message shape that the fake
+    produces for :class:`FakeToolUseEvent` entries without going through
+    the queue.
+    """
+
+    def __init__(
+        self,
+        *,
+        tool_use_id: str,
+        name: str,
+        input: dict[str, Any] | None = None,
+    ) -> None:
+        self.text = ""
+        self.citations: list[Citation] = []
+        self.content = [
+            FakeToolUseBlock(
+                type="tool_use",
+                id=tool_use_id,
+                name=name,
+                input=input if input is not None else {},
+            )
+        ]
+
+
+class FakeToolResultMessage:
+    """Convenience constructor that builds a message containing one ToolResultBlock.
+
+    Used by tests to assert on the yielded-message shape that the fake
+    produces for :class:`FakeToolResultEvent` entries.
+    """
+
+    def __init__(
+        self,
+        *,
+        tool_use_id: str,
+        is_error: bool = False,
+    ) -> None:
+        self.text = ""
+        self.citations: list[Citation] = []
+        self.content = [
+            FakeToolResultBlock(
+                type="tool_result",
+                tool_use_id=tool_use_id,
+                is_error=is_error,
+            )
+        ]
 
 
 @dataclass
 class _FakeStreamingSdk:
     """Shared async-iterator fake for ``claude_agent_sdk.query``.
 
-    Construct with a list of :class:`FakeMessage` instances. Iteration of
-    ``query(...)`` drains the shared queue, sleeping ``delay_seconds``
+    Construct with a list of scripted event instances (:class:`FakeMessage`,
+    :class:`FakeToolUseEvent`, or :class:`FakeToolResultEvent`). Iteration
+    of ``query(...)`` drains the shared queue, sleeping ``delay_seconds``
     before each yield. ``recorded_prompts`` and ``recorded_kwargs`` capture
     every invocation so tests can assert on what the client passed in.
     """
 
-    messages: list[FakeMessage] = field(default_factory=list)
+    messages: list[_ScriptedEvent] = field(default_factory=list)
     recorded_prompts: list[str] = field(default_factory=list)
     recorded_kwargs: list[dict[str, Any]] = field(default_factory=list)
-    _queue: deque[FakeMessage] = field(init=False)
+    _queue: deque[_ScriptedEvent] = field(init=False)
     _pending_error: Exception | None = field(default=None, init=False)
 
     def __post_init__(self) -> None:
@@ -116,7 +230,7 @@ class _FakeStreamingSdk:
 
         return len(self.recorded_prompts)
 
-    def add_messages(self, *messages: FakeMessage) -> None:
+    def add_messages(self, *messages: _ScriptedEvent) -> None:
         """Append scripted messages to the shared queue.
 
         Tests that want to mutate the script mid-test (e.g. after asserting
@@ -156,10 +270,35 @@ class _FakeStreamingSdk:
             raise pending_error
         while self._queue:
             scripted = self._queue.popleft()
-            if scripted.delay_seconds > 0:
-                await asyncio.sleep(scripted.delay_seconds)
-            yield _FakeMessage(
-                text=scripted.content,
-                content=[FakeTextBlock(text=scripted.content)],
-                citations=list(scripted.citations),
-            )
+            delay = getattr(scripted, "delay_seconds", 0.0)
+            if delay > 0:
+                await asyncio.sleep(delay)
+            if isinstance(scripted, FakeMessage):
+                yield _FakeMessage(
+                    text=scripted.content,
+                    content=[FakeTextBlock(text=scripted.content)],
+                    citations=list(scripted.citations),
+                )
+            elif isinstance(scripted, FakeToolUseEvent):
+                yield _FakeMessage(
+                    text="",
+                    content=[
+                        FakeToolUseBlock(
+                            type="tool_use",
+                            id=scripted.tool_use_id,
+                            name=scripted.name,
+                            input=scripted.input,
+                        )
+                    ],
+                )
+            elif isinstance(scripted, FakeToolResultEvent):
+                yield _FakeMessage(
+                    text="",
+                    content=[
+                        FakeToolResultBlock(
+                            type="tool_result",
+                            tool_use_id=scripted.tool_use_id,
+                            is_error=scripted.is_error,
+                        )
+                    ],
+                )
