@@ -1,0 +1,19 @@
+# Live-demo cadence override for the demo-orchestrator.
+#
+# Layer this on top of docker-compose.services.yml when you want visible blotter
+# activity within ~2 minutes of opening the UI (buyer walkthroughs, screen
+# recordings, etc.). Do not leave a cluster running with this override overnight
+# — see demo-orchestrator/README.md for the rationale.
+#
+# Usage:
+#   docker compose \
+#     -f infra/docker-compose.infra.yml \
+#     -f infra/docker-compose.observability.yml \
+#     -f docker-compose.services.yml \
+#     -f docker-compose.live-demo.yml \
+#     up -d demo-orchestrator
+
+services:
+  demo-orchestrator:
+    environment:
+      DEMO_TRADE_CADENCE_SECONDS: "30"

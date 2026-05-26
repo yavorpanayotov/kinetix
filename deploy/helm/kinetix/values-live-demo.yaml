@@ -1,0 +1,17 @@
+# Live-demo cadence override.
+#
+# Layer this on top of values-demo.yaml when you want visible blotter activity
+# within ~2 minutes of opening the UI (buyer walkthroughs, screen recordings,
+# etc.). Do not leave a cluster running with this override overnight — see
+# demo-orchestrator/README.md for the rationale (90s default = background mode,
+# 30s = live-demo mode).
+#
+# Usage:
+#   helm upgrade kinetix deploy/helm/kinetix \
+#     -f deploy/helm/kinetix/values-dev.yaml \
+#     -f deploy/helm/kinetix/values-demo.yaml \
+#     -f deploy/helm/kinetix/values-live-demo.yaml
+
+demo-orchestrator:
+  env:
+    DEMO_TRADE_CADENCE_SECONDS: "30"
