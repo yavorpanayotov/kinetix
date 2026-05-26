@@ -282,7 +282,10 @@ export function AuditLogPanel({ initialBookId = '', initialTradeId = '' }: Audit
                       data-testid={`audit-row-${event.id}`}
                       className="hover:bg-slate-50 dark:hover:bg-surface-700 transition-colors"
                     >
-                      <td className="px-4 py-2 text-sm text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                      <td
+                        data-testid="audit-event-row"
+                        className="px-4 py-2 text-sm text-slate-600 dark:text-slate-400 whitespace-nowrap"
+                      >
                         {new Date(event.receivedAt).toLocaleString()}
                       </td>
                       <td className="px-4 py-2 text-sm">
