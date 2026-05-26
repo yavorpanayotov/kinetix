@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 import pytest
 from pydantic import ValidationError
 
-from kinetix_insights.chat.models import ChatChunk, ChatRequest
+from kinetix_insights.chat.models import ChatChunk, ChatRequest, ToolCall
 from kinetix_insights.citations.models import Citation
 
 pytestmark = pytest.mark.unit
@@ -156,3 +156,123 @@ def test_chat_chunk_error_frame_requires_done_true() -> None:
     chunk = ChatChunk(done=True, error_code="POLICY_VIOLATION")
     assert chunk.done is True
     assert chunk.error_code == "POLICY_VIOLATION"
+
+
+# ---------------------------------------------------------------------------
+# ToolCall model
+# ---------------------------------------------------------------------------
+
+
+def _make_tool_call(**overrides: object) -> ToolCall:
+    """Build a ToolCall with sensible defaults for testing."""
+    started = datetime(2026, 5, 26, 10, 0, 0, tzinfo=timezone.utc)
+    completed = datetime(2026, 5, 26, 10, 0, 1, tzinfo=timezone.utc)
+    base: dict[str, object] = {
+        "name": "get_book_var",
+        "params": {"book_id": "fx-main", "horizon_days": 1},
+        "status": "ok",
+        "started_at": started,
+        "completed_at": completed,
+    }
+    base.update(overrides)
+    return ToolCall(**base)  # type: ignore[arg-type]
+
+
+def test_tool_call_round_trip() -> None:
+    """A fully populated ToolCall survives a JSON dump/parse cycle."""
+    original = _make_tool_call()
+    parsed = ToolCall.model_validate_json(original.model_dump_json())
+    assert parsed == original
+
+
+def test_tool_call_round_trip_error_status() -> None:
+    """A ToolCall with status='error' round-trips correctly."""
+    original = _make_tool_call(status="error")
+    parsed = ToolCall.model_validate_json(original.model_dump_json())
+    assert parsed.status == "error"
+
+
+def test_tool_call_round_trip_timeout_status() -> None:
+    """A ToolCall with status='timeout' round-trips correctly."""
+    original = _make_tool_call(status="timeout")
+    parsed = ToolCall.model_validate_json(original.model_dump_json())
+    assert parsed.status == "timeout"
+
+
+def test_tool_call_rejects_invalid_status() -> None:
+    """A status value not in {'ok', 'error', 'timeout'} raises ValidationError."""
+    with pytest.raises(ValidationError):
+        _make_tool_call(status="pending")
+
+
+def test_tool_call_requires_name() -> None:
+    """Omitting name raises ValidationError."""
+    started = datetime(2026, 5, 26, 10, 0, 0, tzinfo=timezone.utc)
+    completed = datetime(2026, 5, 26, 10, 0, 1, tzinfo=timezone.utc)
+    with pytest.raises(ValidationError):
+        ToolCall(  # type: ignore[call-arg]
+            params={},
+            status="ok",
+            started_at=started,
+            completed_at=completed,
+        )
+
+
+def test_tool_call_requires_started_at() -> None:
+    """Omitting started_at raises ValidationError."""
+    completed = datetime(2026, 5, 26, 10, 0, 1, tzinfo=timezone.utc)
+    with pytest.raises(ValidationError):
+        ToolCall(  # type: ignore[call-arg]
+            name="get_book_var",
+            params={},
+            status="ok",
+            completed_at=completed,
+        )
+
+
+def test_tool_call_params_survives_nested_structure() -> None:
+    """params accepts arbitrary nested dicts without schema enforcement."""
+    tc = _make_tool_call(params={"a": {"b": [1, 2, 3]}, "c": True})
+    parsed = ToolCall.model_validate_json(tc.model_dump_json())
+    assert parsed.params == {"a": {"b": [1, 2, 3]}, "c": True}
+
+
+# ---------------------------------------------------------------------------
+# ChatChunk done variant with tool_calls
+# ---------------------------------------------------------------------------
+
+
+def test_chat_chunk_done_with_tool_calls_round_trip() -> None:
+    """A terminal ChatChunk with tool_calls survives a JSON round-trip."""
+    tc = _make_tool_call()
+    original = ChatChunk(done=True, tool_calls=[tc], model="claude-opus-4-7", mode="live")
+    parsed = ChatChunk.model_validate_json(original.model_dump_json())
+    assert parsed == original
+    assert parsed.tool_calls is not None
+    assert len(parsed.tool_calls) == 1
+    assert parsed.tool_calls[0].name == "get_book_var"
+    assert parsed.tool_calls[0].status == "ok"
+
+
+def test_chat_chunk_done_without_tool_calls_defaults_to_none() -> None:
+    """When tool_calls is omitted the field defaults to None."""
+    chunk = ChatChunk(done=True, model="claude-opus-4-7", mode="live")
+    assert chunk.tool_calls is None
+
+
+def test_chat_chunk_done_with_empty_tool_calls_list() -> None:
+    """Passing an explicit empty list is valid and round-trips correctly."""
+    original = ChatChunk(done=True, tool_calls=[], mode="live")
+    parsed = ChatChunk.model_validate_json(original.model_dump_json())
+    assert parsed.tool_calls == []
+
+
+def test_chat_chunk_done_with_multiple_tool_calls() -> None:
+    """Multiple ToolCall entries are all preserved through round-trip."""
+    tc1 = _make_tool_call(name="get_book_var")
+    tc2 = _make_tool_call(name="get_greeks_summary", status="error")
+    original = ChatChunk(done=True, tool_calls=[tc1, tc2])
+    parsed = ChatChunk.model_validate_json(original.model_dump_json())
+    assert parsed.tool_calls is not None
+    assert [t.name for t in parsed.tool_calls] == ["get_book_var", "get_greeks_summary"]
+    assert parsed.tool_calls[1].status == "error"
