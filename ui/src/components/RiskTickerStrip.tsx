@@ -32,6 +32,10 @@ interface RiskTickerStripProps {
 }
 
 const EM_DASH = '—'
+// Phase 2.5.1 (kx-cm3) — tooltip rendered on any KPI cell that falls back to
+// the em-dash sentinel, so a trader hovering a missing aggregate sees it's
+// still being computed rather than mistaking it for an empty book.
+const CALCULATING_TOOLTIP = 'Calculating…'
 const VAR_BREACH_THRESHOLD = 0.8
 
 function aggregateGreeks(greeks: GreeksResultDto | null): { delta: number; vega: number } | null {
@@ -140,6 +144,7 @@ export function RiskTickerStrip({
         <span
           data-testid="ticker-nav"
           className="font-mono tabular-nums text-slate-800 dark:text-slate-100"
+          title={navText === EM_DASH ? CALCULATING_TOOLTIP : undefined}
         >
           {navText}
         </span>
@@ -150,6 +155,7 @@ export function RiskTickerStrip({
         <span
           data-testid="ticker-unrealised-pnl"
           className={`font-mono tabular-nums ${unrealisedPnlAmount !== null ? pnlColorClass(unrealisedPnlAmount) : 'text-slate-500'}`}
+          title={unrealisedPnlText === EM_DASH ? CALCULATING_TOOLTIP : undefined}
         >
           {unrealisedPnlText}
         </span>
@@ -168,6 +174,7 @@ export function RiskTickerStrip({
         <span
           data-testid="ticker-intraday-pnl"
           className={`font-mono tabular-nums ${intradaySnapshot ? pnlColorClass(intradaySnapshot.totalPnl) : 'text-slate-500'}`}
+          title={intradayPnlText === EM_DASH ? CALCULATING_TOOLTIP : undefined}
         >
           {intradayPnlText}
         </span>
@@ -178,6 +185,7 @@ export function RiskTickerStrip({
         <span
           data-testid="ticker-var"
           className={`font-mono tabular-nums ${varCellClass}`}
+          title={varValueText === EM_DASH ? CALCULATING_TOOLTIP : undefined}
         >
           {varValueText}
         </span>
@@ -216,6 +224,7 @@ export function RiskTickerStrip({
         <span
           data-testid="ticker-net-delta"
           className="font-mono tabular-nums text-slate-800 dark:text-slate-100"
+          title={deltaText === EM_DASH ? CALCULATING_TOOLTIP : undefined}
         >
           {deltaText}
         </span>
@@ -226,6 +235,7 @@ export function RiskTickerStrip({
         <span
           data-testid="ticker-net-vega"
           className="font-mono tabular-nums text-slate-800 dark:text-slate-100"
+          title={vegaText === EM_DASH ? CALCULATING_TOOLTIP : undefined}
         >
           {vegaText}
         </span>
@@ -244,7 +254,11 @@ export function RiskTickerStrip({
 
       <div className="ml-auto flex items-baseline gap-1 text-xs text-slate-400">
         <span className="uppercase tracking-wide">Last calc</span>
-        <span data-testid="ticker-last-calc" className="font-mono tabular-nums">
+        <span
+          data-testid="ticker-last-calc"
+          className="font-mono tabular-nums"
+          title={lastCalcText === EM_DASH ? CALCULATING_TOOLTIP : undefined}
+        >
           {lastCalcText}
         </span>
       </div>

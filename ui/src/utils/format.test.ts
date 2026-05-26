@@ -29,6 +29,22 @@ describe('formatMoney', () => {
   it('rounds to 2 decimal places', () => {
     expect(formatMoney('150.999', 'USD')).toBe('$151.00')
   })
+
+  // Phase 2.5.1 (kx-cm3) — distinguish "no data yet" from a genuine zero so
+  // the firm KPI bar never displays a misleading `$0.00` while the firm
+  // aggregate endpoint is still bootstrapping.
+  it('renders an em-dash for a null amount', () => {
+    expect(formatMoney(null as unknown as string, 'USD')).toBe('—')
+  })
+
+  it('renders an em-dash for an undefined amount', () => {
+    expect(formatMoney(undefined as unknown as string, 'USD')).toBe('—')
+  })
+
+  it('renders $0.00 for a genuine zero (not null)', () => {
+    expect(formatMoney('0', 'USD')).toBe('$0.00')
+    expect(formatMoney('0.00', 'USD')).toBe('$0.00')
+  })
 })
 
 describe('formatSignedMoney', () => {
@@ -78,6 +94,21 @@ describe('formatSignedMoney', () => {
   it('does not prefix + on -Infinity inputs', () => {
     expect(formatSignedMoney('-Infinity', 'USD')).toBe(formatMoney('-Infinity', 'USD'))
   })
+
+  // Phase 2.5.1 (kx-cm3) — preserve the "—" affordance through the signed
+  // wrapper so callers that pass nullable P&L straight in still get the
+  // missing-data glyph rather than `+$0.00` / `$0.00`.
+  it('renders an em-dash for a null amount', () => {
+    expect(formatSignedMoney(null as unknown as string, 'USD')).toBe('—')
+  })
+
+  it('renders an em-dash for an undefined amount', () => {
+    expect(formatSignedMoney(undefined as unknown as string, 'USD')).toBe('—')
+  })
+
+  it('renders $0.00 for a genuine zero (not null)', () => {
+    expect(formatSignedMoney('0', 'USD')).toBe('$0.00')
+  })
 })
 
 describe('formatCurrency', () => {
@@ -125,6 +156,20 @@ describe('formatNum', () => {
   })
 
   it('formats zero', () => {
+    expect(formatNum(0)).toBe('0.00')
+  })
+
+  // Phase 2.5.1 (kx-cm3) — null/undefined Greeks should surface as a clear
+  // "—" so a trader doesn't mistake a missing aggregate for net-flat risk.
+  it('renders an em-dash for a null value', () => {
+    expect(formatNum(null as unknown as number)).toBe('—')
+  })
+
+  it('renders an em-dash for an undefined value', () => {
+    expect(formatNum(undefined as unknown as number)).toBe('—')
+  })
+
+  it('renders 0.00 for a genuine zero (not null)', () => {
     expect(formatNum(0)).toBe('0.00')
   })
 })

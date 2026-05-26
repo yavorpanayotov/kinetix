@@ -235,6 +235,96 @@ describe('RiskTickerStrip', () => {
       expect(screen.getByTestId('ticker-last-calc')).toHaveTextContent('—')
     })
 
+    // Phase 2.5.1 (kx-cm3) — em-dash cells must explain that the firm
+    // aggregate is still bootstrapping, not that the book is empty. A
+    // misleading `$0.00` is explicitly NOT acceptable.
+    it('renders an em-dash for null data (never $0.00)', () => {
+      render(
+        <RiskTickerStrip
+          bookId="book-1"
+          bookSummary={null}
+          intradaySnapshot={null}
+          varResult={null}
+          greeksResult={null}
+          varLimit={null}
+          streamConnected={false}
+        />,
+      )
+
+      const nav = screen.getByTestId('ticker-nav')
+      expect(nav).toHaveTextContent('—')
+      expect(nav.textContent).not.toContain('$0.00')
+      expect(nav.textContent).not.toMatch(/\$?0(\.00)?$/)
+
+      const pnl = screen.getByTestId('ticker-unrealised-pnl')
+      expect(pnl).toHaveTextContent('—')
+      expect(pnl.textContent).not.toContain('$0.00')
+    })
+
+    it('sets a "Calculating…" tooltip on em-dash cells', () => {
+      render(
+        <RiskTickerStrip
+          bookId="book-1"
+          bookSummary={null}
+          intradaySnapshot={null}
+          varResult={null}
+          greeksResult={null}
+          varLimit={null}
+          streamConnected={false}
+        />,
+      )
+
+      expect(screen.getByTestId('ticker-nav')).toHaveAttribute('title', 'Calculating…')
+      expect(screen.getByTestId('ticker-unrealised-pnl')).toHaveAttribute('title', 'Calculating…')
+      expect(screen.getByTestId('ticker-intraday-pnl')).toHaveAttribute('title', 'Calculating…')
+      expect(screen.getByTestId('ticker-var')).toHaveAttribute('title', 'Calculating…')
+      expect(screen.getByTestId('ticker-net-delta')).toHaveAttribute('title', 'Calculating…')
+      expect(screen.getByTestId('ticker-net-vega')).toHaveAttribute('title', 'Calculating…')
+    })
+
+    it('renders $0.00 for a genuine zero NAV (data present, value is 0)', () => {
+      render(
+        <RiskTickerStrip
+          bookId="book-1"
+          bookSummary={sampleBookSummary({
+            totalNav: { amount: '0.00', currency: 'USD' },
+            totalUnrealizedPnl: { amount: '0.00', currency: 'USD' },
+          })}
+          intradaySnapshot={null}
+          varResult={null}
+          greeksResult={null}
+          varLimit={null}
+          streamConnected={true}
+        />,
+      )
+
+      const nav = screen.getByTestId('ticker-nav')
+      expect(nav).toHaveTextContent('$0.00')
+      expect(nav.textContent).not.toContain('—')
+      expect(nav).not.toHaveAttribute('title', 'Calculating…')
+
+      const pnl = screen.getByTestId('ticker-unrealised-pnl')
+      expect(pnl).toHaveTextContent('$0.00')
+      expect(pnl.textContent).not.toContain('—')
+    })
+
+    it('renders $0.00 for a genuine zero intraday P&L', () => {
+      render(
+        <RiskTickerStrip
+          bookId="book-1"
+          bookSummary={null}
+          intradaySnapshot={sampleIntraday({ totalPnl: '0.00' })}
+          varResult={null}
+          greeksResult={null}
+          varLimit={null}
+          streamConnected={true}
+        />,
+      )
+
+      expect(screen.getByTestId('ticker-intraday-pnl')).toHaveTextContent('$0.00')
+      expect(screen.getByTestId('ticker-intraday-pnl').textContent).not.toContain('—')
+    })
+
     it('omits VaR utilisation cell when no limit configured', () => {
       render(
         <RiskTickerStrip
