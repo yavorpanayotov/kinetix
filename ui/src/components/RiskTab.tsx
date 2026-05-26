@@ -21,6 +21,8 @@ import { RiskBudgetPanel } from './RiskBudgetPanel'
 import { JobHistory } from './JobHistory'
 import { RiskAlertBanner } from './RiskAlertBanner'
 import { StressSummaryCard } from './StressSummaryCard'
+import { StressScenarioTile } from './StressScenarioTile'
+import { useCannedStress } from '../hooks/useCannedStress'
 import { PnlSummaryCard } from './PnlSummaryCard'
 import { LiquidityRiskPanel } from './LiquidityRiskPanel'
 import { LimitsPanel } from './LimitsPanel'
@@ -212,6 +214,13 @@ export function RiskTab({
 
   const sod = useSodBaseline(bookId)
   const { data: pnlData } = usePnlAttribution(bookId)
+
+  // kx-wxy — canned stress-scenario tile, seeded by the demo orchestrator's
+  // StressScenarioSeedJob. Distinct from the user-triggered StressSummaryCard.
+  const {
+    result: cannedStressResult,
+    loading: cannedStressLoading,
+  } = useCannedStress(bookId)
 
   const {
     result: liquidityResult,
@@ -469,6 +478,13 @@ export function RiskTab({
                   onRun={onRunStress}
                   onViewDetails={onViewStressDetails}
                   activeScenario={activeScenario}
+                />
+              </div>
+              <div className="mt-4">
+                {/* kx-wxy — canned stress-scenario tile seeded daily by demo orchestrator. */}
+                <StressScenarioTile
+                  result={cannedStressResult}
+                  loading={cannedStressLoading}
                 />
               </div>
               <div className="mt-4">

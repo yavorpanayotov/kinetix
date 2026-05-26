@@ -204,4 +204,37 @@ class StressTestRoutesTest : FunSpec({
             failures[0].jsonObject["scenarioName"]!!.jsonPrimitive.content shouldBe "BROKEN"
         }
     }
+
+    test("POST /api/v1/risk/stress/{bookId}/canned/{scenarioName} returns the canned tile payload") {
+        coEvery {
+            riskClient.runCannedStressScenario("port-rates", "+100BPS_PARALLEL")
+        } returns buildJsonObject {
+            put("bookId", "port-rates")
+            put("scenario", "+100BPS_PARALLEL")
+            put("deltaPv", "-8000.00")
+            put("asOf", "2026-05-26T09:00:00Z")
+        }
+
+        testApplication {
+            application { module(riskClient) }
+            val response = client.post("/api/v1/risk/stress/port-rates/canned/+100BPS_PARALLEL") {
+                contentType(ContentType.Application.Json)
+            }
+            response.status shouldBe HttpStatusCode.OK
+            val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+            body["bookId"]?.jsonPrimitive?.content shouldBe "port-rates"
+            body["scenario"]?.jsonPrimitive?.content shouldBe "+100BPS_PARALLEL"
+            body["deltaPv"]?.jsonPrimitive?.content shouldBe "-8000.00"
+        }
+    }
+
+    test("GET /api/v1/risk/stress/{bookId}/canned returns 404 when no result has been cached") {
+        coEvery { riskClient.getCannedStressScenario("empty-book") } returns null
+
+        testApplication {
+            application { module(riskClient) }
+            val response = client.get("/api/v1/risk/stress/empty-book/canned")
+            response.status shouldBe HttpStatusCode.NotFound
+        }
+    }
 })

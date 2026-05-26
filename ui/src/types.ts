@@ -264,6 +264,19 @@ export interface StressTestResultDto {
   stressedGreeks?: StressedGreeksDto
 }
 
+/**
+ * Minimal canned stress-scenario tile payload (issue kx-wxy) returned by
+ * `GET /api/v1/risk/stress/{bookId}/canned`. Distinct from the full
+ * [StressTestResultDto] — only the fields needed by the Risk-overview tile
+ * are surfaced.
+ */
+export interface CannedStressResultDto {
+  bookId: string
+  scenario: string
+  deltaPv: string
+  asOf: string
+}
+
 export interface GreekValuesDto {
   assetClass: string
   delta: string

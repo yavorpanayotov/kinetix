@@ -1,4 +1,4 @@
-import type { StressTestResultDto } from '../types'
+import type { CannedStressResultDto, StressTestResultDto } from '../types'
 import { authFetch } from '../auth/authFetch'
 
 export async function fetchScenarios(): Promise<string[]> {
@@ -70,4 +70,27 @@ export async function runAllStressTests(
   }
   const body: BatchStressRunResult = await response.json()
   return body.results
+}
+
+/**
+ * Fetch the canned stress-scenario tile result for [bookId] (issue kx-wxy).
+ * Returns `null` when no canned scenario has been seeded for the book yet —
+ * the demo-orchestrator's `StressScenarioSeedJob` populates this on startup
+ * and at SOD (09:00 UTC).
+ */
+export async function fetchCannedStressScenario(
+  bookId: string,
+): Promise<CannedStressResultDto | null> {
+  const response = await authFetch(
+    `/api/v1/risk/stress/${encodeURIComponent(bookId)}/canned`,
+  )
+  if (response.status === 404) {
+    return null
+  }
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch canned stress scenario: ${response.status} ${response.statusText}`,
+    )
+  }
+  return response.json()
 }
