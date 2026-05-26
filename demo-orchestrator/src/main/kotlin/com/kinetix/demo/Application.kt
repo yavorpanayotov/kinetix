@@ -17,6 +17,7 @@ import com.kinetix.demo.schedule.RiskOrchestratorBacktestInputProvider
 import com.kinetix.demo.schedule.SchedulingHelpers
 import com.kinetix.demo.schedule.SimulatedTraderJob
 import com.kinetix.demo.schedule.SodBaselineCaptureJob
+import com.kinetix.demo.schedule.StressScenarioSeedJob
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
@@ -48,6 +49,8 @@ import kotlin.time.Duration.Companion.seconds
 
 private const val DEFAULT_PORT = 8094
 private val LIMIT_SEED_TARGET_UTC: LocalTime = LocalTime.of(6, 5)
+// kx-wxy — canned stress-scenario seed runs daily at the simulated SOD (09:00 UTC).
+private val STRESS_SEED_TARGET_UTC: LocalTime = LocalTime.of(9, 0)
 
 fun main(args: Array<String>) {
     val port = System.getenv("PORT")?.toIntOrNull() ?: DEFAULT_PORT
@@ -121,8 +124,18 @@ private fun Application.wireDemoSchedulers(
         riskOrchestratorClient = riskClient,
         sodJob = sodBaselineJob,
     )
+    // kx-wxy — canned stress scenario seed (Risk overview tile). Fires after
+    // the VaR bootstrap on startup and daily at SOD (09:00 UTC).
+    val stressSeedJob = StressScenarioSeedJob(client = riskClient)
     launch {
         runVaRBootstrapSafely(varBootstrapJob, bootstrapStateHolder)
+        // Once VaR is bootstrapped the books have positions resolved on the
+        // gateway side; seed the canned stress tile right after so the Risk
+        // overview tile appears on the same UI refresh as the VaR figures.
+        runStressSeedSafely(stressSeedJob, reason = "post-bootstrap")
+    }
+    launch {
+        scheduleDailyStressSeed(stressSeedJob)
     }
 
     val positionClient = PositionServiceHttpClient(httpClient, config.positionServiceUrl)
@@ -341,5 +354,37 @@ private suspend fun Application.runSodBaselineSafely(job: SodBaselineCaptureJob,
         throw cancellation
     } catch (failure: Exception) {
         log.warn("SodBaselineCaptureJob run ({}) failed — continuing", reason, failure)
+    }
+}
+
+// kx-wxy — StressScenarioSeedJob wiring. Bootstrap firing is launched inline
+// (right after the VaR bootstrap completes); this helper drives the daily
+// SOD-09:00-UTC schedule.
+private suspend fun Application.scheduleDailyStressSeed(job: StressScenarioSeedJob) {
+    while (true) {
+        val wait = SchedulingHelpers.durationUntilNext(STRESS_SEED_TARGET_UTC)
+        log.info(
+            "Next StressScenarioSeedJob run scheduled in {}s (target {} UTC)",
+            wait.seconds,
+            STRESS_SEED_TARGET_UTC,
+        )
+        try {
+            delay(wait.toMillis())
+        } catch (cancellation: CancellationException) {
+            log.info("StressScenarioSeedJob scheduling loop cancelled — exiting")
+            throw cancellation
+        }
+        runStressSeedSafely(job, reason = "$STRESS_SEED_TARGET_UTC UTC schedule")
+    }
+}
+
+private suspend fun Application.runStressSeedSafely(job: StressScenarioSeedJob, reason: String) {
+    try {
+        log.info("Running StressScenarioSeedJob ({})", reason)
+        job.runOnce()
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (failure: Exception) {
+        log.warn("StressScenarioSeedJob run ({}) failed — continuing", reason, failure)
     }
 }

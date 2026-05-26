@@ -113,6 +113,48 @@ class RiskOrchestratorClientTest : FunSpec({
         body shouldContain "\"allocatedBy\":\"demo-orchestrator\""
     }
 
+    test("runCannedStressScenario POSTs to the canned stress endpoint with the supplied scenario name") {
+        var capturedUrl: String? = null
+        var capturedMethod: HttpMethod? = null
+        val client = RiskOrchestratorHttpClient(
+            httpClient = mockHttpClient { request ->
+                capturedUrl = request.url.toString()
+                capturedMethod = request.method
+                respond(
+                    content = """{"bookId":"BOOK-RATES-01","scenario":"+100BPS_PARALLEL","deltaPv":"-8000.00","asOf":"2026-05-26T09:00:00Z"}""",
+                    status = HttpStatusCode.OK,
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+            },
+            baseUrl = "http://orchestrator",
+        )
+
+        runTest {
+            client.runCannedStressScenario("BOOK-RATES-01", "+100BPS_PARALLEL")
+        }
+
+        capturedMethod shouldBe HttpMethod.Post
+        capturedUrl shouldBe
+            "http://orchestrator/api/v1/risk/stress/BOOK-RATES-01/canned/+100BPS_PARALLEL"
+    }
+
+    test("runCannedStressScenario fails loudly on a 5xx response") {
+        val client = RiskOrchestratorHttpClient(
+            httpClient = mockHttpClient {
+                respond(content = "boom", status = HttpStatusCode.InternalServerError)
+            },
+            baseUrl = "http://orchestrator",
+        )
+
+        runTest {
+            val thrown = shouldThrow<IllegalStateException> {
+                client.runCannedStressScenario("BOOK-RATES-01", "+100BPS_PARALLEL")
+            }
+            thrown.message!! shouldContain "500"
+            thrown.message!! shouldContain "POST"
+        }
+    }
+
     test("seedLimit(DELTA_ABS) maps to budgetType=DELTA_ABS") {
         var capturedBody: String? = null
         val client = RiskOrchestratorHttpClient(
