@@ -1,13 +1,29 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, test, expect, vi, beforeEach } from 'vitest'
 import { AuditLogPanel } from './AuditLogPanel'
 import * as auditApi from '../api/audit'
 import type { AuditEventDto } from '../api/audit'
+import { useAuth } from '../auth/useAuth'
 
 vi.mock('../api/audit')
+vi.mock('../auth/useAuth')
 
 const mockFetchAuditEvents = vi.mocked(auditApi.fetchAuditEvents)
 const mockVerifyAuditChain = vi.mocked(auditApi.verifyAuditChain)
+const mockUseAuth = vi.mocked(useAuth)
+
+/** Builds a fully-populated AuthState — override `initialising` per test. */
+function authState(overrides: Partial<ReturnType<typeof useAuth>> = {}): ReturnType<typeof useAuth> {
+  return {
+    authenticated: true,
+    initialising: false,
+    token: null,
+    username: 'demo-user',
+    roles: ['TRADER'],
+    logout: vi.fn(),
+    ...overrides,
+  }
+}
 
 /** Builds an audit event with sensible defaults; override any field per test. */
 function buildEvent(overrides: Partial<AuditEventDto> = {}): AuditEventDto {
@@ -50,6 +66,7 @@ describe('AuditLogPanel', () => {
     vi.clearAllMocks()
     mockFetchAuditEvents.mockResolvedValue([])
     mockVerifyAuditChain.mockResolvedValue({ valid: true, eventCount: 0 })
+    mockUseAuth.mockReturnValue(authState())
   })
 
   test('shows the empty state when no events match', async () => {
@@ -174,5 +191,56 @@ describe('AuditLogPanel', () => {
       expect(screen.getByTestId('audit-row-1')).toBeInTheDocument()
     })
     expect(screen.queryByTestId('audit-load-more')).not.toBeInTheDocument()
+  })
+
+  test('does not call fetch while auth is initialising', async () => {
+    mockUseAuth.mockReturnValue(authState({ initialising: true, authenticated: false }))
+    render(<AuditLogPanel />)
+
+    // Let any pending microtasks resolve.
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(mockFetchAuditEvents).not.toHaveBeenCalled()
+    expect(mockVerifyAuditChain).not.toHaveBeenCalled()
+  })
+
+  test('calls fetch exactly once when auth transitions from initialising to ready', async () => {
+    mockUseAuth.mockReturnValue(authState({ initialising: true, authenticated: false }))
+    const { rerender } = render(<AuditLogPanel />)
+
+    // Still initialising — no fetches.
+    expect(mockFetchAuditEvents).not.toHaveBeenCalled()
+    expect(mockVerifyAuditChain).not.toHaveBeenCalled()
+
+    // Auth becomes ready; component should now fetch exactly once.
+    mockUseAuth.mockReturnValue(authState({ initialising: false }))
+    rerender(<AuditLogPanel />)
+
+    await waitFor(() => {
+      expect(mockFetchAuditEvents).toHaveBeenCalledTimes(1)
+    })
+    expect(mockVerifyAuditChain).toHaveBeenCalledTimes(1)
+  })
+
+  test('renders the new loading copy and not the old one', async () => {
+    // Hold the chain-verify promise open so the loading indicator stays visible.
+    let resolveVerify: (value: { valid: boolean; eventCount: number }) => void = () => {}
+    mockVerifyAuditChain.mockReturnValue(
+      new Promise((resolve) => {
+        resolveVerify = resolve
+      }),
+    )
+    render(<AuditLogPanel />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('audit-chain-verifying')).toBeInTheDocument()
+    })
+    expect(screen.getByText(/loading activity log/i)).toBeInTheDocument()
+    expect(screen.queryByText(/verifying chain/i)).not.toBeInTheDocument()
+
+    await act(async () => {
+      resolveVerify({ valid: true, eventCount: 0 })
+    })
   })
 })

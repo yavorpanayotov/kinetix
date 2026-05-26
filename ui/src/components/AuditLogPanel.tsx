@@ -7,6 +7,7 @@ import {
   type AuditEventQuery,
   type AuditVerifyResultDto,
 } from '../api/audit'
+import { useAuth } from '../auth/useAuth'
 import { Badge, Card, EmptyState, ErrorCard, Spinner } from './ui'
 
 /** Number of events requested per cursor page. */
@@ -65,6 +66,8 @@ interface AuditLogPanelProps {
  * Plan ref: plans/audit-v2.md PR 8 §8.2.
  */
 export function AuditLogPanel({ initialBookId = '', initialTradeId = '' }: AuditLogPanelProps = {}) {
+  const auth = useAuth()
+
   const [bookId, setBookId] = useState(initialBookId)
   const [tradeId, setTradeId] = useState(initialTradeId)
   const [eventType, setEventType] = useState('')
@@ -113,12 +116,17 @@ export function AuditLogPanel({ initialBookId = '', initialTradeId = '' }: Audit
   )
 
   useEffect(() => {
+    // Wait until the auth provider has settled — in demo mode, the persona
+    // headers needed by authFetch are set asynchronously by DemoAuthProvider,
+    // and firing requests before that leaves the panel stuck on a loading
+    // spinner forever.
+    if (auth.initialising) return
     const signal = { cancelled: false }
     void load(signal)
     return () => {
       signal.cancelled = true
     }
-  }, [load])
+  }, [load, auth.initialising])
 
   const verify = useCallback(async (signal?: { cancelled: boolean }) => {
     setVerifying(true)
@@ -136,12 +144,14 @@ export function AuditLogPanel({ initialBookId = '', initialTradeId = '' }: Audit
   }, [])
 
   useEffect(() => {
+    // Same gating as the events fetch: wait until auth headers are ready.
+    if (auth.initialising) return
     const signal = { cancelled: false }
     void verify(signal)
     return () => {
       signal.cancelled = true
     }
-  }, [verify])
+  }, [verify, auth.initialising])
 
   /** Fetches the next cursor page, anchored on the last loaded event's id. */
   const loadMore = useCallback(async () => {
@@ -337,7 +347,7 @@ function ChainIntegrityIndicator({ verification, verifying, error, onRecheck }: 
         className="inline-flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400"
       >
         <Spinner size="sm" />
-        Verifying chain...
+        Loading activity log...
       </span>
     )
   }
