@@ -356,18 +356,29 @@ def discover(positions: list[PositionRisk]) -> list[MarketDataDependency]:
                     parameters=params,
                 ))
 
-    # Add portfolio-level correlation matrix if there are 2+ distinct asset classes
+    # Add portfolio-level correlation matrix if there are 2+ distinct asset classes.
+    # Notes:
+    #  - labels are the sorted asset-class names actually present in the portfolio.
+    #    The correlation service is keyed by labels; omitting them caused the fetcher
+    #    to skip the call (recorded MISSING) and blocked EOD promotion.
+    #  - required=False because the engine consumes the matrix when present but
+    #    falls back to internally-estimated correlations from historical price series
+    #    when it isn't. Marking it required forced EOD promotion to fail whenever the
+    #    correlation service didn't have an entry for the exact label set.
     asset_classes = {pos.asset_class for pos in positions}
     if len(asset_classes) >= 2:
-        key = ("CORRELATION_MATRIX", "", frozenset())
+        labels = ",".join(sorted(ac.value for ac in asset_classes))
+        params = {"labels": labels}
+        key = ("CORRELATION_MATRIX", "", frozenset(params.items()))
         if key not in seen:
             seen.add(key)
             result.append(MarketDataDependency(
                 data_type="CORRELATION_MATRIX",
                 instrument_id="",
                 asset_class="",
-                required=True,
+                required=False,
                 description="Cross-asset correlation matrix for portfolio diversification",
+                parameters=params,
             ))
 
     return result

@@ -162,7 +162,26 @@ class TestDiscover:
         corr = [d for d in result if d.data_type == "CORRELATION_MATRIX"]
         assert len(corr) == 1
         assert corr[0].instrument_id == ""
-        assert corr[0].required is True
+        # Cross-asset matrix is best-effort: the engine falls back to estimating
+        # correlations from historical price series when the matrix is unavailable.
+        # Marking it required=True was blocking EOD promotion for portfolios where
+        # the correlation service had no entry for the requested label set.
+        assert corr[0].required is False
+
+    def test_correlation_matrix_carries_asset_class_labels(self):
+        # The correlation service is keyed by labels; without them the
+        # risk-orchestrator's fetcher skips the call and records MISSING.
+        # The discoverer must emit the sorted asset-class names so the call is
+        # actually serviceable.
+        positions = [
+            _pos("AAPL", AssetClass.EQUITY),
+            _pos("GOLD", AssetClass.COMMODITY),
+            _pos("EURUSD", AssetClass.FX),
+        ]
+        result = discover(positions)
+        corr = next(d for d in result if d.data_type == "CORRELATION_MATRIX")
+        labels = corr.parameters.get("labels", "").split(",")
+        assert labels == sorted(["EQUITY", "COMMODITY", "FX"])
 
     def test_portfolio_level_dependencies_not_duplicated(self):
         positions = [
