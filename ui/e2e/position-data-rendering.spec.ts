@@ -58,13 +58,16 @@ test.describe('Position Data Rendering', () => {
     await page.goto('/')
     await page.waitForSelector('[data-testid="position-row-AAPL"]')
 
-    const aaplQty = page.getByTestId('position-row-AAPL').locator('td').nth(5)
+    // Column order with details visible:
+    // 0 book, 1 instrument, 2 name, 3 type, 4 assetClass, 5 lastPrice (kx-m2v),
+    // 6 quantity, 7 avgCost, 8 marketPrice, 9 marketValue, 10 unrealizedPnl.
+    const aaplQty = page.getByTestId('position-row-AAPL').locator('td').nth(6)
     await expect(aaplQty).toHaveText('100')
 
-    const googlQty = page.getByTestId('position-row-GOOGL').locator('td').nth(5)
+    const googlQty = page.getByTestId('position-row-GOOGL').locator('td').nth(6)
     await expect(googlQty).toHaveText('50')
 
-    const eurQty = page.getByTestId('position-row-EUR_USD').locator('td').nth(5)
+    const eurQty = page.getByTestId('position-row-EUR_USD').locator('td').nth(6)
     await expect(eurQty).toHaveText('10,000')
   })
 
@@ -74,15 +77,16 @@ test.describe('Position Data Rendering', () => {
     await page.waitForSelector('[data-testid="position-row-AAPL"]')
 
     const aaplRow = page.getByTestId('position-row-AAPL')
+    // Indices shifted by 1 after Last Price (kx-m2v) was added at nth(5).
     // Avg Cost
-    await expect(aaplRow.locator('td').nth(6)).toHaveText('$150.00')
+    await expect(aaplRow.locator('td').nth(7)).toHaveText('$150.00')
     // Market Price
-    await expect(aaplRow.locator('td').nth(7)).toHaveText('$155.00')
+    await expect(aaplRow.locator('td').nth(8)).toHaveText('$155.00')
     // Market Value
-    await expect(aaplRow.locator('td').nth(8)).toHaveText('$15,500.00')
+    await expect(aaplRow.locator('td').nth(9)).toHaveText('$15,500.00')
 
     const googlRow = page.getByTestId('position-row-GOOGL')
-    await expect(googlRow.locator('td').nth(8)).toHaveText('$142,500.00')
+    await expect(googlRow.locator('td').nth(9)).toHaveText('$142,500.00')
   })
 
   test('displays P&L values with currency formatting', async ({ page }) => {
@@ -108,7 +112,7 @@ test.describe('Position Data Rendering', () => {
     await page.goto('/')
     await page.waitForSelector('[data-testid="position-row-AAPL"]')
 
-    const headers = ['Book', 'Instrument', 'Name', 'Type', 'Asset Class', 'Quantity', 'Avg Cost', 'Market Price', 'Market Value', 'Unrealized P&L']
+    const headers = ['Book', 'Instrument', 'Name', 'Type', 'Asset Class', 'Last Price', 'Quantity', 'Avg Cost', 'Market Price', 'Market Value', 'Unrealized P&L']
     for (const header of headers) {
       await expect(page.locator('th', { hasText: header })).toBeVisible()
     }
