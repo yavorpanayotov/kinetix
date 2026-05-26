@@ -92,6 +92,22 @@ class DevDataSeederTest : FunSpec({
         exposureRepo.snapshots.size shouldBe 1
     }
 
+    test("DEMO_COUNTERPARTIES exposes the 6 demo counterparties with id, name and creditRating (kx-i72)") {
+        val demo = DevDataSeeder.DEMO_COUNTERPARTIES
+
+        demo.size shouldBe 6
+        demo.map { it.id }.toSet() shouldBe setOf("CP-GS", "CP-JPM", "CP-BARC", "CP-DB", "CP-UBS", "CP-CITI")
+
+        // Each counterparty has a non-empty, human-readable name (i.e. not just the raw id).
+        demo.forEach { cp ->
+            cp.name.isNotBlank() shouldBe true
+            cp.name shouldBe cp.name.trim()
+            cp.id shouldBe cp.id.trim()
+            // S&P-style ratings: AAA, AA+, AA, AA-, A+, A, A-, BBB+, BBB, BBB-, BB+ …
+            cp.creditRating.matches(Regex("[ABC]{1,3}[+-]?")) shouldBe true
+        }
+    }
+
     test("each counterparty has netting set exposures and realistic PFE profiles") {
         val snapshots = DevDataSeeder.buildCounterpartyExposureSnapshots()
 
