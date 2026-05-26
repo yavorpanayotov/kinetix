@@ -50,6 +50,7 @@ import com.kinetix.common.health.CheckResult
 import com.kinetix.common.health.ReadinessChecker
 import com.kinetix.common.kafka.ConsumerLivenessTracker
 import com.kinetix.risk.routes.benchmarkAttributionRoutes
+import com.kinetix.risk.routes.cannedStressRoutes
 import com.kinetix.risk.routes.demoResetRoutes
 import com.kinetix.risk.routes.crossBookVaRRoutes
 import com.kinetix.risk.routes.croReportRoutes
@@ -528,6 +529,8 @@ fun Application.moduleWithRoutes() {
 
     val crossBookResultPublisher = com.kinetix.risk.kafka.KafkaCrossBookRiskResultPublisher(kafkaProducer)
     val crossBookVaRCache = com.kinetix.risk.cache.InMemoryCrossBookVaRCache()
+    // kx-wxy — backing store for the canned stress-scenario tile endpoints.
+    val cannedStressCache = com.kinetix.risk.cache.InMemoryCannedStressCache()
     val crossBookVaRService = com.kinetix.risk.service.CrossBookVaRCalculationService(
         effectivePositionProvider, effectiveRiskEngineClient, crossBookResultPublisher,
         varCache = varCache,
@@ -759,6 +762,9 @@ fun Application.moduleWithRoutes() {
         val rebalancingWhatIfService = com.kinetix.risk.service.RebalancingWhatIfService(effectivePositionProvider, effectiveRiskEngineClient, whatIfAnalysisService)
         val batchStressTestService = BatchStressTestService(stressTestStub, effectivePositionProvider)
         riskRoutes(varCalculationService, varCache, effectivePositionProvider, stressTestStub, regulatoryStub, effectiveRiskEngineClient, whatIfAnalysisService = whatIfAnalysisService, rebalancingWhatIfService = rebalancingWhatIfService, pnlAttributionRepository = pnlAttributionRepository, sodSnapshotService = sodSnapshotService, pnlComputationService = pnlComputationService, stressLimitCheckService = stressLimitCheckService, jobRecorder = jobRecorder, batchStressTestService = batchStressTestService)
+        // kx-wxy — canned stress-scenario tile endpoints. Cache lives at module
+        // scope so successive POST/GET calls share the same in-memory store.
+        cannedStressRoutes(effectivePositionProvider, stressTestStub, cannedStressCache)
         crossBookVaRRoutes(crossBookVaRService, crossBookVaRCache)
         hierarchyRiskRoutes(hierarchyRiskService)
         riskBudgetRoutes(riskBudgetAllocationRepository)
