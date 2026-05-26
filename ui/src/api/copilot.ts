@@ -26,6 +26,26 @@
 import { authFetch } from '../auth/authFetch'
 
 /**
+ * A single tool invocation recorded in the terminal ``done`` chunk.
+ *
+ * Mirrors the server-side ``ToolCall`` Pydantic model
+ * (``ai-insights-service/src/kinetix_insights/models.py``). Field names
+ * stay snake_case to match the wire shape the backend forwards verbatim.
+ *
+ * ``started_at`` / ``completed_at`` are ISO-8601 strings (datetime
+ * serialised by Python's default JSON encoder). The UI computes duration
+ * as ``Date.parse(completed_at) - Date.parse(started_at)`` — no library
+ * needed.
+ */
+export interface ToolCall {
+  name: string
+  params: Record<string, unknown>
+  status: 'ok' | 'error' | 'timeout'
+  started_at: string
+  completed_at: string
+}
+
+/**
  * Citation provenance attached to a chat chunk (mirrors the server-side
  * ``Citation`` model — see
  * ``ai-insights-service/src/kinetix_insights/citations/models.py``).
@@ -70,6 +90,7 @@ export type ChatChunk =
       mode: 'live' | 'canned'
       citations?: Citation[]
       error_code?: string
+      tool_calls?: ToolCall[]
     }
 
 /**
@@ -175,6 +196,7 @@ interface TerminalPayload {
   mode?: 'live' | 'canned'
   citations?: Citation[]
   error_code?: string
+  tool_calls?: ToolCall[]
 }
 
 interface DeltaPayload {
@@ -218,6 +240,7 @@ function frameToChunk(frame: ParsedFrame): ChatChunk | null {
     }
     if (terminal.citations !== undefined) chunk.citations = terminal.citations
     if (terminal.error_code !== undefined) chunk.error_code = terminal.error_code
+    if (terminal.tool_calls !== undefined) chunk.tool_calls = terminal.tool_calls
     return chunk
   }
 

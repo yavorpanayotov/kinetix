@@ -7,6 +7,7 @@ import {
   type ChatChunk,
   type ChatRequest,
   type Citation,
+  type ToolCall,
 } from './copilot'
 
 const mockAuthFetch = vi.fn()
@@ -351,6 +352,73 @@ describe('copilot.chat', () => {
       'a',
       'b',
     ])
+  })
+
+  it('threads tool_calls from the terminal frame through to the done chunk', async () => {
+    const toolCalls: ToolCall[] = [
+      {
+        name: 'get_book_var',
+        params: { book_id: 'fx-main', horizon_days: 1 },
+        status: 'ok',
+        started_at: '2026-05-19T08:00:00Z',
+        completed_at: '2026-05-19T08:00:00.250000Z',
+      },
+      {
+        name: 'get_greeks_summary',
+        params: { book_id: 'fx-main' },
+        status: 'ok',
+        started_at: '2026-05-19T08:00:00.250000Z',
+        completed_at: '2026-05-19T08:00:00.480000Z',
+      },
+    ]
+    const terminalPayload = {
+      done: true,
+      session_id: 'sess-tc',
+      conversation_id: 'conv-tc',
+      model: 'canned-chat',
+      mode: 'canned',
+      tool_calls: toolCalls,
+    }
+    mockAuthFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      body: streamFromChunks([
+        'data: {"delta":"VaR summary.","done":false}\n\n',
+        `data: ${JSON.stringify(terminalPayload)}\n\n`,
+      ]),
+    })
+
+    const stream = chat(baseRequest)
+    const chunks = await readAll(stream)
+
+    const last = chunks[chunks.length - 1]
+    expect(last.type).toBe('done')
+    if (last.type === 'done') {
+      expect(last.tool_calls).toBeDefined()
+      expect(last.tool_calls).toHaveLength(2)
+      expect(last.tool_calls?.[0].name).toBe('get_book_var')
+      expect(last.tool_calls?.[0].status).toBe('ok')
+      expect(last.tool_calls?.[1].name).toBe('get_greeks_summary')
+    }
+  })
+
+  it('produces a done chunk without tool_calls when the terminal frame omits the field', async () => {
+    mockAuthFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      body: streamFromChunks([
+        'data: {"done":true,"session_id":"s","conversation_id":"c","model":"m","mode":"live"}\n\n',
+      ]),
+    })
+
+    const stream = chat(baseRequest)
+    const chunks = await readAll(stream)
+
+    const last = chunks[chunks.length - 1]
+    expect(last.type).toBe('done')
+    if (last.type === 'done') {
+      expect(last.tool_calls).toBeUndefined()
+    }
   })
 })
 
