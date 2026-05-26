@@ -58,6 +58,12 @@ export interface TradeHistoryDto {
   displayName?: string
   status?: string
   venueOrderId?: string
+  /**
+   * Optional counterparty identifier — set when the trade was booked against
+   * a specific counterparty (kx-i72). Aggregated by the Counterparty Exposure
+   * tile on the Risk view.
+   */
+  counterpartyId?: string | null
 }
 
 export type OrderTimeInForce = 'DAY' | 'GTC' | 'IOC' | 'FOK' | 'GTD'

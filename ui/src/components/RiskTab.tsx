@@ -36,6 +36,8 @@ import { HedgeRecommendationPanel } from './HedgeRecommendationPanel'
 import { useHedgeRecommendation } from '../hooks/useHedgeRecommendation'
 import { useIntradayVaRTimeline } from '../hooks/useIntradayVaRTimeline'
 import { useKrd } from '../hooks/useKrd'
+import { useTradeHistory } from '../hooks/useTradeHistory'
+import { CounterpartyExposureTile } from './CounterpartyExposureTile'
 import { VolSurfacePanel } from './VolSurfacePanel'
 import { YieldCurvePanel } from './YieldCurvePanel'
 import { IntradayVaRChart } from './IntradayVaRChart'
@@ -133,6 +135,11 @@ export function RiskTab({
   }, [])
   const { recommendation: hedgeRec, loading: hedgeLoading, error: hedgeError, suggest: suggestHedge } = useHedgeRecommendation(bookId)
   const { aggregated: krdAggregated, instruments: krdInstruments, loading: krdLoading, error: krdError } = useKrd(bookId)
+
+  // Counterparty Exposure tile (kx-i72) — aggregates blotter trades by
+  // counterpartyId. Re-uses the existing paginated history hook with a
+  // larger page so the tile reflects the bulk of the book's activity.
+  const { trades: cpExposureTrades } = useTradeHistory(bookId, { pageSize: 200 })
 
   // Intraday VaR: default to today's trading window (07:00 UTC to now)
   const todayFrom = useMemo(() => {
@@ -418,6 +425,11 @@ export function RiskTab({
                   bookId={bookId}
                 />
               </ErrorBoundary>
+              <div className="mt-4">
+                <ErrorBoundary fallback={<SectionErrorCard name="Counterparty Exposure" />}>
+                  <CounterpartyExposureTile trades={cpExposureTrades} />
+                </ErrorBoundary>
+              </div>
               <div className="mt-4">
                 <KrdPanel
                   aggregated={krdAggregated}
