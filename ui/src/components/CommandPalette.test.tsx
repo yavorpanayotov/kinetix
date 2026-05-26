@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { CommandPalette, type CommandItem } from './CommandPalette'
-import type { ChatChunk, ChatRequest } from '../api/copilot'
+import type { ChatChunk, ChatRequest, ToolCall } from '../api/copilot'
 
 /** Signature of the injectable `chatFn` prop — mirrors `chat` in `api/copilot`. */
 type ChatFn = (
@@ -898,5 +898,78 @@ describe('CommandPalette — book-boundary conversation reset', () => {
       expect(screen.getByTestId('command-palette-book-reset-banner')).toBeInTheDocument(),
     )
     expect(screen.queryByTestId('command-palette-copilot-response')).not.toBeInTheDocument()
+  })
+
+  it('renders the ToolCallList reasoning panel when the done chunk includes tool_calls', async () => {
+    const toolCalls: ToolCall[] = [
+      {
+        name: 'get_book_var',
+        params: { book_id: 'fx-main' },
+        status: 'ok',
+        started_at: '2026-05-19T08:00:00.000Z',
+        completed_at: '2026-05-19T08:00:00.250Z',
+      },
+    ]
+    const doneWithToolCalls: ChatChunk = {
+      type: 'done',
+      session_id: 's-tc',
+      conversation_id: 'c-tc',
+      model: 'canned-chat',
+      mode: 'canned',
+      tool_calls: toolCalls,
+    }
+    const chatFn = vi.fn<ChatFn>(
+      (): ReadableStream<ChatChunk> =>
+        streamOf({ type: 'delta', delta: 'VaR is up.' }, doneWithToolCalls),
+    )
+
+    render(
+      <CommandPalette
+        open={true}
+        onClose={vi.fn()}
+        items={buildItems(vi.fn())}
+        copilotMode
+        chatFn={chatFn}
+      />,
+    )
+
+    const input = screen.getByTestId('command-palette-input')
+    fireEvent.change(input, { target: { value: 'zzznomatch var question' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() =>
+      expect(screen.getByTestId('streaming-narrative-text')).toHaveTextContent('VaR is up.'),
+    )
+
+    // The reasoning panel must appear inside the copilot response zone.
+    expect(screen.getByTestId('tool-call-list')).toBeInTheDocument()
+    expect(screen.getAllByTestId('tool-call-row')).toHaveLength(1)
+  })
+
+  it('does not render the ToolCallList when done chunk has no tool_calls', async () => {
+    const chatFn = vi.fn<ChatFn>(
+      (): ReadableStream<ChatChunk> =>
+        streamOf({ type: 'delta', delta: 'Answer.' }, doneChunk),
+    )
+
+    render(
+      <CommandPalette
+        open={true}
+        onClose={vi.fn()}
+        items={buildItems(vi.fn())}
+        copilotMode
+        chatFn={chatFn}
+      />,
+    )
+
+    const input = screen.getByTestId('command-palette-input')
+    fireEvent.change(input, { target: { value: 'zzznomatch question' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() =>
+      expect(screen.getByTestId('streaming-narrative-text')).toHaveTextContent('Answer.'),
+    )
+
+    expect(screen.queryByTestId('tool-call-list')).not.toBeInTheDocument()
   })
 })

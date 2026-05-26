@@ -36,12 +36,13 @@ export interface StreamingNarrativeProps {
   /**
    * Optional callback invoked exactly once when the terminal frame
    * arrives. Receives the full accumulated narrative, the citations
-   * (if any), and the terminal chunk for ``mode``/``model``/error
-   * inspection.
+   * (if any), the tool calls (if any), and the terminal chunk for
+   * ``mode``/``model``/error inspection.
    */
   onComplete?: (result: {
     narrative: string
     citations: Citation[]
+    toolCalls?: ToolCall[]
     model: string
     mode: 'live' | 'canned'
     errorCode?: string
@@ -380,6 +381,7 @@ export function StreamingNarrative({
               onComplete({
                 narrative: accumulatorRef.current,
                 citations: mergedCitations,
+                toolCalls: value.tool_calls,
                 model: value.model,
                 mode: value.mode,
                 errorCode: value.error_code,
