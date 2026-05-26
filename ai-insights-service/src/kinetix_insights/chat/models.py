@@ -7,16 +7,36 @@ a sequence of `ChatChunk` frames, each serialised as
 ``data: <chunk-json>\\n\\n`` on the wire. Incremental text arrives in
 `delta`, the terminal frame carries `done=True` along with the
 `model` and `mode` that produced the response (and, when applicable,
-`citations` or an `error_code`). Both models are intentionally
-mutable so they can be assembled frame-by-frame as a response is
-generated.
+`citations`, `tool_calls`, or an `error_code`). Both models are
+intentionally mutable so they can be assembled frame-by-frame as a
+response is generated.
 """
 
-from typing import Any
+from datetime import datetime
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from kinetix_insights.citations.models import Citation
+
+
+class ToolCall(BaseModel):
+    """One tool invocation recorded during a chat response.
+
+    ``name`` is the MCP tool name (e.g. ``get_book_var``). ``params``
+    mirrors the arguments the SDK passed to the tool — free-form so it
+    can accommodate any tool without a per-tool schema here.
+    ``status`` is one of ``'ok'``, ``'error'``, or ``'timeout'``.
+    ``started_at`` and ``completed_at`` are UTC timestamps captured at
+    the point the tool-use event and its matching result event were
+    received from the SDK stream.
+    """
+
+    name: str
+    params: dict[str, Any] = Field(default_factory=dict)
+    status: Literal["ok", "error", "timeout"]
+    started_at: datetime
+    completed_at: datetime
 
 
 class ChatRequest(BaseModel):
@@ -64,6 +84,7 @@ class ChatChunk(BaseModel):
     delta: str | None = None
     done: bool
     citations: list[Citation] | None = None
+    tool_calls: list[ToolCall] | None = None
     model: str | None = None
     mode: str | None = None
     error_code: str | None = None

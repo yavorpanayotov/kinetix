@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import type { ChatChunk, Citation } from '../api/copilot'
+import type { ChatChunk, Citation, ToolCall } from '../api/copilot'
+import { mapChatErrorCode } from '../api/copilot'
+import { ToolCallList } from './ToolCallList'
 
 /**
  * Visual / lifecycle states surfaced via the wrapper's ``data-state``
@@ -34,12 +36,13 @@ export interface StreamingNarrativeProps {
   /**
    * Optional callback invoked exactly once when the terminal frame
    * arrives. Receives the full accumulated narrative, the citations
-   * (if any), and the terminal chunk for ``mode``/``model``/error
-   * inspection.
+   * (if any), the tool calls (if any), and the terminal chunk for
+   * ``mode``/``model``/error inspection.
    */
   onComplete?: (result: {
     narrative: string
     citations: Citation[]
+    toolCalls?: ToolCall[]
     model: string
     mode: 'live' | 'canned'
     errorCode?: string
@@ -186,6 +189,7 @@ export function StreamingNarrative({
   )
   const [renderedText, setRenderedText] = useState('')
   const [citations, setCitations] = useState<Citation[]>([])
+  const [toolCalls, setToolCalls] = useState<ToolCall[] | undefined>(undefined)
   const [errorCode, setErrorCode] = useState<string | undefined>(undefined)
 
   // Buffered token accumulator (kept out of React state so we can
@@ -263,6 +267,7 @@ export function StreamingNarrative({
     completedRef.current = false
     setRenderedText('')
     setCitations([])
+    setToolCalls(undefined)
     setErrorCode(undefined)
 
     const session: StreamSession = {
@@ -368,6 +373,7 @@ export function StreamingNarrative({
             citationsBufferRef.current = []
             setRenderedText(accumulatorRef.current)
             setCitations((prev) => mergeUniqueCitations(prev, mergedCitations))
+            setToolCalls(value.tool_calls)
             setErrorCode(value.error_code)
             setState(value.error_code ? 'error' : 'complete')
             if (!completedRef.current && onComplete) {
@@ -375,6 +381,7 @@ export function StreamingNarrative({
               onComplete({
                 narrative: accumulatorRef.current,
                 citations: mergedCitations,
+                toolCalls: value.tool_calls,
                 model: value.model,
                 mode: value.mode,
                 errorCode: value.error_code,
@@ -413,15 +420,19 @@ export function StreamingNarrative({
       data-testid="streaming-narrative"
       className="text-sm leading-relaxed text-slate-700 dark:text-slate-200"
     >
-      {state === 'error' && errorCode && (
-        <div
-          role="alert"
-          data-testid="streaming-narrative-error"
-          className="mb-2 rounded border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/20 p-2 text-xs text-red-700 dark:text-red-400"
-        >
-          {errorCode}
-        </div>
-      )}
+      {state === 'error' && (() => {
+        const { title, body } = mapChatErrorCode(errorCode)
+        return (
+          <div
+            role="alert"
+            data-testid="streaming-narrative-error"
+            className="bg-rose-500/10 border border-rose-500/30 rounded-md p-3 text-rose-200 mb-2 text-sm"
+          >
+            <p className="font-semibold">{title}</p>
+            <p>{body}</p>
+          </div>
+        )
+      })()}
 
       {state === 'skeleton' && (
         <div
@@ -485,6 +496,8 @@ export function StreamingNarrative({
           ))}
         </ul>
       )}
+
+      <ToolCallList toolCalls={toolCalls} />
     </div>
   )
 }

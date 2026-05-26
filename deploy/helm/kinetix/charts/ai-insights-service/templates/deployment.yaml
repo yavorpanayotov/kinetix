@@ -59,7 +59,7 @@ spec:
           {{- if .Values.claudeAuth.enabled }}
           volumeMounts:
             - name: claude-auth
-              mountPath: /root/.claude
+              mountPath: /home/kinetix/.claude
               readOnly: true
           {{- end }}
       {{- if .Values.claudeAuth.enabled }}

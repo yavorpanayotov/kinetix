@@ -43,6 +43,8 @@ from kinetix_insights.citations.models import Citation
 from tests.fakes.streaming_sdk import (
     FakeMessage,
     FakeSdkError,
+    FakeToolResultEvent,
+    FakeToolUseEvent,
     _FakeStreamingSdk,
 )
 
@@ -494,3 +496,182 @@ async def test_chat_extracts_citations_from_content_blocks() -> None:
     assert final.citations is not None
     assert len(final.citations) == 1
     assert final.citations[0].result_value == 5.2
+
+
+# ---------------------------------------------------------------------------
+# Tool-call accumulation
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_chat_terminal_frame_has_no_tool_calls_when_none_emitted() -> None:
+    """When the SDK emits no tool-use events, tool_calls is None on the terminal frame."""
+
+    citation = _matching_citation(5.2)
+    sdk = _FakeStreamingSdk(
+        messages=[FakeMessage(content="VaR is $5.2M", citations=(citation,))]
+    )
+    store = InMemoryConversationStore()
+    client = ClaudeAgentCopilotChatClient(conversation_store=store, sdk=sdk)
+
+    chunks = [chunk async for chunk in client.chat(_request())]
+    final = chunks[-1]
+
+    assert final.done is True
+    assert final.tool_calls is None
+
+
+@pytest.mark.asyncio
+async def test_chat_accumulates_single_tool_use_result_pair() -> None:
+    """One tool-use + tool-result pair yields exactly one ToolCall on the done frame."""
+
+    citation = _matching_citation(5.2)
+    sdk = _FakeStreamingSdk(
+        messages=[
+            FakeToolUseEvent(
+                tool_use_id="tu-1",
+                name="get_book_var",
+                input={"book_id": "fx-main", "horizon_days": 1},
+            ),
+            FakeToolResultEvent(tool_use_id="tu-1", is_error=False),
+            FakeMessage(content="VaR is $5.2M", citations=(citation,)),
+        ]
+    )
+    store = InMemoryConversationStore()
+    client = ClaudeAgentCopilotChatClient(conversation_store=store, sdk=sdk)
+
+    chunks = [chunk async for chunk in client.chat(_request())]
+    final = chunks[-1]
+
+    assert final.done is True
+    assert final.tool_calls is not None
+    assert len(final.tool_calls) == 1
+    tc = final.tool_calls[0]
+    assert tc.name == "get_book_var"
+    assert tc.params == {"book_id": "fx-main", "horizon_days": 1}
+    assert tc.status == "ok"
+    assert tc.started_at <= tc.completed_at
+
+
+@pytest.mark.asyncio
+async def test_chat_accumulates_multiple_tool_use_result_pairs() -> None:
+    """Multiple tool pairs all appear as ToolCall entries in stream order."""
+
+    citation = _matching_citation(5.2)
+    sdk = _FakeStreamingSdk(
+        messages=[
+            FakeToolUseEvent(tool_use_id="tu-1", name="get_book_var", input={}),
+            FakeToolResultEvent(tool_use_id="tu-1", is_error=False),
+            FakeToolUseEvent(
+                tool_use_id="tu-2", name="get_greeks_summary", input={"book_id": "fx-main"}
+            ),
+            FakeToolResultEvent(tool_use_id="tu-2", is_error=False),
+            FakeMessage(content="VaR is $5.2M", citations=(citation,)),
+        ]
+    )
+    store = InMemoryConversationStore()
+    client = ClaudeAgentCopilotChatClient(conversation_store=store, sdk=sdk)
+
+    chunks = [chunk async for chunk in client.chat(_request())]
+    final = chunks[-1]
+
+    assert final.tool_calls is not None
+    assert len(final.tool_calls) == 2
+    assert final.tool_calls[0].name == "get_book_var"
+    assert final.tool_calls[1].name == "get_greeks_summary"
+    assert all(tc.status == "ok" for tc in final.tool_calls)
+
+
+@pytest.mark.asyncio
+async def test_chat_records_error_status_for_failed_tool_result() -> None:
+    """A tool result with is_error=True produces a ToolCall with status='error'."""
+
+    sdk = _FakeStreamingSdk(
+        messages=[
+            FakeToolUseEvent(
+                tool_use_id="tu-1", name="get_book_var", input={"book_id": "fx-main"}
+            ),
+            FakeToolResultEvent(tool_use_id="tu-1", is_error=True),
+            # No numeric tokens so citation verifier passes
+            FakeMessage(content="Data unavailable"),
+        ]
+    )
+    store = InMemoryConversationStore()
+    client = ClaudeAgentCopilotChatClient(conversation_store=store, sdk=sdk)
+
+    chunks = [chunk async for chunk in client.chat(_request())]
+    final = chunks[-1]
+
+    assert final.tool_calls is not None
+    assert final.tool_calls[0].status == "error"
+
+
+@pytest.mark.asyncio
+async def test_chat_tool_call_timestamps_use_utc() -> None:
+    """started_at and completed_at on ToolCall entries are timezone-aware UTC."""
+
+    citation = _matching_citation(5.2)
+    sdk = _FakeStreamingSdk(
+        messages=[
+            FakeToolUseEvent(tool_use_id="tu-1", name="get_book_var", input={}),
+            FakeToolResultEvent(tool_use_id="tu-1", is_error=False),
+            FakeMessage(content="VaR is $5.2M", citations=(citation,)),
+        ]
+    )
+    store = InMemoryConversationStore()
+    client = ClaudeAgentCopilotChatClient(conversation_store=store, sdk=sdk)
+
+    chunks = [chunk async for chunk in client.chat(_request())]
+    final = chunks[-1]
+
+    assert final.tool_calls is not None
+    tc = final.tool_calls[0]
+    from datetime import timezone as tz
+    assert tc.started_at.tzinfo == tz.utc
+    assert tc.completed_at.tzinfo == tz.utc
+
+
+@pytest.mark.asyncio
+async def test_chat_tool_calls_populated_even_on_policy_violation() -> None:
+    """tool_calls is populated on the terminal frame even when policy fires."""
+
+    sdk = _FakeStreamingSdk(
+        messages=[
+            FakeToolUseEvent(tool_use_id="tu-1", name="get_book_var", input={}),
+            FakeToolResultEvent(tool_use_id="tu-1", is_error=False),
+            FakeMessage(content="you should hedge now"),
+        ]
+    )
+    store = InMemoryConversationStore()
+    client = ClaudeAgentCopilotChatClient(conversation_store=store, sdk=sdk)
+
+    chunks = [chunk async for chunk in client.chat(_request())]
+    final = chunks[-1]
+
+    assert final.error_code == "POLICY_VIOLATION"
+    assert final.tool_calls is not None
+    assert len(final.tool_calls) == 1
+    assert final.tool_calls[0].name == "get_book_var"
+
+
+@pytest.mark.asyncio
+async def test_chat_tool_calls_populated_on_citation_unverifiable() -> None:
+    """tool_calls is populated when citation verification fails."""
+
+    citation = _matching_citation(5_200_000.0)
+    sdk = _FakeStreamingSdk(
+        messages=[
+            FakeToolUseEvent(tool_use_id="tu-1", name="get_book_var", input={}),
+            FakeToolResultEvent(tool_use_id="tu-1", is_error=False),
+            FakeMessage(content="VaR is $9.99M", citations=(citation,)),
+        ]
+    )
+    store = InMemoryConversationStore()
+    client = ClaudeAgentCopilotChatClient(conversation_store=store, sdk=sdk)
+
+    chunks = [chunk async for chunk in client.chat(_request())]
+    final = chunks[-1]
+
+    assert final.error_code == "CITATION_UNVERIFIABLE"
+    assert final.tool_calls is not None
+    assert len(final.tool_calls) == 1

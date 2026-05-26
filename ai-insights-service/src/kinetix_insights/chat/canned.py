@@ -43,7 +43,7 @@ from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 from kinetix_insights.chat.conversation_store import ConversationTurn
-from kinetix_insights.chat.models import ChatChunk, ChatRequest
+from kinetix_insights.chat.models import ChatChunk, ChatRequest, ToolCall
 from kinetix_insights.citations.models import Citation
 
 
@@ -93,19 +93,26 @@ def _select_transcript_index(message: str, page: str, modulus: int) -> int:
 class _Transcript:
     """In-memory representation of one fixture file.
 
-    Holds the parsed deltas (a list of strings, in stream order) and
-    the citations that will be attached to the terminal frame. Loaded
-    once at client init; treated as immutable.
+    Holds the parsed deltas (a list of strings, in stream order), the
+    citations that will be attached to the terminal frame, and the
+    optional ``tool_calls`` list that captures the MCP tool invocations
+    the scripted response executed. Loaded once at client init; treated
+    as immutable.
     """
 
-    __slots__ = ("id", "deltas", "citations")
+    __slots__ = ("id", "deltas", "citations", "tool_calls")
 
     def __init__(
-        self, transcript_id: str, deltas: list[str], citations: list[Citation]
+        self,
+        transcript_id: str,
+        deltas: list[str],
+        citations: list[Citation],
+        tool_calls: list[ToolCall] | None,
     ) -> None:
         self.id = transcript_id
         self.deltas = deltas
         self.citations = citations
+        self.tool_calls = tool_calls
 
 
 def _parse_transcript(path: Path) -> _Transcript:
@@ -115,7 +122,11 @@ def _parse_transcript(path: Path) -> _Transcript:
     transcript_id = str(raw["id"])
     deltas = [str(entry["text"]) for entry in raw["deltas"]]
     citations = [Citation.model_validate(entry) for entry in raw.get("citations", [])]
-    return _Transcript(transcript_id, deltas, citations)
+    raw_tool_calls = raw.get("tool_calls", None)
+    tool_calls: list[ToolCall] | None = None
+    if raw_tool_calls:
+        tool_calls = [ToolCall.model_validate(entry) for entry in raw_tool_calls]
+    return _Transcript(transcript_id, deltas, citations, tool_calls)
 
 
 def _load_transcripts(fixtures_dir: Path) -> list[_Transcript]:
@@ -192,6 +203,7 @@ class CannedCopilotChatClient:
             delta=None,
             done=True,
             citations=list(transcript.citations),
+            tool_calls=transcript.tool_calls,
             model="canned-chat",
             mode="canned",
         )

@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import type { Citation } from '../api/copilot'
-import { CitationList } from './CitationList'
+import { CitationList, freshnessUrgency } from './CitationList'
 
 function makeCitation(overrides: Partial<Citation> = {}): Citation {
   return {
@@ -114,4 +114,69 @@ describe('CitationList', () => {
     const list = screen.getByTestId('citation-list')
     expect(list).toHaveTextContent('5.2M USD')
   })
+
+  describe('freshness badge urgency', () => {
+    it('renders fresh badge (emerald) for freshness_seconds = 0 (just now)', () => {
+      render(<CitationList citations={[makeCitation({ freshness_seconds: 0 })]} />)
+      const badge = screen.getByTestId('freshness-badge')
+      expect(badge).toHaveTextContent('just now')
+      expect(badge.className).toContain('bg-emerald-500/10')
+      expect(badge.className).toContain('text-emerald-300')
+    })
+
+    it('renders fresh badge (emerald) for freshness_seconds = 30 (boundary)', () => {
+      render(<CitationList citations={[makeCitation({ freshness_seconds: 30 })]} />)
+      const badge = screen.getByTestId('freshness-badge')
+      expect(badge).toHaveTextContent('30s ago')
+      expect(badge.className).toContain('bg-emerald-500/10')
+      expect(badge.className).toContain('text-emerald-300')
+    })
+
+    it('renders aging badge (amber) for freshness_seconds = 31', () => {
+      render(<CitationList citations={[makeCitation({ freshness_seconds: 31 })]} />)
+      const badge = screen.getByTestId('freshness-badge')
+      expect(badge).toHaveTextContent('31s ago')
+      expect(badge.className).toContain('bg-amber-500/15')
+      expect(badge.className).toContain('text-amber-300')
+      expect(badge.className).toContain('ring-1')
+      expect(badge.className).toContain('ring-amber-500/30')
+    })
+
+    it('renders aging badge (amber) for freshness_seconds = 60 (boundary)', () => {
+      render(<CitationList citations={[makeCitation({ freshness_seconds: 60 })]} />)
+      const badge = screen.getByTestId('freshness-badge')
+      expect(badge.className).toContain('bg-amber-500/15')
+      expect(badge.className).toContain('text-amber-300')
+    })
+
+    it('renders stale badge (rose) for freshness_seconds = 61', () => {
+      render(<CitationList citations={[makeCitation({ freshness_seconds: 61 })]} />)
+      const badge = screen.getByTestId('freshness-badge')
+      expect(badge).toHaveTextContent('1m ago')
+      expect(badge.className).toContain('bg-rose-500/20')
+      expect(badge.className).toContain('text-rose-300')
+      expect(badge.className).toContain('ring-1')
+      expect(badge.className).toContain('ring-rose-500/40')
+      expect(badge.className).toContain('font-semibold')
+    })
+
+    it('renders stale badge (rose) for freshness_seconds = 120 (2m)', () => {
+      render(<CitationList citations={[makeCitation({ freshness_seconds: 120 })]} />)
+      const badge = screen.getByTestId('freshness-badge')
+      expect(badge).toHaveTextContent('2m ago')
+      expect(badge.className).toContain('bg-rose-500/20')
+      expect(badge.className).toContain('text-rose-300')
+    })
+  })
+})
+
+describe('freshnessUrgency', () => {
+  it('returns fresh for 0', () => expect(freshnessUrgency(0)).toBe('fresh'))
+  it('returns fresh for 30 (boundary)', () => expect(freshnessUrgency(30)).toBe('fresh'))
+  it('returns aging for 31', () => expect(freshnessUrgency(31)).toBe('aging'))
+  it('returns aging for 60 (boundary)', () => expect(freshnessUrgency(60)).toBe('aging'))
+  it('returns stale for 61', () => expect(freshnessUrgency(61)).toBe('stale'))
+  it('returns stale for 300 (5m)', () => expect(freshnessUrgency(300)).toBe('stale'))
+  it('returns fresh for negative/non-finite (just now semantics)', () =>
+    expect(freshnessUrgency(-1)).toBe('fresh'))
 })

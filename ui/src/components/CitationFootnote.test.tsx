@@ -3,6 +3,11 @@ import { describe, expect, it } from 'vitest'
 import type { Citation } from '../api/copilot'
 import { CitationFootnote } from './CitationFootnote'
 
+// Helper to find the urgency dot within a <cite> element.
+function getUrgencyDot(cite: Element): Element | null {
+  return cite.querySelector('[data-testid="urgency-dot"]')
+}
+
 /**
  * Build a ``Citation`` with sensible defaults; tests override only the
  * fields they care about. Keeps fixtures focused on what each behaviour
@@ -180,5 +185,88 @@ describe('CitationFootnote', () => {
 
     expect(container.querySelectorAll('cite')).toHaveLength(0)
     expect(container).toHaveTextContent('Hello')
+  })
+})
+
+describe('CitationFootnote urgency dot', () => {
+  it('shows no urgency dot for a fresh citation (freshness_seconds = 0)', () => {
+    const citations = [makeCitation({ result_value: 100, freshness_seconds: 0 })]
+    const { container } = render(
+      <CitationFootnote narrative="value 100" citations={citations} />,
+    )
+    const cite = container.querySelector('cite[data-citation-index]')
+    expect(cite).not.toBeNull()
+    expect(getUrgencyDot(cite!)).toBeNull()
+  })
+
+  it('shows no urgency dot for a fresh citation (freshness_seconds = 30)', () => {
+    const citations = [makeCitation({ result_value: 100, freshness_seconds: 30 })]
+    const { container } = render(
+      <CitationFootnote narrative="value 100" citations={citations} />,
+    )
+    const cite = container.querySelector('cite[data-citation-index]')
+    expect(cite).not.toBeNull()
+    expect(getUrgencyDot(cite!)).toBeNull()
+  })
+
+  it('shows an amber urgency dot for an aging citation (freshness_seconds = 45)', () => {
+    const citations = [makeCitation({ result_value: 100, freshness_seconds: 45 })]
+    const { container } = render(
+      <CitationFootnote narrative="value 100" citations={citations} />,
+    )
+    const cite = container.querySelector('cite[data-citation-index]')
+    expect(cite).not.toBeNull()
+    const dot = getUrgencyDot(cite!)
+    expect(dot).not.toBeNull()
+    expect(dot!.textContent).toBe('•')
+    expect(dot!.className).toContain('text-amber-300')
+  })
+
+  it('shows an amber urgency dot for an aging citation at boundary (freshness_seconds = 60)', () => {
+    const citations = [makeCitation({ result_value: 100, freshness_seconds: 60 })]
+    const { container } = render(
+      <CitationFootnote narrative="value 100" citations={citations} />,
+    )
+    const cite = container.querySelector('cite[data-citation-index]')
+    expect(cite).not.toBeNull()
+    const dot = getUrgencyDot(cite!)
+    expect(dot).not.toBeNull()
+    expect(dot!.className).toContain('text-amber-300')
+  })
+
+  it('shows a rose urgency dot for a stale citation (freshness_seconds = 61)', () => {
+    const citations = [makeCitation({ result_value: 100, freshness_seconds: 61 })]
+    const { container } = render(
+      <CitationFootnote narrative="value 100" citations={citations} />,
+    )
+    const cite = container.querySelector('cite[data-citation-index]')
+    expect(cite).not.toBeNull()
+    const dot = getUrgencyDot(cite!)
+    expect(dot).not.toBeNull()
+    expect(dot!.textContent).toBe('•')
+    expect(dot!.className).toContain('text-rose-300')
+  })
+
+  it('shows a rose urgency dot for a very stale citation (freshness_seconds = 300)', () => {
+    const citations = [makeCitation({ result_value: 100, freshness_seconds: 300 })]
+    const { container } = render(
+      <CitationFootnote narrative="value 100" citations={citations} />,
+    )
+    const cite = container.querySelector('cite[data-citation-index]')
+    expect(cite).not.toBeNull()
+    const dot = getUrgencyDot(cite!)
+    expect(dot).not.toBeNull()
+    expect(dot!.className).toContain('text-rose-300')
+  })
+
+  it('does not show a dot for uncited tokens regardless of citation freshness', () => {
+    // The citation has a stale freshness but the token 9999 doesn't match it
+    const citations = [makeCitation({ result_value: 100, freshness_seconds: 300 })]
+    const { container } = render(
+      <CitationFootnote narrative="value 9999" citations={citations} />,
+    )
+    const uncitedCite = container.querySelector('cite[data-uncited]')
+    expect(uncitedCite).not.toBeNull()
+    expect(getUrgencyDot(uncitedCite!)).toBeNull()
   })
 })

@@ -225,6 +225,35 @@ fun Application.module() {
                 ErrorResponse("bad_request", cause.message ?: "Invalid request"),
             )
         }
+        // Transport-level failures: upstream is unreachable (connection refused or
+        // connect timeout). Both java.net.ConnectException and Ktor's
+        // ConnectTimeoutException (which extends ConnectException) are caught here.
+        // We return 503 with a Retry-After hint so callers know to back off.
+        exception<java.net.ConnectException> { call, cause ->
+            call.response.header(HttpHeaders.RetryAfter, "5")
+            call.respond(
+                HttpStatusCode.ServiceUnavailable,
+                ErrorResponse("upstream_unavailable", cause.message ?: "Upstream connection refused"),
+            )
+        }
+        // Ktor's HttpTimeout plugin fires this when the total request time (including
+        // read) exceeds requestTimeoutMillis. Return 504 so callers can distinguish
+        // from a gateway internal error.
+        exception<io.ktor.client.plugins.HttpRequestTimeoutException> { call, cause ->
+            call.respond(
+                HttpStatusCode.GatewayTimeout,
+                ErrorResponse("upstream_timeout", cause.message ?: "Upstream request timed out"),
+            )
+        }
+        // Socket-level read/write timeout (java.net.SocketTimeoutException, also the
+        // concrete type behind io.ktor.client.network.sockets.SocketTimeoutException
+        // which is a JVM typealias). Map to 504 for the same reason as above.
+        exception<java.net.SocketTimeoutException> { call, cause ->
+            call.respond(
+                HttpStatusCode.GatewayTimeout,
+                ErrorResponse("upstream_timeout", cause.message ?: "Upstream socket timed out"),
+            )
+        }
         exception<Throwable> { call, cause ->
             call.application.log.error("Unhandled exception", cause)
             call.respond(

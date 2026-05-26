@@ -1,8 +1,21 @@
 import { Database, Info } from 'lucide-react'
 import type { Citation } from '../api/copilot'
+import { freshnessUrgency } from './freshnessUtils'
+
+// Re-exported so consumers can import the urgency classifier from the
+// same path as the component. The eslint-disable is intentional: this
+// is a pure utility re-export, not a second component.
+// eslint-disable-next-line react-refresh/only-export-components
+export { freshnessUrgency }
 
 export interface CitationListProps {
   citations: Citation[]
+}
+
+const FRESHNESS_BADGE_CLASS: Record<'fresh' | 'aging' | 'stale', string> = {
+  fresh: 'bg-emerald-500/10 text-emerald-300',
+  aging: 'bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/30',
+  stale: 'bg-rose-500/20 text-rose-300 ring-1 ring-rose-500/40 font-semibold',
 }
 
 /**
@@ -18,16 +31,22 @@ export interface CitationListProps {
  *  - ``< 3600s`` → ``"Nm ago"`` (floor)
  *  - ``< 86400s`` → ``"Nh ago"`` (floor)
  *  - ``>= 86400s`` → ``"Nd ago"`` (floor)
- *
- * Kept non-exported so this file only exports the component itself —
- * react-refresh's ``only-export-components`` rule otherwise trips.
  */
-function formatFreshness(seconds: number): string {
-  if (!Number.isFinite(seconds) || seconds <= 0) return 'just now'
-  if (seconds < 60) return `${Math.floor(seconds)}s ago`
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`
-  return `${Math.floor(seconds / 86400)}d ago`
+function formatFreshness(seconds: number): { label: string; urgency: 'fresh' | 'aging' | 'stale' } {
+  const urgency = freshnessUrgency(seconds)
+  let label: string
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    label = 'just now'
+  } else if (seconds < 60) {
+    label = `${Math.floor(seconds)}s ago`
+  } else if (seconds < 3600) {
+    label = `${Math.floor(seconds / 60)}m ago`
+  } else if (seconds < 86400) {
+    label = `${Math.floor(seconds / 3600)}h ago`
+  } else {
+    label = `${Math.floor(seconds / 86400)}d ago`
+  }
+  return { label, urgency }
 }
 
 /**
@@ -66,7 +85,7 @@ export function CitationList({ citations }: CitationListProps): React.ReactEleme
     >
       {citations.map((c, idx) => {
         const index = idx + 1
-        const freshness = formatFreshness(c.freshness_seconds)
+        const { label: freshnessLabel, urgency } = formatFreshness(c.freshness_seconds)
         const value = formatResultValue(c.result_value, c.result_currency)
         return (
           <li
@@ -95,8 +114,11 @@ export function CitationList({ citations }: CitationListProps): React.ReactEleme
                   {value}
                 </span>
               </span>
-              <span className="text-slate-400 dark:text-slate-500">
-                {freshness}
+              <span
+                data-testid="freshness-badge"
+                className={`inline-flex items-center rounded px-1 py-0.5 text-[10px] ${FRESHNESS_BADGE_CLASS[urgency]}`}
+              >
+                {freshnessLabel}
               </span>
               {c.quality_flags.map((flag) => (
                 <span

@@ -20,10 +20,11 @@ Everything you need to run Kinetix end-to-end on a laptop.
 This script:
 
 1. Starts infrastructure (Postgres, TimescaleDB, Redis, Kafka in KRaft mode, Keycloak)
-2. Builds Kotlin services and the Python risk engine images
+2. Builds Kotlin services and the Python risk-engine + ai-insights-service images
 3. Starts all 12 Kotlin services
 4. Starts the risk-engine
-5. Starts the UI on the Vite dev server
+5. Starts `ai-insights-service` (port 8095). The Docker entry bind-mounts `~/.claude:/home/kinetix/.claude:ro` so the container reuses your Claude Code subscription. If the mount is missing or `claude` is not authenticated on the host, the service falls back to deterministic canned responses and the UI displays a "Demo mode" badge — set `DEMO_MODE=true` explicitly in CI / Playwright to force this. See [AI Features](AI-Features) for the full credential model.
+6. Starts the UI on the Vite dev server
 
 Wait for all services to log "Server is listening" or equivalent. The first run takes 5–10 minutes; subsequent runs are seconds.
 

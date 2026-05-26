@@ -2536,6 +2536,70 @@ export async function chatMockCanned(page: Page): Promise<void> {
 }
 
 /**
+ * Variant of {@link chatMockCanned} that includes two ``tool_calls`` in the
+ * terminal ``done`` frame. Used by Playwright specs that assert the
+ * ``tool-call-list`` reasoning panel.
+ *
+ * The ``tool_calls`` array mirrors the shape used by the VaR-explainer fixture
+ * (``var-explainer-default.json``) so the E2E test exercises the same data
+ * path as the real canned transcripts.
+ */
+export async function chatMockCannedWithToolCalls(page: Page): Promise<void> {
+  const citation = {
+    tool: 'get_book_var',
+    params: { book_id: 'port-1' },
+    result_field: 'total_var',
+    result_value: 5200000,
+    result_currency: 'USD',
+    as_of_timestamp: '2026-05-19T08:00:00Z',
+    data_source: 'risk-orchestrator',
+    freshness_seconds: 120,
+    quality_flags: [],
+  }
+  const toolCalls = [
+    {
+      name: 'get_book_var',
+      params: { book_id: 'port-1', horizon_days: 1 },
+      status: 'ok',
+      started_at: '2026-05-19T08:00:00Z',
+      completed_at: '2026-05-19T08:00:00.250000Z',
+    },
+    {
+      name: 'get_greeks_summary',
+      params: { book_id: 'port-1' },
+      status: 'ok',
+      started_at: '2026-05-19T08:00:00.250000Z',
+      completed_at: '2026-05-19T08:00:00.480000Z',
+    },
+  ]
+  const body = [
+    'data: {"delta":"Your VaR rose ","done":false}\n\n',
+    'data: {"delta":"on tech beta.","done":false}\n\n',
+    'event: source\ndata: ' + JSON.stringify([citation]) + '\n\n',
+    'data: ' +
+      JSON.stringify({
+        done: true,
+        session_id: 'sess-e2e-tc',
+        conversation_id: 'conv-e2e-tc',
+        model: 'canned-chat',
+        mode: 'canned',
+        citations: [citation],
+        tool_calls: toolCalls,
+      }) +
+      '\n\n',
+  ].join('')
+
+  await page.unroute('**/api/v1/insights/chat')
+  await page.route('**/api/v1/insights/chat', async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/event-stream',
+      body,
+    })
+  })
+}
+
+/**
  * Mocks GET /api/v1/insights/brief/today with a deterministic, canned
  * morning brief so Playwright specs can exercise the §6.10 morning-brief
  * surface (<MorningBriefCard> inside <NotificationStrip>) without a live

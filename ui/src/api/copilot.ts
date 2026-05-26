@@ -26,6 +26,26 @@
 import { authFetch } from '../auth/authFetch'
 
 /**
+ * A single tool invocation recorded in the terminal ``done`` chunk.
+ *
+ * Mirrors the server-side ``ToolCall`` Pydantic model
+ * (``ai-insights-service/src/kinetix_insights/models.py``). Field names
+ * stay snake_case to match the wire shape the backend forwards verbatim.
+ *
+ * ``started_at`` / ``completed_at`` are ISO-8601 strings (datetime
+ * serialised by Python's default JSON encoder). The UI computes duration
+ * as ``Date.parse(completed_at) - Date.parse(started_at)`` — no library
+ * needed.
+ */
+export interface ToolCall {
+  name: string
+  params: Record<string, unknown>
+  status: 'ok' | 'error' | 'timeout'
+  started_at: string
+  completed_at: string
+}
+
+/**
  * Citation provenance attached to a chat chunk (mirrors the server-side
  * ``Citation`` model — see
  * ``ai-insights-service/src/kinetix_insights/citations/models.py``).
@@ -70,6 +90,7 @@ export type ChatChunk =
       mode: 'live' | 'canned'
       citations?: Citation[]
       error_code?: string
+      tool_calls?: ToolCall[]
     }
 
 /**
@@ -175,6 +196,7 @@ interface TerminalPayload {
   mode?: 'live' | 'canned'
   citations?: Citation[]
   error_code?: string
+  tool_calls?: ToolCall[]
 }
 
 interface DeltaPayload {
@@ -218,6 +240,7 @@ function frameToChunk(frame: ParsedFrame): ChatChunk | null {
     }
     if (terminal.citations !== undefined) chunk.citations = terminal.citations
     if (terminal.error_code !== undefined) chunk.error_code = terminal.error_code
+    if (terminal.tool_calls !== undefined) chunk.tool_calls = terminal.tool_calls
     return chunk
   }
 
@@ -363,6 +386,37 @@ export function chat(
       void reason
     },
   })
+}
+
+/**
+ * Maps a server-side error code from the terminal ``done`` chunk to a
+ * human-friendly title and body string pair. Used by ``<StreamingNarrative>``
+ * so raw codes like ``CITATION_UNVERIFIABLE`` never leak through to the UI.
+ *
+ * The copy was approved by Marcus (senior FX/rates trader) and must not
+ * include phrases like "verify with your team", "please confirm with", or
+ * "you should" — the policy guard would catch those in production too.
+ */
+export function mapChatErrorCode(
+  code: string | undefined,
+): { title: string; body: string } {
+  switch (code) {
+    case 'CITATION_UNVERIFIABLE':
+      return {
+        title: "I couldn't verify that answer",
+        body: "I couldn't verify one of the numbers in this answer. Please cross-check on the dashboard.",
+      }
+    case 'POLICY_VIOLATION':
+      return {
+        title: "I can't answer that here",
+        body: 'I can only narrate data, not advise on actions. Try rephrasing as a question about what the numbers show.',
+      }
+    default:
+      return {
+        title: 'Something went wrong',
+        body: 'Something went wrong generating this answer.',
+      }
+  }
 }
 
 /**

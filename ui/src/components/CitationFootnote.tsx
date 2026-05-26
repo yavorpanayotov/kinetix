@@ -1,4 +1,5 @@
 import type { Citation } from '../api/copilot'
+import { freshnessUrgency } from './freshnessUtils'
 
 export interface CitationFootnoteProps {
   /** The narrative string (server-streamed, already accumulated). */
@@ -94,6 +95,15 @@ function findMatchingCitationIndex(
   return null
 }
 
+/**
+ * Colour class for the inline urgency dot per urgency tier.
+ * Only aging/stale show a dot — fresh is intentionally absent.
+ */
+const URGENCY_DOT_CLASS: Record<'aging' | 'stale', string> = {
+  aging: 'text-amber-300',
+  stale: 'text-rose-300',
+}
+
 interface Segment {
   kind: 'text' | 'token'
   text: string
@@ -167,6 +177,9 @@ export function CitationFootnote({
             ? findMatchingCitationIndex(parsed, citationValues)
             : null
         if (matchIndex !== null) {
+          const matchedCitation = citations[matchIndex - 1]
+          const urgency = freshnessUrgency(matchedCitation.freshness_seconds)
+          const dotClass = urgency !== 'fresh' ? URGENCY_DOT_CLASS[urgency] : null
           return (
             <cite
               key={`c-${segment.offset}`}
@@ -178,6 +191,15 @@ export function CitationFootnote({
               <sup className="ml-0.5 text-xs text-primary-600 dark:text-primary-400">
                 {matchIndex}
               </sup>
+              {dotClass !== null && (
+                <span
+                  data-testid="urgency-dot"
+                  aria-hidden="true"
+                  className={`ml-0.5 text-[9px] leading-none ${dotClass}`}
+                >
+                  {'•'}
+                </span>
+              )}
             </cite>
           )
         }

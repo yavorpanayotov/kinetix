@@ -99,4 +99,53 @@ interface RiskOrchestratorClient {
      * for today" callout.
      */
     suspend fun createSodSnapshot(bookId: String): SodBaselineStatusDto
+
+    /**
+     * Triggers a parameterised VaR calculation for [bookId] via
+     * `POST /api/v1/risk/var/{bookId}` using the supplied calculation
+     * parameters.
+     *
+     * Used by [com.kinetix.demo.schedule.DemoVaRBootstrapJob] which needs
+     * explicit control over confidence level and horizon so the bootstrap
+     * snapshot is consistent regardless of risk-orchestrator defaults. The
+     * existing zero-parameter [calculateVaR] retains the EOD defaults used
+     * by [com.kinetix.demo.schedule.EodPromotionJob].
+     *
+     * @param bookId the book to calculate VaR for.
+     * @param confidenceLevel wire string, e.g. `"CL_95"`.
+     * @param horizonDays time horizon, e.g. `10`.
+     * @param method calculation method string, e.g. `"PARAMETRIC"`.
+     * @param valuationDate the as-of date for the calculation.
+     */
+    suspend fun calculateVaRWithParams(
+        bookId: String,
+        confidenceLevel: String,
+        horizonDays: Int,
+        method: String,
+        valuationDate: java.time.LocalDate,
+    )
+
+    /**
+     * Triggers a cross-book VaR aggregation for the supplied [bookIds] via
+     * `POST /api/v1/risk/var/cross-book`, using [portfolioGroupId] as the
+     * cache key in risk-orchestrator's `CrossBookVaRCache`.
+     *
+     * Used by [com.kinetix.demo.schedule.DemoVaRBootstrapJob] at the end of
+     * the per-book sweep to seed the firm-level aggregate. Without this call
+     * the cache key `"firm"` is never populated and
+     * `GET /api/v1/risk/var/cross-book/firm` returns 404.
+     *
+     * @param bookIds the books to include in the aggregate.
+     * @param portfolioGroupId the cache key, e.g. `"firm"`.
+     * @param confidenceLevel wire string, e.g. `"CL_95"`.
+     * @param horizonDays time horizon in days, e.g. `10`.
+     * @param method calculation method string, e.g. `"PARAMETRIC"`.
+     */
+    suspend fun calculateCrossBookVaR(
+        bookIds: List<String>,
+        portfolioGroupId: String,
+        confidenceLevel: String,
+        horizonDays: Int,
+        method: String,
+    )
 }

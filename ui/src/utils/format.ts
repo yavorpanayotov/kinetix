@@ -5,12 +5,19 @@ const KNOWN_CURRENCIES: Record<string, string> = {
   JPY: 'ja-JP',
 }
 
+// Phase 2.5.1 (kx-cm3) — sentinel for "value not yet available". Surfaces in
+// the firm KPI bar (and any other consumer of these formatters) whenever a
+// nullable amount is passed in, so a missing aggregate is never confused with
+// a genuine `$0.00`. A real numeric zero still renders as `$0.00`.
+export const EM_DASH = '—'
+
 export function formatCurrency(value: string | number, currency = 'USD'): string {
   const num = typeof value === 'string' ? Number(value) : value
   return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(num)
 }
 
-export function formatMoney(amount: string, currency: string): string {
+export function formatMoney(amount: string | null | undefined, currency: string): string {
+  if (amount === null || amount === undefined) return EM_DASH
   const locale = KNOWN_CURRENCIES[currency]
   if (!locale) {
     return `${amount} ${currency}`
@@ -27,7 +34,8 @@ export function formatMoney(amount: string, currency: string): string {
 // native minus sign; zero, negative zero, NaN, and infinities are returned
 // unchanged. Intended for use wherever pnlColorClass is applied, so users who
 // cannot distinguish red/green still see a sign cue.
-export function formatSignedMoney(amount: string, currency: string): string {
+export function formatSignedMoney(amount: string | null | undefined, currency: string): string {
+  if (amount === null || amount === undefined) return EM_DASH
   const formatted = formatMoney(amount, currency)
   if (!(currency in KNOWN_CURRENCIES)) {
     return formatted
@@ -125,7 +133,8 @@ export function formatDuration(ms: number): string {
   return `${minutes}m ${remainingSeconds}s`
 }
 
-export function formatNum(value: string | number, decimals = 2): string {
+export function formatNum(value: string | number | null | undefined, decimals = 2): string {
+  if (value === null || value === undefined) return EM_DASH
   const num = typeof value === 'string' ? Number(value) : value
   return num.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
 }
@@ -137,7 +146,8 @@ export function formatNum(value: string | number, decimals = 2): string {
 // {@link formatSignedMoney} for use wherever pnlColorClass is applied to a
 // formatNum output, so users who cannot distinguish red/green still see a
 // sign cue.
-export function formatSignedNum(value: string | number, decimals = 2): string {
+export function formatSignedNum(value: string | number | null | undefined, decimals = 2): string {
+  if (value === null || value === undefined) return EM_DASH
   const formatted = formatNum(value, decimals)
   const numeric = typeof value === 'string' ? Number(value) : value
   if (!Number.isFinite(numeric)) return formatted

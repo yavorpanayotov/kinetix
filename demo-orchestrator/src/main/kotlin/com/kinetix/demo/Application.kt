@@ -5,8 +5,11 @@ import com.kinetix.demo.client.RegulatoryServiceHttpClient
 import com.kinetix.demo.client.RiskOrchestratorHttpClient
 import com.kinetix.demo.config.DemoConfig
 import com.kinetix.demo.kafka.OfficialEodConsumer
+import com.kinetix.demo.routes.bootstrapStatusRoutes
+import com.kinetix.demo.schedule.BootstrapStateHolder
 import com.kinetix.demo.schedule.DefaultPriceBook
 import com.kinetix.demo.schedule.DefaultStrategyIdResolver
+import com.kinetix.demo.schedule.DemoVaRBootstrapJob
 import com.kinetix.demo.schedule.EodCycleObserverJob
 import com.kinetix.demo.schedule.EodPromotionJob
 import com.kinetix.demo.schedule.LimitSeedJob
@@ -53,6 +56,7 @@ fun main(args: Array<String>) {
 
 fun Application.module() {
     val config = DemoConfig.fromEnv()
+    val bootstrapStateHolder = BootstrapStateHolder()
 
     install(ContentNegotiation) { json() }
 
@@ -60,6 +64,7 @@ fun Application.module() {
         get("/health") {
             call.respondText("""{"status":"ok"}""", ContentType.Application.Json)
         }
+        bootstrapStatusRoutes(bootstrapStateHolder)
     }
 
     if (!config.demoMode) {
@@ -68,7 +73,7 @@ fun Application.module() {
     }
 
     log.info("demo mode enabled")
-    wireDemoSchedulers(config)
+    wireDemoSchedulers(config, bootstrapStateHolder)
 }
 
 /**
@@ -78,8 +83,16 @@ fun Application.module() {
  * The Ktor [HttpClient] lifecycle is bound to the application: closed when the
  * server stops so we don't leak the underlying CIO connection pool during
  * tests or graceful shutdowns.
+ *
+ * The VaR bootstrap job is launched in a non-blocking coroutine so that the
+ * HTTP server finishes binding before the sweep starts. State transitions are
+ * written to [bootstrapStateHolder] so `GET /demo/bootstrap-status` reflects
+ * the current phase.
  */
-private fun Application.wireDemoSchedulers(config: DemoConfig) {
+private fun Application.wireDemoSchedulers(
+    config: DemoConfig,
+    bootstrapStateHolder: BootstrapStateHolder,
+) {
     val httpClient = HttpClient(CIO) {
         install(ClientContentNegotiation) {
             json(Json { ignoreUnknownKeys = true; isLenient = true })
@@ -99,6 +112,17 @@ private fun Application.wireDemoSchedulers(config: DemoConfig) {
     }
     launch {
         scheduleDailyLimitSeed(limitSeedJob)
+    }
+
+    // VaR bootstrap: runs once on startup, non-blocking. State holder tracks
+    // NOT_STARTED → IN_PROGRESS → READY (or FAILED on full failure).
+    val sodBaselineJob = SodBaselineCaptureJob(client = riskClient)
+    val varBootstrapJob = DemoVaRBootstrapJob(
+        riskOrchestratorClient = riskClient,
+        sodJob = sodBaselineJob,
+    )
+    launch {
+        runVaRBootstrapSafely(varBootstrapJob, bootstrapStateHolder)
     }
 
     val positionClient = PositionServiceHttpClient(httpClient, config.positionServiceUrl)
@@ -131,12 +155,43 @@ private fun Application.wireDemoSchedulers(config: DemoConfig) {
         scheduleDailyEodPromotion(eodPromotionJob, config.tradingHoursEnd)
     }
 
-    val sodBaselineJob = SodBaselineCaptureJob(client = riskClient)
     launch {
         runSodBaselineSafely(sodBaselineJob, reason = "startup")
     }
     launch {
         scheduleDailySodBaseline(sodBaselineJob, config.tradingHoursStart)
+    }
+}
+
+private suspend fun Application.runVaRBootstrapSafely(
+    job: DemoVaRBootstrapJob,
+    stateHolder: BootstrapStateHolder,
+) {
+    stateHolder.setInProgress()
+    try {
+        log.info("Running DemoVaRBootstrapJob (startup)")
+        val result = job.runOnce()
+        if (result.failureCount == 0 || result.successCount > 0) {
+            stateHolder.setReady(result)
+            log.info(
+                "DemoVaRBootstrapJob completed — successCount={} sodSuccessCount={}",
+                result.successCount,
+                result.sodSuccessCount,
+            )
+        } else {
+            stateHolder.setFailed(result)
+            log.warn(
+                "DemoVaRBootstrapJob fully failed — all {} books failed",
+                result.failureCount,
+            )
+        }
+    } catch (cancellation: CancellationException) {
+        stateHolder.setFailed(null)
+        log.info("DemoVaRBootstrapJob cancelled — exiting")
+        throw cancellation
+    } catch (failure: Exception) {
+        stateHolder.setFailed(null)
+        log.error("DemoVaRBootstrapJob threw unexpectedly — bootstrap state set to FAILED", failure)
     }
 }
 

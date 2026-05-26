@@ -18,5 +18,21 @@
       "freshness_seconds": 120,
       "quality_flags": []
     }
+  ],
+  "tool_calls": [
+    {
+      "name": "get_book_var",
+      "params": {"book_id": "fx-main", "horizon_days": 1},
+      "status": "ok",
+      "started_at": "2026-05-19T08:00:00Z",
+      "completed_at": "2026-05-19T08:00:00.250000Z"
+    },
+    {
+      "name": "get_greeks_summary",
+      "params": {"book_id": "fx-main"},
+      "status": "ok",
+      "started_at": "2026-05-19T08:00:00.250000Z",
+      "completed_at": "2026-05-19T08:00:00.480000Z"
+    }
   ]
 }

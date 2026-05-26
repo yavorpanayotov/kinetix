@@ -64,8 +64,10 @@ import { useAuth } from './auth/useAuth'
 import { DEMO_MODE } from './auth/demoPersonas'
 import { PersonaSwitcher } from './components/PersonaSwitcher'
 import { DemoWelcomeStrip } from './components/DemoWelcomeStrip'
+import { BootstrapBanner } from './components/BootstrapBanner'
 import { KeyboardShortcutsOverlay } from './components/KeyboardShortcutsOverlay'
 import { CommandPalette, type CommandItem } from './components/CommandPalette'
+import { CopilotLauncher } from './components/CopilotLauncher'
 import type { SavedQuery } from './api/savedQueries'
 import { SmallViewportWarning, MIN_VIEWPORT_WIDTH_PX } from './components/SmallViewportWarning'
 
@@ -593,6 +595,7 @@ function AppContent() {
         <div className="flex items-center gap-3" data-testid="header-right-cluster">
           <HierarchySelector hierarchy={hierarchy} />
           <ScenarioIndicator scenario={activeScenario.scenario} loading={activeScenario.loading} />
+          <CopilotLauncher onOpen={() => setCommandPaletteOpen(true)} />
           <TapeReplayIndicator status={tapeReplay.status} loading={tapeReplay.loading} />
           <RegimeIndicator regime={marketRegime.regime} loading={marketRegime.loading} />
           <DataQualityIndicator
@@ -745,6 +748,7 @@ function AppContent() {
       </nav>
 
       <DemoWelcomeStrip />
+      <BootstrapBanner />
 
       <SystemStatusBanner
         exhausted={exhausted}
@@ -1059,6 +1063,7 @@ function AppContent() {
         items={commandPaletteItems}
         copilotMode
         pendingSavedQuery={pendingSavedQuery}
+        bookId={effectiveBookId ?? bookId}
       />
 
       <HedgeRecommendationPanel

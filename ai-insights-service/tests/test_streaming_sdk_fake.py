@@ -194,3 +194,84 @@ async def test_add_messages_appends_to_queue() -> None:
         collected.append(message.text)
 
     assert collected == ["a", "b"]
+
+
+# ---------------------------------------------------------------------------
+# Tool-use and tool-result event support
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_tool_use_message_exposes_tool_use_block() -> None:
+    """A FakeToolUseMessage has a content block with type=='tool_use', name, and input."""
+    from tests.fakes.streaming_sdk import FakeToolUseMessage
+
+    msg = FakeToolUseMessage(
+        tool_use_id="tu-1",
+        name="get_book_var",
+        input={"book_id": "fx-main"},
+    )
+    # content is a list with one block
+    assert len(msg.content) == 1
+    block = msg.content[0]
+    assert block.type == "tool_use"
+    assert block.id == "tu-1"
+    assert block.name == "get_book_var"
+    assert block.input == {"book_id": "fx-main"}
+    # text attribute is empty string (tool-use events carry no narrative text)
+    assert msg.text == ""
+
+
+@pytest.mark.asyncio
+async def test_tool_result_message_exposes_tool_result_block() -> None:
+    """A FakeToolResultMessage has a content block with type=='tool_result'."""
+    from tests.fakes.streaming_sdk import FakeToolResultMessage
+
+    msg = FakeToolResultMessage(
+        tool_use_id="tu-1",
+        is_error=False,
+    )
+    assert len(msg.content) == 1
+    block = msg.content[0]
+    assert block.type == "tool_result"
+    assert block.tool_use_id == "tu-1"
+    assert block.is_error is False
+    assert msg.text == ""
+
+
+@pytest.mark.asyncio
+async def test_tool_result_message_error_flag() -> None:
+    """A FakeToolResultMessage with is_error=True exposes that flag on its block."""
+    from tests.fakes.streaming_sdk import FakeToolResultMessage
+
+    msg = FakeToolResultMessage(tool_use_id="tu-2", is_error=True)
+    assert msg.content[0].is_error is True
+
+
+@pytest.mark.asyncio
+async def test_fake_sdk_yields_tool_use_and_result_messages_in_order() -> None:
+    """When scripted with FakeToolUseEvent, the fake yields them in sequence."""
+    from tests.fakes.streaming_sdk import FakeToolUseEvent, FakeToolResultEvent
+
+    fake = _FakeStreamingSdk(
+        messages=[
+            FakeMessage(content="intro "),
+            FakeToolUseEvent(
+                tool_use_id="tu-1", name="get_book_var", input={"book_id": "fx-main"}
+            ),
+            FakeToolResultEvent(tool_use_id="tu-1", is_error=False),
+            FakeMessage(content="conclusion"),
+        ]
+    )
+
+    yielded = [msg async for msg in fake.query(prompt="x")]
+    assert len(yielded) == 4
+    # text messages carry content
+    assert yielded[0].text == "intro "
+    assert yielded[3].text == "conclusion"
+    # tool-use and result messages have empty text
+    assert yielded[1].text == ""
+    assert yielded[2].text == ""
+    # block types
+    assert yielded[1].content[0].type == "tool_use"
+    assert yielded[2].content[0].type == "tool_result"
