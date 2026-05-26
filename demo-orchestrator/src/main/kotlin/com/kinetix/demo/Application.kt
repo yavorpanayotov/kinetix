@@ -6,6 +6,7 @@ import com.kinetix.demo.client.RiskOrchestratorHttpClient
 import com.kinetix.demo.config.DemoConfig
 import com.kinetix.demo.kafka.OfficialEodConsumer
 import com.kinetix.demo.routes.bootstrapStatusRoutes
+import com.kinetix.demo.routes.triggerEodRoutes
 import com.kinetix.demo.schedule.BootstrapStateHolder
 import com.kinetix.demo.schedule.DefaultPriceBook
 import com.kinetix.demo.schedule.DefaultStrategyIdResolver
@@ -151,6 +152,9 @@ private fun Application.wireDemoSchedulers(
     }
 
     val eodPromotionJob = EodPromotionJob(client = riskClient)
+    routing {
+        triggerEodRoutes(eodPromotionJob)
+    }
     launch {
         scheduleDailyEodPromotion(eodPromotionJob, config.tradingHoursEnd)
     }

@@ -57,6 +57,13 @@ class EodPromotionJob(
     private val logger = LoggerFactory.getLogger(EodPromotionJob::class.java)
 
     /**
+     * Number of books the next [runOnce] sweep will iterate over. Exposed so
+     * callers like the `POST /demo/trigger-eod` route can advertise the
+     * sweep size in their response without re-deriving the seed list.
+     */
+    val bookCount: Int get() = books.size
+
+    /**
      * Performs a single sweep over every book in [books]. Returns the
      * number of books for which a new EOD designation was promoted on this
      * pass — books already promoted today are not counted.
