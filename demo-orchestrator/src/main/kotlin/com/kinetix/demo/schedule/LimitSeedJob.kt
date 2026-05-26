@@ -25,6 +25,12 @@ import java.math.RoundingMode
  * `(entityLevel, entityId, budgetType)` — re-running this job simply updates
  * the thresholds to the latest exposure.
  *
+ * One designated [breachBook] is special: it gets a single tighter
+ * [breachFactor] (default 0.50) applied to both its VaR and delta limits,
+ * guaranteeing the simulated trader trips its VAR_95 limit within the first
+ * few ticks after bootstrap completes. This makes a real-time breach event
+ * visible early in any demo walkthrough.
+ *
  * Cron / startup wiring is intentionally NOT here — `Application.kt` is
  * responsible for invoking [runOnce] at boot and on the daily schedule.
  */
@@ -33,6 +39,8 @@ class LimitSeedJob(
     private val books: List<DemoBookProfile> = DemoBookProfiles.all(),
     private val varFactor: BigDecimal = "0.80".toBigDecimal(),
     private val deltaFactor: BigDecimal = "0.70".toBigDecimal(),
+    private val breachBook: String = "derivatives-book",
+    private val breachFactor: BigDecimal = "0.50".toBigDecimal(),
 ) {
 
     private val logger = LoggerFactory.getLogger(LimitSeedJob::class.java)
@@ -59,9 +67,13 @@ class LimitSeedJob(
             return
         }
 
+        val isBreachBook = bookId == breachBook
+        val effectiveVarFactor = if (isBreachBook) breachFactor else varFactor
+        val effectiveDeltaFactor = if (isBreachBook) breachFactor else deltaFactor
+
         if (snapshot.varValue > BigDecimal.ZERO) {
             val threshold = snapshot.varValue
-                .multiply(varFactor)
+                .multiply(effectiveVarFactor)
                 .setScale(2, RoundingMode.HALF_UP)
             postLimit(bookId, LimitType.VAR_95, threshold)
         } else {
@@ -81,7 +93,7 @@ class LimitSeedJob(
 
             absoluteDelta > BigDecimal.ZERO -> {
                 val threshold = absoluteDelta
-                    .multiply(deltaFactor)
+                    .multiply(effectiveDeltaFactor)
                     .setScale(2, RoundingMode.HALF_UP)
                 postLimit(bookId, LimitType.DELTA_ABS, threshold)
             }
