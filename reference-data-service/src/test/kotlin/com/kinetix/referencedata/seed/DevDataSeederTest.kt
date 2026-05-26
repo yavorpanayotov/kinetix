@@ -6,13 +6,18 @@ import com.kinetix.common.model.Desk
 import com.kinetix.common.model.Division
 import com.kinetix.common.model.DividendYield
 import com.kinetix.common.model.InstrumentId
+import com.kinetix.common.model.OptionType
 import com.kinetix.common.model.ReferenceDataSource
+import com.kinetix.common.model.instrument.EquityFuture
+import com.kinetix.common.model.instrument.EquityOption
+import com.kinetix.referencedata.model.Instrument
 import com.kinetix.referencedata.model.InstrumentLiquidity
 import com.kinetix.referencedata.persistence.CreditSpreadRepository
 import com.kinetix.referencedata.persistence.DeskRepository
 import com.kinetix.referencedata.persistence.DivisionRepository
 import com.kinetix.referencedata.persistence.DividendYieldRepository
 import com.kinetix.referencedata.persistence.InstrumentLiquidityRepository
+import com.kinetix.referencedata.persistence.InstrumentRepository
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.mockk.clearMocks
@@ -254,5 +259,95 @@ class DevDataSeederTest : FunSpec({
             .filter { it.counterpartyId in DevDataSeeder.CCP_IDS }
         ccpAgreements.size shouldBe 4
         ccpAgreements.forEach { it.agreementType shouldBe "CCP_CLEARING" }
+    }
+
+    // ── kx-90w: SPX/VIX/ES placeholders used by demo derivatives-book ────────
+    // The demo-orchestrator's DemoBookProfiles references SPX-OPT-5000C,
+    // ES-FUT-MAR, and VIX-OPT-20C. Without matching reference-data rows the
+    // UI's option-detail panel cannot show strike, expiry, optionType, or
+    // underlying for trades in the derivatives book.
+
+    test("seeds SPX-OPT-5000C as a 5000-strike SPX call expiring 2026-06-19") {
+        val instrumentRepository = mockk<InstrumentRepository>()
+        val seederWithInstruments = DevDataSeeder(
+            dividendYieldRepository, creditSpreadRepository,
+            instrumentRepository = instrumentRepository,
+            divisionRepository = divisionRepository, deskRepository = deskRepository,
+        )
+        coEvery { dividendYieldRepository.findLatest(InstrumentId("AAPL")) } returns null
+        coEvery { dividendYieldRepository.save(any()) } just runs
+        coEvery { creditSpreadRepository.save(any()) } just runs
+        coEvery { divisionRepository.save(any()) } just runs
+        coEvery { deskRepository.save(any()) } just runs
+        val saved = mutableListOf<Instrument>()
+        coEvery { instrumentRepository.save(capture(saved)) } just runs
+
+        seederWithInstruments.seed()
+
+        val spxCall = saved.first { it.instrumentId.value == "SPX-OPT-5000C" }
+        val option = spxCall.instrumentType as EquityOption
+        option.underlyingId shouldBe "IDX-SPX"
+        option.optionType shouldBe OptionType.CALL
+        option.strike shouldBe 5000.0
+        option.expiryDate shouldBe "2026-06-19"
+        spxCall.currency shouldBe "USD"
+    }
+
+    test("seeds VIX-OPT-20C as a 20-strike VIX call expiring 2026-06-18") {
+        val instrumentRepository = mockk<InstrumentRepository>()
+        val seederWithInstruments = DevDataSeeder(
+            dividendYieldRepository, creditSpreadRepository,
+            instrumentRepository = instrumentRepository,
+            divisionRepository = divisionRepository, deskRepository = deskRepository,
+        )
+        coEvery { dividendYieldRepository.findLatest(InstrumentId("AAPL")) } returns null
+        coEvery { dividendYieldRepository.save(any()) } just runs
+        coEvery { creditSpreadRepository.save(any()) } just runs
+        coEvery { divisionRepository.save(any()) } just runs
+        coEvery { deskRepository.save(any()) } just runs
+        val saved = mutableListOf<Instrument>()
+        coEvery { instrumentRepository.save(capture(saved)) } just runs
+
+        seederWithInstruments.seed()
+
+        val vixCall = saved.first { it.instrumentId.value == "VIX-OPT-20C" }
+        val option = vixCall.instrumentType as EquityOption
+        option.underlyingId shouldBe "IDX-VIX"
+        option.optionType shouldBe OptionType.CALL
+        option.strike shouldBe 20.0
+        option.expiryDate shouldBe "2026-06-18"
+        vixCall.currency shouldBe "USD"
+    }
+
+    test("seeds ES-FUT-MAR as an SPX-underlying future expiring 2026-03-20") {
+        val instrumentRepository = mockk<InstrumentRepository>()
+        val seederWithInstruments = DevDataSeeder(
+            dividendYieldRepository, creditSpreadRepository,
+            instrumentRepository = instrumentRepository,
+            divisionRepository = divisionRepository, deskRepository = deskRepository,
+        )
+        coEvery { dividendYieldRepository.findLatest(InstrumentId("AAPL")) } returns null
+        coEvery { dividendYieldRepository.save(any()) } just runs
+        coEvery { creditSpreadRepository.save(any()) } just runs
+        coEvery { divisionRepository.save(any()) } just runs
+        coEvery { deskRepository.save(any()) } just runs
+        val saved = mutableListOf<Instrument>()
+        coEvery { instrumentRepository.save(capture(saved)) } just runs
+
+        seederWithInstruments.seed()
+
+        val esFut = saved.first { it.instrumentId.value == "ES-FUT-MAR" }
+        val future = esFut.instrumentType as EquityFuture
+        future.underlyingId shouldBe "IDX-SPX"
+        future.expiryDate shouldBe "2026-03-20"
+        esFut.currency shouldBe "USD"
+    }
+
+    test("derivatives-book demo placeholder instrument ids are present in reference-data") {
+        // DemoBookProfiles.derivatives-book references these three ids. Without them,
+        // gateway enrichment of position/trade responses cannot resolve structured
+        // fields and the UI shows '—' for strike, expiry, and option type.
+        val derivativesIds = setOf("SPX-OPT-5000C", "ES-FUT-MAR", "VIX-OPT-20C")
+        DevDataSeeder.INSTRUMENT_IDS.containsAll(derivativesIds) shouldBe true
     }
 })
