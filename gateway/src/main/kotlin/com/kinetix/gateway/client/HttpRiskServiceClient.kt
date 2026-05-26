@@ -792,4 +792,26 @@ class HttpRiskServiceClient(
         if (!response.status.isSuccess()) handleErrorResponse(response)
         return response.body()
     }
+
+    // kx-wxy — canned stress-scenario tile passthroughs.
+    override suspend fun runCannedStressScenario(
+        bookId: String,
+        scenarioName: String,
+    ): kotlinx.serialization.json.JsonObject? {
+        val response = httpClient.post(
+            "$baseUrl/api/v1/risk/stress/$bookId/canned/$scenarioName",
+        ) { contentType(ContentType.Application.Json) }
+        if (response.status == HttpStatusCode.NotFound) return null
+        if (!response.status.isSuccess()) handleErrorResponse(response)
+        return response.body()
+    }
+
+    override suspend fun getCannedStressScenario(
+        bookId: String,
+    ): kotlinx.serialization.json.JsonObject? {
+        val response = httpClient.get("$baseUrl/api/v1/risk/stress/$bookId/canned")
+        if (response.status == HttpStatusCode.NotFound) return null
+        if (!response.status.isSuccess()) handleErrorResponse(response)
+        return response.body()
+    }
 }

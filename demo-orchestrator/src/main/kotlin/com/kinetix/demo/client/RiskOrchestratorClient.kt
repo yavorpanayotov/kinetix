@@ -148,4 +148,17 @@ interface RiskOrchestratorClient {
         horizonDays: Int,
         method: String,
     )
+
+    /**
+     * Fires a canned (pre-registered) stress scenario against [bookId] via
+     * `POST /api/v1/risk/stress/{bookId}/canned/{scenarioName}` so the Risk
+     * overview tile is populated. The delta-PV result is cached server-side
+     * — this method intentionally discards the response body since the demo
+     * orchestrator only needs the seed to have happened. The UI reads the
+     * cached value via the matching `GET …/canned` endpoint.
+     *
+     * Used by [com.kinetix.demo.schedule.StressScenarioSeedJob] (issue
+     * kx-wxy) on bootstrap and at SOD.
+     */
+    suspend fun runCannedStressScenario(bookId: String, scenarioName: String)
 }

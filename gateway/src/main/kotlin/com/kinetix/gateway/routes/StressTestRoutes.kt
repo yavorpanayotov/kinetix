@@ -87,6 +87,43 @@ fun Route.stressTestRoutes(client: RiskServiceClient) {
         call.respond(result.toResponse())
     }
 
+    // kx-wxy — canned stress-scenario tile for the Risk overview.
+    post("/api/v1/risk/stress/{bookId}/canned/{scenarioName}", {
+        summary = "Run a canned stress scenario for a book"
+        tags = listOf("Stress Tests")
+        request {
+            pathParameter<String>("bookId") { description = "Book identifier" }
+            pathParameter<String>("scenarioName") {
+                description = "Pre-registered scenario name, e.g. +100BPS_PARALLEL"
+            }
+        }
+    }) {
+        val bookId = call.requirePathParam("bookId")
+        val scenarioName = call.requirePathParam("scenarioName")
+        val result = client.runCannedStressScenario(bookId, scenarioName)
+        if (result != null) {
+            call.respond(result)
+        } else {
+            call.respond(HttpStatusCode.NotFound)
+        }
+    }
+
+    get("/api/v1/risk/stress/{bookId}/canned", {
+        summary = "Most recent canned stress scenario result for a book"
+        tags = listOf("Stress Tests")
+        request {
+            pathParameter<String>("bookId") { description = "Book identifier" }
+        }
+    }) {
+        val bookId = call.requirePathParam("bookId")
+        val result = client.getCannedStressScenario(bookId)
+        if (result != null) {
+            call.respond(result)
+        } else {
+            call.respond(HttpStatusCode.NotFound)
+        }
+    }
+
     route("/api/v1/risk/greeks/{bookId}") {
         post({
             summary = "Calculate Greeks"

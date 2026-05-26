@@ -275,6 +275,18 @@ class RiskOrchestratorHttpClient(
         // risk-orchestrator under portfolioGroupId and accessible via GET.
     }
 
+    override suspend fun runCannedStressScenario(bookId: String, scenarioName: String) {
+        val url = "$baseUrl/api/v1/risk/stress/$bookId/canned/$scenarioName"
+        val response = httpClient.post(url) {
+            contentType(ContentType.Application.Json)
+        }
+        if (!response.status.isSuccess()) {
+            failLoudly("POST", url, response)
+        }
+        // Result body discarded — the canned result is cached server-side and
+        // read by the UI via the matching GET endpoint.
+    }
+
     override suspend fun seedLimit(bookId: String, limitType: LimitType, threshold: BigDecimal) {
         val url = "$baseUrl/api/v1/risk/budgets"
         val request = CreateRiskBudgetRequest(
