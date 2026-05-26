@@ -100,6 +100,9 @@ export function MorningBriefCard({ brief }: MorningBriefCardProps) {
           </div>
         ))}
       </div>
+      <p className="mt-2 text-xs text-slate-400">
+        Dashboards remain the source of truth. The Copilot narrates them, it doesn&apos;t replace them.
+      </p>
     </section>
   )
 }

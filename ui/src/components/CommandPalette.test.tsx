@@ -612,6 +612,20 @@ describe('CommandPalette — copilot mode', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('shows the source-of-truth footnote in the empty-state of copilot mode', () => {
+    render(
+      <CommandPalette
+        open={true}
+        onClose={vi.fn()}
+        items={buildItems(vi.fn())}
+        copilotMode
+      />,
+    )
+    expect(
+      screen.getByText(/Dashboards remain the source of truth/i),
+    ).toBeInTheDocument()
+  })
+
   it('renders a Demo mode badge after a canned (offline) stream completes', async () => {
     const chatFn = vi.fn<ChatFn>(
       (): ReadableStream<ChatChunk> =>

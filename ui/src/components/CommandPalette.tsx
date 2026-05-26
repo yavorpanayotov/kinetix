@@ -486,6 +486,9 @@ export function CommandPalette({
 
           {showSavedQueries && (
             <div data-testid="command-palette-group-Copilot">
+              <p className="text-xs text-slate-400 px-2 pb-2">
+                Dashboards remain the source of truth. The Copilot narrates them, it doesn&apos;t replace them.
+              </p>
               <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                 Copilot
               </div>

@@ -121,6 +121,13 @@ describe('MorningBriefCard', () => {
     ).not.toBeInTheDocument()
   })
 
+  test('shows the source-of-truth footnote at the bottom of the card', () => {
+    render(<MorningBriefCard brief={makeBrief()} />)
+    expect(
+      screen.getByText(/Dashboards remain the source of truth/i),
+    ).toBeInTheDocument()
+  })
+
   test('severity accent classes map info/warning/critical', () => {
     const brief = makeBrief({
       sections: [
