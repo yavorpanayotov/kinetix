@@ -17,7 +17,11 @@ This page is the single reference for the AI integration. The authoritative arch
 | v2 | `policy_guard` banned-phrase filter | Shipped |
 | v2 | `KinetixHttpClient` + service-principal headers | Shipped |
 | v2 | `ChatRequest` / `ChatChunk` models | Shipped |
-| v2 | Streaming chat endpoint (SSE), morning brief, intraday push, ⌘K | In flight (`plans/ai-v2.md` PRs 3–11) |
+| v2 | Streaming chat endpoint (SSE) | Shipped |
+| v2 | Morning brief (scheduled + on-demand) | Shipped |
+| v2 | Intraday push (Kafka consumer + WebSocket) | Shipped |
+| v2 | ⌘K command palette with saved-query chips | Shipped |
+| v2 | Demo polish: launcher, freshness urgency, tool_calls reasoning, book-reset, friendly errors, source-of-truth footnote | In flight (`plans/ai-copilot-demo-polish.md`) |
 
 ## v1 — shipped explainers
 
@@ -116,7 +120,7 @@ The single host `~/.claude/` credential does not provide per-user isolation. To 
 - **Push transport:** WebSocket `/ws/copilot` on the gateway for intraday push.
 - **Conversation state:** `ConversationStore` protocol with `InMemoryConversationStore` in v2 and a `RedisConversationStore` impl as the hardening item. TTL 24h.
 
-(These surfaces are not yet wired end-to-end; see `plans/ai-v2.md` PRs 3–11 for the remaining work.)
+(All of these surfaces are shipped. See `plans/ai-v2.md` for the completed execution history and `plans/ai-copilot-demo-polish.md` for ongoing demo-polish work.)
 
 ## Demo mode and host auth
 
