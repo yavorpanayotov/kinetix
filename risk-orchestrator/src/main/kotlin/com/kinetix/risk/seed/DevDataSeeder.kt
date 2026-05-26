@@ -150,8 +150,19 @@ class DevDataSeeder(
             return sin(seed * 0.7) * 0.5 + sin(seed * 1.3) * 0.3 + sin(seed * 2.1) * 0.2
         }
 
+        /**
+         * Demo counterparty profile carrying both the exposure inputs (used by
+         * the existing PFE / netting-set / collateral fixture builder) and the
+         * demo-facing identity fields requested by kx-i72: a friendly [name]
+         * and a [creditRating]. The identity fields are exposed via
+         * [DemoCounterparties] so the simulated trader and any UI tile that
+         * lists counterparties can render a human-readable name without a
+         * round-trip to reference-data-service.
+         */
         private data class CounterpartyProfile(
             val counterpartyId: String,
+            val name: String,
+            val creditRating: String,
             val currentNetExposure: Double,
             val peakPfe: Double,
             val cva: Double?,
@@ -161,14 +172,36 @@ class DevDataSeeder(
             val agreementType: String,
         )
 
+        // The 6 G-SIB counterparties already curated in
+        // `common.demo.CounterpartyTiers.G_SIB_IDS`. We do NOT introduce new
+        // ids here — the demo / acceptance suite asserts a fixed list. The
+        // friendly name + S&P-style rating are added for kx-i72 so the UI
+        // tile can show "Goldman Sachs · A+" rather than the raw "CP-GS".
         private val COUNTERPARTY_PROFILES = listOf(
-            CounterpartyProfile("CP-GS", 2_000_000.0, 1_800_000.0, 12_500.0, 500_000.0, 150_000.0, "NS-GS-001", "ISDA"),
-            CounterpartyProfile("CP-JPM", 6_500_000.0, 7_200_000.0, 45_000.0, 1_200_000.0, 300_000.0, "NS-JPM-001", "ISDA"),
-            CounterpartyProfile("CP-BARC", 3_200_000.0, 3_800_000.0, 22_000.0, 800_000.0, 200_000.0, "NS-BARC-001", "ISDA"),
-            CounterpartyProfile("CP-DB", 1_800_000.0, 2_100_000.0, 9_800.0, 400_000.0, 100_000.0, "NS-DB-001", "ISDA"),
-            CounterpartyProfile("CP-UBS", 4_100_000.0, 4_600_000.0, 28_000.0, 950_000.0, 250_000.0, "NS-UBS-001", "CSA"),
-            CounterpartyProfile("CP-CITI", 5_300_000.0, 5_900_000.0, 36_000.0, 1_100_000.0, 280_000.0, "NS-CITI-001", "CSA"),
+            CounterpartyProfile("CP-GS", "Goldman Sachs", "A+", 2_000_000.0, 1_800_000.0, 12_500.0, 500_000.0, 150_000.0, "NS-GS-001", "ISDA"),
+            CounterpartyProfile("CP-JPM", "JPMorgan Chase", "AA-", 6_500_000.0, 7_200_000.0, 45_000.0, 1_200_000.0, 300_000.0, "NS-JPM-001", "ISDA"),
+            CounterpartyProfile("CP-BARC", "Barclays", "A", 3_200_000.0, 3_800_000.0, 22_000.0, 800_000.0, 200_000.0, "NS-BARC-001", "ISDA"),
+            CounterpartyProfile("CP-DB", "Deutsche Bank", "BBB+", 1_800_000.0, 2_100_000.0, 9_800.0, 400_000.0, 100_000.0, "NS-DB-001", "ISDA"),
+            CounterpartyProfile("CP-UBS", "UBS", "A+", 4_100_000.0, 4_600_000.0, 28_000.0, 950_000.0, 250_000.0, "NS-UBS-001", "CSA"),
+            CounterpartyProfile("CP-CITI", "Citigroup", "A", 5_300_000.0, 5_900_000.0, 36_000.0, 1_100_000.0, 280_000.0, "NS-CITI-001", "CSA"),
         )
+
+        /**
+         * Demo counterparty identity tuple for the UI and the simulated
+         * trader. Distinct from [CounterpartyExposureSnapshot] which carries
+         * a heavier payload (PFE / CVA / netting). Exposed so other modules
+         * can list "the 6 demo counterparties" without re-deriving the set.
+         */
+        data class DemoCounterparty(
+            val id: String,
+            val name: String,
+            val creditRating: String,
+        )
+
+        /** The 6 demo counterparties — id, friendly name, and credit rating (kx-i72). */
+        val DEMO_COUNTERPARTIES: List<DemoCounterparty> = COUNTERPARTY_PROFILES.map {
+            DemoCounterparty(it.counterpartyId, it.name, it.creditRating)
+        }
 
         private val PFE_TENORS = listOf(
             Triple("3M", 0.25, 0.9),

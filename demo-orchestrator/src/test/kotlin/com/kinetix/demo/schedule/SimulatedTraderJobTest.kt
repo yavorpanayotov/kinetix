@@ -358,6 +358,80 @@ class SimulatedTraderJobTest : FunSpec({
         coVerify(exactly = 0) { client.uploadPrimeBrokerStatement(any(), any()) }
     }
 
+    test("rotates trades across all 6 demo counterparties over a few hundred ticks (kx-i72)") {
+        val client = mockk<PositionServiceClient>()
+        val captured = mutableListOf<String?>()
+        coEvery { client.bookTrade(any(), any(), any()) } answers {
+            captured += thirdArg<StrategyTradeRequest>().counterpartyId
+            "trade-${captured.size}"
+        }
+        coEvery { client.recordExecutionCost(any(), any()) } returns Unit
+        coEvery { client.uploadPrimeBrokerStatement(any(), any()) } returns Unit
+
+        val highFreqBook = DemoBookProfile(
+            bookId = "high-freq",
+            tradeProbability = 1.0,
+            instrumentIds = listOf("AAPL"),
+            notionalRangeUsd = 25_000L..500_000L,
+            assetClass = "EQUITY",
+        )
+        val clock = fixedClock(atUtc("2026-05-18", "12:00:00"))
+        val job = SimulatedTraderJob(
+            positionClient = client,
+            strategyIdResolver = stubResolver(),
+            books = listOf(highFreqBook),
+            tradingHoursStart = tradingHoursStart,
+            tradingHoursEnd = tradingHoursEnd,
+            clock = clock,
+            random = Random(seed = 7),
+        )
+
+        runTest {
+            // 200 ticks × ~1-3 trades each = plenty to exercise the 6-cp rotation.
+            repeat(200) { job.runTick() }
+        }
+
+        captured.size shouldBeGreaterThan 0
+        val distinctCps = captured.filterNotNull().toSet()
+        // The simulator rotates through the 6 canonical demo counterparties —
+        // not the issue's literal {GS, JPM, MS, CS, BoA, Citi} (the codebase
+        // standardises on the existing G-SIB ids in CounterpartyTiers).
+        distinctCps shouldBe setOf("CP-GS", "CP-JPM", "CP-BARC", "CP-DB", "CP-UBS", "CP-CITI")
+    }
+
+    test("counterparty rotation is round-robin per book — first 6 trades of a book hit all 6 distinct CPs") {
+        val client = mockk<PositionServiceClient>()
+        val captured = mutableListOf<String?>()
+        coEvery { client.bookTrade(any(), any(), any()) } answers {
+            captured += thirdArg<StrategyTradeRequest>().counterpartyId
+            "trade-${captured.size}"
+        }
+        coEvery { client.recordExecutionCost(any(), any()) } returns Unit
+        coEvery { client.uploadPrimeBrokerStatement(any(), any()) } returns Unit
+
+        val clock = fixedClock(atUtc("2026-05-18", "12:00:00"))
+        val job = SimulatedTraderJob(
+            positionClient = client,
+            strategyIdResolver = stubResolver(),
+            books = listOf(sampleEquityBook),
+            tradingHoursStart = tradingHoursStart,
+            tradingHoursEnd = tradingHoursEnd,
+            clock = clock,
+            random = Random(seed = 7),
+            // Inject a tiny pool so the assertion does not depend on the
+            // canonical 6-id list and the test stays fast.
+            counterpartyRotation = CounterpartyRotation(listOf("CP-A", "CP-B", "CP-C")),
+        )
+
+        runTest {
+            // 3 ticks usually yields 3-9 trades — enough to wrap the 3-cp pool.
+            repeat(3) { job.runTick() }
+        }
+
+        val first3 = captured.take(3)
+        first3 shouldBe listOf("CP-A", "CP-B", "CP-C")
+    }
+
     test("generated notional always lies inside the profile's notionalRangeUsd") {
         // Capture every generated quantity, recover the notional via the
         // hardcoded EQUITY price ($100), and assert it lies in range.

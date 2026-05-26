@@ -35,11 +35,11 @@ import kotlin.random.Random
  *
  * ## Counterparty assignment
  *
- * The plan calls for cycling through the 6 `DevDataSeeder` counterparties, but
- * the wire [StrategyTradeRequest] does not carry a counterparty field — that
- * mapping lives on the book itself in `position-service`. Counterparty cycling
- * is therefore deferred; the simulated trade simply inherits the book's
- * existing primary trader/counterparty configuration server-side.
+ * Each book maintains its own round-robin cursor over the 6 demo counterparties
+ * via [counterpartyRotation] (kx-i72) — so the i-th trade booked for a book is
+ * tagged with the `i % 6`-th counterparty id. Over enough ticks every book
+ * sees every counterparty, giving the UI Counterparty Exposure tile a
+ * non-trivial concentration to render.
  *
  * ## Pricing
  *
@@ -87,6 +87,11 @@ class SimulatedTraderJob(
     private val clock: Clock = Clock.systemUTC(),
     private val random: Random = Random.Default,
     private val reconciliationBreakProbability: Double = DEFAULT_RECONCILIATION_BREAK_PROBABILITY,
+    /**
+     * Per-book counterparty round-robin (kx-i72). Defaults to the canonical
+     * 6 G-SIB demo counterparties; injectable for deterministic testing.
+     */
+    private val counterpartyRotation: CounterpartyRotation = CounterpartyRotation(),
 ) {
 
     private val logger = LoggerFactory.getLogger(SimulatedTraderJob::class.java)
@@ -285,6 +290,7 @@ class SimulatedTraderJob(
             instrumentType = instrumentTypeFor(profile.assetClass),
             userId = "demo-orchestrator",
             userRole = "DEMO",
+            counterpartyId = counterpartyRotation.next(profile.bookId),
         )
     }
 

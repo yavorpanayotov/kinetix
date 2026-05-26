@@ -102,6 +102,7 @@ fun Route.strategyRoutes(
                         userId = request.userId,
                         userRole = request.userRole,
                         strategyId = strategy.strategyId,
+                        counterpartyId = request.counterpartyId,
                         traderId = TraderId(
                             com.kinetix.common.demo.DemoTraderRoster.requirePrimaryTraderFor(bookId.value),
                         ),
@@ -130,6 +131,14 @@ private data class StrategyTradeRequest(
     val instrumentType: String,
     val userId: String? = null,
     val userRole: String? = null,
+    /**
+     * Optional counterparty identifier persisted on the trade record. Demo
+     * orchestrators rotate this across the seeded counterparties (kx-i72) so
+     * the Counterparty Exposure tile has non-trivial concentration to render.
+     * Existing call sites that omit it keep working — the field is optional
+     * and defaults to `null`.
+     */
+    val counterpartyId: String? = null,
 )
 
 @Serializable
