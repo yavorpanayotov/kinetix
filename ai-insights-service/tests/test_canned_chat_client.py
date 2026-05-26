@@ -55,21 +55,34 @@ _DEFAULT_CITATION: dict[str, Any] = {
     "quality_flags": [],
 }
 
+_SAMPLE_TOOL_CALLS: list[dict[str, Any]] = [
+    {
+        "name": "get_book_var",
+        "params": {"book_id": "fx-main", "horizon_days": 1},
+        "status": "ok",
+        "started_at": "2026-05-19T08:00:00Z",
+        "completed_at": "2026-05-19T08:00:00.250000Z",
+    }
+]
+
 
 def _write_transcript(
     directory: Path,
     transcript_id: str,
     deltas: list[str],
     citations: list[dict[str, Any]] | None = None,
+    tool_calls: list[dict[str, Any]] | None = None,
 ) -> Path:
     """Write a single transcript JSON file and return its path."""
 
     path = directory / f"{transcript_id}.json"
-    payload = {
+    payload: dict[str, Any] = {
         "id": transcript_id,
         "deltas": [{"text": text} for text in deltas],
         "citations": citations if citations is not None else [_DEFAULT_CITATION],
     }
+    if tool_calls is not None:
+        payload["tool_calls"] = tool_calls
     path.write_text(json.dumps(payload))
     return path
 
@@ -356,3 +369,96 @@ async def test_history_argument_is_accepted_but_ignored_by_canned(
     ]
 
     assert without_history == with_history
+
+
+# ---------------------------------------------------------------------------
+# tool_calls field
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_chat_final_chunk_carries_tool_calls_when_present(
+    tmp_path: Path,
+) -> None:
+    """The terminal frame includes tool_calls parsed from the transcript."""
+
+    _write_transcript(tmp_path, "solo", ["x"], tool_calls=_SAMPLE_TOOL_CALLS)
+    client = CannedCopilotChatClient(fixtures_dir=tmp_path, delay_seconds=0.0)
+    request = ChatRequest(message="hi", page_context={"page": "dashboard"})
+
+    chunks = [chunk async for chunk in client.chat(request)]
+    final = chunks[-1]
+
+    assert final.done is True
+    assert final.tool_calls is not None
+    assert len(final.tool_calls) == 1
+    tc = final.tool_calls[0]
+    assert tc.name == "get_book_var"
+    assert tc.params == {"book_id": "fx-main", "horizon_days": 1}
+    assert tc.status == "ok"
+
+
+@pytest.mark.asyncio
+async def test_chat_final_chunk_tool_calls_none_when_omitted(
+    tmp_path: Path,
+) -> None:
+    """When the transcript has no tool_calls block, tool_calls is None on the terminal frame."""
+
+    _write_transcript(tmp_path, "solo", ["x"])  # no tool_calls kwarg
+    client = CannedCopilotChatClient(fixtures_dir=tmp_path, delay_seconds=0.0)
+    request = ChatRequest(message="hi", page_context={"page": "dashboard"})
+
+    chunks = [chunk async for chunk in client.chat(request)]
+    final = chunks[-1]
+
+    assert final.tool_calls is None
+
+
+@pytest.mark.asyncio
+async def test_chat_final_chunk_tool_calls_none_for_empty_list(
+    tmp_path: Path,
+) -> None:
+    """An explicit empty tool_calls list in the transcript yields None on the frame."""
+
+    _write_transcript(tmp_path, "solo", ["x"], tool_calls=[])
+    client = CannedCopilotChatClient(fixtures_dir=tmp_path, delay_seconds=0.0)
+    request = ChatRequest(message="hi", page_context={"page": "dashboard"})
+
+    chunks = [chunk async for chunk in client.chat(request)]
+    final = chunks[-1]
+
+    assert final.tool_calls is None
+
+
+@pytest.mark.asyncio
+async def test_chat_final_chunk_tool_calls_multiple_entries(
+    tmp_path: Path,
+) -> None:
+    """Multiple tool_call entries in the fixture are all present on the terminal frame."""
+
+    multi_tool_calls: list[dict[str, Any]] = [
+        {
+            "name": "get_book_var",
+            "params": {"book_id": "fx-main"},
+            "status": "ok",
+            "started_at": "2026-05-19T08:00:00Z",
+            "completed_at": "2026-05-19T08:00:00.200000Z",
+        },
+        {
+            "name": "get_greeks_summary",
+            "params": {"book_id": "fx-main"},
+            "status": "ok",
+            "started_at": "2026-05-19T08:00:00.200000Z",
+            "completed_at": "2026-05-19T08:00:00.450000Z",
+        },
+    ]
+    _write_transcript(tmp_path, "solo", ["x"], tool_calls=multi_tool_calls)
+    client = CannedCopilotChatClient(fixtures_dir=tmp_path, delay_seconds=0.0)
+    request = ChatRequest(message="hi", page_context={"page": "dashboard"})
+
+    chunks = [chunk async for chunk in client.chat(request)]
+    final = chunks[-1]
+
+    assert final.tool_calls is not None
+    assert len(final.tool_calls) == 2
+    assert [tc.name for tc in final.tool_calls] == ["get_book_var", "get_greeks_summary"]
