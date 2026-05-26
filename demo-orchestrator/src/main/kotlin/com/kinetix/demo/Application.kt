@@ -128,7 +128,7 @@ private fun Application.wireDemoSchedulers(
     val positionClient = PositionServiceHttpClient(httpClient, config.positionServiceUrl)
     val simulatedTraderJob = SimulatedTraderJob(
         positionClient = positionClient,
-        strategyIdResolver = DefaultStrategyIdResolver(),
+        strategyIdResolver = DefaultStrategyIdResolver(positionClient = positionClient),
         priceBook = DefaultPriceBook(),
         tradingHoursStart = config.tradingHoursStart,
         tradingHoursEnd = config.tradingHoursEnd,

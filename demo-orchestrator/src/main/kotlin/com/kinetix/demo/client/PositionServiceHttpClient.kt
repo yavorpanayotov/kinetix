@@ -2,9 +2,11 @@ package com.kinetix.demo.client
 
 import com.kinetix.demo.client.dtos.PrimeBrokerStatementRequest
 import com.kinetix.demo.client.dtos.RecordExecutionCostRequest
+import com.kinetix.demo.client.dtos.StrategyListItemResponse
 import com.kinetix.demo.client.dtos.StrategyTradeRequest
 import com.kinetix.demo.client.dtos.StrategyTradeResponse
 import io.ktor.client.HttpClient
+import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
@@ -12,6 +14,7 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
+import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
 
@@ -112,6 +115,25 @@ class PositionServiceHttpClient(
         if (!response.status.isSuccess()) {
             failLoudly("POST", url, response)
         }
+    }
+
+    override suspend fun listStrategies(bookId: String): List<String> {
+        val url = "$baseUrl/api/v1/books/$bookId/strategies"
+        logger.debug("Listing strategies for bookId={}", bookId)
+        val response = httpClient.get(url)
+        if (!response.status.isSuccess()) {
+            failLoudly("GET", url, response)
+        }
+        val responseBody = response.bodyAsText()
+        val items = try {
+            json.decodeFromString(ListSerializer(StrategyListItemResponse.serializer()), responseBody)
+        } catch (e: Exception) {
+            throw IllegalStateException(
+                "Failed to decode strategy list from $url: body=${responseBody.take(BODY_EXCERPT_LIMIT)}",
+                e,
+            )
+        }
+        return items.map { it.strategyId }
     }
 
     private suspend fun failLoudly(method: String, url: String, response: HttpResponse): Nothing {

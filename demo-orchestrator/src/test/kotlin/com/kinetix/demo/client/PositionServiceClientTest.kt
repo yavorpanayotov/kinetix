@@ -194,4 +194,68 @@ class PositionServiceClientTest : FunSpec({
             thrown.message!! shouldContain "Trade quantity must be positive"
         }
     }
+
+    test("listStrategies GETs the books endpoint and returns the strategy ids") {
+        var capturedUrl: String? = null
+        var capturedMethod: HttpMethod? = null
+        val client = PositionServiceHttpClient(
+            httpClient = mockHttpClient { request ->
+                capturedUrl = request.url.toString()
+                capturedMethod = request.method
+                respond(
+                    content = """
+                        [
+                          {"strategyId":"equity-growth-core","bookId":"equity-growth","strategyType":"CUSTOM","name":"core","createdAt":"2026-05-18T00:00:00Z"},
+                          {"strategyId":"equity-growth-satellite","bookId":"equity-growth","strategyType":"CUSTOM","name":"satellite","createdAt":"2026-05-18T00:00:00Z"}
+                        ]
+                    """.trimIndent(),
+                    status = HttpStatusCode.OK,
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+            },
+            baseUrl = "http://position",
+        )
+
+        runTest {
+            val ids = client.listStrategies("equity-growth")
+            ids shouldBe listOf("equity-growth-core", "equity-growth-satellite")
+        }
+
+        capturedUrl shouldBe "http://position/api/v1/books/equity-growth/strategies"
+        capturedMethod shouldBe HttpMethod.Get
+    }
+
+    test("listStrategies returns an empty list when the server returns []") {
+        val client = PositionServiceHttpClient(
+            httpClient = mockHttpClient {
+                respond(
+                    content = "[]",
+                    status = HttpStatusCode.OK,
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+            },
+            baseUrl = "http://position",
+        )
+
+        runTest {
+            client.listStrategies("equity-growth") shouldBe emptyList()
+        }
+    }
+
+    test("listStrategies throws IllegalStateException on a non-2xx response") {
+        val client = PositionServiceHttpClient(
+            httpClient = mockHttpClient {
+                respond(content = "boom", status = HttpStatusCode.InternalServerError)
+            },
+            baseUrl = "http://position",
+        )
+
+        runTest {
+            val thrown = shouldThrow<IllegalStateException> {
+                client.listStrategies("equity-growth")
+            }
+            thrown.message!! shouldContain "500"
+            thrown.message!! shouldContain "GET"
+        }
+    }
 })
