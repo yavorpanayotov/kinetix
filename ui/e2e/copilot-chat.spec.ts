@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { chatMockCanned, mockAllApiRoutes } from './fixtures'
+import { chatMockCanned, chatMockCannedWithToolCalls, mockAllApiRoutes } from './fixtures'
 
 // ---------------------------------------------------------------------------
 // Copilot chat — Cmd+K command palette copilot zone (plans/ai-v2.md §5.8)
@@ -107,6 +107,39 @@ test.describe('Copilot chat', () => {
     await expect(
       page.getByTestId('command-palette-copilot-demo-badge'),
     ).toHaveText('Demo mode')
+  })
+
+  test('reasoning panel appears when done chunk carries tool_calls, can be expanded, and shows tool names', async ({
+    page,
+  }) => {
+    await page.goto('/')
+    await page.waitForSelector('[data-testid="tab-positions"]')
+
+    // Override the default canned mock with one that includes tool_calls.
+    await chatMockCannedWithToolCalls(page)
+
+    await page.keyboard.press('ControlOrMeta+k')
+    await expect(page.getByTestId('command-palette')).toBeVisible()
+
+    const input = page.getByTestId('command-palette-input')
+    await input.fill('zzznomatch why did VaR move')
+    await page.keyboard.press('Enter')
+
+    // Wait for the stream to complete so the reasoning panel is rendered.
+    await expect(page.getByTestId('streaming-narrative-text')).toHaveText(
+      'Your VaR rose on tech beta.',
+    )
+
+    // The collapsible panel must be present but initially collapsed.
+    const panel = page.getByTestId('tool-call-list')
+    await expect(panel).toBeVisible()
+
+    // Expand it by clicking the summary.
+    await panel.locator('summary').first().click()
+
+    // At least one tool-call-row must become visible.
+    await expect(page.getByTestId('tool-call-row').first()).toBeVisible()
+    await expect(page.getByTestId('tool-call-row').first()).toContainText('get_book_var')
   })
 
   test('Escape closes the palette and abandons the stream cleanly', async ({
