@@ -406,6 +406,11 @@ services:
       RISK_DATABASE_URL: jdbc:postgresql://postgres:5432/kinetix_risk
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       REDIS_URL: redis://redis:6379
+      # Demo mode disables the scheduler, so the VaR cache is only repopulated by the
+      # demo-orchestrator's SOD (09:00 UTC) and EOD (16:30 UTC) jobs. A 24h TTL keeps
+      # the cache warm between those events — at 300s (the production default) the
+      # firm hierarchy aggregation reports every book as missing for ~23h/day.
+      REDIS_VAR_TTL_SECONDS: "${REDIS_VAR_TTL_SECONDS:-86400}"
       DEMO_RESET_TOKEN: "${DEMO_RESET_TOKEN:-kinetix-demo-reset-dev}"
       SCHEDULER_ENABLED: "${SCHEDULER_ENABLED:-false}"
       RISK_ENGINE_HOST: risk-engine
