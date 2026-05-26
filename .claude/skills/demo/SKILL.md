@@ -149,6 +149,31 @@ Two LLM-powered features ship in v1, both backed by `ai-insights-service`. Demo 
 | Demo | `DEMO_MODE=true` (default for `/demo`-seeded envs) | Canned narratives, deterministic output, no host auth required. "Demo mode" badge visible. |
 | Live | `DEMO_MODE=false` with host `~/.claude` mounted | Real Claude responses via the Agent SDK using the host's authenticated `claude` CLI. Badge hidden, model name shown. |
 
+## Live-demo vs background-mode tuning
+
+The `demo-orchestrator` drips synthetic trades during trading hours. The
+cadence is set by `DEMO_TRADE_CADENCE_SECONDS` and has two supported profiles:
+
+| Profile | `DEMO_TRADE_CADENCE_SECONDS` | When to use |
+| ------- | ---------------------------- | ----------- |
+| **Background** (default) | `90` | Always-on demo cluster, nightly-reseeded environments, local dev. Avoids filling Postgres / Kafka. |
+| **Live-demo** | `30` | Buyer walkthroughs and screen recordings — visible blotter activity within ~2 minutes of opening the UI. Do not leave running overnight. |
+
+For a tight limit-breach demo on top of the live cadence (see kx-5q4):
+
+- `DEMO_BREACH_BOOK=derivatives-book` (default) — book that gets tight limits.
+- `DEMO_BREACH_VAR_FACTOR=0.50` (default) — VaR-limit factor on that book.
+  Lower = breach sooner; standard books use 0.80.
+
+**Switching to live-demo cadence:**
+
+- Docker Compose: layer `docker-compose.live-demo.yml` on the stack.
+- Helm: layer `deploy/helm/kinetix/values-live-demo.yaml` on top of
+  `values-demo.yaml`.
+
+Full rationale and command snippets in
+[`demo-orchestrator/README.md`](../../../demo-orchestrator/README.md).
+
 ## Reminders
 
 - Use realistic but not real company names if generating fictional data
