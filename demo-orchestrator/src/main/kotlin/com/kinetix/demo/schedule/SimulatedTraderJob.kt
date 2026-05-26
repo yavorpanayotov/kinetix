@@ -43,8 +43,10 @@ import kotlin.random.Random
  *
  * ## Pricing
  *
- * Prices come from the in-memory [DefaultPriceBook] (per-asset-class
- * indicative spots). Real `price-service` integration is out of scope here
+ * Prices come from the in-memory [PriceBook] — typically the richer
+ * [SimulatedPriceBook] in production, which ships per-instrument seed
+ * prices and drifts them via a small Gaussian random walk so every demo
+ * tick looks alive. Real `price-service` integration is out of scope here
  * and lands in a later checkbox.
  *
  * ## Execution-cost and reconciliation seeding
@@ -77,7 +79,7 @@ import kotlin.random.Random
 class SimulatedTraderJob(
     private val positionClient: PositionServiceClient,
     private val strategyIdResolver: StrategyIdResolver,
-    private val priceBook: DefaultPriceBook = DefaultPriceBook(),
+    private val priceBook: PriceBook = DefaultPriceBook(),
     private val books: List<DemoBookProfile> = DemoBookProfiles.all(),
     private val tradingHoursStart: LocalTime,
     private val tradingHoursEnd: LocalTime,
@@ -247,7 +249,7 @@ class SimulatedTraderJob(
             profile.notionalRangeUsd.first,
             profile.notionalRangeUsd.last + 1,
         )
-        val price = priceBook.priceFor(profile.assetClass)
+        val price = priceBook.priceFor(instrumentId, profile.assetClass)
         val quantity = maxOf(
             1L,
             notional.toBigDecimal()

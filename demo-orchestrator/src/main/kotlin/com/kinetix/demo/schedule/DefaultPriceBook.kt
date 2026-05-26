@@ -3,23 +3,25 @@ package com.kinetix.demo.schedule
 import java.math.BigDecimal
 
 /**
- * Temporary stand-in for a real `price-service` lookup. Maps a
+ * Coarse fallback [PriceBook]: maps a
  * [com.kinetix.demo.profile.DemoBookProfile.assetClass] tag to a plausible
- * per-unit price in USD so [SimulatedTraderJob] can derive a `quantity` from a
+ * per-unit USD price so [SimulatedTraderJob] can derive a `quantity` from a
  * notional. Numbers are deliberately round — these are demo trades, not P&L
- * statements — and will be replaced when checkbox 2.4 introduces a price-service
- * client.
+ * statements.
  *
- * Unknown asset classes resolve to a conservative `$100` so the job never blows
- * up on a freshly added profile tag.
+ * This implementation ignores [instrumentId] and looks up purely by asset
+ * class. For a richer per-instrument book see [SimulatedPriceBook].
+ *
+ * Unknown asset classes resolve to a conservative `$100` so the job never
+ * blows up on a freshly added profile tag.
  */
 class DefaultPriceBook(
     private val prices: Map<String, BigDecimal> = DEFAULT_PRICES,
     private val fallbackPrice: BigDecimal = DEFAULT_FALLBACK_PRICE,
-) {
+) : PriceBook {
 
-    /** Indicative per-unit USD price for [assetClass]. */
-    fun priceFor(assetClass: String): BigDecimal =
+    /** Indicative per-unit USD price for [assetClass]; [instrumentId] is ignored. */
+    override fun priceFor(instrumentId: String, assetClass: String): BigDecimal =
         prices[assetClass] ?: fallbackPrice
 
     companion object {
@@ -33,7 +35,7 @@ class DefaultPriceBook(
         val DEFAULT_PRICES: Map<String, BigDecimal> = mapOf(
             "EQUITY" to "100.00".toBigDecimal(),
             "FX" to "1.10".toBigDecimal(),
-            "FIXED_INCOME" to "0.05".toBigDecimal(),
+            "FIXED_INCOME" to "100.00".toBigDecimal(),
             "COMMODITY" to "75.00".toBigDecimal(),
             "DERIVATIVE" to "50.00".toBigDecimal(),
         )

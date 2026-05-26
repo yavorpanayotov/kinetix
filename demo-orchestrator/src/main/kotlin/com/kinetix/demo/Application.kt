@@ -7,7 +7,6 @@ import com.kinetix.demo.config.DemoConfig
 import com.kinetix.demo.kafka.OfficialEodConsumer
 import com.kinetix.demo.routes.bootstrapStatusRoutes
 import com.kinetix.demo.schedule.BootstrapStateHolder
-import com.kinetix.demo.schedule.DefaultPriceBook
 import com.kinetix.demo.schedule.DefaultStrategyIdResolver
 import com.kinetix.demo.schedule.DemoVaRBootstrapJob
 import com.kinetix.demo.schedule.EodCycleObserverJob
@@ -15,6 +14,7 @@ import com.kinetix.demo.schedule.EodPromotionJob
 import com.kinetix.demo.schedule.LimitSeedJob
 import com.kinetix.demo.schedule.RiskOrchestratorBacktestInputProvider
 import com.kinetix.demo.schedule.SchedulingHelpers
+import com.kinetix.demo.schedule.SimulatedPriceBook
 import com.kinetix.demo.schedule.SimulatedTraderJob
 import com.kinetix.demo.schedule.SodBaselineCaptureJob
 import io.ktor.client.HttpClient
@@ -129,7 +129,7 @@ private fun Application.wireDemoSchedulers(
     val simulatedTraderJob = SimulatedTraderJob(
         positionClient = positionClient,
         strategyIdResolver = DefaultStrategyIdResolver(),
-        priceBook = DefaultPriceBook(),
+        priceBook = SimulatedPriceBook(random = java.util.Random()),
         tradingHoursStart = config.tradingHoursStart,
         tradingHoursEnd = config.tradingHoursEnd,
     )
