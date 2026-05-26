@@ -1112,6 +1112,19 @@ describe('App', () => {
       expect(screen.getByTestId('command-palette-item-book:book-1')).toBeInTheDocument()
       expect(screen.getByTestId('command-palette-item-book:book-2')).toBeInTheDocument()
     })
+
+    it('CopilotLauncher button is present in the header', () => {
+      render(<App />)
+      expect(screen.getByTestId('copilot-launcher')).toBeInTheDocument()
+    })
+
+    it('clicking the CopilotLauncher button opens the command palette', () => {
+      render(<App />)
+
+      expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument()
+      fireEvent.click(screen.getByTestId('copilot-launcher'))
+      expect(screen.getByTestId('command-palette')).toBeInTheDocument()
+    })
   })
 
   describe('global breach banner', () => {
