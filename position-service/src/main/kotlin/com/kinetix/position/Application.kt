@@ -572,6 +572,7 @@ fun Application.moduleWithRoutes() {
                 executionCostRepo = executionCostRepository,
                 tradeEventRepository = tradeEventRepository,
                 bookHierarchyRepository = bookHierarchyRepository,
+                tradeStrategyRepository = tradeStrategyRepository,
             ).seed()
             seedDone.set(true)
         }
