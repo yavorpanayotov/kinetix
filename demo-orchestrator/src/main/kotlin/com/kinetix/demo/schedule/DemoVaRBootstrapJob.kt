@@ -63,6 +63,13 @@ class DemoVaRBootstrapJob(
     private val clock: Clock = Clock.systemUTC(),
     private val retryDelayMillis: Long = 500L,
     private val maxRetries: Int = 3,
+    /**
+     * Optional SOD baseline capture job. When provided, the bootstrap captures
+     * a start-of-day baseline for every book whose VaR calculation succeeded,
+     * and the [BootstrapResult] includes SOD counts. When null, SOD counts are
+     * all zero.
+     */
+    private val sodJob: SodBaselineCaptureJob? = null,
 ) {
     private val logger = LoggerFactory.getLogger(DemoVaRBootstrapJob::class.java)
 
@@ -76,8 +83,11 @@ class DemoVaRBootstrapJob(
 
     /**
      * Runs a single sweep over every book returned by [bookProvider], triggering
-     * VaR calculation for each. Returns a [BootstrapResult] summarising successes,
-     * failures, and the wall-clock duration of the sweep.
+     * VaR calculation for each. When a [sodJob] is configured, also captures an
+     * SOD baseline for every book whose VaR calculation succeeded.
+     *
+     * Returns a [BootstrapResult] summarising successes, failures, SOD counts,
+     * and the wall-clock duration of the sweep.
      */
     suspend fun runOnce(): BootstrapResult {
         val books = bookProvider()
@@ -91,28 +101,66 @@ class DemoVaRBootstrapJob(
         )
 
         val failedBooks = mutableListOf<String>()
+        val succeededBooks = mutableListOf<String>()
 
         for (bookId in books) {
             val success = calculateWithRetry(bookId, valuationDate)
-            if (!success) {
-                failedBooks += bookId
-            }
+            if (success) succeededBooks += bookId else failedBooks += bookId
         }
 
         val durationMillis = clock.millis() - startMillis
-        val successCount = books.size - failedBooks.size
+        val successCount = succeededBooks.size
 
         logger.info(
             "Finished DemoVaRBootstrapJob sweep — {}/{} books succeeded, {} failed in {}ms",
             successCount, books.size, failedBooks.size, durationMillis,
         )
 
+        // Capture SOD baselines for books that had successful VaR calculations.
+        val (sodSuccessCount, sodFailureCount, sodFailedBooks) = if (sodJob != null) {
+            captureSodBaselines(succeededBooks, sodJob)
+        } else {
+            Triple(0, 0, emptyList<String>())
+        }
+
         return BootstrapResult(
             successCount = successCount,
             failureCount = failedBooks.size,
             failedBooks = failedBooks.toList(),
             durationMillis = durationMillis,
+            sodSuccessCount = sodSuccessCount,
+            sodFailureCount = sodFailureCount,
+            sodFailedBooks = sodFailedBooks,
         )
+    }
+
+    private suspend fun captureSodBaselines(
+        bookIds: List<String>,
+        job: SodBaselineCaptureJob,
+    ): Triple<Int, Int, List<String>> {
+        logger.info("Capturing SOD baselines for {} VaR-successful books", bookIds.size)
+        val sodFailedBooks = mutableListOf<String>()
+        var sodSuccessCount = 0
+
+        for (bookId in bookIds) {
+            try {
+                val captured = job.captureForBook(bookId)
+                if (captured) {
+                    sodSuccessCount++
+                } else {
+                    sodFailedBooks += bookId
+                }
+            } catch (ex: Exception) {
+                logger.warn("SOD baseline capture failed for book {} — continuing", bookId, ex)
+                sodFailedBooks += bookId
+            }
+        }
+
+        logger.info(
+            "SOD baseline sweep complete — {}/{} books captured, {} failed",
+            sodSuccessCount, bookIds.size, sodFailedBooks.size,
+        )
+        return Triple(sodSuccessCount, sodFailedBooks.size, sodFailedBooks.toList())
     }
 
     /**

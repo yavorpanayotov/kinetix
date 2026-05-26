@@ -57,6 +57,20 @@ class SodBaselineCaptureJob(
     private val logger = LoggerFactory.getLogger(SodBaselineCaptureJob::class.java)
 
     /**
+     * Captures an SOD baseline for a single [bookId]. Returns `true` when a
+     * new baseline was created, `false` when a baseline already exists today or
+     * when the operation failed.
+     *
+     * This overload is designed for use by [DemoVaRBootstrapJob], which drives
+     * a per-book SOD capture after each successful VaR calculation rather than
+     * sweeping all books at once.
+     */
+    suspend fun captureForBook(bookId: String): Boolean {
+        val tradingDay = LocalDate.now(clock.withZone(ZoneOffset.UTC))
+        return captureForBook(bookId, tradingDay)
+    }
+
+    /**
      * Performs a single sweep over every book in [books]. Returns the
      * number of books for which a new SOD baseline was captured on this
      * pass — books that already had a baseline today are not counted.
