@@ -1,5 +1,6 @@
 package com.kinetix.demo.config
 
+import java.math.BigDecimal
 import java.time.LocalTime
 import java.time.format.DateTimeParseException
 
@@ -12,6 +13,8 @@ data class DemoConfig(
     val tradingHoursStart: LocalTime,
     val tradingHoursEnd: LocalTime,
     val tradeCadenceSeconds: Long,
+    val breachBook: String,
+    val breachVarFactor: BigDecimal,
 ) {
     companion object {
         private const val DEFAULT_POSITION_SERVICE_URL = "http://position-service:8080"
@@ -21,6 +24,8 @@ data class DemoConfig(
         private const val DEFAULT_TRADING_HOURS_START = "09:00"
         private const val DEFAULT_TRADING_HOURS_END = "16:30"
         private const val DEFAULT_TRADE_CADENCE_SECONDS = 90L
+        private const val DEFAULT_BREACH_BOOK = "derivatives-book"
+        private const val DEFAULT_BREACH_VAR_FACTOR = "0.50"
 
         fun fromEnv(env: (String) -> String? = System::getenv): DemoConfig {
             val demoMode = env("DEMO_MODE")?.toBooleanStrictOrNull() ?: false
@@ -31,6 +36,8 @@ data class DemoConfig(
             val tradingHoursStart = parseTime("DEMO_TRADING_HOURS_START", env("DEMO_TRADING_HOURS_START") ?: DEFAULT_TRADING_HOURS_START)
             val tradingHoursEnd = parseTime("DEMO_TRADING_HOURS_END", env("DEMO_TRADING_HOURS_END") ?: DEFAULT_TRADING_HOURS_END)
             val tradeCadenceSeconds = parseCadence(env("DEMO_TRADE_CADENCE_SECONDS"))
+            val breachBook = env("DEMO_BREACH_BOOK") ?: DEFAULT_BREACH_BOOK
+            val breachVarFactor = parseBreachVarFactor(env("DEMO_BREACH_VAR_FACTOR") ?: DEFAULT_BREACH_VAR_FACTOR)
 
             return DemoConfig(
                 demoMode = demoMode,
@@ -41,6 +48,8 @@ data class DemoConfig(
                 tradingHoursStart = tradingHoursStart,
                 tradingHoursEnd = tradingHoursEnd,
                 tradeCadenceSeconds = tradeCadenceSeconds,
+                breachBook = breachBook,
+                breachVarFactor = breachVarFactor,
             )
         }
 
@@ -65,6 +74,17 @@ data class DemoConfig(
                 "DEMO_TRADE_CADENCE_SECONDS='$raw' must be > 0"
             }
             return parsed
+        }
+
+        private fun parseBreachVarFactor(raw: String): BigDecimal {
+            return try {
+                BigDecimal(raw)
+            } catch (ex: NumberFormatException) {
+                throw IllegalArgumentException(
+                    "DEMO_BREACH_VAR_FACTOR='$raw' is not a valid decimal",
+                    ex,
+                )
+            }
         }
     }
 }

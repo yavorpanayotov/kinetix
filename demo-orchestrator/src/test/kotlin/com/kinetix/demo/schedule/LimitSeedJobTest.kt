@@ -39,7 +39,9 @@ class LimitSeedJobTest : FunSpec({
         coEvery { client.seedLimit(any(), any(), any()) } just Runs
 
         runTest {
-            LimitSeedJob(client = client).runOnce()
+            // Use a non-existent breach book so every real book gets the
+            // standard 80%/70% factors — isolates the default-factor logic.
+            LimitSeedJob(client = client, breachBook = "__no_such_book__").runOnce()
         }
 
         coVerify(exactly = allBooks.size) {
@@ -166,7 +168,9 @@ class LimitSeedJobTest : FunSpec({
         coEvery { client.seedLimit(any(), any(), any()) } just Runs
 
         runTest {
-            LimitSeedJob(client = client).runOnce()
+            // Use a non-existent breach book so every real book gets the
+            // standard 80%/70% factors — isolates the resilience behaviour.
+            LimitSeedJob(client = client, breachBook = "__no_such_book__").runOnce()
         }
 
         coVerify(exactly = 0) {
@@ -204,7 +208,9 @@ class LimitSeedJobTest : FunSpec({
         }
 
         runTest {
-            LimitSeedJob(client = client).runOnce()
+            // Use a non-existent breach book so every real book gets the
+            // standard 80%/70% factors — isolates the resilience behaviour.
+            LimitSeedJob(client = client, breachBook = "__no_such_book__").runOnce()
         }
 
         // Every book is still attempted for VAR_95 — including the one that threw.
@@ -220,5 +226,104 @@ class LimitSeedJobTest : FunSpec({
     test("uses the canonical 8 demo books when no override is supplied") {
         // Sanity check that DemoBookProfiles.all() really is the source.
         allBooks.size shouldBe 8
+    }
+
+    test("seeds limits at standard factor for non-breach books") {
+        // Every book except the configured breach book should be seeded at the
+        // standard 80% / 70% factors, even when a breach factor is configured.
+        val client = mockk<RiskOrchestratorClient>()
+        coEvery { client.readBookExposure(any()) } answers {
+            BookExposureSnapshot(
+                bookId = firstArg(),
+                varValue = BigDecimal("1000"),
+                absoluteDelta = BigDecimal("500"),
+            )
+        }
+        coEvery { client.seedLimit(any(), any(), any()) } just Runs
+
+        runTest {
+            LimitSeedJob(
+                client = client,
+                breachBook = "derivatives-book",
+                breachFactor = BigDecimal("0.50"),
+            ).runOnce()
+        }
+
+        val nonBreachBooks = allBooks.filter { it.bookId != "derivatives-book" }
+        nonBreachBooks.forEach { profile ->
+            coVerify(exactly = 1) {
+                client.seedLimit(profile.bookId, LimitType.VAR_95, BigDecimal("800.00"))
+            }
+            coVerify(exactly = 1) {
+                client.seedLimit(profile.bookId, LimitType.DELTA_ABS, BigDecimal("350.00"))
+            }
+        }
+    }
+
+    test("seeds limits at breach factor for the configured breach book") {
+        // The configured breach book should get VAR_95 and DELTA_ABS at the
+        // tighter breach factor (here 0.50) so the demo trader trips it fast.
+        val client = mockk<RiskOrchestratorClient>()
+        coEvery { client.readBookExposure(any()) } answers {
+            BookExposureSnapshot(
+                bookId = firstArg(),
+                varValue = BigDecimal("1000"),
+                absoluteDelta = BigDecimal("500"),
+            )
+        }
+        coEvery { client.seedLimit(any(), any(), any()) } just Runs
+
+        runTest {
+            LimitSeedJob(
+                client = client,
+                breachBook = "derivatives-book",
+                breachFactor = BigDecimal("0.50"),
+            ).runOnce()
+        }
+
+        coVerify(exactly = 1) {
+            client.seedLimit("derivatives-book", LimitType.VAR_95, BigDecimal("500.00"))
+        }
+        coVerify(exactly = 1) {
+            client.seedLimit("derivatives-book", LimitType.DELTA_ABS, BigDecimal("250.00"))
+        }
+    }
+
+    test("respects env-var override for breach book id") {
+        // When DEMO_BREACH_BOOK names a different book, the breach factor
+        // should follow it and the previous default book should fall back to
+        // the standard factors.
+        val client = mockk<RiskOrchestratorClient>()
+        coEvery { client.readBookExposure(any()) } answers {
+            BookExposureSnapshot(
+                bookId = firstArg(),
+                varValue = BigDecimal("1000"),
+                absoluteDelta = BigDecimal("500"),
+            )
+        }
+        coEvery { client.seedLimit(any(), any(), any()) } just Runs
+
+        runTest {
+            LimitSeedJob(
+                client = client,
+                breachBook = "macro-hedge",
+                breachFactor = BigDecimal("0.50"),
+            ).runOnce()
+        }
+
+        // The overridden breach book gets the tighter factor.
+        coVerify(exactly = 1) {
+            client.seedLimit("macro-hedge", LimitType.VAR_95, BigDecimal("500.00"))
+        }
+        coVerify(exactly = 1) {
+            client.seedLimit("macro-hedge", LimitType.DELTA_ABS, BigDecimal("250.00"))
+        }
+        // The previously-default derivatives-book is now a standard-factor book.
+        coVerify(exactly = 1) {
+            client.seedLimit("derivatives-book", LimitType.VAR_95, BigDecimal("800.00"))
+        }
+        coVerify(exactly = 1) {
+            client.seedLimit("derivatives-book", LimitType.DELTA_ABS, BigDecimal("350.00"))
+        }
     }
 })

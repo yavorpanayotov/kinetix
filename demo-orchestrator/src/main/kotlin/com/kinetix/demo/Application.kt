@@ -105,7 +105,11 @@ private fun Application.wireDemoSchedulers(
     monitor.subscribe(ApplicationStopping) { httpClient.close() }
 
     val riskClient = RiskOrchestratorHttpClient(httpClient, config.riskOrchestratorUrl)
-    val limitSeedJob = LimitSeedJob(riskClient)
+    val limitSeedJob = LimitSeedJob(
+        client = riskClient,
+        breachBook = config.breachBook,
+        breachFactor = config.breachVarFactor,
+    )
 
     launch {
         runLimitSeedSafely(limitSeedJob, reason = "startup")

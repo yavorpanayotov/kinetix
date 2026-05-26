@@ -3,6 +3,7 @@ package com.kinetix.demo.config
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
+import java.math.BigDecimal
 import java.time.LocalTime
 
 class DemoConfigTest : FunSpec({
@@ -18,6 +19,8 @@ class DemoConfigTest : FunSpec({
         config.tradingHoursStart shouldBe LocalTime.of(9, 0)
         config.tradingHoursEnd shouldBe LocalTime.of(16, 30)
         config.tradeCadenceSeconds shouldBe 90L
+        config.breachBook shouldBe "derivatives-book"
+        config.breachVarFactor shouldBe BigDecimal("0.50")
     }
 
     test("reads KAFKA_BOOTSTRAP_SERVERS from env") {
@@ -60,6 +63,16 @@ class DemoConfigTest : FunSpec({
         DemoConfig.fromEnv { env[it] }.tradeCadenceSeconds shouldBe 30L
     }
 
+    test("reads DEMO_BREACH_BOOK from env") {
+        val env = mapOf("DEMO_BREACH_BOOK" to "macro-hedge")
+        DemoConfig.fromEnv { env[it] }.breachBook shouldBe "macro-hedge"
+    }
+
+    test("reads DEMO_BREACH_VAR_FACTOR from env") {
+        val env = mapOf("DEMO_BREACH_VAR_FACTOR" to "0.25")
+        DemoConfig.fromEnv { env[it] }.breachVarFactor shouldBe BigDecimal("0.25")
+    }
+
     test("supports overriding every field together") {
         val env = mapOf(
             "DEMO_MODE" to "true",
@@ -70,6 +83,8 @@ class DemoConfigTest : FunSpec({
             "DEMO_TRADING_HOURS_START" to "07:30",
             "DEMO_TRADING_HOURS_END" to "18:15",
             "DEMO_TRADE_CADENCE_SECONDS" to "45",
+            "DEMO_BREACH_BOOK" to "tech-momentum",
+            "DEMO_BREACH_VAR_FACTOR" to "0.4",
         )
 
         val config = DemoConfig.fromEnv { env[it] }
@@ -82,6 +97,16 @@ class DemoConfigTest : FunSpec({
         config.tradingHoursStart shouldBe LocalTime.of(7, 30)
         config.tradingHoursEnd shouldBe LocalTime.of(18, 15)
         config.tradeCadenceSeconds shouldBe 45L
+        config.breachBook shouldBe "tech-momentum"
+        config.breachVarFactor shouldBe BigDecimal("0.4")
+    }
+
+    test("invalid DEMO_BREACH_VAR_FACTOR throws with a clear message") {
+        val env = mapOf("DEMO_BREACH_VAR_FACTOR" to "not-a-number")
+        val ex = shouldThrow<IllegalArgumentException> {
+            DemoConfig.fromEnv { env[it] }
+        }
+        ex.message!!.contains("DEMO_BREACH_VAR_FACTOR") shouldBe true
     }
 
     test("DEMO_MODE values other than 'true' are treated as false") {
