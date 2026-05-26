@@ -68,7 +68,7 @@ from kinetix_insights.chat.conversation_store import (
     ConversationStore,
     ConversationTurn,
 )
-from kinetix_insights.chat.models import ChatChunk, ChatRequest
+from kinetix_insights.chat.models import ChatChunk, ChatRequest, ToolCall
 from kinetix_insights.chat.sanitiser import sanitise_message
 from kinetix_insights.citations.models import TIMEOUT_FLAG, Citation
 from kinetix_insights.citations.symbol_verifier import find_uncited_symbols
@@ -120,6 +120,44 @@ def _extract_citations(message: Any) -> list[Citation]:
             ):
                 collected.extend(block_citations)
     return collected
+
+
+def _extract_tool_event(
+    message: Any,
+) -> tuple[str | None, str | None, dict[str, Any] | None, bool | None]:
+    """Inspect a message's content blocks for tool-use or tool-result events.
+
+    Returns a 4-tuple:
+    - ``(tool_use_id, name, input, None)`` when the first content block is
+      a tool-use event (``block.type == "tool_use"``).
+    - ``(tool_use_id, None, None, is_error)`` when it is a tool-result event
+      (``block.type == "tool_result"``).
+    - ``(None, None, None, None)`` when the message carries no tool event.
+
+    This is the counterpart to :func:`_extract_citations` — both inspect
+    the same ``message.content`` block list, but for different block types.
+    """
+
+    content = getattr(message, "content", None)
+    if not isinstance(content, list) or not content:
+        return None, None, None, None
+    block = content[0]
+    block_type = getattr(block, "type", None)
+    if block_type == "tool_use":
+        return (
+            str(getattr(block, "id", "") or ""),
+            str(getattr(block, "name", "") or ""),
+            dict(getattr(block, "input", {}) or {}),
+            None,
+        )
+    if block_type == "tool_result":
+        return (
+            str(getattr(block, "tool_use_id", "") or ""),
+            None,
+            None,
+            bool(getattr(block, "is_error", False)),
+        )
+    return None, None, None, None
 
 
 def _format_history(history: list[ConversationTurn]) -> str:
@@ -242,6 +280,10 @@ class ClaudeAgentCopilotChatClient:
 
         accumulated: list[str] = []
         citations: list[Citation] = []
+        tool_calls: list[ToolCall] = []
+        # Tracks in-flight tool uses by id; maps tool_use_id →
+        # (name, params, started_at) so the matching result can close them.
+        _pending_tool_uses: dict[str, tuple[str, dict[str, Any], datetime]] = {}
         timed_out = False
 
         stream = query(prompt=prompt)
@@ -258,12 +300,40 @@ class ClaudeAgentCopilotChatClient:
                     break
                 text = _extract_text(message)
                 citations.extend(_extract_citations(message))
+                # Tool-event handling: open a pending entry on tool-use;
+                # close it with status on tool-result.
+                tool_use_id, tool_name, tool_input, is_error = _extract_tool_event(
+                    message
+                )
+                if tool_name is not None and tool_use_id is not None:
+                    # tool-use event: record the open entry
+                    _pending_tool_uses[tool_use_id] = (
+                        tool_name,
+                        tool_input or {},
+                        datetime.now(timezone.utc),
+                    )
+                elif is_error is not None and tool_use_id is not None:
+                    # tool-result event: close the matching pending entry
+                    pending = _pending_tool_uses.pop(tool_use_id, None)
+                    if pending is not None:
+                        name, params, started_at = pending
+                        tool_calls.append(
+                            ToolCall(
+                                name=name,
+                                params=params,
+                                status="error" if is_error else "ok",
+                                started_at=started_at,
+                                completed_at=datetime.now(timezone.utc),
+                            )
+                        )
                 if text:
                     accumulated.append(text)
                     yield ChatChunk(delta=text, done=False)
         except Exception:
             yield self._upstream_error_frame()
             return
+
+        tool_calls_field = tool_calls if tool_calls else None
 
         if timed_out:
             # A per-message timeout is a structured signal, not an error
@@ -275,6 +345,7 @@ class ClaudeAgentCopilotChatClient:
             yield ChatChunk(
                 done=True,
                 citations=citations,
+                tool_calls=tool_calls_field,
                 mode="live",
                 model=self.model,
             )
@@ -289,6 +360,7 @@ class ClaudeAgentCopilotChatClient:
             yield ChatChunk(
                 done=True,
                 error_code=POLICY_VIOLATION,
+                tool_calls=tool_calls_field,
                 mode="live",
                 model=self.model,
             )
@@ -304,6 +376,7 @@ class ClaudeAgentCopilotChatClient:
                 done=True,
                 error_code=_CITATION_UNVERIFIABLE,
                 citations=citations or None,
+                tool_calls=tool_calls_field,
                 mode="live",
                 model=self.model,
             )
@@ -312,6 +385,7 @@ class ClaudeAgentCopilotChatClient:
         yield ChatChunk(
             done=True,
             citations=citations or None,
+            tool_calls=tool_calls_field,
             mode="live",
             model=self.model,
         )
