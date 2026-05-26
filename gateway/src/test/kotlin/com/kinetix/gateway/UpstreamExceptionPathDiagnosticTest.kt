@@ -4,21 +4,26 @@ import com.kinetix.gateway.client.HttpRiskServiceClient
 import com.kinetix.gateway.testing.BackendStubServer
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.testing.testApplication
+import kotlinx.coroutines.delay
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import java.net.ServerSocket
 
 /**
  * Phase 0 diagnostic: pins the actual exception path and gateway response status
@@ -326,6 +331,96 @@ class UpstreamExceptionPathDiagnosticTest : FunSpec({
                 response.status shouldBe HttpStatusCode.InternalServerError
                 val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
                 body["error"]?.jsonPrimitive?.content shouldBe "upstream_error"
+            }
+        } finally {
+            httpClient.close()
+            backend.close()
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // Phase 1: Transport exception handlers (kx-s4a)
+    //
+    // These three tests cover the residual 500 risk identified in the diagnostic:
+    // ConnectException (upstream unreachable) and HttpRequestTimeoutException
+    // (upstream too slow) currently fall to the Throwable catch-all → 500.
+    // After the fix they should map to 503 and 504 respectively.
+    // ---------------------------------------------------------------------------
+
+    test("upstream unreachable (no server bound) returns 503, not 500") {
+        // Grab a free port then close the socket so nothing is listening on it.
+        // The CIO engine will throw ConnectException immediately when it tries to connect.
+        val freePort = ServerSocket(0).use { it.localPort }
+        val httpClient = HttpClient(CIO) {
+            install(ClientContentNegotiation) { json() }
+            install(HttpTimeout) {
+                connectTimeoutMillis = 500
+                requestTimeoutMillis = 2_000
+            }
+        }
+        try {
+            val riskClient = HttpRiskServiceClient(httpClient, "http://localhost:$freePort")
+            testApplication {
+                application { module(riskClient) }
+                // Any of the risk endpoints will trigger a connection attempt.
+                val response = client.get("/api/v1/risk/krd/book-1")
+                response.status shouldBe HttpStatusCode.ServiceUnavailable
+                val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+                body["error"]?.jsonPrimitive?.content shouldBe "upstream_unavailable"
+            }
+        } finally {
+            httpClient.close()
+        }
+    }
+
+    test("503 response for unreachable upstream includes Retry-After header") {
+        val freePort = ServerSocket(0).use { it.localPort }
+        val httpClient = HttpClient(CIO) {
+            install(ClientContentNegotiation) { json() }
+            install(HttpTimeout) {
+                connectTimeoutMillis = 500
+                requestTimeoutMillis = 2_000
+            }
+        }
+        try {
+            val riskClient = HttpRiskServiceClient(httpClient, "http://localhost:$freePort")
+            testApplication {
+                application { module(riskClient) }
+                val response = client.get("/api/v1/risk/krd/book-1")
+                response.status shouldBe HttpStatusCode.ServiceUnavailable
+                response.headers[HttpHeaders.RetryAfter] shouldNotBe null
+            }
+        } finally {
+            httpClient.close()
+        }
+    }
+
+    test("upstream timeout returns 504, not 500") {
+        // The stub server delays its response beyond the client request timeout.
+        // The CIO HttpTimeout plugin cancels the request and throws
+        // HttpRequestTimeoutException. The gateway must map this to 504.
+        val backend = BackendStubServer {
+            get("/api/v1/risk/krd/book-1") {
+                // Delay longer than the client timeout below (200 ms).
+                delay(2_000)
+                call.respond(HttpStatusCode.OK)
+            }
+        }
+        val httpClient = HttpClient(CIO) {
+            install(ClientContentNegotiation) { json() }
+            install(HttpTimeout) {
+                requestTimeoutMillis = 200
+                connectTimeoutMillis = 2_000
+            }
+        }
+        try {
+            val riskClient = HttpRiskServiceClient(httpClient, backend.baseUrl)
+            testApplication {
+                application { module(riskClient) }
+                val response = client.get("/api/v1/risk/krd/book-1")
+                response.status shouldBe HttpStatusCode.GatewayTimeout
+                val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+                body["error"]?.jsonPrimitive?.content shouldBe "upstream_timeout"
             }
         } finally {
             httpClient.close()
