@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Wifi, WifiOff, Inbox, Settings, Download, Eye, EyeOff, StickyNote } from 'lucide-react'
 import type { PositionDto, PositionNoteDto, PositionRiskDto } from '../types'
 import { formatMoney, formatSignedMoney, formatNum, formatQuantity, pnlColorClass } from '../utils/format'
+import { formatPrice } from '../utils/formatPrice'
 import { formatCompactCurrency } from '../utils/formatCompactCurrency'
 import { exportToCsv } from '../utils/exportCsv'
 import { useWorkspace } from '../hooks/useWorkspace'
@@ -64,6 +65,12 @@ const POSITION_COLUMNS: ColumnDef[] = [
   { key: 'displayName', label: 'Name', align: 'left' },
   { key: 'instrumentType', label: 'Type', align: 'left' },
   { key: 'assetClass', label: 'Asset Class', align: 'left' },
+  // Last Price (kx-m2v) — always-visible column showing the current mark for
+  // the instrument. Separate from the hidden-by-default Market Price detail
+  // column: a viewer who only sees Market Value cannot judge whether the price
+  // is realistic, so Last Price is surfaced alongside it as the "story behind
+  // the value". Formatting precision follows asset class (see formatPrice).
+  { key: 'lastPrice', label: 'Last Price', align: 'right' },
   { key: 'quantity', label: 'Quantity', align: 'right' },
   { key: 'avgCost', label: 'Avg Cost', align: 'right' },
   { key: 'marketPrice', label: 'Market Price', align: 'right' },
@@ -296,6 +303,7 @@ export function PositionGrid({ positions, connected, reconnecting, lastConnected
         displayName: pos.displayName || '',
         instrumentType: pos.instrumentType || '',
         assetClass: pos.assetClass,
+        lastPrice: pos.marketPrice.amount,
         quantity: pos.quantity,
         avgCost: pos.averageCost.amount,
         marketPrice: pos.marketPrice.amount,
@@ -573,6 +581,15 @@ export function PositionGrid({ positions, connected, reconnecting, lastConnected
                   displayName: <td key="displayName" className="px-4 py-2 text-sm text-slate-600 dark:text-slate-400">{pos.displayName || '—'}</td>,
                   instrumentType: <td key="instrumentType" className="px-4 py-2 text-sm">{pos.instrumentType ? <InstrumentTypeBadge instrumentType={pos.instrumentType} /> : '—'}</td>,
                   assetClass: <td key="assetClass" className="px-4 py-2 text-sm text-slate-600 dark:text-slate-400">{pos.assetClass}</td>,
+                  lastPrice: (
+                    <td
+                      key="lastPrice"
+                      data-testid={`last-price-${pos.instrumentId}`}
+                      className={`px-4 py-2 text-sm text-right whitespace-nowrap ${reconnecting ? 'opacity-60' : ''}`}
+                    >
+                      {formatPrice(pos.marketPrice.amount, pos.marketPrice.currency, pos.assetClass)}
+                    </td>
+                  ),
                   quantity: <td key="quantity" className="px-4 py-2 text-sm text-right">{formatQuantity(pos.quantity)}</td>,
                   avgCost: <td key="avgCost" className="px-4 py-2 text-sm text-right">{formatMoney(pos.averageCost.amount, pos.averageCost.currency)}</td>,
                   marketPrice: <td key="marketPrice" className={`px-4 py-2 text-sm text-right ${reconnecting ? 'opacity-60' : ''}`}>{formatMoney(pos.marketPrice.amount, pos.marketPrice.currency)}</td>,

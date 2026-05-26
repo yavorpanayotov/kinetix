@@ -20,10 +20,12 @@ describe('PositionGrid', () => {
   it('renders risk-first default headers (no quantity/avg cost/market price by default)', () => {
     render(<PositionGrid positions={[makePosition()]} />)
 
-    // Default risk-first columns
+    // Default risk-first columns — Last Price (kx-m2v) is visible by default
+    // so a viewer immediately sees the current mark per instrument.
     const visibleHeaders = [
       'Instrument',
       'Asset Class',
+      'Last Price',
       'Market Value',
       'Unrealized P&L',
     ]
@@ -40,6 +42,32 @@ describe('PositionGrid', () => {
         screen.queryByRole('columnheader', { name: header }),
       ).not.toBeInTheDocument()
     })
+  })
+
+  it('renders the Last Price column with a non-zero asset-class-aware value (kx-m2v)', () => {
+    const positions = [
+      makePosition({
+        instrumentId: 'AAPL',
+        assetClass: 'EQUITY',
+        marketPrice: { amount: '185.20', currency: 'USD' },
+      }),
+      makePosition({
+        instrumentId: 'EURUSD',
+        assetClass: 'FX',
+        marketPrice: { amount: '1.08543', currency: 'USD' },
+      }),
+      makePosition({
+        instrumentId: 'US10Y',
+        assetClass: 'BOND',
+        marketPrice: { amount: '98.765', currency: 'USD' },
+      }),
+    ]
+    render(<PositionGrid positions={positions} />)
+
+    // Equity → 2dp, FX → 4dp, Bond → 3dp.
+    expect(screen.getByTestId('last-price-AAPL')).toHaveTextContent('$185.20')
+    expect(screen.getByTestId('last-price-EURUSD')).toHaveTextContent('$1.0854')
+    expect(screen.getByTestId('last-price-US10Y')).toHaveTextContent('$98.765')
   })
 
   it('renders position row data', () => {
@@ -557,7 +585,9 @@ describe('PositionGrid', () => {
       const row = screen.getByTestId('position-row-AAPL')
       expect(within(row).getByText('100')).toBeInTheDocument()
       expect(within(row).getByText('$150.00')).toBeInTheDocument()
-      expect(within(row).getByText('$155.00')).toBeInTheDocument()
+      // $155.00 now appears in both the always-visible Last Price column and
+      // the Market Price detail column — assert via getAllByText instead.
+      expect(within(row).getAllByText('$155.00').length).toBeGreaterThanOrEqual(1)
     })
 
     it('clicking Details twice toggles columns back off', async () => {

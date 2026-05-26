@@ -65,6 +65,7 @@ import { DEMO_MODE } from './auth/demoPersonas'
 import { PersonaSwitcher } from './components/PersonaSwitcher'
 import { DemoWelcomeStrip } from './components/DemoWelcomeStrip'
 import { BootstrapBanner } from './components/BootstrapBanner'
+import { DemoBootstrapGate } from './components/DemoBootstrapGate'
 import { KeyboardShortcutsOverlay } from './components/KeyboardShortcutsOverlay'
 import { CommandPalette, type CommandItem } from './components/CommandPalette'
 import { CopilotLauncher } from './components/CopilotLauncher'
@@ -820,7 +821,7 @@ function AppContent() {
         ) : (
           <>
             {activeTab === 'positions' && (
-              <>
+              <DemoBootstrapGate>
                 {loading && <p className="text-gray-500">Loading positions...</p>}
                 {error && (
                   <div
@@ -887,7 +888,7 @@ function AppContent() {
                     />
                   </div>
                 )}
-              </>
+              </DemoBootstrapGate>
             )}
 
             {activeTab === 'trades' && (
@@ -922,10 +923,13 @@ function AppContent() {
                 )}
 
                 {activeTab === 'pnl' && (
-                  <PnlTab bookId={bookId} />
+                  <DemoBootstrapGate>
+                    <PnlTab bookId={bookId} />
+                  </DemoBootstrapGate>
                 )}
 
                 {activeTab === 'risk' && (
+                  <DemoBootstrapGate>
                   <RiskTab
                     bookId={bookId}
                     stressResults={stress.results}
@@ -945,6 +949,7 @@ function AppContent() {
                     onShowAlerts={() => setActiveTab('alerts')}
                     initialValuationDate={riskInitialValuationDate}
                   />
+                  </DemoBootstrapGate>
                 )}
 
                 {activeTab === 'eod' && (
@@ -971,9 +976,11 @@ function AppContent() {
                 )}
 
                 {activeTab === 'regulatory' && (
-                  <ErrorBoundary fallback={<SectionErrorCard name="Regulatory" />}>
-                    <RegulatoryTab bookId={bookId} />
-                  </ErrorBoundary>
+                  <DemoBootstrapGate>
+                    <ErrorBoundary fallback={<SectionErrorCard name="Regulatory" />}>
+                      <RegulatoryTab bookId={bookId} />
+                    </ErrorBoundary>
+                  </DemoBootstrapGate>
                 )}
 
                 {activeTab === 'counterparty-risk' && (

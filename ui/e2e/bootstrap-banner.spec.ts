@@ -18,13 +18,15 @@ test.describe('Bootstrap banner', () => {
     let callCount = 0
     await page.route('**/demo/bootstrap-status', (route) => {
       callCount += 1
-      // First two polls are IN_PROGRESS; from the third onward we report
-      // READY so the banner auto-dismisses within the polling window.
+      // First six polls are IN_PROGRESS — this gives both the banner and the
+      // sibling DemoBootstrapGate enough IN_PROGRESS responses (each polls
+      // independently, and StrictMode double-mounts each in dev) before
+      // flipping to READY so both can auto-dismiss within the polling window.
       const body =
-        callCount <= 2
+        callCount <= 6
           ? {
               state: 'IN_PROGRESS',
-              successCount: callCount,
+              successCount: Math.min(callCount, 7),
               failureCount: 0,
               sodSuccessCount: null,
               sodFailureCount: null,
