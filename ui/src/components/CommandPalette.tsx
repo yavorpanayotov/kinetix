@@ -172,6 +172,11 @@ export function CommandPalette({
     fromBookName: string | null
     toBookName: string | null
   } | null>(null)
+  // Tracks whether a conversation was started in the current or most recently
+  // closed palette session. Survives palette close so the bookId useEffect
+  // can check it even while the palette is closed (stream state is cleared
+  // on close, so it can't be used as the sentinel there).
+  const hadConversationRef = useRef(false)
 
   // Saved copilot queries (§8.3). The "Copilot" group in the empty-query
   // state renders these as chips; saving a free-form query from the
@@ -202,7 +207,13 @@ export function CommandPalette({
       setCopilotAnswered(false)
       setCopilotCompletionMode(null)
       setFollowup('')
-      setBookResetBanner(null)
+      // Reset the conversation-tracking ref for the new session. Any question
+      // asked in this open will flip it back to true.
+      hadConversationRef.current = false
+      // bookResetBanner is NOT cleared here — a banner set while the palette
+      // was closed (due to a book switch) must be visible when it next opens.
+      // The banner is only dismissed by the user typing (onChange handler) or
+      // the next streamed answer (askCopilot clears it).
       setSavedQueries(loadSavedQueries())
       setSavedQueryNotice(null)
       inputRef.current?.focus()
@@ -212,7 +223,6 @@ export function CommandPalette({
       setCopilotAnswered(false)
       setCopilotCompletionMode(null)
       setFollowup('')
-      setBookResetBanner(null)
     }
   }, [open])
 
@@ -296,11 +306,10 @@ export function CommandPalette({
     // Only act when bookId actually changed.
     if (bookId === prevBookIdRef.current) return
 
-    const hasCopilotState = copilotStream !== null || copilotAnswered
-
-    if (hasCopilotState) {
+    if (hadConversationRef.current) {
       const fromBook = prevBookIdRef.current ?? null
       prevBookIdRef.current = bookId
+      hadConversationRef.current = false
       setCopilotStream(null)
       setCopilotCitations([])
       setCopilotAnswered(false)
@@ -310,10 +319,6 @@ export function CommandPalette({
     } else {
       prevBookIdRef.current = bookId
     }
-    // `copilotStream` and `copilotAnswered` are read inside the effect
-    // but not listed as dependencies — we only want to trigger on bookId
-    // changes, not on copilot-state churns.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookId])
 
   if (!open) return null
@@ -340,9 +345,11 @@ export function CommandPalette({
   const askCopilot = (message: string) => {
     const trimmed = message.trim()
     if (trimmed.length === 0) return
+    hadConversationRef.current = true
     setCopilotCitations([])
     setCopilotAnswered(false)
     setCopilotCompletionMode(null)
+    setBookResetBanner(null)
     setCopilotStream(chatFn({ message: trimmed, page_context: {} }))
   }
 
