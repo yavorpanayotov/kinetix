@@ -44,7 +44,7 @@ services:
   ai-insights-service:
     image: kinetix/ai-insights-service:latest
     volumes:
-      - ~/.claude:/root/.claude:ro
+      - ~/.claude:/home/kinetix/.claude:ro
     ports:
       - "8095:8095"
 ```
