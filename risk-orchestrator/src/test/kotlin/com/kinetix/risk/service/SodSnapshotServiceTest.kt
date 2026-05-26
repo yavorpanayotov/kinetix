@@ -147,6 +147,7 @@ class SodSnapshotServiceTest : FunSpec({
         coEvery { varCache.get(PORTFOLIO.value) } returns null
         coEvery { positionProvider.getPositions(PORTFOLIO) } returns listOf(position())
         coEvery { varCalculationService.calculateVaR(any(), any(), runLabel = any()) } returns result
+        every { varCache.put(any(), any()) } just Runs
         coEvery { dailyRiskSnapshotRepository.saveAll(any()) } just Runs
         coEvery { sodBaselineRepository.save(any()) } just Runs
 
@@ -154,6 +155,52 @@ class SodSnapshotServiceTest : FunSpec({
 
         coVerify { varCalculationService.calculateVaR(any(), any(), runLabel = RunLabel.SOD) }
         coVerify { dailyRiskSnapshotRepository.saveAll(any()) }
+    }
+
+    test("writes freshly-calculated VaR back to the cache so subsequent reads stay warm") {
+        // In demo mode the daily SOD job is the only deterministic source of fresh
+        // VaR — without this write-back the cache empties shortly after start-of-day
+        // and the hierarchy aggregation reports every book as missing for the rest
+        // of the trading day.
+        val result = valuationResult()
+        coEvery { varCache.get(PORTFOLIO.value) } returns null
+        coEvery { positionProvider.getPositions(PORTFOLIO) } returns listOf(position())
+        coEvery { varCalculationService.calculateVaR(any(), any(), runLabel = any()) } returns result
+        every { varCache.put(any(), any()) } just Runs
+        coEvery { dailyRiskSnapshotRepository.saveAll(any()) } just Runs
+        coEvery { sodBaselineRepository.save(any()) } just Runs
+
+        service.createSnapshot(PORTFOLIO, SnapshotType.AUTO, date = TODAY)
+
+        verify(exactly = 1) { varCache.put(PORTFOLIO.value, result) }
+    }
+
+    test("does not call cache.put when fresh cached result is used (no-op recompute)") {
+        val freshResult = valuationResult().copy(
+            calculatedAt = Instant.now().minus(java.time.Duration.ofMinutes(30)),
+        )
+        coEvery { varCache.get(PORTFOLIO.value) } returns freshResult
+        coEvery { positionProvider.getPositions(PORTFOLIO) } returns listOf(position())
+        coEvery { dailyRiskSnapshotRepository.saveAll(any()) } just Runs
+        coEvery { sodBaselineRepository.save(any()) } just Runs
+
+        service.createSnapshot(PORTFOLIO, SnapshotType.AUTO, date = TODAY)
+
+        verify(exactly = 0) { varCache.put(any(), any()) }
+    }
+
+    test("does not call cache.put when caller supplies a pre-computed ValuationResult") {
+        // When the caller already has a ValuationResult (e.g. createSnapshotFromJob),
+        // we honour their result without round-tripping through the cache — the cache
+        // is the recompute path's responsibility.
+        val result = valuationResult()
+        coEvery { positionProvider.getPositions(PORTFOLIO) } returns listOf(position())
+        coEvery { dailyRiskSnapshotRepository.saveAll(any()) } just Runs
+        coEvery { sodBaselineRepository.save(any()) } just Runs
+
+        service.createSnapshot(PORTFOLIO, SnapshotType.MANUAL, result, TODAY)
+
+        verify(exactly = 0) { varCache.put(any(), any()) }
     }
 
     test("replaces existing baseline when creating new snapshot for same date") {
@@ -384,6 +431,7 @@ class SodSnapshotServiceTest : FunSpec({
         coEvery { varCache.get(PORTFOLIO.value) } returns null
         coEvery { positionProvider.getPositions(PORTFOLIO) } returns listOf(position())
         coEvery { varCalculationService.calculateVaR(any(), any(), runLabel = any()) } returns result
+        every { varCache.put(any(), any()) } just Runs
         coEvery { dailyRiskSnapshotRepository.saveAll(any()) } just Runs
         coEvery { sodBaselineRepository.save(any()) } just Runs
 
@@ -400,6 +448,7 @@ class SodSnapshotServiceTest : FunSpec({
         coEvery { varCache.get(PORTFOLIO.value) } returns staleResult
         coEvery { positionProvider.getPositions(PORTFOLIO) } returns listOf(position())
         coEvery { varCalculationService.calculateVaR(any(), any(), runLabel = any()) } returns freshResult
+        every { varCache.put(any(), any()) } just Runs
         coEvery { dailyRiskSnapshotRepository.saveAll(any()) } just Runs
         coEvery { sodBaselineRepository.save(any()) } just Runs
 

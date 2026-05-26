@@ -254,7 +254,14 @@ class SodSnapshotService(
             confidenceLevel = ConfidenceLevel.CL_95,
             requestedOutputs = ValuationOutput.entries.toSet(),
         )
-        return varCalculationService.calculateVaR(request, TriggerType.SCHEDULED, runLabel = RunLabel.SOD, triggeredBy = "SYSTEM")
+        val result = varCalculationService.calculateVaR(request, TriggerType.SCHEDULED, runLabel = RunLabel.SOD, triggeredBy = "SYSTEM")
+        // Write back so downstream readers (HierarchyRiskService, limit checks) see a
+        // populated cache after SOD. In demo mode this is the main daily refresh; without
+        // it the cache stays cold from SOD all the way to the next EOD promotion.
+        if (result != null) {
+            varCache.put(bookId.value, result)
+        }
+        return result
     }
 
     private fun isFreshEnough(result: ValuationResult): Boolean {
