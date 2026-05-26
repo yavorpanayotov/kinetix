@@ -905,6 +905,12 @@ export interface PositionRiskFixture {
   vega: string | null
   theta: string | null
   rho: string | null
+  /**
+   * DV01 (dollar value of a 1bp parallel rates shift). Surfaced only for
+   * FIXED_INCOME positions; optional in the fixture so existing equity/FX
+   * fixtures stay unchanged.
+   */
+  dv01?: string | null
   varContribution: string
   esContribution: string
   percentageOfTotal: string
@@ -1392,6 +1398,8 @@ export const TEST_POSITION_RISK_FULL: PositionRiskFixture[] = [
   { instrumentId: 'AAPL', assetClass: 'EQUITY', marketValue: '15500.00', delta: '155.00', gamma: '2.50', vega: '45.00', theta: '-12.50', rho: '8.00', varContribution: '5000.00', esContribution: '7500.00', percentageOfTotal: '35.00' },
   { instrumentId: 'EUR_USD', assetClass: 'FX', marketValue: '10850.00', delta: '108.50', gamma: null, vega: null, theta: null, rho: '15.00', varContribution: '3000.00', esContribution: '4500.00', percentageOfTotal: '21.00' },
   { instrumentId: 'GOOGL', assetClass: 'EQUITY', marketValue: '142500.00', delta: '1425.00', gamma: '15.00', vega: '350.00', theta: '-42.00', rho: '95.00', varContribution: '2000.00', esContribution: '3000.00', percentageOfTotal: '14.00' },
+  // Rates instrument — DV01 column should be populated for this row (kx-dmw).
+  { instrumentId: 'UST_10Y', assetClass: 'FIXED_INCOME', marketValue: '500000.00', delta: '425.00', gamma: null, vega: null, theta: null, rho: '4250.00', dv01: '4250.75', varContribution: '1500.00', esContribution: '2200.00', percentageOfTotal: '12.00' },
 ]
 
 export const TEST_JOB_HISTORY = {

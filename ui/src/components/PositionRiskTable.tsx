@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import { ChevronDown, ChevronUp, Download, RefreshCw } from 'lucide-react'
 import type { MarketRegime, PositionRiskDto } from '../types'
-import { formatNum } from '../utils/format'
+import { formatMoney, formatNum } from '../utils/format'
 import { formatAssetClassLabel } from '../utils/formatAssetClass'
 import { exportToCsv } from '../utils/exportCsv'
 import { Card, Spinner } from './ui'
@@ -17,10 +17,22 @@ type SortField =
   | 'vega'
   | 'theta'
   | 'rho'
+  | 'dv01'
   | 'varContribution'
   | 'esContribution'
   | 'percentageOfTotal'
 type SortDirection = 'asc' | 'desc'
+
+/**
+ * DV01 (dollar value of a basis point) is a rates-only risk metric. We
+ * display it for FIXED_INCOME rows and render an em-dash for every other
+ * asset class so the column is always present (consistent column count
+ * across rows) without misleading traders into thinking equity/FX
+ * instruments carry a meaningful DV01.
+ */
+function isRatesInstrument(assetClass: string): boolean {
+  return assetClass === 'FIXED_INCOME'
+}
 
 /** Signature of the injectable `chatFn` — mirrors `chat` in `api/copilot`. */
 type ChatFn = (
@@ -99,7 +111,7 @@ function sameTarget(a: ExplainTarget | null, b: ExplainTarget): boolean {
 }
 
 function numericValue(row: PositionRiskDto, field: SortField, useAbsolute: boolean): number {
-  const raw = row[field]
+  const raw = field === 'dv01' ? row.dv01 : row[field]
   if (raw == null) return -Infinity
   const num = Number(raw)
   return useAbsolute ? Math.abs(num) : num
@@ -118,6 +130,7 @@ const COLUMNS: { label: string; tooltip?: string; field: SortField; sortable: tr
   { label: 'Vega', tooltip: '$/1pp vol', field: 'vega', sortable: true },
   { label: 'Theta', tooltip: '$/day', field: 'theta', sortable: true },
   { label: 'Rho', tooltip: '$/bp', field: 'rho', sortable: true },
+  { label: 'DV01', tooltip: 'Dollar value of a 1bp parallel rates shift (USD) — FIXED_INCOME only', field: 'dv01', sortable: true },
   { label: 'VaR Contrib', field: 'varContribution', sortable: true },
   { label: 'ES Contrib', field: 'esContribution', sortable: true },
   { label: '% Total', field: 'percentageOfTotal', sortable: true },
@@ -199,6 +212,7 @@ export function PositionRiskTable({ data, loading, error, onRetry, activeScenari
       row.vega ?? '',
       row.theta ?? '',
       row.rho ?? '',
+      isRatesInstrument(row.assetClass) ? (row.dv01 ?? '') : '',
       row.varContribution,
       row.esContribution,
       `${row.percentageOfTotal}%`,
@@ -330,6 +344,14 @@ export function PositionRiskTable({ data, loading, error, onRetry, activeScenari
                         <td className="py-2 pr-3 text-right font-mono">
                           {row.rho != null ? formatNum(row.rho) : '\u2014'}
                         </td>
+                        <td
+                          data-testid={`dv01-${row.instrumentId}`}
+                          className="py-2 pr-3 text-right font-mono"
+                        >
+                          {isRatesInstrument(row.assetClass) && row.dv01 != null
+                            ? formatMoney(row.dv01, 'USD')
+                            : '\u2014'}
+                        </td>
                         <td className="py-2 pr-3 text-right font-mono">{formatNum(row.varContribution)}</td>
                         <td className="py-2 pr-3 text-right font-mono">{formatNum(row.esContribution)}</td>
                         <td
@@ -365,7 +387,7 @@ export function PositionRiskTable({ data, loading, error, onRetry, activeScenari
                       </tr>
                       {isExpanded && (
                         <tr data-testid={`position-risk-detail-${row.instrumentId}`}>
-                          <td colSpan={12} className="bg-slate-50 px-4 py-3 border-b border-slate-200">
+                          <td colSpan={13} className="bg-slate-50 px-4 py-3 border-b border-slate-200">
                             <div className="grid grid-cols-4 gap-4 text-xs">
                               <div>
                                 <span className="text-slate-500">Market Value</span>
@@ -399,6 +421,17 @@ export function PositionRiskTable({ data, loading, error, onRetry, activeScenari
                                 <span className="text-slate-500">Theta</span>
                                 <p className="font-mono font-medium">{row.theta != null ? formatNum(row.theta) : '\u2014'}</p>
                               </div>
+                              {isRatesInstrument(row.assetClass) && (
+                                <div>
+                                  <span className="text-slate-500">DV01</span>
+                                  <p
+                                    data-testid={`dv01-detail-${row.instrumentId}`}
+                                    className="font-mono font-medium"
+                                  >
+                                    {row.dv01 != null ? formatMoney(row.dv01, 'USD') : '\u2014'}
+                                  </p>
+                                </div>
+                              )}
                             </div>
                           </td>
                         </tr>

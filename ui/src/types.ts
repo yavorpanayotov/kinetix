@@ -40,6 +40,13 @@ export interface PositionRiskDto {
   vega: string | null
   theta: string | null
   rho: string | null
+  /**
+   * Dollar value of a 1bp parallel shift in rates (DV01). Surfaced only for
+   * FIXED_INCOME positions; non-rates rows render an em-dash in the table.
+   * Optional/nullable because the backend payload may omit it until the
+   * risk-orchestrator surfaces a per-position DV01 field.
+   */
+  dv01?: string | null
   varContribution: string
   esContribution: string
   percentageOfTotal: string
