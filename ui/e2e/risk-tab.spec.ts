@@ -482,13 +482,16 @@ test.describe('Position Risk Table - Sorting and Export', () => {
     await goToRiskTab(page)
     await page.waitForSelector('[data-testid="position-risk-table"]')
 
-    // Click VaR Contribution to toggle to ascending
+    // Click VaR Contribution to toggle to ascending.
+    // VaR values: AAPL=5000, EUR_USD=3000, GOOGL=2000, UST_10Y=1500.
+    // Ascending: UST_10Y, GOOGL, EUR_USD, AAPL.
     await page.getByTestId('sort-varContribution').click()
 
     const rows = page.locator('[data-testid^="position-risk-row-"]')
-    await expect(rows.nth(0)).toContainText('GOOGL')
-    await expect(rows.nth(1)).toContainText('EUR_USD')
-    await expect(rows.nth(2)).toContainText('AAPL')
+    await expect(rows.nth(0)).toContainText('UST_10Y')
+    await expect(rows.nth(1)).toContainText('GOOGL')
+    await expect(rows.nth(2)).toContainText('EUR_USD')
+    await expect(rows.nth(3)).toContainText('AAPL')
 
     // Click again to toggle back to descending
     await page.getByTestId('sort-varContribution').click()
@@ -499,15 +502,16 @@ test.describe('Position Risk Table - Sorting and Export', () => {
     await goToRiskTab(page)
     await page.waitForSelector('[data-testid="position-risk-table"]')
 
-    // Click delta header to sort by delta descending
+    // Click delta header to sort by delta descending (signed, not absolute).
     await page.getByTestId('sort-delta').click()
 
-    // Delta values: AAPL=155, EUR_USD=108.50, GOOGL=1425
-    // Descending: GOOGL(1425), AAPL(155), EUR_USD(108.50)
+    // Delta values: AAPL=155, EUR_USD=108.50, GOOGL=1425, UST_10Y=425
+    // Descending signed: GOOGL(1425), UST_10Y(425), AAPL(155), EUR_USD(108.50)
     const rows = page.locator('[data-testid^="position-risk-row-"]')
     await expect(rows.nth(0)).toContainText('GOOGL')
-    await expect(rows.nth(1)).toContainText('AAPL')
-    await expect(rows.nth(2)).toContainText('EUR_USD')
+    await expect(rows.nth(1)).toContainText('UST_10Y')
+    await expect(rows.nth(2)).toContainText('AAPL')
+    await expect(rows.nth(3)).toContainText('EUR_USD')
   })
 
   test('CSV export downloads position-risk.csv with correct headers and data', async ({ page }) => {
@@ -533,14 +537,60 @@ test.describe('Position Risk Table - Sorting and Export', () => {
     expect(header).toContain('Asset Class')
     expect(header).toContain('VaR Contrib')
 
-    // 3 data rows + 1 header = 4 lines
-    expect(lines).toHaveLength(4)
+    // 4 data rows + 1 header = 5 lines (AAPL, EUR_USD, GOOGL, UST_10Y).
+    expect(lines).toHaveLength(5)
 
     // Data rows contain raw values
     const dataContent = lines.slice(1).join('\n')
     expect(dataContent).toContain('AAPL')
     expect(dataContent).toContain('EUR_USD')
     expect(dataContent).toContain('GOOGL')
+    expect(dataContent).toContain('UST_10Y')
+    // DV01 column populated for the rates row.
+    expect(dataContent).toContain('4250.75')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Position Risk Table - DV01 column (rates instruments, kx-dmw)
+// ---------------------------------------------------------------------------
+
+test.describe('Position Risk Table - DV01 column (rates instruments)', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockAllApiRoutes(page)
+    await mockRiskTabRoutes(page, {
+      varResult: TEST_VAR_RESULT,
+      positionRisk: TEST_POSITION_RISK_FULL,
+      jobHistory: TEST_JOB_HISTORY,
+    })
+  })
+
+  test('DV01 column header is visible on the Risk tab position table', async ({ page }) => {
+    await goToRiskTab(page)
+    await page.waitForSelector('[data-testid="position-risk-table"]')
+
+    const header = page.getByTestId('sort-dv01')
+    await expect(header).toBeVisible()
+    await expect(header).toContainText('DV01')
+  })
+
+  test('DV01 cell shows a non-zero USD value for a FIXED_INCOME (UST) row', async ({ page }) => {
+    await goToRiskTab(page)
+    await page.waitForSelector('[data-testid="position-risk-table"]')
+
+    const cell = page.getByTestId('dv01-UST_10Y')
+    await expect(cell).toBeVisible()
+    // Formatted as USD ($4,250.75 from fixture dv01='4250.75').
+    await expect(cell).toContainText('$4,250.75')
+  })
+
+  test('DV01 cell renders em-dash for equity rows', async ({ page }) => {
+    await goToRiskTab(page)
+    await page.waitForSelector('[data-testid="position-risk-table"]')
+
+    const cell = page.getByTestId('dv01-AAPL')
+    await expect(cell).toBeVisible()
+    await expect(cell).toContainText('—')
   })
 })
 

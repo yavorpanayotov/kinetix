@@ -58,6 +58,7 @@ describe('PositionRiskTable', () => {
         'Vega',
         'Theta',
         'Rho',
+        'DV01',
         'VaR Contrib',
         'ES Contrib',
         '% Total',
@@ -102,7 +103,99 @@ describe('PositionRiskTable', () => {
 
       const row = screen.getByTestId('position-risk-row-AAPL')
       const cells = within(row).getAllByText('\u2014')
-      expect(cells).toHaveLength(5)
+      // 5 null Greeks (delta, gamma, vega, theta, rho) + DV01 (non-FIXED_INCOME
+      // row always renders em-dash for DV01).
+      expect(cells).toHaveLength(6)
+    })
+  })
+
+  describe('DV01 column (rates-only)', () => {
+    it('renders the DV01 column header with rates-only tooltip', () => {
+      render(<PositionRiskTable data={[makeRisk()]} loading={false} />)
+
+      const header = screen.getByTestId('sort-dv01')
+      expect(header).toHaveTextContent('DV01')
+      expect(header).toHaveAttribute(
+        'title',
+        expect.stringContaining('FIXED_INCOME'),
+      )
+    })
+
+    it('shows the DV01 value formatted as USD for a FIXED_INCOME row', () => {
+      render(
+        <PositionRiskTable
+          data={[
+            makeRisk({
+              instrumentId: 'UST_10Y',
+              assetClass: 'FIXED_INCOME',
+              dv01: '4250.75',
+            }),
+          ]}
+          loading={false}
+        />,
+      )
+
+      const cell = screen.getByTestId('dv01-UST_10Y')
+      // formatMoney(..., 'USD') rounds to cents and uses en-US locale.
+      expect(cell).toHaveTextContent('$4,250.75')
+    })
+
+    it('renders an em-dash in the DV01 cell for non-FIXED_INCOME rows even when dv01 is supplied', () => {
+      render(
+        <PositionRiskTable
+          data={[
+            makeRisk({
+              instrumentId: 'AAPL',
+              assetClass: 'EQUITY',
+              dv01: '999.99',
+            }),
+          ]}
+          loading={false}
+        />,
+      )
+
+      const cell = screen.getByTestId('dv01-AAPL')
+      expect(cell).toHaveTextContent('\u2014')
+      expect(cell).not.toHaveTextContent('999')
+    })
+
+    it('renders an em-dash in the DV01 cell for a FIXED_INCOME row when dv01 is null', () => {
+      render(
+        <PositionRiskTable
+          data={[
+            makeRisk({
+              instrumentId: 'UST_2Y',
+              assetClass: 'FIXED_INCOME',
+              dv01: null,
+            }),
+          ]}
+          loading={false}
+        />,
+      )
+
+      const cell = screen.getByTestId('dv01-UST_2Y')
+      expect(cell).toHaveTextContent('\u2014')
+    })
+
+    it('shows DV01 in the expanded detail panel for a FIXED_INCOME row', async () => {
+      const user = userEvent.setup()
+      render(
+        <PositionRiskTable
+          data={[
+            makeRisk({
+              instrumentId: 'UST_10Y',
+              assetClass: 'FIXED_INCOME',
+              dv01: '4250.75',
+            }),
+          ]}
+          loading={false}
+        />,
+      )
+
+      await user.click(screen.getByTestId('position-risk-row-UST_10Y'))
+
+      const detail = screen.getByTestId('dv01-detail-UST_10Y')
+      expect(detail).toHaveTextContent('$4,250.75')
     })
   })
 
