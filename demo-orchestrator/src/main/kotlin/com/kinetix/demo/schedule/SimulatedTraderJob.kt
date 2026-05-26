@@ -43,8 +43,10 @@ import kotlin.random.Random
  *
  * ## Pricing
  *
- * Prices come from the in-memory [DefaultPriceBook] (per-asset-class
- * indicative spots). Real `price-service` integration is out of scope here
+ * Prices come from the in-memory [PriceBook] — typically the richer
+ * [SimulatedPriceBook] in production, which ships per-instrument seed
+ * prices and drifts them via a small Gaussian random walk so every demo
+ * tick looks alive. Real `price-service` integration is out of scope here
  * and lands in a later checkbox.
  *
  * ## Execution-cost and reconciliation seeding
@@ -52,7 +54,7 @@ import kotlin.random.Random
  * After each successfully booked trade the job posts one synthetic
  * execution-cost sample via
  * [PositionServiceClient.recordExecutionCost] so the Trades > Execution Cost
- * subtab renders non-empty data. For a deterministically sampled ~5% of
+ * subtab renders non-empty data. For a deterministically sampled ~1% of
  * trades it also uploads a prime-broker statement that deliberately
  * mismatches the book's internal positions via
  * [PositionServiceClient.uploadPrimeBrokerStatement], so the server-side
@@ -77,7 +79,7 @@ import kotlin.random.Random
 class SimulatedTraderJob(
     private val positionClient: PositionServiceClient,
     private val strategyIdResolver: StrategyIdResolver,
-    private val priceBook: DefaultPriceBook = DefaultPriceBook(),
+    private val priceBook: PriceBook = DefaultPriceBook(),
     private val books: List<DemoBookProfile> = DemoBookProfiles.all(),
     private val tradingHoursStart: LocalTime,
     private val tradingHoursEnd: LocalTime,
@@ -98,6 +100,12 @@ class SimulatedTraderJob(
 
         if (now.dayOfWeek == DayOfWeek.SATURDAY || now.dayOfWeek == DayOfWeek.SUNDAY) {
             logger.debug("Skipping SimulatedTraderJob tick — {} is a weekend", now.dayOfWeek)
+            return 0
+        }
+
+        val today = now.toLocalDate()
+        if (isUsMarketHoliday(today)) {
+            logger.debug("Skipping SimulatedTraderJob tick — {} is a US market holiday", today)
             return 0
         }
 
@@ -247,7 +255,7 @@ class SimulatedTraderJob(
             profile.notionalRangeUsd.first,
             profile.notionalRangeUsd.last + 1,
         )
-        val price = priceBook.priceFor(profile.assetClass)
+        val price = priceBook.priceFor(instrumentId, profile.assetClass)
         val quantity = maxOf(
             1L,
             notional.toBigDecimal()
@@ -288,8 +296,8 @@ class SimulatedTraderJob(
     }
 
     companion object {
-        /** ~5% of booked trades also produce a reconciliation break. */
-        const val DEFAULT_RECONCILIATION_BREAK_PROBABILITY: Double = 0.05
+        /** ~1% of booked trades also produce a reconciliation break (kx-3rm). */
+        const val DEFAULT_RECONCILIATION_BREAK_PROBABILITY: Double = 0.01
 
         /** Decimal scale for basis-point execution-cost metrics. */
         private const val SLIPPAGE_SCALE: Int = 4
