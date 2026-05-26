@@ -683,3 +683,220 @@ describe('CommandPalette — copilot mode', () => {
     ).not.toBeInTheDocument()
   })
 })
+
+describe('CommandPalette — book-boundary conversation reset', () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+  })
+
+  afterEach(() => {
+    window.localStorage.clear()
+  })
+
+  it('resets copilot state and shows banner when bookId changes while copilot state is non-empty', async () => {
+    const chatFn = vi.fn<ChatFn>(
+      (): ReadableStream<ChatChunk> =>
+        streamOf({ type: 'delta', delta: 'Answer about book A.' }, doneChunk),
+    )
+    const { rerender } = render(
+      <CommandPalette
+        open={true}
+        onClose={vi.fn()}
+        items={buildItems(vi.fn())}
+        copilotMode
+        chatFn={chatFn}
+        bookId="book-A"
+      />,
+    )
+    // Ask a question to put non-empty copilot state in place.
+    const input = screen.getByTestId('command-palette-input')
+    fireEvent.change(input, { target: { value: 'zzznomatch var' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    // Wait for the stream to settle so copilotAnswered / copilotStream are non-empty.
+    await waitFor(() =>
+      expect(screen.getByTestId('streaming-narrative-text')).toHaveTextContent('Answer about book A.'),
+    )
+
+    // Switch to a different book.
+    rerender(
+      <CommandPalette
+        open={true}
+        onClose={vi.fn()}
+        items={buildItems(vi.fn())}
+        copilotMode
+        chatFn={chatFn}
+        bookId="book-B"
+      />,
+    )
+
+    // Banner must appear.
+    await waitFor(() =>
+      expect(screen.getByTestId('command-palette-book-reset-banner')).toBeInTheDocument(),
+    )
+    // Copilot response is cleared.
+    expect(screen.queryByTestId('command-palette-copilot-response')).not.toBeInTheDocument()
+  })
+
+  it('banner text contains the new book name', async () => {
+    const chatFn = vi.fn<ChatFn>(
+      (): ReadableStream<ChatChunk> =>
+        streamOf({ type: 'delta', delta: 'Some answer.' }, doneChunk),
+    )
+    const { rerender } = render(
+      <CommandPalette
+        open={true}
+        onClose={vi.fn()}
+        items={buildItems(vi.fn())}
+        copilotMode
+        chatFn={chatFn}
+        bookId="alpha-book"
+      />,
+    )
+    const input = screen.getByTestId('command-palette-input')
+    fireEvent.change(input, { target: { value: 'zzznomatch question' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() =>
+      expect(screen.getByTestId('streaming-narrative-text')).toHaveTextContent('Some answer.'),
+    )
+
+    rerender(
+      <CommandPalette
+        open={true}
+        onClose={vi.fn()}
+        items={buildItems(vi.fn())}
+        copilotMode
+        chatFn={chatFn}
+        bookId="beta-book"
+      />,
+    )
+
+    await waitFor(() =>
+      expect(screen.getByTestId('command-palette-book-reset-banner')).toBeInTheDocument(),
+    )
+    expect(screen.getByTestId('command-palette-book-reset-banner')).toHaveTextContent('beta-book')
+  })
+
+  it('typing a new message dismisses the banner', async () => {
+    const chatFn = vi.fn<ChatFn>(
+      (): ReadableStream<ChatChunk> =>
+        streamOf({ type: 'delta', delta: 'Answer.' }, doneChunk),
+    )
+    const { rerender } = render(
+      <CommandPalette
+        open={true}
+        onClose={vi.fn()}
+        items={buildItems(vi.fn())}
+        copilotMode
+        chatFn={chatFn}
+        bookId="book-X"
+      />,
+    )
+    const input = screen.getByTestId('command-palette-input')
+    fireEvent.change(input, { target: { value: 'zzznomatch question' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() =>
+      expect(screen.getByTestId('streaming-narrative-text')).toHaveTextContent('Answer.'),
+    )
+
+    rerender(
+      <CommandPalette
+        open={true}
+        onClose={vi.fn()}
+        items={buildItems(vi.fn())}
+        copilotMode
+        chatFn={chatFn}
+        bookId="book-Y"
+      />,
+    )
+
+    await waitFor(() =>
+      expect(screen.getByTestId('command-palette-book-reset-banner')).toBeInTheDocument(),
+    )
+
+    // Typing any character dismisses the banner.
+    fireEvent.change(input, { target: { value: 'h' } })
+    expect(screen.queryByTestId('command-palette-book-reset-banner')).not.toBeInTheDocument()
+  })
+
+  it('re-rendering with the same bookId does NOT reset or show a banner', async () => {
+    const chatFn = vi.fn<ChatFn>(
+      (): ReadableStream<ChatChunk> =>
+        streamOf({ type: 'delta', delta: 'Stable answer.' }, doneChunk),
+    )
+    const { rerender } = render(
+      <CommandPalette
+        open={true}
+        onClose={vi.fn()}
+        items={buildItems(vi.fn())}
+        copilotMode
+        chatFn={chatFn}
+        bookId="same-book"
+      />,
+    )
+    const input = screen.getByTestId('command-palette-input')
+    fireEvent.change(input, { target: { value: 'zzznomatch question' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() =>
+      expect(screen.getByTestId('streaming-narrative-text')).toHaveTextContent('Stable answer.'),
+    )
+
+    rerender(
+      <CommandPalette
+        open={true}
+        onClose={vi.fn()}
+        items={buildItems(vi.fn())}
+        copilotMode
+        chatFn={chatFn}
+        bookId="same-book"
+      />,
+    )
+
+    expect(screen.queryByTestId('command-palette-book-reset-banner')).not.toBeInTheDocument()
+    // Copilot response persists.
+    expect(screen.getByTestId('command-palette-copilot-response')).toBeInTheDocument()
+  })
+
+  it('re-rendering with bookId=null while previously set DOES reset', async () => {
+    const chatFn = vi.fn<ChatFn>(
+      (): ReadableStream<ChatChunk> =>
+        streamOf({ type: 'delta', delta: 'Initial answer.' }, doneChunk),
+    )
+    const { rerender } = render(
+      <CommandPalette
+        open={true}
+        onClose={vi.fn()}
+        items={buildItems(vi.fn())}
+        copilotMode
+        chatFn={chatFn}
+        bookId="some-book"
+      />,
+    )
+    const input = screen.getByTestId('command-palette-input')
+    fireEvent.change(input, { target: { value: 'zzznomatch question' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() =>
+      expect(screen.getByTestId('streaming-narrative-text')).toHaveTextContent('Initial answer.'),
+    )
+
+    rerender(
+      <CommandPalette
+        open={true}
+        onClose={vi.fn()}
+        items={buildItems(vi.fn())}
+        copilotMode
+        chatFn={chatFn}
+        bookId={null}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(screen.getByTestId('command-palette-book-reset-banner')).toBeInTheDocument(),
+    )
+    expect(screen.queryByTestId('command-palette-copilot-response')).not.toBeInTheDocument()
+  })
+})

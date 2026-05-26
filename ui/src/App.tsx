@@ -1063,6 +1063,7 @@ function AppContent() {
         items={commandPaletteItems}
         copilotMode
         pendingSavedQuery={pendingSavedQuery}
+        bookId={effectiveBookId ?? bookId}
       />
 
       <HedgeRecommendationPanel

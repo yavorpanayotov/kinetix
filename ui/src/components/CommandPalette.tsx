@@ -67,6 +67,13 @@ interface CommandPaletteProps {
    * closes. Ignored when `copilotMode` is `false`.
    */
   pendingSavedQuery?: SavedQuery | null
+  /**
+   * Plan §4.1 — the currently active book identifier. When this changes
+   * while the palette holds non-empty copilot state, the conversation is
+   * reset and a one-line banner is shown to signal the context switch.
+   * Accepts `null` for the all-books / firm-level view.
+   */
+  bookId?: string | null
 }
 
 const RECENT_KEY = 'kinetix:command-palette:recent'
@@ -131,6 +138,7 @@ export function CommandPalette({
   copilotMode = false,
   chatFn = chat,
   pendingSavedQuery = null,
+  bookId = null,
 }: CommandPaletteProps) {
   const [query, setQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
@@ -156,6 +164,14 @@ export function CommandPalette({
     'live' | 'canned' | null
   >(null)
   const [followup, setFollowup] = useState('')
+
+  // Plan §4.1 — one-line in-palette banner shown when the active book
+  // changes while a copilot conversation is in progress or completed.
+  // Dismissed on the next user keystroke or the next streamed response.
+  const [bookResetBanner, setBookResetBanner] = useState<{
+    fromBookName: string | null
+    toBookName: string | null
+  } | null>(null)
 
   // Saved copilot queries (§8.3). The "Copilot" group in the empty-query
   // state renders these as chips; saving a free-form query from the
@@ -186,6 +202,7 @@ export function CommandPalette({
       setCopilotAnswered(false)
       setCopilotCompletionMode(null)
       setFollowup('')
+      setBookResetBanner(null)
       setSavedQueries(loadSavedQueries())
       setSavedQueryNotice(null)
       inputRef.current?.focus()
@@ -195,6 +212,7 @@ export function CommandPalette({
       setCopilotAnswered(false)
       setCopilotCompletionMode(null)
       setFollowup('')
+      setBookResetBanner(null)
     }
   }, [open])
 
@@ -264,6 +282,39 @@ export function CommandPalette({
     // re-running only when the pending query itself changes is correct.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, copilotMode, pendingSavedQuery])
+
+  // Plan §4.1 — reset the copilot conversation when the active book
+  // changes while non-empty copilot state exists. The `bookId` prop is
+  // tracked via a ref so the effect can compare the previous value.
+  const prevBookIdRef = useRef<string | null | undefined>(undefined)
+  useEffect(() => {
+    // On the very first render, just record the initial bookId — no reset.
+    if (prevBookIdRef.current === undefined) {
+      prevBookIdRef.current = bookId
+      return
+    }
+    // Only act when bookId actually changed.
+    if (bookId === prevBookIdRef.current) return
+
+    const hasCopilotState = copilotStream !== null || copilotAnswered
+
+    if (hasCopilotState) {
+      const fromBook = prevBookIdRef.current ?? null
+      prevBookIdRef.current = bookId
+      setCopilotStream(null)
+      setCopilotCitations([])
+      setCopilotAnswered(false)
+      setCopilotCompletionMode(null)
+      setFollowup('')
+      setBookResetBanner({ fromBookName: fromBook, toBookName: bookId ?? null })
+    } else {
+      prevBookIdRef.current = bookId
+    }
+    // `copilotStream` and `copilotAnswered` are read inside the effect
+    // but not listed as dependencies — we only want to trigger on bookId
+    // changes, not on copilot-state churns.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookId])
 
   if (!open) return null
 
@@ -399,6 +450,7 @@ export function CommandPalette({
             onChange={(e) => {
               setQuery(e.target.value)
               setSelectedIndex(0)
+              setBookResetBanner(null)
             }}
             onKeyDown={handleKeyDown}
             placeholder={
@@ -554,6 +606,16 @@ export function CommandPalette({
             data-testid="command-palette-copilot-zone"
             className="border-t border-slate-200 dark:border-surface-700 px-3 py-3 max-h-[40vh] overflow-y-auto"
           >
+            {bookResetBanner && (
+              <div
+                data-testid="command-palette-book-reset-banner"
+                className="mb-2 bg-slate-800 border-l-2 border-amber-500 px-3 py-2 text-xs text-slate-300"
+              >
+                Conversation reset — switched to{' '}
+                {bookResetBanner.toBookName ?? 'all books'}.
+              </div>
+            )}
+
             {!copilotStream && (
               <div
                 data-testid="command-palette-copilot-hint"
