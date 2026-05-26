@@ -384,6 +384,37 @@ HISTORICAL_SCENARIOS: dict[str, StressScenario] = {
         },
         category=ScenarioCategory.REGULATORY_MANDATED,
     ),
+    "+100BPS_PARALLEL": StressScenario(
+        # @guidance: Canned demo scenario surfaced on the Risk overview tile
+        # (issue kx-wxy). Parallel +100bp shift across the rates curve. Using
+        # an assumed modified duration of 8y for the FI book (broad IG bond
+        # index proxy), a +100bp move maps to a -8% price impact, i.e. price
+        # shock factor of 0.92. Equity is modestly discounted via a +100bp
+        # discount-rate increase (price_shock ≈ 0.98), and derivative price
+        # shock follows equity's tail per the parametric grid convention.
+        # FX and commodity are held flat — a parallel rates shock does not
+        # mechanically move those asset classes in isolation.
+        # No vol or correlation override — this is a deterministic delta-PV
+        # tile, not a tail-risk scenario.
+        name="+100BPS_PARALLEL",
+        description="+100bps parallel rates shock (8y duration FI proxy)",
+        vol_shocks={
+            AssetClass.EQUITY: 1.0,
+            AssetClass.FIXED_INCOME: 1.0,
+            AssetClass.FX: 1.0,
+            AssetClass.COMMODITY: 1.0,
+            AssetClass.DERIVATIVE: 1.0,
+        },
+        correlation_override=None,
+        price_shocks={
+            AssetClass.EQUITY: 0.98,
+            AssetClass.FIXED_INCOME: 0.92,  # -8% via 8y modified duration on +100bp
+            AssetClass.FX: 1.0,
+            AssetClass.COMMODITY: 1.0,
+            AssetClass.DERIVATIVE: 0.975,
+        },
+        category=ScenarioCategory.INTERNAL_APPROVED,
+    ),
     "EM_CONTAGION": StressScenario(
         # @guidance: Stylised EM contagion scenario (composite of 1994 Tequila Crisis,
         # 1997 Asian Financial Crisis, 1998 Russian default). EM equities fall 20%,

@@ -147,6 +147,24 @@ class TestHistoricalScenarios:
     def test_em_contagion_is_internal_approved(self):
         assert get_scenario("EM_CONTAGION").category == ScenarioCategory.INTERNAL_APPROVED
 
+    # --- Canned demo scenario: +100bps parallel rates shock (kx-wxy) ---
+
+    def test_plus_100bps_parallel_is_registered(self):
+        scenario = get_scenario("+100BPS_PARALLEL")
+        assert scenario.name == "+100BPS_PARALLEL"
+        assert "100bps" in scenario.description.lower() or "+100bp" in scenario.description.lower()
+
+    def test_plus_100bps_parallel_drops_fixed_income_via_8y_duration(self):
+        # +100bp parallel shift on an 8y-duration FI book → ~-8% price impact, i.e. price_shock ≈ 0.92.
+        scenario = get_scenario("+100BPS_PARALLEL")
+        assert scenario.price_shocks[AssetClass.FIXED_INCOME] == pytest.approx(0.92)
+
+    def test_plus_100bps_parallel_is_internal_approved(self):
+        assert get_scenario("+100BPS_PARALLEL").category == ScenarioCategory.INTERNAL_APPROVED
+
+    def test_plus_100bps_parallel_listed_among_scenarios(self):
+        assert "+100BPS_PARALLEL" in list_scenarios()
+
 
 class TestParametricGrid:
     @pytest.mark.unit
