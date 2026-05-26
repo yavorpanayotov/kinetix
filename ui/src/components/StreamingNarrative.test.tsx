@@ -1,6 +1,6 @@
 import { act, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ChatChunk, Citation } from '../api/copilot'
+import type { ChatChunk, Citation, ToolCall } from '../api/copilot'
 import { StreamingNarrative } from './StreamingNarrative'
 
 /**
@@ -76,6 +76,17 @@ function makeCitation(overrides: Partial<Citation> = {}): Citation {
     data_source: 'risk-engine',
     freshness_seconds: 30,
     quality_flags: [],
+    ...overrides,
+  }
+}
+
+function makeToolCall(overrides: Partial<ToolCall> = {}): ToolCall {
+  return {
+    name: 'get_book_var',
+    params: { book_id: 'fx-main' },
+    status: 'ok',
+    started_at: '2026-05-19T08:00:00.000Z',
+    completed_at: '2026-05-19T08:00:00.250Z',
     ...overrides,
   }
 }
@@ -470,5 +481,54 @@ describe('StreamingNarrative', () => {
     expect(banner).toHaveTextContent('Something went wrong')
     expect(banner).toHaveTextContent('Something went wrong generating this answer.')
     expect(banner).toHaveClass('bg-rose-500/10')
+  })
+
+  it('renders the ToolCallList below the citation list when the done chunk includes tool_calls', async () => {
+    const toolCalls = [
+      makeToolCall({ name: 'get_book_var' }),
+      makeToolCall({ name: 'get_greeks_summary', started_at: '2026-05-19T08:00:00.250Z', completed_at: '2026-05-19T08:00:00.480Z' }),
+    ]
+    const stream = streamOf(
+      { type: 'delta', delta: 'VaR is elevated.' },
+      {
+        type: 'done',
+        session_id: 's-1',
+        conversation_id: 'c-1',
+        model: 'canned-chat',
+        mode: 'canned',
+        tool_calls: toolCalls,
+      },
+    )
+
+    render(<StreamingNarrative stream={stream} reducedMotion />)
+
+    await flushPumpAndRaf()
+    await flushPumpAndRaf()
+
+    expect(screen.getByTestId('streaming-narrative')).toHaveAttribute('data-state', 'complete')
+    // The reasoning panel must appear.
+    expect(screen.getByTestId('tool-call-list')).toBeInTheDocument()
+    // Both rows must render.
+    expect(screen.getAllByTestId('tool-call-row')).toHaveLength(2)
+  })
+
+  it('does not render the ToolCallList when done chunk has no tool_calls', async () => {
+    const stream = streamOf(
+      { type: 'delta', delta: 'Short answer.' },
+      {
+        type: 'done',
+        session_id: 's-1',
+        conversation_id: 'c-1',
+        model: 'canned-chat',
+        mode: 'canned',
+      },
+    )
+
+    render(<StreamingNarrative stream={stream} reducedMotion />)
+
+    await flushPumpAndRaf()
+    await flushPumpAndRaf()
+
+    expect(screen.queryByTestId('tool-call-list')).not.toBeInTheDocument()
   })
 })

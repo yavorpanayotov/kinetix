@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import type { ChatChunk, Citation } from '../api/copilot'
+import type { ChatChunk, Citation, ToolCall } from '../api/copilot'
 import { mapChatErrorCode } from '../api/copilot'
+import { ToolCallList } from './ToolCallList'
 
 /**
  * Visual / lifecycle states surfaced via the wrapper's ``data-state``
@@ -187,6 +188,7 @@ export function StreamingNarrative({
   )
   const [renderedText, setRenderedText] = useState('')
   const [citations, setCitations] = useState<Citation[]>([])
+  const [toolCalls, setToolCalls] = useState<ToolCall[] | undefined>(undefined)
   const [errorCode, setErrorCode] = useState<string | undefined>(undefined)
 
   // Buffered token accumulator (kept out of React state so we can
@@ -264,6 +266,7 @@ export function StreamingNarrative({
     completedRef.current = false
     setRenderedText('')
     setCitations([])
+    setToolCalls(undefined)
     setErrorCode(undefined)
 
     const session: StreamSession = {
@@ -369,6 +372,7 @@ export function StreamingNarrative({
             citationsBufferRef.current = []
             setRenderedText(accumulatorRef.current)
             setCitations((prev) => mergeUniqueCitations(prev, mergedCitations))
+            setToolCalls(value.tool_calls)
             setErrorCode(value.error_code)
             setState(value.error_code ? 'error' : 'complete')
             if (!completedRef.current && onComplete) {
@@ -490,6 +494,8 @@ export function StreamingNarrative({
           ))}
         </ul>
       )}
+
+      <ToolCallList toolCalls={toolCalls} />
     </div>
   )
 }
