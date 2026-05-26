@@ -639,6 +639,23 @@ class DevDataSeeder(
                 CommodityOption(underlyingId = "CL", optionType = OptionType.PUT, strike = 70.0, expiryDate = "2026-12-28", contractMultiplier = 100.0),
                 "Crude Oil Put 70 Dec2026", "USD",
             ),
+            // ── kx-90w: derivatives-book demo placeholders ──
+            // DemoBookProfiles' derivatives-book uses these ids so a vol PM can
+            // see structured option detail (strike, expiry, underlying) in the
+            // first 60 seconds. Implied vol lives on the volatility-service
+            // surface, not on the instrument record.
+            "SPX-OPT-5000C" to InstrumentConfig(
+                EquityOption(underlyingId = "IDX-SPX", optionType = OptionType.CALL, strike = 5000.0, expiryDate = "2026-06-19", exerciseStyle = ExerciseStyle.EUROPEAN, contractMultiplier = 100.0),
+                "SPX Call 5000 Jun2026", "USD",
+            ),
+            "ES-FUT-MAR" to InstrumentConfig(
+                EquityFuture(underlyingId = "IDX-SPX", expiryDate = "2026-03-20", contractSize = 50.0, currency = "USD"),
+                "E-mini S&P 500 Mar2026 Future", "USD",
+            ),
+            "VIX-OPT-20C" to InstrumentConfig(
+                EquityOption(underlyingId = "IDX-VIX", optionType = OptionType.CALL, strike = 20.0, expiryDate = "2026-06-18", exerciseStyle = ExerciseStyle.EUROPEAN, contractMultiplier = 100.0),
+                "VIX Call 20 Jun2026", "USD",
+            ),
         )
 
         private val CREDIT_SPREADS: Map<String, CreditSpreadConfig> = mapOf(
