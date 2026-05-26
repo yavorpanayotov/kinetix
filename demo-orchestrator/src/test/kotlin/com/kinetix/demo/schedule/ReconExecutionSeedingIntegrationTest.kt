@@ -101,7 +101,7 @@ class ReconExecutionSeedingIntegrationTest : FunSpec({
 
             val job = SimulatedTraderJob(
                 positionClient = positionClient,
-                strategyIdResolver = DefaultStrategyIdResolver(),
+                strategyIdResolver = DefaultStrategyIdResolver(positionClient = positionClient),
                 priceBook = DefaultPriceBook(),
                 books = listOf(book),
                 tradingHoursStart = LocalTime.of(9, 0),
@@ -242,6 +242,21 @@ private fun startFakePositionService(state: FakePositionServiceState) =
             json(Json { ignoreUnknownKeys = true; isLenient = true; encodeDefaults = true })
         }
         routing {
+            // List seeded strategies for a book — mirrors
+            // GET /api/v1/books/{bookId}/strategies on position-service so the
+            // DefaultStrategyIdResolver can discover the kx-bg3 sub-strategies.
+            get("/api/v1/books/{bookId}/strategies") {
+                val bookId = call.parameters["bookId"].orEmpty()
+                val items = listOf("$bookId-dividend", "$bookId-quality").joinToString(",") { id ->
+                    """{"strategyId":"$id","bookId":"$bookId","strategyType":"CUSTOM","name":"$id","createdAt":"2026-05-18T00:00:00Z"}"""
+                }
+                call.respondText(
+                    text = "[$items]",
+                    contentType = ContentType.Application.Json,
+                    status = HttpStatusCode.OK,
+                )
+            }
+
             // Book a trade — records the internal position so reconciliation
             // can detect a break against a mismatched prime-broker statement.
             post("/api/v1/books/{bookId}/strategies/{strategyId}/trades") {

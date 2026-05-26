@@ -52,4 +52,15 @@ interface PositionServiceClient {
         bookId: String,
         request: PrimeBrokerStatementRequest,
     )
+
+    /**
+     * Lists the strategy ids currently persisted for [bookId] by calling
+     * `GET /api/v1/books/{bookId}/strategies`.
+     *
+     * The demo orchestrator uses this to discover the realistic
+     * sub-strategies seeded by `position-service`'s `DevDataSeeder` instead of
+     * synthesizing a single `"{bookId}-default"` id. Returns an empty list
+     * when no strategies are seeded for the book.
+     */
+    suspend fun listStrategies(bookId: String): List<String>
 }

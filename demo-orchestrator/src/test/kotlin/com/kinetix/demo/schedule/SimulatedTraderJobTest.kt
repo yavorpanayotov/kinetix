@@ -54,8 +54,11 @@ class SimulatedTraderJobTest : FunSpec({
         assetClass = "FX",
     )
 
-    fun stubResolver(): StrategyIdResolver = object : StrategyIdResolver {
-        override fun strategyIdFor(bookId: String): String = "$bookId-strategy"
+    fun stubResolver(
+        strategiesByBook: Map<String, List<String>> = emptyMap(),
+    ): StrategyIdResolver = object : StrategyIdResolver {
+        override suspend fun strategiesFor(bookId: String): List<String> =
+            strategiesByBook[bookId] ?: listOf("$bookId-strategy")
     }
 
     test("Saturday is a no-op — no trades are posted") {
@@ -440,5 +443,73 @@ class SimulatedTraderJobTest : FunSpec({
 
         runTest { job.runTick() shouldBe 0 }
         coVerify(exactly = 0) { client.bookTrade(any(), any(), any()) }
+    }
+
+    test("distributes trades across all strategies in a book over many ticks") {
+        // Over enough ticks the trader should hit every strategy at least
+        // once — verifies the uniform-random pick is not collapsing to one.
+        val client = mockk<PositionServiceClient>()
+        val captured = mutableListOf<Triple<String, String, StrategyTradeRequest>>()
+        coEvery { client.bookTrade(any(), any(), any()) } answers {
+            captured += Triple(firstArg<String>(), secondArg<String>(), thirdArg<StrategyTradeRequest>())
+            "trade-${captured.size}"
+        }
+        coEvery { client.recordExecutionCost(any(), any()) } returns Unit
+        coEvery { client.uploadPrimeBrokerStatement(any(), any()) } returns Unit
+
+        val strategies = listOf("equity-growth-core", "equity-growth-satellite")
+        val resolver = stubResolver(strategiesByBook = mapOf("equity-growth" to strategies))
+        val clock = fixedClock(atUtc("2026-05-18", "12:00:00"))
+        val job = SimulatedTraderJob(
+            positionClient = client,
+            strategyIdResolver = resolver,
+            books = listOf(sampleEquityBook),
+            tradingHoursStart = tradingHoursStart,
+            tradingHoursEnd = tradingHoursEnd,
+            clock = clock,
+            random = Random(seed = 11),
+        )
+
+        runTest {
+            // 50 ticks at trade-prob=1.0 → 50..150 booked trades.
+            repeat(50) { job.runTick() }
+        }
+
+        captured.size shouldBeGreaterThan 0
+        val byStrategy = captured.groupingBy { it.second }.eachCount()
+        // Every strategy was used at least once → distribution is real, not
+        // collapsed to a single id.
+        byStrategy.keys shouldBe strategies.toSet()
+        byStrategy.values.forEach { count -> count shouldBeGreaterThan 0 }
+    }
+
+    test("picks the single strategy when a book has only one") {
+        // Backward-compat path: resolver returns a single-element list →
+        // every trade goes there, just like the legacy resolver behaviour.
+        val client = mockk<PositionServiceClient>()
+        val captured = mutableListOf<String>()
+        coEvery { client.bookTrade(any(), any(), any()) } answers {
+            captured += secondArg<String>()
+            "trade-${captured.size}"
+        }
+        coEvery { client.recordExecutionCost(any(), any()) } returns Unit
+        coEvery { client.uploadPrimeBrokerStatement(any(), any()) } returns Unit
+
+        val resolver = stubResolver(strategiesByBook = mapOf("equity-growth" to listOf("only-one")))
+        val clock = fixedClock(atUtc("2026-05-18", "12:00:00"))
+        val job = SimulatedTraderJob(
+            positionClient = client,
+            strategyIdResolver = resolver,
+            books = listOf(sampleEquityBook),
+            tradingHoursStart = tradingHoursStart,
+            tradingHoursEnd = tradingHoursEnd,
+            clock = clock,
+            random = Random(seed = 7),
+        )
+
+        runTest { job.runTick() }
+
+        captured.size shouldBeGreaterThan 0
+        captured.toSet() shouldBe setOf("only-one")
     }
 })

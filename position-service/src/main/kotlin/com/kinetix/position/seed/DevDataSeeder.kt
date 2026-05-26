@@ -10,10 +10,13 @@ import com.kinetix.position.model.BookHierarchyMapping
 import com.kinetix.position.model.LimitDefinition
 import com.kinetix.position.model.LimitLevel
 import com.kinetix.position.model.LimitType
+import com.kinetix.position.model.StrategyType
+import com.kinetix.position.model.TradeStrategy
 import com.kinetix.position.persistence.BookHierarchyRepository
 import com.kinetix.position.persistence.LimitDefinitionRepository
 import com.kinetix.position.persistence.PositionRepository
 import com.kinetix.position.persistence.TradeEventRepository
+import com.kinetix.position.persistence.TradeStrategyRepository
 import com.kinetix.position.service.AmendTradeCommand
 import com.kinetix.position.service.BookTradeCommand
 import com.kinetix.position.service.CancelTradeCommand
@@ -35,6 +38,7 @@ class DevDataSeeder(
     private val tapeTradesEnabled: Boolean = true,
     private val tradeLifecycleService: TradeLifecycleService? = null,
     private val bookHierarchyRepository: BookHierarchyRepository? = null,
+    private val tradeStrategyRepository: TradeStrategyRepository? = null,
 ) {
     private val log = LoggerFactory.getLogger(DevDataSeeder::class.java)
 
@@ -213,6 +217,12 @@ class DevDataSeeder(
         // returns zero VaR — the visible $0.00 ticker-strip / Firm-Summary bug.
         seedBookHierarchy()
 
+        // Strategy seeding runs independently for the same reason as
+        // book-hierarchy — backfills warm restarts where strategies are
+        // missing. Without these, the demo orchestrator's SimulatedTraderJob
+        // has no real strategy ids to spread trades across (kx-bg3).
+        seedStrategies()
+
         log.info("Dev data seeding complete")
     }
 
@@ -226,6 +236,47 @@ class DevDataSeeder(
         for (mapping in BOOK_HIERARCHY_MAPPINGS) {
             bookHierarchyRepository.save(mapping)
         }
+    }
+
+    /**
+     * Phase 4 (kx-bg3) — seed 2–3 realistic sub-strategies per book.
+     *
+     * Real funds don't run one strategy per book — they decompose every book
+     * into named sub-strategies (e.g. `core` vs `satellite` for an equity
+     * growth book). The simulated trader needs at least 2 strategies per book
+     * to produce a believable portfolio-tree drill-down in the UI.
+     *
+     * Strategy ids are deterministic (`{bookId}-{name}`) so callers — the demo
+     * orchestrator, integration tests, manual cURLs — can refer to them
+     * without an extra lookup. Idempotent: skips any strategy whose id is
+     * already present so the seed survives container restarts.
+     */
+    private suspend fun seedStrategies() {
+        val repo = tradeStrategyRepository ?: return
+        log.info("Seeding strategies for {} books", STRATEGIES_BY_BOOK.size)
+        var inserted = 0
+        var skipped = 0
+        val createdAt = Instant.now()
+        for ((bookId, seeds) in STRATEGIES_BY_BOOK) {
+            for (seed in seeds) {
+                val strategyId = seed.strategyId(bookId)
+                if (repo.findById(strategyId) != null) {
+                    skipped += 1
+                    continue
+                }
+                repo.save(
+                    TradeStrategy(
+                        strategyId = strategyId,
+                        bookId = com.kinetix.common.model.BookId(bookId),
+                        strategyType = seed.strategyType,
+                        name = seed.name,
+                        createdAt = createdAt,
+                    )
+                )
+                inserted += 1
+            }
+        }
+        log.info("Strategy seeding complete — inserted={} skipped={}", inserted, skipped)
     }
 
     private suspend fun seedTapeTrades(repo: TradeEventRepository) {
@@ -296,6 +347,65 @@ class DevDataSeeder(
             BookHierarchyMapping(bookId = "macro-hedge",       deskId = "macro-hedge",            bookName = "Macro Hedge",       bookType = null),
             BookHierarchyMapping(bookId = "multi-asset",       deskId = "multi-asset-strategies", bookName = "Multi-Asset",       bookType = null),
             BookHierarchyMapping(bookId = "tech-momentum",     deskId = "tech-momentum",          bookName = "Tech Momentum",     bookType = null),
+        )
+
+        /**
+         * Seed-time description of one sub-strategy: a human-readable name +
+         * the [StrategyType] enum value used by [TradeStrategy.strategyType].
+         *
+         * The strategy id is derived deterministically from `{bookId}-{name}`
+         * via [strategyId] so the demo orchestrator's resolver, integration
+         * tests, and ad-hoc cURLs all agree on the id without an extra lookup.
+         */
+        data class StrategySeed(val name: String, val strategyType: StrategyType) {
+            fun strategyId(bookId: String): String = "$bookId-$name"
+        }
+
+        /**
+         * Per-book sub-strategies seeded into `trade_strategies`. Every book
+         * gets 2–3 strategies modelled after the named sleeves a real fund
+         * uses to decompose a single book — `core`/`satellite` for an equity
+         * growth book, `vol-arb`/`directional`/`hedge` for a derivatives book,
+         * and so on. `StrategyType` is set to [StrategyType.CUSTOM] for every
+         * seed: the enum captures classic options structures (STRADDLE,
+         * BUTTERFLY, …) and none of the named sleeves below map onto one.
+         */
+        val STRATEGIES_BY_BOOK: Map<String, List<StrategySeed>> = mapOf(
+            "equity-growth"    to listOf(
+                StrategySeed("core",      StrategyType.CUSTOM),
+                StrategySeed("satellite", StrategyType.CUSTOM),
+            ),
+            "tech-momentum"    to listOf(
+                StrategySeed("momentum",       StrategyType.CUSTOM),
+                StrategySeed("mean-reversion", StrategyType.CUSTOM),
+            ),
+            "emerging-markets" to listOf(
+                StrategySeed("core",     StrategyType.CUSTOM),
+                StrategySeed("tactical", StrategyType.CUSTOM),
+            ),
+            "fixed-income"     to listOf(
+                StrategySeed("duration",        StrategyType.CUSTOM),
+                StrategySeed("curve",           StrategyType.CUSTOM),
+                StrategySeed("credit-overlay",  StrategyType.CUSTOM),
+            ),
+            "multi-asset"      to listOf(
+                StrategySeed("equity-sleeve", StrategyType.CUSTOM),
+                StrategySeed("rates-sleeve",  StrategyType.CUSTOM),
+            ),
+            "macro-hedge"      to listOf(
+                StrategySeed("fx-carry",    StrategyType.CUSTOM),
+                StrategySeed("rates-hedge", StrategyType.CUSTOM),
+            ),
+            "balanced-income"  to listOf(
+                StrategySeed("dividend",     StrategyType.CUSTOM),
+                StrategySeed("quality",      StrategyType.CUSTOM),
+                StrategySeed("rates-sleeve", StrategyType.CUSTOM),
+            ),
+            "derivatives-book" to listOf(
+                StrategySeed("vol-arb",     StrategyType.CUSTOM),
+                StrategySeed("directional", StrategyType.CUSTOM),
+                StrategySeed("hedge",       StrategyType.CUSTOM),
+            ),
         )
 
         // ── Per-book instrument catalogue (reused by generator) ──────────────────

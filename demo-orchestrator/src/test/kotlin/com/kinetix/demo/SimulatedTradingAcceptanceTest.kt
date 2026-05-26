@@ -22,6 +22,7 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import io.ktor.server.request.receiveText
 import io.ktor.server.response.respondText
+import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import kotlinx.coroutines.runBlocking
@@ -55,8 +56,20 @@ class SimulatedTradingAcceptanceTest : FunSpec({
         val receivedRequests = ConcurrentLinkedQueue<RecordedTradePost>()
         val responseJson = Json { ignoreUnknownKeys = true; encodeDefaults = false }
 
+        val seededStrategies = listOf("test-equity-book-core", "test-equity-book-satellite")
+
         val stubServer = embeddedServer(Netty, port = 0) {
             routing {
+                get("/api/v1/books/{bookId}/strategies") {
+                    val items = seededStrategies.joinToString(",") { id ->
+                        """{"strategyId":"$id","bookId":"test-equity-book","strategyType":"CUSTOM","name":"$id","createdAt":"2026-05-18T00:00:00Z"}"""
+                    }
+                    call.respondText(
+                        text = "[$items]",
+                        contentType = ContentType.Application.Json,
+                        status = HttpStatusCode.OK,
+                    )
+                }
                 post("/api/v1/books/{bookId}/strategies/{strategyId}/trades") {
                     val bookId = call.parameters["bookId"].orEmpty()
                     val strategyId = call.parameters["strategyId"].orEmpty()
@@ -118,7 +131,7 @@ class SimulatedTradingAcceptanceTest : FunSpec({
 
             val job = SimulatedTraderJob(
                 positionClient = positionClient,
-                strategyIdResolver = DefaultStrategyIdResolver(),
+                strategyIdResolver = DefaultStrategyIdResolver(positionClient = positionClient),
                 priceBook = DefaultPriceBook(),
                 books = listOf(book),
                 tradingHoursStart = LocalTime.of(9, 0),
@@ -136,8 +149,9 @@ class SimulatedTradingAcceptanceTest : FunSpec({
 
             val first = captured.first()
             first.bookId shouldBe "test-equity-book"
-            // Default resolver maps {bookId} -> "{bookId}-default".
-            first.strategyId shouldBe "test-equity-book-default"
+            // DefaultStrategyIdResolver pulls seeded strategies from the stub
+            // and the trader picks one at random per booked trade.
+            seededStrategies shouldContain first.strategyId
 
             first.request.instrumentId shouldBe "AAPL"
             first.request.assetClass shouldBe "EQUITY"

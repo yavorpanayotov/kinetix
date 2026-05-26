@@ -8,8 +8,10 @@ import com.kinetix.common.model.Side
 import com.kinetix.position.fix.ExecutionCostAnalysis
 import com.kinetix.position.fix.ExecutionCostRepository
 import com.kinetix.position.model.BookHierarchyMapping
+import com.kinetix.position.model.TradeStrategy
 import com.kinetix.position.persistence.BookHierarchyRepository
 import com.kinetix.position.persistence.PositionRepository
+import com.kinetix.position.persistence.TradeStrategyRepository
 import com.kinetix.position.service.AmendTradeCommand
 import com.kinetix.position.service.BookTradeCommand
 import com.kinetix.position.service.BookTradeResult
@@ -675,6 +677,140 @@ class DevDataSeederTest : FunSpec({
         val firstC = DevDataSeeder.CANCEL_TRIPLETS.map { it.original.tradeId.value }
         val secondC = DevDataSeeder.CANCEL_TRIPLETS.map { it.original.tradeId.value }
         firstC shouldBe secondC
+    }
+
+    // ── kx-bg3 — strategy seeding ─────────────────────────────────────────
+    // Each demo book gets 2–3 realistic sub-strategies so the demo
+    // orchestrator's SimulatedTraderJob can distribute trades across a
+    // realistic portfolio tree instead of dumping every trade under a single
+    // `{bookId}-default` strategy.
+
+    test("STRATEGIES_BY_BOOK covers every seeded book") {
+        val books = DevDataSeeder.STRATEGIES_BY_BOOK.keys
+        books shouldBe setOf(
+            "balanced-income", "derivatives-book", "emerging-markets",
+            "equity-growth", "fixed-income", "macro-hedge",
+            "multi-asset", "tech-momentum",
+        )
+    }
+
+    test("every book has between 2 and 3 strategies") {
+        DevDataSeeder.STRATEGIES_BY_BOOK.forEach { (book, seeds) ->
+            seeds.size shouldBeGreaterThanOrEqualTo 2
+            (seeds.size <= 3) shouldBe true
+            // Names within a book must be unique so strategy ids don't collide.
+            seeds.map { it.name }.distinct().size shouldBe seeds.size
+        }
+    }
+
+    test("strategy ids are deterministic {bookId}-{name} and fit the 36-char column") {
+        DevDataSeeder.STRATEGIES_BY_BOOK.forEach { (book, seeds) ->
+            seeds.forEach { seed ->
+                val id = seed.strategyId(book)
+                id shouldBe "$book-${seed.name}"
+                (id.length <= 36) shouldBe true
+            }
+        }
+    }
+
+    test("seed inserts every strategy when the repository is empty") {
+        val strategyRepo = mockk<TradeStrategyRepository>()
+        coEvery { strategyRepo.findById(any()) } returns null
+        coEvery { strategyRepo.save(any()) } just runs
+
+        val seederWithStrategies = DevDataSeeder(
+            tradeBookingService = tradeBookingService,
+            positionRepository = positionRepository,
+            executionCostRepo = executionCostRepo,
+            tradeStrategyRepository = strategyRepo,
+        )
+        coEvery { positionRepository.findDistinctBookIds() } returns emptyList()
+        stubTradeBooking()
+        stubExecutionCostEmpty()
+
+        seederWithStrategies.seed()
+
+        val expectedTotal = DevDataSeeder.STRATEGIES_BY_BOOK.values.sumOf { it.size }
+        coVerify(exactly = expectedTotal) { strategyRepo.save(any()) }
+    }
+
+    test("seed skips strategies that already exist (idempotent across restarts)") {
+        val strategyRepo = mockk<TradeStrategyRepository>()
+        // Pretend every strategy is already there → seed must not double-insert.
+        coEvery { strategyRepo.findById(any()) } answers {
+            val id = firstArg<String>()
+            TradeStrategy(
+                strategyId = id,
+                bookId = com.kinetix.common.model.BookId("equity-growth"),
+                strategyType = com.kinetix.position.model.StrategyType.CUSTOM,
+                name = "preexisting",
+                createdAt = java.time.Instant.now(),
+            )
+        }
+        coEvery { strategyRepo.save(any()) } just runs
+
+        val seederWithStrategies = DevDataSeeder(
+            tradeBookingService = tradeBookingService,
+            positionRepository = positionRepository,
+            executionCostRepo = executionCostRepo,
+            tradeStrategyRepository = strategyRepo,
+        )
+        coEvery { positionRepository.findDistinctBookIds() } returns emptyList()
+        stubTradeBooking()
+        stubExecutionCostEmpty()
+
+        seederWithStrategies.seed()
+
+        coVerify(exactly = 0) { strategyRepo.save(any()) }
+    }
+
+    test("seed re-runs strategy seeding even when trades already exist (warm restart)") {
+        val strategyRepo = mockk<TradeStrategyRepository>()
+        coEvery { strategyRepo.findById(any()) } returns null
+        coEvery { strategyRepo.save(any()) } just runs
+
+        val seederWithStrategies = DevDataSeeder(
+            tradeBookingService = tradeBookingService,
+            positionRepository = positionRepository,
+            executionCostRepo = executionCostRepo,
+            tradeStrategyRepository = strategyRepo,
+        )
+        // Trades already in the DB → trade booking is skipped, but strategy
+        // seeding must still run so a missing strategy backfill works.
+        coEvery { positionRepository.findDistinctBookIds() } returns listOf(BookId("equity-growth"))
+        stubExecutionCostEmpty()
+
+        seederWithStrategies.seed()
+
+        coVerify(exactly = 0) { tradeBookingService.handle(any()) }
+        val expectedTotal = DevDataSeeder.STRATEGIES_BY_BOOK.values.sumOf { it.size }
+        coVerify(exactly = expectedTotal) { strategyRepo.save(any()) }
+    }
+
+    test("seed is a no-op for strategies when no repository is wired (backward compatibility)") {
+        // The default seeder used by most tests does NOT wire the
+        // strategy repository — seed() must still complete cleanly.
+        coEvery { positionRepository.findDistinctBookIds() } returns emptyList()
+        stubTradeBooking()
+        stubExecutionCostEmpty()
+
+        seeder.seed()
+
+        // No exception thrown is sufficient.
+        coVerify(exactly = DevDataSeeder.TRADES.size) { tradeBookingService.handle(any()) }
+    }
+
+    test("expected strategy names match the kx-bg3 catalogue") {
+        // Spec lock-in: protect against silently dropping a strategy if a
+        // future refactor edits the catalogue.
+        DevDataSeeder.STRATEGIES_BY_BOOK["equity-growth"]!!.map { it.name } shouldBe listOf("core", "satellite")
+        DevDataSeeder.STRATEGIES_BY_BOOK["tech-momentum"]!!.map { it.name } shouldBe listOf("momentum", "mean-reversion")
+        DevDataSeeder.STRATEGIES_BY_BOOK["emerging-markets"]!!.map { it.name } shouldBe listOf("core", "tactical")
+        DevDataSeeder.STRATEGIES_BY_BOOK["fixed-income"]!!.map { it.name } shouldBe listOf("duration", "curve", "credit-overlay")
+        DevDataSeeder.STRATEGIES_BY_BOOK["multi-asset"]!!.map { it.name } shouldBe listOf("equity-sleeve", "rates-sleeve")
+        DevDataSeeder.STRATEGIES_BY_BOOK["macro-hedge"]!!.map { it.name } shouldBe listOf("fx-carry", "rates-hedge")
+        DevDataSeeder.STRATEGIES_BY_BOOK["balanced-income"]!!.map { it.name } shouldBe listOf("dividend", "quality", "rates-sleeve")
+        DevDataSeeder.STRATEGIES_BY_BOOK["derivatives-book"]!!.map { it.name } shouldBe listOf("vol-arb", "directional", "hedge")
     }
 })
 

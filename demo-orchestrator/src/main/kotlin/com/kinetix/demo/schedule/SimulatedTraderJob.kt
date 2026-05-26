@@ -63,8 +63,9 @@ import kotlin.random.Random
  * seeded [Random] — there is no unseeded randomness anywhere in the job.
  *
  * @property positionClient wire to `position-service` `/strategies/{id}/trades`.
- * @property strategyIdResolver maps `bookId -> strategyId` (strategies are not
- *     pre-seeded; see [DefaultStrategyIdResolver]).
+ * @property strategyIdResolver maps `bookId -> List<strategyId>` so each
+ *     trade can be uniformly distributed across the book's seeded
+ *     sub-strategies (see [DefaultStrategyIdResolver]).
  * @property priceBook indicative per-unit USD prices used to derive quantity
  *     from notional until `price-service` is wired in.
  * @property books profiles to iterate per tick. Defaults to the canonical 8.
@@ -137,7 +138,15 @@ class SimulatedTraderJob(
 
     private suspend fun tryBookOneTrade(profile: DemoBookProfile): Boolean {
         val request = buildTradeRequest(profile)
-        val strategyId = strategyIdResolver.strategyIdFor(profile.bookId)
+        val strategies = strategyIdResolver.strategiesFor(profile.bookId)
+        require(strategies.isNotEmpty()) {
+            "StrategyIdResolver returned no strategies for bookId=${profile.bookId}"
+        }
+        // Uniform-random pick from the book's seeded strategies so trades
+        // distribute roughly evenly across `core`/`satellite`,
+        // `vol-arb`/`directional`/`hedge`, etc., instead of all landing on
+        // one synthesized "{bookId}-default" strategy (kx-bg3).
+        val strategyId = strategies[random.nextInt(strategies.size)]
         return try {
             positionClient.bookTrade(
                 bookId = profile.bookId,
