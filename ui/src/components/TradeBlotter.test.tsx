@@ -91,6 +91,47 @@ describe('TradeBlotter', () => {
     expect(screen.getByText('Status')).toBeInTheDocument()
   })
 
+  it('renders the booked price per trade with asset-class-aware precision (kx-m2v)', () => {
+    const mixed: TradeHistoryDto[] = [
+      {
+        tradeId: 'eq-1',
+        bookId: 'book-1',
+        instrumentId: 'AAPL',
+        assetClass: 'EQUITY',
+        side: 'BUY',
+        quantity: '100',
+        price: { amount: '185.20', currency: 'USD' },
+        tradedAt: '2025-01-15T10:00:00Z',
+      },
+      {
+        tradeId: 'fx-1',
+        bookId: 'book-1',
+        instrumentId: 'EURUSD',
+        assetClass: 'FX',
+        side: 'BUY',
+        quantity: '10000',
+        price: { amount: '1.08543', currency: 'USD' },
+        tradedAt: '2025-01-15T10:05:00Z',
+      },
+      {
+        tradeId: 'bd-1',
+        bookId: 'book-1',
+        instrumentId: 'US10Y',
+        assetClass: 'BOND',
+        side: 'SELL',
+        quantity: '500',
+        price: { amount: '98.765', currency: 'USD' },
+        tradedAt: '2025-01-15T10:10:00Z',
+      },
+    ]
+    mockUseTradeHistory.mockReturnValue(defaultMockReturn({ trades: mixed }))
+    render(<TradeBlotter bookId="book-1" />)
+
+    expect(screen.getByTestId('trade-price-eq-1')).toHaveTextContent('$185.20')
+    expect(screen.getByTestId('trade-price-fx-1')).toHaveTextContent('$1.0854')
+    expect(screen.getByTestId('trade-price-bd-1')).toHaveTextContent('$98.765')
+  })
+
   it('renders trade rows with correct data', () => {
     setupDefaults()
     render(<TradeBlotter bookId="book-1" />)

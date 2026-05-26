@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ChevronDown, ChevronRight, Copy, Download, Inbox } from 'lucide-react'
 import { useTradeHistory } from '../hooks/useTradeHistory'
 import { formatMoney, formatQuantity, formatTimestamp } from '../utils/format'
+import { formatPrice } from '../utils/formatPrice'
 import { formatCompactCurrency } from '../utils/formatCompactCurrency'
 import { Card, EmptyState, ErrorCard, Spinner } from './ui'
 import type { TradeHistoryDto } from '../types'
@@ -355,8 +356,11 @@ export function TradeBlotter({ bookId, initialCounterpartyFilter = '' }: TradeBl
                       {trade.side}
                     </td>
                     <td className="px-4 py-2 text-sm text-right">{formatQuantity(trade.quantity)}</td>
-                    <td className="px-4 py-2 text-sm text-right">
-                      {formatMoney(trade.price.amount, trade.price.currency)}
+                    <td
+                      data-testid={`trade-price-${trade.tradeId}`}
+                      className="px-4 py-2 text-sm text-right whitespace-nowrap"
+                    >
+                      {formatPrice(trade.price.amount, trade.price.currency, trade.assetClass)}
                     </td>
                     <td
                       data-testid={`trade-notional-${trade.tradeId}`}
