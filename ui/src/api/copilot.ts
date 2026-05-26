@@ -366,6 +366,37 @@ export function chat(
 }
 
 /**
+ * Maps a server-side error code from the terminal ``done`` chunk to a
+ * human-friendly title and body string pair. Used by ``<StreamingNarrative>``
+ * so raw codes like ``CITATION_UNVERIFIABLE`` never leak through to the UI.
+ *
+ * The copy was approved by Marcus (senior FX/rates trader) and must not
+ * include phrases like "verify with your team", "please confirm with", or
+ * "you should" — the policy guard would catch those in production too.
+ */
+export function mapChatErrorCode(
+  code: string | undefined,
+): { title: string; body: string } {
+  switch (code) {
+    case 'CITATION_UNVERIFIABLE':
+      return {
+        title: "I couldn't verify that answer",
+        body: "I couldn't verify one of the numbers in this answer. Please cross-check on the dashboard.",
+      }
+    case 'POLICY_VIOLATION':
+      return {
+        title: "I can't answer that here",
+        body: 'I can only narrate data, not advise on actions. Try rephrasing as a question about what the numbers show.',
+      }
+    default:
+      return {
+        title: 'Something went wrong',
+        body: 'Something went wrong generating this answer.',
+      }
+  }
+}
+
+/**
  * Helper: convert an ``ExplainPayload`` discriminator into the
  * ``(message, page_context)`` fields the chat endpoint expects.
  *

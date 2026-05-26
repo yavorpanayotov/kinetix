@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   chat,
+  mapChatErrorCode,
   payloadToChatRequest,
   type ChatChunk,
   type ChatRequest,
@@ -58,6 +59,36 @@ const baseRequest: ChatRequest = {
   message: 'why is VaR up?',
   page_context: { page: 'var-dashboard', book_id: 'fx-main' },
 }
+
+describe('mapChatErrorCode', () => {
+  it('maps CITATION_UNVERIFIABLE to a human-readable title and body', () => {
+    const result = mapChatErrorCode('CITATION_UNVERIFIABLE')
+    expect(result.title).toBe("I couldn't verify that answer")
+    expect(result.body).toBe(
+      "I couldn't verify one of the numbers in this answer. Please cross-check on the dashboard.",
+    )
+  })
+
+  it('maps POLICY_VIOLATION to a human-readable title and body', () => {
+    const result = mapChatErrorCode('POLICY_VIOLATION')
+    expect(result.title).toBe("I can't answer that here")
+    expect(result.body).toBe(
+      'I can only narrate data, not advise on actions. Try rephrasing as a question about what the numbers show.',
+    )
+  })
+
+  it('returns fallback strings for an unknown error code', () => {
+    const result = mapChatErrorCode('UNKNOWN_CODE')
+    expect(result.title).toBe('Something went wrong')
+    expect(result.body).toBe('Something went wrong generating this answer.')
+  })
+
+  it('returns fallback strings when code is undefined', () => {
+    const result = mapChatErrorCode(undefined)
+    expect(result.title).toBe('Something went wrong')
+    expect(result.body).toBe('Something went wrong generating this answer.')
+  })
+})
 
 describe('copilot.chat', () => {
   beforeEach(() => {
