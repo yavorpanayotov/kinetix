@@ -401,4 +401,44 @@ class SimulatedTraderJobTest : FunSpec({
         // for a realistic demo; kx-3rm lowers the rate to 1%.
         SimulatedTraderJob.DEFAULT_RECONCILIATION_BREAK_PROBABILITY shouldBe 0.01
     }
+
+    test("US market holiday weekday is a no-op — no trades are posted") {
+        // 2026-07-03 is a Friday — but Independence Day is observed on it
+        // because July 4 falls on a Saturday. The job must skip it even
+        // though it falls inside the weekday trading-hours window.
+        val client = mockk<PositionServiceClient>(relaxed = true)
+        val clock = fixedClock(atUtc("2026-07-03", "14:00:00"))
+
+        val job = SimulatedTraderJob(
+            positionClient = client,
+            strategyIdResolver = stubResolver(),
+            books = listOf(sampleEquityBook),
+            tradingHoursStart = tradingHoursStart,
+            tradingHoursEnd = tradingHoursEnd,
+            clock = clock,
+            random = Random(seed = 42),
+        )
+
+        runTest { job.runTick() shouldBe 0 }
+        coVerify(exactly = 0) { client.bookTrade(any(), any(), any()) }
+    }
+
+    test("Thanksgiving 2026 is a no-op — no trades are posted") {
+        // 2026-11-26 is the fourth Thursday of November — Thanksgiving.
+        val client = mockk<PositionServiceClient>(relaxed = true)
+        val clock = fixedClock(atUtc("2026-11-26", "14:00:00"))
+
+        val job = SimulatedTraderJob(
+            positionClient = client,
+            strategyIdResolver = stubResolver(),
+            books = listOf(sampleEquityBook),
+            tradingHoursStart = tradingHoursStart,
+            tradingHoursEnd = tradingHoursEnd,
+            clock = clock,
+            random = Random(seed = 42),
+        )
+
+        runTest { job.runTick() shouldBe 0 }
+        coVerify(exactly = 0) { client.bookTrade(any(), any(), any()) }
+    }
 })

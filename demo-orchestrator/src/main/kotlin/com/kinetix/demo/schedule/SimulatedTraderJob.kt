@@ -103,6 +103,12 @@ class SimulatedTraderJob(
             return 0
         }
 
+        val today = now.toLocalDate()
+        if (isUsMarketHoliday(today)) {
+            logger.debug("Skipping SimulatedTraderJob tick — {} is a US market holiday", today)
+            return 0
+        }
+
         val time = now.toLocalTime()
         if (time.isBefore(tradingHoursStart) || time.isAfter(tradingHoursEnd)) {
             logger.debug(
