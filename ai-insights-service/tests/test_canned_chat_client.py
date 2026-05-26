@@ -462,3 +462,211 @@ async def test_chat_final_chunk_tool_calls_multiple_entries(
     assert final.tool_calls is not None
     assert len(final.tool_calls) == 2
     assert [tc.name for tc in final.tool_calls] == ["get_book_var", "get_greeks_summary"]
+
+
+# ---------------------------------------------------------------------------
+# Saved-query fixture coverage
+#
+# These tests use the real production fixtures directory so they prove that
+# demo viewers who click any of the 5 built-in saved-query chips get a
+# believable response — non-empty tool_calls and at least one citation with
+# freshness_seconds < 60 (so the UI urgency badge shows green or amber, not
+# the stale-red that would undermine trust in the demo).
+#
+# Each test renders the query's prompt_template with canonical demo params
+# (book_id="fx-main", top_n=5 where required), builds a
+# CannedCopilotChatClient against the production fixtures directory, and
+# streams the chat response.  The production fixtures dir is deterministic
+# and the hash-based routing is stable, so the transcript selection is
+# repeatable across machines.
+# ---------------------------------------------------------------------------
+
+_PRODUCTION_FIXTURES_DIR = (
+    Path(__file__).resolve().parent.parent
+    / "src"
+    / "kinetix_insights"
+    / "fixtures"
+    / "chat_transcripts"
+)
+
+# Rendered prompts for the 5 built-in saved queries.  The hash of
+# (prompt + "::" + page) determines which transcript is selected; page is
+# always "" for saved-query runs because page_context carries only
+# {"source": "saved-query", "query_id": ...} with no "page" key.
+_LIMIT_BREACHES_PROMPT = (
+    "List every risk limit on book fx-main that is in breach today. "
+    "For each breach, state the limit name, the current utilisation, the limit "
+    "threshold, and the time the breach was first recorded. "
+    "Report only the figures from the book's own limit data."
+)
+_PNL_VS_YESTERDAY_PROMPT = (
+    "State the current-day P&L for book fx-main and compare it to the prior "
+    "session's closing P&L. Report the absolute change and the percentage change, "
+    "and break the move down by the largest contributing instruments. "
+    "Quote only the figures from the book's own P&L attribution data."
+)
+_VAR_WEEK_DRIVERS_PROMPT = (
+    "State the current 95% Value-at-Risk for book fx-main and how it has changed "
+    "over the past week. Identify the risk factors and positions that drove the "
+    "change, quoting the contribution figures for each. "
+    "Report only the numbers from the book's own VaR results."
+)
+_TOP_POSITIONS_PROMPT = (
+    "List the top 5 positions on book fx-main ranked by their contribution to "
+    "total portfolio risk. For each position, state the instrument, the notional "
+    "or market value, and its risk contribution figure. "
+    "Report only the figures from the book's own risk results."
+)
+_VOL_DISLOCATIONS_PROMPT = (
+    "Identify the instruments held on book fx-main where the implied volatility "
+    "has moved most against its recent range. For each, state the instrument, the "
+    "current implied volatility, and the size of the move. "
+    "Report only the figures from the book's own positions and volatility surface data."
+)
+
+
+async def _terminal_chunk_for_prompt(prompt: str) -> "ChatChunk":  # type: ignore[name-defined]
+    """Stream the production canned client with ``prompt`` and return the terminal chunk."""
+    from kinetix_insights.chat.models import ChatChunk as _ChatChunk
+
+    client = CannedCopilotChatClient(
+        fixtures_dir=_PRODUCTION_FIXTURES_DIR, delay_seconds=0.0
+    )
+    request = ChatRequest(message=prompt, page_context={})
+    chunks: list[_ChatChunk] = [chunk async for chunk in client.chat(request)]
+    return chunks[-1]
+
+
+@pytest.mark.asyncio
+async def test_limit_breaches_saved_query_routes_to_transcript_with_tool_calls() -> None:
+    """The limit-breaches saved-query prompt maps to a transcript with non-empty tool_calls."""
+
+    final = await _terminal_chunk_for_prompt(_LIMIT_BREACHES_PROMPT)
+
+    assert final.done is True
+    assert final.tool_calls is not None, (
+        "limit-breaches transcript must carry tool_calls for the reasoning panel"
+    )
+    assert len(final.tool_calls) >= 1
+
+
+@pytest.mark.asyncio
+async def test_limit_breaches_saved_query_has_at_least_one_fresh_citation() -> None:
+    """The limit-breaches transcript has at least one citation with freshness_seconds < 60."""
+
+    final = await _terminal_chunk_for_prompt(_LIMIT_BREACHES_PROMPT)
+
+    assert final.citations is not None
+    fresh = [c for c in final.citations if c.freshness_seconds < 60]
+    assert fresh, (
+        f"limit-breaches transcript must have at least one fresh citation "
+        f"(freshness_seconds < 60); got {[c.freshness_seconds for c in final.citations]}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_pnl_vs_yesterday_saved_query_routes_to_transcript_with_tool_calls() -> None:
+    """The pnl-vs-yesterday saved-query prompt maps to a transcript with non-empty tool_calls."""
+
+    final = await _terminal_chunk_for_prompt(_PNL_VS_YESTERDAY_PROMPT)
+
+    assert final.done is True
+    assert final.tool_calls is not None, (
+        "pnl-vs-yesterday transcript must carry tool_calls for the reasoning panel"
+    )
+    assert len(final.tool_calls) >= 1
+
+
+@pytest.mark.asyncio
+async def test_pnl_vs_yesterday_saved_query_has_at_least_one_fresh_citation() -> None:
+    """The pnl-vs-yesterday transcript has at least one citation with freshness_seconds < 60."""
+
+    final = await _terminal_chunk_for_prompt(_PNL_VS_YESTERDAY_PROMPT)
+
+    assert final.citations is not None
+    fresh = [c for c in final.citations if c.freshness_seconds < 60]
+    assert fresh, (
+        f"pnl-vs-yesterday transcript must have at least one fresh citation "
+        f"(freshness_seconds < 60); got {[c.freshness_seconds for c in final.citations]}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_var_week_drivers_saved_query_routes_to_transcript_with_tool_calls() -> None:
+    """The var-week-drivers saved-query prompt maps to a transcript with non-empty tool_calls."""
+
+    final = await _terminal_chunk_for_prompt(_VAR_WEEK_DRIVERS_PROMPT)
+
+    assert final.done is True
+    assert final.tool_calls is not None, (
+        "var-week-drivers transcript must carry tool_calls for the reasoning panel"
+    )
+    assert len(final.tool_calls) >= 1
+
+
+@pytest.mark.asyncio
+async def test_var_week_drivers_saved_query_has_at_least_one_fresh_citation() -> None:
+    """The var-week-drivers transcript has at least one citation with freshness_seconds < 60."""
+
+    final = await _terminal_chunk_for_prompt(_VAR_WEEK_DRIVERS_PROMPT)
+
+    assert final.citations is not None
+    fresh = [c for c in final.citations if c.freshness_seconds < 60]
+    assert fresh, (
+        f"var-week-drivers transcript must have at least one fresh citation "
+        f"(freshness_seconds < 60); got {[c.freshness_seconds for c in final.citations]}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_top_positions_risk_contribution_saved_query_routes_to_transcript_with_tool_calls() -> None:
+    """The top-positions-risk-contribution query maps to a transcript with non-empty tool_calls."""
+
+    final = await _terminal_chunk_for_prompt(_TOP_POSITIONS_PROMPT)
+
+    assert final.done is True
+    assert final.tool_calls is not None, (
+        "top-positions-risk-contribution transcript must carry tool_calls for the reasoning panel"
+    )
+    assert len(final.tool_calls) >= 1
+
+
+@pytest.mark.asyncio
+async def test_top_positions_risk_contribution_saved_query_has_at_least_one_fresh_citation() -> None:
+    """The top-positions transcript has at least one citation with freshness_seconds < 60."""
+
+    final = await _terminal_chunk_for_prompt(_TOP_POSITIONS_PROMPT)
+
+    assert final.citations is not None
+    fresh = [c for c in final.citations if c.freshness_seconds < 60]
+    assert fresh, (
+        f"top-positions-risk-contribution transcript must have at least one fresh citation "
+        f"(freshness_seconds < 60); got {[c.freshness_seconds for c in final.citations]}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_vol_dislocations_saved_query_routes_to_transcript_with_tool_calls() -> None:
+    """The vol-dislocations saved-query prompt maps to a transcript with non-empty tool_calls."""
+
+    final = await _terminal_chunk_for_prompt(_VOL_DISLOCATIONS_PROMPT)
+
+    assert final.done is True
+    assert final.tool_calls is not None, (
+        "vol-dislocations transcript must carry tool_calls for the reasoning panel"
+    )
+    assert len(final.tool_calls) >= 1
+
+
+@pytest.mark.asyncio
+async def test_vol_dislocations_saved_query_has_at_least_one_fresh_citation() -> None:
+    """The vol-dislocations transcript has at least one citation with freshness_seconds < 60."""
+
+    final = await _terminal_chunk_for_prompt(_VOL_DISLOCATIONS_PROMPT)
+
+    assert final.citations is not None
+    fresh = [c for c in final.citations if c.freshness_seconds < 60]
+    assert fresh, (
+        f"vol-dislocations transcript must have at least one fresh citation "
+        f"(freshness_seconds < 60); got {[c.freshness_seconds for c in final.citations]}"
+    )
