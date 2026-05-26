@@ -99,4 +99,29 @@ interface RiskOrchestratorClient {
      * for today" callout.
      */
     suspend fun createSodSnapshot(bookId: String): SodBaselineStatusDto
+
+    /**
+     * Triggers a parameterised VaR calculation for [bookId] via
+     * `POST /api/v1/risk/var/{bookId}` using the supplied calculation
+     * parameters.
+     *
+     * Used by [com.kinetix.demo.schedule.DemoVaRBootstrapJob] which needs
+     * explicit control over confidence level and horizon so the bootstrap
+     * snapshot is consistent regardless of risk-orchestrator defaults. The
+     * existing zero-parameter [calculateVaR] retains the EOD defaults used
+     * by [com.kinetix.demo.schedule.EodPromotionJob].
+     *
+     * @param bookId the book to calculate VaR for.
+     * @param confidenceLevel wire string, e.g. `"CL_95"`.
+     * @param horizonDays time horizon, e.g. `10`.
+     * @param method calculation method string, e.g. `"PARAMETRIC"`.
+     * @param valuationDate the as-of date for the calculation.
+     */
+    suspend fun calculateVaRWithParams(
+        bookId: String,
+        confidenceLevel: String,
+        horizonDays: Int,
+        method: String,
+        valuationDate: java.time.LocalDate,
+    )
 }

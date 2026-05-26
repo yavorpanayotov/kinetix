@@ -117,6 +117,34 @@ class RiskOrchestratorHttpClient(
         // observed downstream through the EOD timeline read path.
     }
 
+    override suspend fun calculateVaRWithParams(
+        bookId: String,
+        confidenceLevel: String,
+        horizonDays: Int,
+        method: String,
+        valuationDate: java.time.LocalDate,
+    ) {
+        val url = "$baseUrl/api/v1/risk/var/$bookId"
+        val request = VaRCalculationRequestBody(
+            calculationType = method,
+            confidenceLevel = confidenceLevel,
+            timeHorizonDays = horizonDays.toString(),
+            numSimulations = "10000",
+        )
+        val body = json.encodeToString(VaRCalculationRequestBody.serializer(), request)
+        logger.debug(
+            "Bootstrap VaR: bookId={} method={} confidenceLevel={} horizonDays={} valuationDate={}",
+            bookId, method, confidenceLevel, horizonDays, valuationDate,
+        )
+        val response = httpClient.post(url) {
+            contentType(ContentType.Application.Json)
+            setBody(body)
+        }
+        if (!response.status.isSuccess()) {
+            failLoudly("POST", url, response)
+        }
+    }
+
     override suspend fun findLatestCompletedJob(bookId: String): ValuationJobSummary? {
         val url = "$baseUrl/api/v1/risk/jobs/$bookId?limit=1&offset=0"
         val response = httpClient.get(url)
