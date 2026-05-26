@@ -54,7 +54,7 @@ In progress.
 - [ ] 1.1 Add `<CopilotLauncher>` button in `ui/src/components/CopilotLauncher.tsx` — Sparkles icon + `Ask Kinetix` label + dimmed `⌘K` chip; styled to match the rest of the header right cluster (`text-slate-300 hover:text-white`, no border). Accepts an `onOpen` callback. Vitest covers render + click.
       Acceptance: `cd ui && npm run test -- src/components/CopilotLauncher.test.tsx`
 - [ ] 1.2 Wire `<CopilotLauncher onOpen={() => setCommandPaletteOpen(true)} />` into the header right cluster in `ui/src/App.tsx`, between `<ScenarioIndicator>` and `<RegimeIndicator>`. Update `ui/src/App.test.tsx` (if present) or add a smoke test asserting the launcher button is in the document and clicking it opens the palette in copilot mode.
-      Acceptance: `cd ui && npm run test -- src/App` && cd ui && npm run lint
+      Acceptance: `cd ui && npm run test -- src/App && npm run lint`
 - [ ] 1.3 Add Playwright `ui/e2e/copilot-launcher.spec.ts` — asserts the header button is visible in demo mode, click opens the palette, ⌘K shortcut still works as fallback, and the badge shows `⌘K` on macOS / `Ctrl K` on other platforms via `navigator.platform`.
       Acceptance: `cd ui && npx playwright test e2e/copilot-launcher.spec.ts`
 
