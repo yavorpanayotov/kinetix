@@ -157,6 +157,29 @@ class HistoricalReplayAcceptanceTest : FunSpec({
         }
     }
 
+    test("POST /api/v1/risk/stress/{bookId}/historical-replay forwards scenarioName to gRPC") {
+        var capturedScenarioName: String? = null
+        fakeStressService.runHistoricalReplayHandler = { req ->
+            capturedScenarioName = req.scenarioName
+            HistoricalReplayResponse.newBuilder()
+                .setScenarioName(req.scenarioName)
+                .setTotalPnlImpact(-125_000.0)
+                .setCalculatedAt(Timestamp.newBuilder().setSeconds(Instant.now().epochSecond))
+                .build()
+        }
+
+        testApp {
+            val response = client.post("/api/v1/risk/stress/port-1/historical-replay") {
+                contentType(ContentType.Application.Json)
+                setBody("""{"scenarioName": "GFC_2008"}""")
+            }
+            response.status shouldBe HttpStatusCode.OK
+            capturedScenarioName shouldBe "GFC_2008"
+            val json = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+            json["scenarioName"]!!.jsonPrimitive.content shouldBe "GFC_2008"
+        }
+    }
+
     test("POST /api/v1/risk/stress/{bookId}/reverse returns 200 with shock vector") {
         fakeStressService.runReverseStressHandler = {
             ReverseStressResponse.newBuilder()

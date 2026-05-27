@@ -548,6 +548,7 @@ fun Route.riskRoutes(
                             .build()
                     )
                 }
+                body.scenarioName?.let { builder.scenarioName = it }
                 body.windowStart?.let { builder.windowStart = it }
                 body.windowEnd?.let { builder.windowEnd = it }
             }
