@@ -1,7 +1,22 @@
 import { Sunrise } from 'lucide-react'
 import { formatRelativeTime } from '../utils/format'
 import type { BriefSection, MorningBrief } from '../api/brief'
+import { AIMarkdown } from './AIMarkdown'
 import { CitationList } from './CitationList'
+
+/**
+ * Build a single compact markdown source from a section's narrative +
+ * structured bullets so they share the same renderer. Mirrors the
+ * approach in ``AIInsightPanel``; bullets may carry inline markdown
+ * (``**bold**``, `` `tickers` ``) and the brief is dense enough that
+ * a hand-built ``<ul>`` would lose that emphasis.
+ */
+function briefSectionMarkdown(section: BriefSection): string {
+  const narrative = section.narrative.trim()
+  if (section.bullets.length === 0) return narrative
+  const list = section.bullets.map((b) => `- ${b}`).join('\n')
+  return narrative.length > 0 ? `${narrative}\n\n${list}` : list
+}
 
 /**
  * Plan §6.10 — morning-brief card.
@@ -83,16 +98,11 @@ export function MorningBriefCard({ brief }: MorningBriefCardProps) {
                   </span>
                 )}
               </div>
-              <p className="mt-0.5 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
-                {section.narrative}
-              </p>
-              {section.bullets.length > 0 && (
-                <ul className="mt-1 list-disc pl-4 space-y-0.5 text-xs text-slate-600 dark:text-slate-300">
-                  {section.bullets.map((bullet, i) => (
-                    <li key={i}>{bullet}</li>
-                  ))}
-                </ul>
-              )}
+              <AIMarkdown
+                source={briefSectionMarkdown(section)}
+                density="compact"
+                className="mt-0.5"
+              />
               {section.sources.length > 0 && (
                 <CitationList citations={section.sources} />
               )}
