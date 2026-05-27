@@ -11,7 +11,13 @@ class DlqReplayServiceTest : FunSpec({
 
     val repository = mockk<AuditEventRepository>()
 
-    beforeEach { clearMocks(repository) }
+    // Default the idempotency lookup to "no prior row" so each existing test
+    // exercises the happy-path replay flow. Tests for skip behaviour live in
+    // DlqReplayIdempotencyTest.
+    beforeEach {
+        clearMocks(repository)
+        coEvery { repository.findByTradeId(any()) } returns null
+    }
 
     test("replays DLQ events through the audit pipeline and reports success count") {
         coEvery { repository.save(any()) } just runs
