@@ -17,9 +17,14 @@ const PAGE_SIZE = 25
  * Maps an audit event type onto a {@link Badge} colour variant. Trade-lifecycle
  * events stay neutral / informational; governance and breach events earn
  * warning / critical tints so the eye lands on them first.
+ *
+ * Accepts ``undefined`` because audit-service omits ``eventType`` from the
+ * wire when it equals its column default ("TRADE_BOOKED") — see
+ * [AuditEventDto.eventType] for the contract. An undefined / empty value
+ * falls through to the neutral lane.
  */
-function eventTypeVariant(eventType: string): 'critical' | 'warning' | 'info' | 'success' | 'neutral' {
-  const upper = eventType.toUpperCase()
+function eventTypeVariant(eventType: string | undefined): 'critical' | 'warning' | 'info' | 'success' | 'neutral' {
+  const upper = (eventType ?? '').toUpperCase()
   if (upper.includes('REJECT') || upper.includes('BREACH') || upper.includes('FAIL') || upper.includes('DELETE')) {
     return 'critical'
   }
@@ -33,6 +38,23 @@ function eventTypeVariant(eventType: string): 'critical' | 'warning' | 'info' | 
     return 'info'
   }
   return 'neutral'
+}
+
+/**
+ * Derive a display-friendly label when the wire payload omits
+ * ``eventType``. Uses the populated subject field to infer what kind
+ * of event we're looking at — trade events get "TRADE_BOOKED" (the
+ * column default upstream), governance events get a category that
+ * mirrors the audit-service ``AuditEventType`` enum naming convention.
+ */
+function effectiveEventType(event: AuditEventDto): string {
+  if (event.eventType && event.eventType.length > 0) return event.eventType
+  if (event.tradeId) return 'TRADE_BOOKED'
+  if (event.limitId) return 'LIMIT_EVENT'
+  if (event.modelName) return 'MODEL_EVENT'
+  if (event.scenarioId) return 'SCENARIO_EVENT'
+  if (event.submissionId) return 'SUBMISSION_EVENT'
+  return 'EVENT'
 }
 
 /** Renders an audit event's primary subject — its trade or governance target. */
@@ -290,10 +312,10 @@ export function AuditLogPanel({ initialBookId = '', initialTradeId = '' }: Audit
                       </td>
                       <td className="px-4 py-2 text-sm">
                         <Badge
-                          variant={eventTypeVariant(event.eventType)}
+                          variant={eventTypeVariant(effectiveEventType(event))}
                           data-testid={`audit-event-badge-${event.id}`}
                         >
-                          {event.eventType}
+                          {effectiveEventType(event)}
                         </Badge>
                       </td>
                       <td className="px-4 py-2 text-sm font-mono text-slate-700 dark:text-slate-300">

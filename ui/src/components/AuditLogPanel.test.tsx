@@ -94,6 +94,33 @@ describe('AuditLogPanel', () => {
     expect(screen.getByTestId('audit-event-badge-8')).toHaveTextContent('LIMIT_BREACHED')
   })
 
+  test('renders gracefully when eventType is missing on the wire', async () => {
+    // Audit-service uses kotlinx-serialization without ``encodeDefaults``,
+    // so a field whose value equals its DTO default (e.g.
+    // ``eventType = "TRADE_BOOKED"``) is omitted from the JSON payload.
+    // The UI must not crash on the resulting ``undefined`` — it should
+    // derive a sensible label from the event's other fields. Without
+    // this guard the table tripped a ``Cannot read properties of
+    // undefined (reading 'toUpperCase')`` and the whole Activity tab
+    // fell into its ErrorBoundary.
+    mockFetchAuditEvents.mockResolvedValue([
+      buildEvent({
+        id: 9,
+        // The wire shape: eventType is absent. ``as never`` because
+        // the typed contract claims it is always present.
+        eventType: undefined as unknown as string,
+        tradeId: 'TRD-9',
+      }),
+    ])
+    render(<AuditLogPanel />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('audit-row-9')).toBeInTheDocument()
+    })
+    // Falls back to a trade-shaped label when the event has a tradeId.
+    expect(screen.getByTestId('audit-event-badge-9')).toHaveTextContent(/trade/i)
+  })
+
   test('requests events with the default page size on mount', async () => {
     render(<AuditLogPanel />)
     await waitFor(() => {

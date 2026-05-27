@@ -66,6 +66,13 @@ fun Application.module() {
     install(ContentNegotiation) {
         json(Json {
             ignoreUnknownKeys = true
+            // Emit defaulted fields on the wire so downstream consumers
+            // (the UI in particular) don't have to guess at omitted
+            // schema columns. Without this, ``encodeDefaults = false``
+            // kicks in and a row whose ``eventType`` equals the column
+            // default ("TRADE_BOOKED") is sent with the field missing,
+            // which the UI then tried to ``.toUpperCase()`` on.
+            encodeDefaults = true
         })
     }
     install(CallLogging) {

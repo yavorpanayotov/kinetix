@@ -33,7 +33,12 @@ export interface AuditEventDto {
   recordHash: string
   userId: string | null
   userRole: string | null
-  eventType: string
+  // Optional on the wire: audit-service serializes with the kotlinx
+  // default of ``encodeDefaults = false``, so a row whose
+  // ``eventType`` equals the column default ("TRADE_BOOKED") is sent
+  // with the field omitted. Consumers must tolerate ``undefined`` and
+  // derive a sensible label from the event's other fields.
+  eventType?: string
   // Governance fields — null for trade events
   modelName: string | null
   scenarioId: string | null
