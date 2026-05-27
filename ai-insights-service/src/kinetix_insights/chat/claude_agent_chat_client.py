@@ -198,6 +198,58 @@ def _format_page_context(page_context: dict[str, Any]) -> str:
     return f"{wrap_untrusted(payload)}\n\n"
 
 
+def _citations_from_page_context(page_context: dict[str, Any]) -> list[Citation]:
+    """Build synthetic citations from every scalar in ``page_context``.
+
+    The grounding data the UI attaches (correlation cells, asset class
+    labels, the route name) is real provenance — it's what the user is
+    looking at — but it didn't come from an MCP tool, so the citation
+    verifier would otherwise reject any narrative that quotes it as
+    ``CITATION_UNVERIFIABLE``. We synthesise one :class:`Citation` per
+    leaf scalar (numbers, strings) with ``data_source="page_context"``
+    so both the numeric and symbol verifiers accept page_context-quoted
+    values as grounded.
+
+    These synthetics are used **only** for verification and are not
+    yielded to the client — the user-facing citations list still
+    contains only tool-sourced provenance.
+    """
+
+    if not page_context:
+        return []
+
+    now = datetime.now(timezone.utc)
+    out: list[Citation] = []
+
+    def walk(node: Any, path: str) -> None:
+        if isinstance(node, dict):
+            for key, value in node.items():
+                walk(value, f"{path}.{key}" if path else str(key))
+            return
+        if isinstance(node, (list, tuple)):
+            for index, value in enumerate(node):
+                walk(value, f"{path}[{index}]")
+            return
+        if node is None or isinstance(node, bool):
+            return
+        if isinstance(node, (int, float, str)):
+            out.append(
+                Citation(
+                    tool="page_context",
+                    params={"path": path, "value": str(node)},
+                    result_field=path or "page_context",
+                    result_value=node,
+                    result_currency=None,
+                    as_of_timestamp=now,
+                    data_source="page_context",
+                    freshness_seconds=0,
+                )
+            )
+
+    walk(page_context, "")
+    return out
+
+
 class ClaudeAgentCopilotChatClient:
     """``CopilotChatClient`` backed by ``claude_agent_sdk.query``.
 
@@ -398,8 +450,16 @@ class ClaudeAgentCopilotChatClient:
         # Two-pass citation check: numeric tokens AND ticker-shaped
         # symbols. Either firing surfaces ``CITATION_UNVERIFIABLE``;
         # both run unconditionally so logs can attribute the cause.
-        uncited_numbers = find_uncited_tokens(narrative, citations)
-        uncited_symbols = find_uncited_symbols(narrative, citations)
+        # page_context scalars (matrix cells, route name, asset classes)
+        # count as grounding — synthesise transient citations from them
+        # so quoting the on-screen data doesn't trip the verifier. The
+        # synthetics are NOT yielded; only real, tool-sourced citations
+        # surface in the terminal frame.
+        verification_citations = citations + _citations_from_page_context(
+            request.page_context
+        )
+        uncited_numbers = find_uncited_tokens(narrative, verification_citations)
+        uncited_symbols = find_uncited_symbols(narrative, verification_citations)
         if uncited_numbers or uncited_symbols:
             yield ChatChunk(
                 done=True,

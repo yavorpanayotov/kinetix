@@ -489,6 +489,75 @@ async def test_chat_orders_history_then_page_context_then_message() -> None:
 
 
 @pytest.mark.asyncio
+async def test_chat_grounded_in_page_context_does_not_fire_citation_unverifiable() -> None:
+    """Numeric tokens that appear in ``page_context`` count as grounded.
+
+    Inline explainers (correlation matrix, VaR cards) hand the model
+    grounding data via ``page_context``. The model legitimately quotes
+    those values back — they are what the user is staring at. Before
+    this fix the verifier rejected such responses as
+    ``CITATION_UNVERIFIABLE`` because no MCP tool produced the value;
+    now the synthetic ``data_source="page_context"`` citations
+    satisfy the verifier without leaking into the user-facing
+    citation list.
+    """
+
+    narrative = "EQUITY and DERIVATIVE are correlated at 0.70."
+    sdk = _FakeStreamingSdk(messages=[FakeMessage(content=narrative)])
+    store = InMemoryConversationStore()
+    client = ClaudeAgentCopilotChatClient(conversation_store=store, sdk=sdk)
+
+    chunks = [
+        chunk
+        async for chunk in client.chat(
+            _request(
+                message="explain the correlation breaks",
+                page_context={
+                    "page": "correlation-matrix",
+                    "asset_classes": ["EQUITY", "DERIVATIVE"],
+                    "correlation_breaks": [
+                        {"a": "EQUITY", "b": "DERIVATIVE", "correlation": 0.70}
+                    ],
+                },
+            )
+        )
+    ]
+
+    final = chunks[-1]
+    assert final.done is True
+    assert final.error_code is None, (
+        f"expected page_context grounding to satisfy verifier; got {final.error_code!r}"
+    )
+    # Synthetic page_context citations must not leak to the UI.
+    assert not final.citations, "page_context synthetics leaked into terminal frame"
+
+
+@pytest.mark.asyncio
+async def test_chat_still_flags_uncited_tokens_when_page_context_lacks_them() -> None:
+    """page_context grounding doesn't blanket-accept — unrelated numbers still trip."""
+
+    sdk = _FakeStreamingSdk(
+        messages=[FakeMessage(content="The hidden number is 999999.")]
+    )
+    store = InMemoryConversationStore()
+    client = ClaudeAgentCopilotChatClient(conversation_store=store, sdk=sdk)
+
+    chunks = [
+        chunk
+        async for chunk in client.chat(
+            _request(
+                message="q",
+                page_context={"page": "var-dashboard", "asset_class": "EQUITY"},
+            )
+        )
+    ]
+
+    final = chunks[-1]
+    assert final.done is True
+    assert final.error_code == "CITATION_UNVERIFIABLE"
+
+
+@pytest.mark.asyncio
 async def test_chat_yields_upstream_error_when_sdk_raises_on_iteration() -> None:
     """A transport-style SDK failure becomes one UPSTREAM_ERROR terminal frame."""
 
