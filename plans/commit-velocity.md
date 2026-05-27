@@ -32,7 +32,7 @@ See the design document for the full table. Lanes by area:
   Acceptance: `bd list --status=open --json --limit 0 | jq -r '.[].description // "" | split("\n")[0]' | grep -c '^lane: R-' | awk '$1>=65 {exit 0} {exit 1}'`
 - [x] Create the Kotlin services beads issue inventory (~70 issues). Same pattern, lanes `K-*`.
   Acceptance: `bd list --status=open --json --limit 0 | jq -r '.[].description // "" | split("\n")[0]' | grep -c '^lane: K-' | awk '$1>=65 {exit 0} {exit 1}'`
-- [ ] Create the UI beads issue inventory (~60 issues). Same pattern, lanes `U-*`.
+- [x] Create the UI beads issue inventory (~60 issues). Same pattern, lanes `U-*`.
   Acceptance: `bd list --status=open --json --limit 0 | jq -r '.[].description // "" | split("\n")[0]' | grep -c '^lane: U-' | awk '$1>=55 {exit 0} {exit 1}'`
 - [ ] Sync the inventory to Dolt and verify the lane picker returns 5 disjoint items.
   Acceptance: `bd dolt push >/dev/null 2>&1 && [ "$(scripts/run_batch.sh 5 | wc -l | tr -d ' ')" -ge 5 ]`
