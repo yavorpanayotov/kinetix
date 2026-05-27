@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { Zap } from 'lucide-react'
 import type { StressTestResultDto, HistoricalReplayResultDto, ReverseStressResultDto, ReverseStressRequestDto } from '../types'
 import { runStressTest } from '../api/stress'
@@ -66,6 +66,18 @@ export function ScenariosTab({
   const [reverseStressResult, setReverseStressResult] = useState<ReverseStressResultDto | null>(null)
   const [reverseStressLoading, setReverseStressLoading] = useState(false)
   const [reverseStressError, setReverseStressError] = useState<string | null>(null)
+
+  // Lazy-loaded full detail for the expanded scenario row.
+  //
+  // The batch (Run All) endpoint returns slim summaries — only
+  // ``scenarioName``, ``baseVar``, ``stressedVar``, ``pnlImpact``. Drill-down
+  // needs the full ``StressTestResultDto`` (asset-class impacts, position
+  // impacts, Greeks, limit breaches), which the single-scenario route
+  // provides. We fetch on expand rather than fattening the batch payload so
+  // the comparison view stays cheap even with 20+ scenarios.
+  const [detailResult, setDetailResult] = useState<StressTestResultDto | null>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detailError, setDetailError] = useState<string | null>(null)
 
   const historicalScenarioNames = useMemo(
     () =>
@@ -149,6 +161,41 @@ export function ScenariosTab({
       setReplayLoading(false)
     }
   }, [bookId, replayScenario, historicalScenarioNames])
+
+  // Fire the single-scenario fetch whenever the user opens a row. The
+  // ``confidenceLevel`` / ``timeHorizonDays`` controls are part of the
+  // dependency list so re-running with different parameters refreshes the
+  // detail panel for the open row.
+  useEffect(() => {
+    if (!bookId || !selectedScenario) {
+      setDetailResult(null)
+      setDetailError(null)
+      setDetailLoading(false)
+      return
+    }
+    let cancelled = false
+    setDetailLoading(true)
+    setDetailError(null)
+    runStressTest(bookId, selectedScenario, {
+      confidenceLevel,
+      timeHorizonDays,
+    })
+      .then((data) => {
+        if (cancelled) return
+        setDetailResult(data)
+      })
+      .catch((err) => {
+        if (cancelled) return
+        setDetailError(err instanceof Error ? err.message : String(err))
+      })
+      .finally(() => {
+        if (cancelled) return
+        setDetailLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [bookId, selectedScenario, confidenceLevel, timeHorizonDays])
 
   const handleRunReverseStress = useCallback(async (request: ReverseStressRequestDto) => {
     if (!bookId) return
@@ -236,9 +283,23 @@ export function ScenariosTab({
           </>
         )}
 
-        <ScenarioDetailPanel
-          result={selectedScenario ? results.find((r) => r.scenarioName === selectedScenario) ?? null : null}
-        />
+        {selectedScenario && detailLoading && (
+          <div
+            data-testid="scenario-detail-loading"
+            className="mt-4 border-t pt-4 flex items-center gap-2 text-slate-500 text-sm"
+          >
+            <Spinner size="sm" />
+            Loading scenario details...
+          </div>
+        )}
+        {selectedScenario && !detailLoading && detailError && (
+          <div className="mt-4 border-t pt-4">
+            <ErrorCard message={detailError} data-testid="scenario-detail-error" />
+          </div>
+        )}
+        {selectedScenario && !detailLoading && !detailError && (
+          <ScenarioDetailPanel result={detailResult} />
+        )}
       </Card>
 
       <CustomScenarioBuilder

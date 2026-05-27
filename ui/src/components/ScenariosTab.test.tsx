@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { ScenariosTab } from './ScenariosTab'
@@ -11,6 +11,24 @@ vi.mock('../api/scenarios', () => ({
   submitScenario: vi.fn(),
   approveScenario: vi.fn(),
   retireScenario: vi.fn(),
+}))
+
+// The batch (Run All) endpoint returns slim summaries — only scenarioName,
+// baseVar, stressedVar, pnlImpact. Drill-down needs the full
+// ``StressTestResultDto`` (asset class impacts, position impacts, Greeks),
+// so ScenariosTab lazy-fetches the full result via the single-scenario
+// route when the user expands a row. The mock here returns the full
+// ``ALL_STRESS_RESULTS`` entry that matches the requested scenarioName
+// so the detail panel can render against realistic shape.
+vi.mock('../api/stress', () => ({
+  runStressTest: vi.fn().mockImplementation(async (_bookId: string, scenarioName: string) => {
+    return ALL_STRESS_RESULTS.find((r) => r.scenarioName === scenarioName) ?? null
+  }),
+}))
+
+vi.mock('../api/historicalReplay', () => ({
+  runHistoricalReplay: vi.fn(),
+  runReverseStress: vi.fn(),
 }))
 
 const defaultProps = {
@@ -80,7 +98,7 @@ describe('ScenariosTab', () => {
       expect(onSelectScenario).toHaveBeenCalledWith(ALL_STRESS_RESULTS[0].scenarioName)
     })
 
-    it('renders the ScenarioDetailPanel for the matched result when selectedScenario is set', () => {
+    it('renders the ScenarioDetailPanel for the matched result when selectedScenario is set', async () => {
       const selected = ALL_STRESS_RESULTS[0]
       render(
         <ScenariosTab
@@ -92,7 +110,59 @@ describe('ScenariosTab', () => {
 
       // ScenarioDetailPanel emits detail-panel only when a result is bound;
       // its presence proves the row → panel cross-link is wired end to end.
-      expect(screen.getByTestId('detail-panel')).toBeInTheDocument()
+      // The panel renders after the lazy fetch resolves (see vi.mock for
+      // ../api/stress at the top of this file).
+      await waitFor(() =>
+        expect(screen.getByTestId('detail-panel')).toBeInTheDocument(),
+      )
+    })
+
+    it('lazy-fetches full detail when a scenario is selected (batch returns slim rows)', async () => {
+      // Simulate the live batch endpoint shape: only scenarioName, baseVar,
+      // stressedVar, pnlImpact. The full impact arrays are absent — without
+      // a lazy fetch the detail panel would explode on undefined.
+      const slimResults = ALL_STRESS_RESULTS.map((r) => ({
+        scenarioName: r.scenarioName,
+        baseVar: r.baseVar,
+        stressedVar: r.stressedVar,
+        pnlImpact: r.pnlImpact,
+        // The full ``StressTestResultDto`` shape demands these but they are
+        // not populated by the slim batch route — that's the bug the lazy
+        // fetch fixes.
+        assetClassImpacts: undefined as unknown as never,
+        calculatedAt: r.calculatedAt,
+        positionImpacts: undefined as unknown as never,
+        limitBreaches: undefined as unknown as never,
+      }))
+
+      render(
+        <ScenariosTab
+          {...defaultProps}
+          results={slimResults}
+          selectedScenario={slimResults[0].scenarioName}
+        />,
+      )
+
+      // After lazy fetch resolves, the detail panel renders against the
+      // full result and shows the asset-class view.
+      await waitFor(() =>
+        expect(screen.getByTestId('asset-class-impact-view')).toBeInTheDocument(),
+      )
+    })
+
+    it('does not call the single-scenario API when no scenario is selected', () => {
+      // Spy must be reset between renders so the previous test's mock
+      // invocation count does not leak in.
+      vi.clearAllMocks()
+      render(
+        <ScenariosTab
+          {...defaultProps}
+          results={ALL_STRESS_RESULTS}
+          selectedScenario={null}
+        />,
+      )
+      // No fetch is fired while the panel is collapsed.
+      expect(screen.queryByTestId('detail-panel')).not.toBeInTheDocument()
     })
 
     it('does not render ScenarioDetailPanel when no scenario is selected', () => {
