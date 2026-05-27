@@ -365,6 +365,129 @@ async def test_chat_history_argument_overrides_conversation_store() -> None:
     assert "store-only-turn" not in prompt
 
 
+# ---------------------------------------------------------------------------
+# Page-context threading
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_chat_threads_page_context_into_prompt() -> None:
+    """``page_context`` is serialised into the SDK prompt as JSON.
+
+    Inline explainers (e.g. the correlation matrix) attach grounding
+    data to ``page_context`` and rely on the model seeing it; otherwise
+    the model asks the user to paste the data and the citation
+    verifier rejects the resulting ungrounded reply.
+    """
+
+    sdk = _FakeStreamingSdk(messages=[FakeMessage(content="ok")])
+    store = InMemoryConversationStore()
+    client = ClaudeAgentCopilotChatClient(conversation_store=store, sdk=sdk)
+
+    [
+        chunk
+        async for chunk in client.chat(
+            _request(
+                message="explain correlation breaks",
+                page_context={
+                    "page": "correlation-matrix",
+                    "asset_classes": ["EQUITY", "FX"],
+                    "correlation_breaks": [
+                        {"a": "EQUITY", "b": "FX", "correlation": 0.42}
+                    ],
+                },
+            )
+        )
+    ]
+
+    prompt = sdk.recorded_prompts[0]
+    assert "correlation-matrix" in prompt
+    assert "EQUITY" in prompt
+    assert "0.42" in prompt
+
+
+@pytest.mark.asyncio
+async def test_chat_wraps_page_context_as_untrusted_content() -> None:
+    """Page-context payload is fenced in ``[user-content]`` tags.
+
+    Mirrors :func:`sanitiser.wrap_untrusted` — the SDK must treat the
+    payload as opaque data, not as instructions, even if the UI ever
+    forwards user-authored fields (trade comments, notes, etc.).
+    """
+
+    sdk = _FakeStreamingSdk(messages=[FakeMessage(content="ok")])
+    store = InMemoryConversationStore()
+    client = ClaudeAgentCopilotChatClient(conversation_store=store, sdk=sdk)
+
+    [
+        chunk
+        async for chunk in client.chat(
+            _request(
+                message="q",
+                page_context={"page": "var-dashboard", "note": "hello"},
+            )
+        )
+    ]
+
+    prompt = sdk.recorded_prompts[0]
+    assert "[user-content]" in prompt
+    assert "[/user-content]" in prompt
+    # The user message must appear AFTER the fenced page-context block
+    # so the model reads the grounding data before the instruction.
+    assert prompt.index("[/user-content]") < prompt.index("q")
+
+
+@pytest.mark.asyncio
+async def test_chat_omits_page_context_block_when_empty() -> None:
+    """An empty ``page_context`` adds nothing — no stray fence in the prompt."""
+
+    sdk = _FakeStreamingSdk(messages=[FakeMessage(content="ok")])
+    store = InMemoryConversationStore()
+    client = ClaudeAgentCopilotChatClient(conversation_store=store, sdk=sdk)
+
+    [
+        chunk
+        async for chunk in client.chat(
+            _request(message="just a question", page_context={})
+        )
+    ]
+
+    prompt = sdk.recorded_prompts[0]
+    assert "[user-content]" not in prompt
+    assert "just a question" in prompt
+
+
+@pytest.mark.asyncio
+async def test_chat_orders_history_then_page_context_then_message() -> None:
+    """Prompt layout is history → page_context → user message, in that order."""
+
+    sdk = _FakeStreamingSdk(messages=[FakeMessage(content="ok")])
+    store = InMemoryConversationStore()
+    client = ClaudeAgentCopilotChatClient(conversation_store=store, sdk=sdk)
+    history = [
+        ConversationTurn(
+            role="user",
+            content="HISTORY_MARKER",
+            timestamp=datetime(2026, 5, 19, 7, 0, 0, tzinfo=timezone.utc),
+        )
+    ]
+
+    [
+        chunk
+        async for chunk in client.chat(
+            _request(
+                message="MESSAGE_MARKER",
+                page_context={"page": "PAGECTX_MARKER"},
+            ),
+            history=history,
+        )
+    ]
+
+    prompt = sdk.recorded_prompts[0]
+    assert prompt.index("HISTORY_MARKER") < prompt.index("PAGECTX_MARKER")
+    assert prompt.index("PAGECTX_MARKER") < prompt.index("MESSAGE_MARKER")
+
+
 @pytest.mark.asyncio
 async def test_chat_yields_upstream_error_when_sdk_raises_on_iteration() -> None:
     """A transport-style SDK failure becomes one UPSTREAM_ERROR terminal frame."""

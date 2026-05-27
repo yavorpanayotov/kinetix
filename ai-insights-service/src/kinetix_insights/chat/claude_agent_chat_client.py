@@ -59,6 +59,7 @@ the factory wiring and never by these unit tests.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from collections.abc import AsyncIterator
 from datetime import datetime, timezone
@@ -69,7 +70,7 @@ from kinetix_insights.chat.conversation_store import (
     ConversationTurn,
 )
 from kinetix_insights.chat.models import ChatChunk, ChatRequest, ToolCall
-from kinetix_insights.chat.sanitiser import sanitise_message
+from kinetix_insights.chat.sanitiser import sanitise_message, wrap_untrusted
 from kinetix_insights.citations.models import TIMEOUT_FLAG, Citation
 from kinetix_insights.citations.symbol_verifier import find_uncited_symbols
 from kinetix_insights.citations.verifier import find_uncited_tokens
@@ -173,6 +174,30 @@ def _format_history(history: list[ConversationTurn]) -> str:
     return "".join(f"{turn.role}: {turn.content}\n" for turn in history)
 
 
+def _format_page_context(page_context: dict[str, Any]) -> str:
+    """Serialise ``page_context`` as a fenced untrusted-content block.
+
+    Inline explainers (correlation matrix, VaR cards, etc.) attach
+    grounding data — matrix cells, derived breaks, the route name — to
+    ``page_context``. Without threading it into the prompt, the model
+    cannot ground its answer, asks the user to paste the data, and the
+    citation verifier then rejects the ungrounded reply as
+    ``CITATION_UNVERIFIABLE``.
+
+    The payload is JSON-encoded with sorted keys (deterministic for
+    tests and log diffing) and wrapped in ``[user-content]…[/user-content]``
+    so the SDK treats it strictly as data, never as instructions — even
+    if the UI eventually forwards user-authored fields. An empty
+    ``page_context`` is a no-op (returns the empty string) so prompts
+    for calls with no grounding stay unchanged.
+    """
+
+    if not page_context:
+        return ""
+    payload = json.dumps(page_context, sort_keys=True)
+    return f"{wrap_untrusted(payload)}\n\n"
+
+
 class ClaudeAgentCopilotChatClient:
     """``CopilotChatClient`` backed by ``claude_agent_sdk.query``.
 
@@ -270,7 +295,11 @@ class ClaudeAgentCopilotChatClient:
                     "patterns": detected_patterns,
                 },
             )
-        prompt = _format_history(history) + sanitised_message
+        prompt = (
+            _format_history(history)
+            + _format_page_context(request.page_context)
+            + sanitised_message
+        )
 
         try:
             query = self._resolve_query()
