@@ -13,6 +13,7 @@ import com.kinetix.demo.schedule.DemoVaRBootstrapJob
 import com.kinetix.demo.schedule.EodCycleObserverJob
 import com.kinetix.demo.schedule.EodPromotionJob
 import com.kinetix.demo.schedule.LimitSeedJob
+import com.kinetix.demo.schedule.OptionPriceSeeder
 import com.kinetix.demo.schedule.RiskOrchestratorBacktestInputProvider
 import com.kinetix.demo.schedule.SchedulingHelpers
 import com.kinetix.demo.schedule.SimulatedPriceBook
@@ -147,7 +148,13 @@ private fun Application.wireDemoSchedulers(
     val simulatedTraderJob = SimulatedTraderJob(
         positionClient = positionClient,
         strategyIdResolver = DefaultStrategyIdResolver(positionClient = positionClient),
-        priceBook = SimulatedPriceBook(random = java.util.Random()),
+        priceBook = SimulatedPriceBook(
+            random = java.util.Random(),
+            // kx-bt2 — option seeds derived from Black-Scholes at startup so
+            // SPX-OPT-5000C and VIX-OPT-20C carry defensible fair values
+            // instead of the round constants in SEED_PRICES.
+            seedPrices = SimulatedPriceBook.SEED_PRICES + OptionPriceSeeder.computeSeeds(java.time.Clock.systemUTC()),
+        ),
         tradingHoursStart = config.tradingHoursStart,
         tradingHoursEnd = config.tradingHoursEnd,
     )
