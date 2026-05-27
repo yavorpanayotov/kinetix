@@ -65,6 +65,21 @@ The acceptance command below is identical for every batch — it just verifies t
   Acceptance: `[ "$(git log --oneline -6 | grep -c 'kx-')" -ge 4 ]`
 - [ ] Batch 11
   Acceptance: `[ "$(git log --oneline -6 | grep -c 'kx-')" -ge 4 ]`
+  Blocked: 2026-05-28 — verification failed for `[ "$(git log --oneline -6 | grep -c 'kx-')" -ge 4 ]`:
+  Four consecutive batch-orchestrator subagent runs (Batches 8-11) hit
+  `API Error: The socket connection was closed unexpectedly` after running
+  for ~10-80 minutes each. Batches 8-10 each landed 1-3 commits before the
+  drop; Batch 11 landed zero. The top-6 commit window now contains only
+  three kx- commits (kx-7dbn, kx-lwc6, kx-qtdb) — below the >=4 threshold.
+  Loop stopped per work-plan blocker rules.
+  Status snapshot: Phase 1 complete (200 lane-tagged beads issues created);
+  Phase 2 Batches 1-7 landed 5/5 each (35 worker commits); Batches 8-10
+  landed partials (5 worker commits across 3 batches). 160 beads issues
+  remain open in the ready queue. The infrastructure is sound — the
+  long-running-subagent pattern is what keeps dropping.
+  Possible mitigations to discuss: drive workers directly from the parent
+  (no subagent), use TeamCreate/EnterWorktree for native parallel
+  worktrees, or shard the loop across many short subagent invocations.
 - [ ] Batch 12
   Acceptance: `[ "$(git log --oneline -6 | grep -c 'kx-')" -ge 4 ]`
 - [ ] Batch 13
