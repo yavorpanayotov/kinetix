@@ -531,4 +531,50 @@ describe('StreamingNarrative', () => {
 
     expect(screen.queryByTestId('tool-call-list')).not.toBeInTheDocument()
   })
+
+  it('renders streamed markdown — **bold** becomes <strong>, not raw asterisks', async () => {
+    const stream = streamOf(
+      { type: 'delta', delta: 'Driver: **tech beta** rose.' },
+      {
+        type: 'done',
+        session_id: 's-1',
+        conversation_id: 'c-1',
+        model: 'claude-opus-4-7',
+        mode: 'live',
+      },
+    )
+
+    render(<StreamingNarrative stream={stream} reducedMotion />)
+
+    await flushPumpAndRaf()
+    await flushPumpAndRaf()
+
+    const wrapper = screen.getByTestId('streaming-narrative-text')
+    expect(wrapper.querySelector('strong')?.textContent).toBe('tech beta')
+    // The asterisk source must not survive into the rendered text.
+    expect(wrapper.textContent).not.toContain('**')
+  })
+
+  it('renders streamed markdown lists — "- item" becomes a <ul><li>', async () => {
+    const stream = streamOf(
+      { type: 'delta', delta: 'Drivers:\n\n- AAPL\n- MSFT' },
+      {
+        type: 'done',
+        session_id: 's-1',
+        conversation_id: 'c-1',
+        model: 'claude-opus-4-7',
+        mode: 'live',
+      },
+    )
+
+    render(<StreamingNarrative stream={stream} reducedMotion />)
+
+    await flushPumpAndRaf()
+    await flushPumpAndRaf()
+
+    const wrapper = screen.getByTestId('streaming-narrative-text')
+    const list = wrapper.querySelector('ul')
+    expect(list).not.toBeNull()
+    expect(list?.querySelectorAll('li')).toHaveLength(2)
+  })
 })

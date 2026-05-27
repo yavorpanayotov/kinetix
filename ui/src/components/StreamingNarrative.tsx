@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ChatChunk, Citation, ToolCall } from '../api/copilot'
 import { mapChatErrorCode } from '../api/copilot'
+import { AIMarkdown } from './AIMarkdown'
 import { ToolCallList } from './ToolCallList'
 
 /**
@@ -470,8 +471,8 @@ export function StreamingNarrative({
       {(state === 'token-flow' ||
         state === 'complete' ||
         (state === 'error' && renderedText.length > 0)) && (
-        <p data-testid="streaming-narrative-text">
-          {renderedText}
+        <div data-testid="streaming-narrative-text">
+          <AIMarkdown source={renderedText} />
           {state === 'token-flow' && (
             <span
               data-testid="streaming-narrative-cursor"
@@ -481,7 +482,7 @@ export function StreamingNarrative({
               {'▊'}
             </span>
           )}
-        </p>
+        </div>
       )}
 
       {citations.length > 0 && (

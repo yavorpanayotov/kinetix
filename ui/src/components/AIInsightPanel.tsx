@@ -2,8 +2,26 @@ import { useEffect, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 import type { ChatChunk, Citation } from '../api/copilot'
 import type { InsightResponse } from '../api/insights'
+import { AIMarkdown } from './AIMarkdown'
 import { StreamingNarrative } from './StreamingNarrative'
 import { CitationList } from './CitationList'
+
+/**
+ * Build a single markdown source for the buffered (non-streaming)
+ * insight branch by appending the structured bullets to the narrative.
+ * The model emits narrative as a paragraph and bullets as discrete
+ * strings (which themselves may contain inline markdown such as
+ * ``**bold**`` or `` `tickers` ``). Re-assembling them into one
+ * markdown blob lets ``AIMarkdown`` apply consistent typography to
+ * both, instead of having a hand-built ``<ul>`` for bullets that
+ * silently strips inline emphasis.
+ */
+function buildBufferedMarkdown(insight: InsightResponse): string {
+  if (insight.bullets.length === 0) return insight.narrative
+  const body = insight.narrative.trim()
+  const list = insight.bullets.map((b) => `- ${b}`).join('\n')
+  return body.length > 0 ? `${body}\n\n${list}` : list
+}
 
 export interface AIInsightPanelProps {
   loading?: boolean
@@ -153,16 +171,7 @@ export function AIInsightPanel({
 
       {!loading && !error && !showStream && insight && (
         <div data-testid="ai-insight-content">
-          <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-200 mb-3">
-            {insight.narrative}
-          </p>
-          {insight.bullets.length > 0 && (
-            <ul className="list-disc pl-5 space-y-1 text-sm text-slate-700 dark:text-slate-200 mb-3">
-              {insight.bullets.map((b, i) => (
-                <li key={i}>{b}</li>
-              ))}
-            </ul>
-          )}
+          <AIMarkdown source={buildBufferedMarkdown(insight)} className="mb-3" />
           <footer className="flex items-center justify-between border-t border-slate-100 dark:border-surface-700 pt-2 text-xs text-slate-500 dark:text-slate-400">
             <span data-testid="ai-insight-model">{insight.model}</span>
             {insight.mode === 'canned' && (

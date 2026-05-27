@@ -271,6 +271,35 @@ describe('AIInsightPanel', () => {
     expect(screen.queryByTestId('ai-insight-streaming')).not.toBeInTheDocument()
   })
 
+  it('renders markdown emphasis in the narrative (not raw source)', () => {
+    const insight = makeInsight({
+      narrative: 'Driver: **tech beta** rose 12bps.',
+      bullets: [],
+    })
+    render(<AIInsightPanel insight={insight} />)
+
+    const content = screen.getByTestId('ai-insight-content')
+    expect(content.querySelector('strong')).not.toBeNull()
+    expect(content.querySelector('strong')?.textContent).toBe('tech beta')
+    expect(content.textContent).not.toContain('**')
+  })
+
+  it('renders bullets through markdown so inline emphasis is preserved', () => {
+    const insight = makeInsight({
+      narrative: 'Top contributors:',
+      bullets: ['`AAPL` contributes **42%** of total VaR'],
+    })
+    render(<AIInsightPanel insight={insight} />)
+
+    const content = screen.getByTestId('ai-insight-content')
+    const list = content.querySelector('ul')
+    expect(list).not.toBeNull()
+    expect(list?.querySelector('code')?.textContent).toBe('AAPL')
+    expect(list?.querySelector('strong')?.textContent).toBe('42%')
+    expect(content.textContent).not.toContain('**')
+    expect(content.textContent).not.toContain('`')
+  })
+
   it('error state takes precedence over stream prop', () => {
     const stream = streamOf(
       { type: 'delta', delta: 'should not render' },
