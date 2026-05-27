@@ -77,8 +77,11 @@ class CopilotChatRouteAcceptanceTest : FunSpec({
         install(ContentNegotiation) { json() }
         install(HttpTimeout) {
             // Dedicated streaming budget — matches the production
-            // streamingHttpClient in Application.devModule.
+            // streamingHttpClient in Application.devModule. socketTimeoutMillis
+            // is also disabled so a long upstream "thinking" gap before the
+            // first SSE frame does not kill the connection.
             requestTimeoutMillis = Long.MAX_VALUE
+            socketTimeoutMillis = Long.MAX_VALUE
             connectTimeoutMillis = 2_000
         }
     }

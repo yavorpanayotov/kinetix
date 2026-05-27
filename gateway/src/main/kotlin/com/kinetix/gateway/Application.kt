@@ -480,7 +480,14 @@ fun Application.devModule() {
     // Dedicated client for long-lived SSE / streaming proxies (e.g. the
     // Copilot chat route). The shared `httpClient` above caps every request
     // at 5 s, which would kill an open chat stream mid-conversation; this
-    // client disables the request timeout entirely. Connect timeout stays
+    // client disables the request timeout entirely AND the socket idle
+    // timeout, because the live LLM client can sit silent for >10 s
+    // between the upstream connect and the first delta (Opus
+    // "thinking" before emission). Without an explicit
+    // `socketTimeoutMillis = Long.MAX_VALUE` the CIO engine's default
+    // socket read timeout (~10 s) kills the upstream connection during
+    // that idle gap, producing the spurious 500/ChannelWriteException
+    // we used to see on the chat route. Connect timeout stays
     // bounded so the gateway still fails fast when the upstream is down.
     val streamingHttpClient = HttpClient(CIO) {
         install(ClientContentNegotiation) {
@@ -488,6 +495,7 @@ fun Application.devModule() {
         }
         install(HttpTimeout) {
             requestTimeoutMillis = Long.MAX_VALUE
+            socketTimeoutMillis = Long.MAX_VALUE
             connectTimeoutMillis = 2_000
         }
     }
