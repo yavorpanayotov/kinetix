@@ -30,7 +30,7 @@ See the design document for the full table. Lanes by area:
 
 - [x] Create the risk-engine beads issue inventory (~70 issues). Spawn one subagent that runs `bd create` for every item in the R-* lanes from the Phase-1 survey, with `lane: R-<...>` as the first line of each description and an `Acceptance:` command on its own line.
   Acceptance: `bd list --status=open --json --limit 0 | jq -r '.[].description // "" | split("\n")[0]' | grep -c '^lane: R-' | awk '$1>=65 {exit 0} {exit 1}'`
-- [ ] Create the Kotlin services beads issue inventory (~70 issues). Same pattern, lanes `K-*`.
+- [x] Create the Kotlin services beads issue inventory (~70 issues). Same pattern, lanes `K-*`.
   Acceptance: `bd list --status=open --json --limit 0 | jq -r '.[].description // "" | split("\n")[0]' | grep -c '^lane: K-' | awk '$1>=65 {exit 0} {exit 1}'`
 - [ ] Create the UI beads issue inventory (~60 issues). Same pattern, lanes `U-*`.
   Acceptance: `bd list --status=open --json --limit 0 | jq -r '.[].description // "" | split("\n")[0]' | grep -c '^lane: U-' | awk '$1>=55 {exit 0} {exit 1}'`
