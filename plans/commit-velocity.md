@@ -43,7 +43,7 @@ Each batch checkbox: the `/work-plan` driver subagent runs `scripts/run_batch.sh
 
 The acceptance command below is identical for every batch — it just verifies that at least 4 of the 5 workers landed a commit (allowing 1 conflict/skip per batch).
 
-- [ ] Batch 1
+- [x] Batch 1
   Acceptance: `[ "$(git log --oneline -6 | grep -c 'kx-')" -ge 4 ]`
 - [ ] Batch 2
   Acceptance: `[ "$(git log --oneline -6 | grep -c 'kx-')" -ge 4 ]`
