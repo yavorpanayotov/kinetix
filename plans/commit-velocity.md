@@ -28,12 +28,12 @@ See the design document for the full table. Lanes by area:
 
 ## Phase 1 — Setup
 
-- [ ] Create the risk-engine beads issue inventory (~70 issues). Spawn one subagent that runs `bd create` for every item in the R-* lanes from the Phase-1 survey, with `lane: R-<...>` as the first line of each description and an `Acceptance:` command on its own line.
-  Acceptance: `bd list --status=open --json | jq -r '.[].description // "" | split("\n")[0]' | grep -c '^lane: R-' | awk '$1>=65 {exit 0} {exit 1}'`
+- [x] Create the risk-engine beads issue inventory (~70 issues). Spawn one subagent that runs `bd create` for every item in the R-* lanes from the Phase-1 survey, with `lane: R-<...>` as the first line of each description and an `Acceptance:` command on its own line.
+  Acceptance: `bd list --status=open --json --limit 0 | jq -r '.[].description // "" | split("\n")[0]' | grep -c '^lane: R-' | awk '$1>=65 {exit 0} {exit 1}'`
 - [ ] Create the Kotlin services beads issue inventory (~70 issues). Same pattern, lanes `K-*`.
-  Acceptance: `bd list --status=open --json | jq -r '.[].description // "" | split("\n")[0]' | grep -c '^lane: K-' | awk '$1>=65 {exit 0} {exit 1}'`
+  Acceptance: `bd list --status=open --json --limit 0 | jq -r '.[].description // "" | split("\n")[0]' | grep -c '^lane: K-' | awk '$1>=65 {exit 0} {exit 1}'`
 - [ ] Create the UI beads issue inventory (~60 issues). Same pattern, lanes `U-*`.
-  Acceptance: `bd list --status=open --json | jq -r '.[].description // "" | split("\n")[0]' | grep -c '^lane: U-' | awk '$1>=55 {exit 0} {exit 1}'`
+  Acceptance: `bd list --status=open --json --limit 0 | jq -r '.[].description // "" | split("\n")[0]' | grep -c '^lane: U-' | awk '$1>=55 {exit 0} {exit 1}'`
 - [ ] Sync the inventory to Dolt and verify the lane picker returns 5 disjoint items.
   Acceptance: `bd dolt push >/dev/null 2>&1 && [ "$(scripts/run_batch.sh 5 | wc -l | tr -d ' ')" -ge 5 ]`
 
@@ -127,7 +127,7 @@ The acceptance command below is identical for every batch — it just verifies t
 ## Phase 3 — Verification
 
 - [ ] Wrap-up: push remaining commits, verify module tests pass, confirm beads inventory drained and commit count delta is ~200.
-  Acceptance: `git pull --rebase && git push && [ "$(bd list --status=open --json | jq -r '.[].description // "" | split("\n")[0]' | grep -c '^lane: ')" -le 10 ] && [ "$(git rev-list --count HEAD ^origin/main@{1.week.ago} 2>/dev/null || echo 200)" -ge 150 ]`
+  Acceptance: `git pull --rebase && git push && [ "$(bd list --status=open --json --limit 0 | jq -r '.[].description // "" | split("\n")[0]' | grep -c '^lane: ')" -le 10 ] && [ "$(git rev-list --count HEAD ^origin/main@{1.week.ago} 2>/dev/null || echo 200)" -ge 150 ]`
 
 ## Out of scope
 
