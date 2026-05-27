@@ -500,6 +500,25 @@ fun Application.devModule() {
         }
     }
 
+    // Dedicated client for the buffered insights endpoints
+    // (``/explain/var``, ``/explain/report``, ``/brief/today``). The shared
+    // ``httpClient`` above caps every request at 5 s; an Opus-backed
+    // explainer routinely takes 8–12 s end-to-end (LLM thinking +
+    // emission), so a 5 s budget surfaces a misleading 504 even though the
+    // upstream eventually answers fine. A 30 s budget gives the AI
+    // headroom while still bounding gateway connection lifetime when
+    // ai-insights-service truly hangs.
+    val insightsBufferedHttpClient = HttpClient(CIO) {
+        install(ClientContentNegotiation) {
+            json(jsonConfig)
+        }
+        install(HttpTimeout) {
+            requestTimeoutMillis = 30_000
+            socketTimeoutMillis = 30_000
+            connectTimeoutMillis = 2_000
+        }
+    }
+
     val kafkaBootstrapServers = environment.config
         .propertyOrNull("kafka.bootstrapServers")?.getString() ?: "localhost:9092"
 
@@ -621,7 +640,7 @@ fun Application.devModule() {
                 saCcrRoutes(riskClient)
                 volSurfaceRoutes(volatilityClient)
                 yieldCurveProxyRoutes(httpClient, ratesUrl)
-                insightsRoutes(httpClient, insightsUrl, streamingHttpClient)
+                insightsRoutes(insightsBufferedHttpClient, insightsUrl, streamingHttpClient)
                 demoStressWindowsRoutes()
                 demoScenarioRoutes()
                 tapeReplayStatusRoutes()
