@@ -146,8 +146,12 @@ export function PositionRiskTable({ data, loading, error, onRetry, activeScenari
   // Inline explainer state (plan §9.1). `explainTarget` identifies which
   // explainer (header or a specific row) is open — at most one at a time.
   // `explainStream` is the live `/chat` token stream feeding the panel.
+  // `busyTarget` tracks the in-flight target so the triggering button
+  // can show a spinner while the model is still working; it clears when
+  // the stream completes (clean or error).
   const [explainTarget, setExplainTarget] = useState<ExplainTarget | null>(null)
   const [explainStream, setExplainStream] = useState<ReadableStream<ChatChunk> | null>(null)
+  const [busyTarget, setBusyTarget] = useState<ExplainTarget | null>(null)
 
   /**
    * Open an inline explainer for `target`.
@@ -156,6 +160,12 @@ export function PositionRiskTable({ data, loading, error, onRetry, activeScenari
    * already open is a no-op — neither a duplicate panel nor a duplicate
    * `/chat` request is created. Opening a *different* explainer replaces the
    * current one ("only one panel open").
+   *
+   * For per-row explainers we also auto-expand the row so the explainer
+   * panel — which renders inside that row's detail ``<tr>`` — is
+   * immediately visible. Without this the panel mounted offscreen at the
+   * bottom of the table and the user perceived the click as silently
+   * failing.
    */
   const handleExplain = (target: ExplainTarget) => {
     if (sameTarget(explainTarget, target)) return
@@ -169,11 +179,20 @@ export function PositionRiskTable({ data, loading, error, onRetry, activeScenari
     })
     setExplainTarget(target)
     setExplainStream(stream)
+    setBusyTarget(target)
+    if (target.kind === 'row') {
+      setExpandedRow(target.instrumentId)
+    }
   }
 
   const closeExplain = () => {
     setExplainTarget(null)
     setExplainStream(null)
+    setBusyTarget(null)
+  }
+
+  const handleStreamComplete = () => {
+    setBusyTarget(null)
   }
 
   const sorted = useMemo(() => {
@@ -244,6 +263,7 @@ export function PositionRiskTable({ data, loading, error, onRetry, activeScenari
                 label="Explain"
                 ariaLabel="Explain portfolio position risk"
                 onClick={() => handleExplain({ kind: 'portfolio' })}
+                isBusy={busyTarget?.kind === 'portfolio'}
                 className="px-2 py-1 text-xs"
               />
               <button
@@ -381,6 +401,10 @@ export function PositionRiskTable({ data, loading, error, onRetry, activeScenari
                                 instrumentId: row.instrumentId,
                               })
                             }
+                            isBusy={
+                              busyTarget?.kind === 'row' &&
+                              busyTarget.instrumentId === row.instrumentId
+                            }
                             className="px-1.5 py-1 text-xs"
                           />
                         </td>
@@ -433,6 +457,28 @@ export function PositionRiskTable({ data, loading, error, onRetry, activeScenari
                                 </div>
                               )}
                             </div>
+                            {/*
+                              Per-row inline explainer — rendered HERE (inside
+                              the expanded row's detail) rather than at the
+                              bottom of the table so the user sees it
+                              immediately. The portfolio-level explainer
+                              keeps its place below the table.
+                            */}
+                            {explainTarget?.kind === 'row' &&
+                              explainTarget.instrumentId === row.instrumentId &&
+                              explainStream && (
+                                <div
+                                  data-testid="position-explain-panel"
+                                  className="mt-3"
+                                >
+                                  <AIInsightPanel
+                                    stream={explainStream}
+                                    title={`Explain — ${row.instrumentId}`}
+                                    onClose={closeExplain}
+                                    onStreamComplete={handleStreamComplete}
+                                  />
+                                </div>
+                              )}
                           </td>
                         </tr>
                       )}
@@ -444,16 +490,13 @@ export function PositionRiskTable({ data, loading, error, onRetry, activeScenari
           </div>
         )}
 
-        {explainTarget && explainStream && (
+        {explainTarget?.kind === 'portfolio' && explainStream && (
           <div data-testid="position-explain-panel" className="px-4 pb-4 pt-2">
             <AIInsightPanel
               stream={explainStream}
-              title={
-                explainTarget.kind === 'row'
-                  ? `Explain — ${explainTarget.instrumentId}`
-                  : 'Explain — Portfolio Position Risk'
-              }
+              title="Explain — Portfolio Position Risk"
               onClose={closeExplain}
+              onStreamComplete={handleStreamComplete}
             />
           </div>
         )}

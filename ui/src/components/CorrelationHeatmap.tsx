@@ -72,8 +72,12 @@ export function CorrelationHeatmap({ assetClasses, chatFn = chat }: CorrelationH
 
   // Inline explainer state (plan §9.5). At most one panel is ever open
   // for the matrix; `explainStream` is the live `/chat` token stream.
+  // `explainBusy` tracks the in-flight wait so the trigger button can
+  // surface a spinner while the model warms up (Opus can sit silent for
+  // 10+ s before the first delta).
   const [explainOpen, setExplainOpen] = useState(false)
   const [explainStream, setExplainStream] = useState<ReadableStream<ChatChunk> | null>(null)
+  const [explainBusy, setExplainBusy] = useState(false)
 
   /**
    * Open the matrix-level inline explainer, focused on correlation
@@ -95,11 +99,17 @@ export function CorrelationHeatmap({ assetClasses, chatFn = chat }: CorrelationH
     })
     setExplainOpen(true)
     setExplainStream(stream)
+    setExplainBusy(true)
   }
 
   const closeExplain = () => {
     setExplainOpen(false)
     setExplainStream(null)
+    setExplainBusy(false)
+  }
+
+  const handleStreamComplete = () => {
+    setExplainBusy(false)
   }
 
   const cellWidth = 52
@@ -119,6 +129,7 @@ export function CorrelationHeatmap({ assetClasses, chatFn = chat }: CorrelationH
           label="Explain"
           ariaLabel="Explain correlation breaks"
           onClick={handleExplain}
+          isBusy={explainBusy}
           className="px-2 py-1 text-xs"
         />
       </div>
@@ -129,6 +140,7 @@ export function CorrelationHeatmap({ assetClasses, chatFn = chat }: CorrelationH
             stream={explainStream}
             title="Explain — Correlation Breaks"
             onClose={closeExplain}
+            onStreamComplete={handleStreamComplete}
           />
         </div>
       )}

@@ -85,4 +85,54 @@ describe('ExplainButton', () => {
     const button = screen.getByTestId('explain-foo') as HTMLButtonElement
     expect(button.type).toBe('button')
   })
+
+  it('renders a spinner and disables clicks while busy', () => {
+    const onClick = vi.fn()
+    render(
+      <ExplainButton
+        onClick={onClick}
+        isBusy
+        data-testid="explain-foo"
+      />,
+    )
+    const button = screen.getByTestId('explain-foo') as HTMLButtonElement
+    // Spinner replaces the Sparkles icon while busy.
+    expect(screen.getByTestId('explain-spinner')).toBeInTheDocument()
+    // aria-busy is set so assistive tech announces the pending work.
+    expect(button.getAttribute('aria-busy')).toBe('true')
+    // Disabled while busy — absorbs double-clicks during the 10+s wait.
+    expect(button.disabled).toBe(true)
+    fireEvent.click(button)
+    expect(onClick).not.toHaveBeenCalled()
+  })
+
+  it('swaps label copy to "Explaining…" when busy and label is non-empty', () => {
+    render(
+      <ExplainButton
+        onClick={() => {}}
+        isBusy
+        label="Explain"
+        data-testid="explain-foo"
+      />,
+    )
+    expect(screen.getByTestId('explain-foo')).toHaveTextContent('Explaining…')
+  })
+
+  it('keeps icon-only call sites icon-only while busy', () => {
+    // Per-row Explain buttons in PositionRiskTable use ``label=""`` so the
+    // 32px action column stays compact. The spinner alone signals the
+    // pending state — "Explaining…" would overflow the column.
+    render(
+      <ExplainButton
+        onClick={() => {}}
+        isBusy
+        label=""
+        ariaLabel="Explain row"
+        data-testid="explain-foo"
+      />,
+    )
+    const button = screen.getByTestId('explain-foo')
+    expect(screen.getByTestId('explain-spinner')).toBeInTheDocument()
+    expect(button.textContent?.trim()).toBe('')
+  })
 })

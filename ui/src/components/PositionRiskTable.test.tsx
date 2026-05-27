@@ -578,7 +578,12 @@ describe('PositionRiskTable', () => {
       expect(screen.queryByTestId('position-explain-panel')).not.toBeInTheDocument()
     })
 
-    it('clicking a row explain button does not toggle the row detail', async () => {
+    it('clicking a row explain button auto-expands the row so the panel is visible', async () => {
+      // The per-row explainer panel is rendered INSIDE the row's
+      // expanded detail (so the user sees it next to the row, not at
+      // the bottom of the table). Auto-expanding the row on click is
+      // therefore part of the explain flow — without it the panel
+      // would never appear when explain is clicked on a collapsed row.
       const user = userEvent.setup()
       const chatFn = vi.fn<ChatFn>(() => streamOf(doneChunk))
       render(
@@ -591,7 +596,12 @@ describe('PositionRiskTable', () => {
 
       await user.click(screen.getByTestId('explain-position-AAPL'))
 
-      expect(screen.queryByTestId('position-risk-detail-AAPL')).not.toBeInTheDocument()
+      expect(screen.getByTestId('position-risk-detail-AAPL')).toBeInTheDocument()
+      // Panel renders inside the row detail.
+      const detail = screen.getByTestId('position-risk-detail-AAPL')
+      expect(
+        detail.querySelector('[data-testid="position-explain-panel"]'),
+      ).not.toBeNull()
     })
   })
 })

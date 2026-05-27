@@ -174,7 +174,11 @@ export function VaRDashboard({ varResult, filteredHistory, loading, historyLoadi
         </div>
       )}
       <div className="flex items-center justify-end mb-2">
-        <ExplainButton onClick={handleExplain} data-testid="explain-var-button" />
+        <ExplainButton
+          onClick={handleExplain}
+          isBusy={insightLoading}
+          data-testid="explain-var-button"
+        />
       </div>
       <div className="grid grid-cols-4 gap-6">
         <VaRGauge

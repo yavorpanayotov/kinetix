@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 import type { ChatChunk, Citation } from '../api/copilot'
 import type { InsightResponse } from '../api/insights'
@@ -20,6 +20,14 @@ export interface AIInsightPanelProps {
    * opens.
    */
   stream?: ReadableStream<ChatChunk> | null
+
+  /**
+   * Fires once when the streaming response terminates (clean or
+   * error). Used by callers that maintain a "busy" affordance on the
+   * triggering Explain button — they flip it off when this fires so
+   * the button stops spinning once the model has answered.
+   */
+  onStreamComplete?: () => void
 }
 
 interface StreamResult {
@@ -45,13 +53,35 @@ export function AIInsightPanel({
   title = 'AI Insight',
   onClose,
   stream = null,
+  onStreamComplete,
 }: AIInsightPanelProps) {
   const [streamResult, setStreamResult] = useState<StreamResult | null>(null)
+  const sectionRef = useRef<HTMLElement | null>(null)
 
   const showStream = !loading && !error && stream != null
 
+  // Per-row Explain buttons in long tables render this panel at a
+  // location the user often cannot see (bottom of a 20-row position
+  // table, header section above the fold, etc.). Without an explicit
+  // scroll the user clicks Explain and sees nothing — the click
+  // registers but the result lands off-screen, giving the impression
+  // the button is broken. ``scrollIntoView({block:'nearest'})`` is a
+  // no-op when the panel is already on-screen and pulls it into view
+  // otherwise, with smooth motion respected by ``prefers-reduced-motion``
+  // at the OS / browser level.
+  useEffect(() => {
+    const node = sectionRef.current
+    if (!node) return
+    if (!loading && !error && stream == null && insight == null) return
+    // jsdom (used by Vitest) does not implement scrollIntoView; guard
+    // so unit tests don't crash on the feature-detection edge.
+    if (typeof node.scrollIntoView !== 'function') return
+    node.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }, [stream, insight, loading, error])
+
   return (
     <section
+      ref={sectionRef}
       data-testid="ai-insight-panel"
       aria-label={title}
       className="rounded-lg border border-slate-200 dark:border-surface-700 bg-white dark:bg-surface-800 p-4 shadow-sm"
@@ -95,9 +125,10 @@ export function AIInsightPanel({
         <div data-testid="ai-insight-streaming">
           <StreamingNarrative
             stream={stream}
-            onComplete={({ citations, model, mode }) =>
+            onComplete={({ citations, model, mode }) => {
               setStreamResult({ citations, model, mode })
-            }
+              onStreamComplete?.()
+            }}
           />
           {streamResult && streamResult.citations.length > 0 && (
             <div data-testid="ai-insight-citations" className="mt-3">

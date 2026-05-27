@@ -1,4 +1,4 @@
-import { Sparkles } from 'lucide-react'
+import { Loader2, Sparkles } from 'lucide-react'
 
 /**
  * Reusable "Explain" call-to-action button. Wraps the visual treatment that
@@ -14,6 +14,16 @@ export interface ExplainButtonProps {
 
   /** Disable the button (e.g. while a prior request is in flight). */
   disabled?: boolean
+
+  /**
+   * Visual + ARIA busy state. The model can sit silent for >10 s between
+   * the click and the first token; without explicit feedback the user
+   * thinks nothing happened and re-clicks. While `isBusy` is `true` the
+   * Sparkles icon is replaced with a spinning loader, the button is
+   * disabled to absorb double-clicks, and ``aria-busy="true"`` is set so
+   * assistive tech announces the pending work.
+   */
+  isBusy?: boolean
 
   /** Stable testid for E2E hooks. Required so call sites can scope it. */
   'data-testid': string
@@ -34,6 +44,7 @@ const DEFAULT_CLASSES =
 export function ExplainButton({
   onClick,
   disabled = false,
+  isBusy = false,
   'data-testid': dataTestId,
   label = 'Explain',
   ariaLabel,
@@ -43,17 +54,27 @@ export function ExplainButton({
     ? `${DEFAULT_CLASSES} ${className}`
     : DEFAULT_CLASSES
 
+  // Keep icon-only call sites (label="") icon-only even while busy —
+  // they live in a 32px action column that cannot accommodate the
+  // "Explaining…" copy. The spinner alone communicates the pending state.
+  const effectiveLabel = isBusy && label ? 'Explaining…' : label
+
   return (
     <button
       type="button"
       data-testid={dataTestId}
       onClick={onClick}
-      disabled={disabled}
+      disabled={disabled || isBusy}
+      aria-busy={isBusy || undefined}
       aria-label={ariaLabel ?? label}
       className={combinedClassName}
     >
-      <Sparkles className="h-4 w-4" />
-      {label}
+      {isBusy ? (
+        <Loader2 className="h-4 w-4 animate-spin" data-testid="explain-spinner" />
+      ) : (
+        <Sparkles className="h-4 w-4" />
+      )}
+      {effectiveLabel}
     </button>
   )
 }
