@@ -39,3 +39,24 @@ export function formatNumeric(
   if (!Number.isFinite(value)) return placeholder
   return value.toFixed(fractionDigits)
 }
+
+/**
+ * Tooltip-friendly Rho format that appends a "$/bp IR" unit suffix.
+ *
+ * Rho measures the change in option value for a 1 basis point shift in
+ * the interest rate curve. Surfacing the unit alongside the number in
+ * tooltips removes ambiguity — traders never have to guess whether a
+ * value is per basis point, per percent, per dollar of notional, etc.
+ *
+ * Non-finite inputs collapse to the placeholder (em-dash) so a missing
+ * Rho doesn't render a bare "$/bp IR" suffix on its own.
+ */
+export function formatRhoTooltip(
+  value: number | null | undefined,
+  options: FormatNumericOptions = {},
+): string {
+  const { fractionDigits = 2, placeholder = EM_DASH } = options
+  if (value === null || value === undefined) return placeholder
+  if (!Number.isFinite(value)) return placeholder
+  return `${value.toFixed(fractionDigits)} $/bp IR`
+}
