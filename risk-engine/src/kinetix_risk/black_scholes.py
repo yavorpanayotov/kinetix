@@ -161,6 +161,32 @@ def bs_rho(option: OptionPosition) -> float:
         return float(-K * T * math.exp(-r * T) * norm.cdf(-d2))
 
 
+def bs_exact_rho(option: OptionPosition) -> float:
+    """Closed-form rho, identical output to bs_rho.
+
+    Exists as a named entry point for callers that want to make
+    the closed-form-vs-bumped-approximation comparison explicit in
+    their own code (the test file pins down that the closed form
+    agrees with a numerical bump to high precision).
+    """
+    return bs_rho(option)
+
+
+def bs_rho_numerical(option: OptionPosition, bump: float = 1e-4) -> float:
+    """Numerical (centred-difference) rho — sensitivity of price to a
+    1.0 (i.e. 100 percentage points) rate move, computed by bumping
+    the rate up and down by [bump] and dividing by 2*bump.
+
+    Used as the reference value in the bs_exact_rho-vs-numerical
+    test; the closed form should agree to within a small numerical
+    tolerance for any reasonable bump.
+    """
+    from dataclasses import replace
+    up = replace(option, risk_free_rate=option.risk_free_rate + bump)
+    down = replace(option, risk_free_rate=option.risk_free_rate - bump)
+    return (bs_price(up) - bs_price(down)) / (2.0 * bump)
+
+
 def bs_vanna(option: OptionPosition) -> float:
     from kinetix_risk.cross_greeks import calculate_vanna
     T = option.expiry_days / 365.0

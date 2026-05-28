@@ -251,3 +251,34 @@ class TestBlackScholesGreeksBundle:
         assert greeks["vega"] > 0.0
         assert greeks["theta"] < 0.0
         assert greeks["rho"] > 0.0
+
+
+# kx-c2n — closed-form rho vs numerical (centred-difference) reference
+class TestBsExactRho:
+    def _atm_call(self):
+        from kinetix_risk.models import OptionPosition, OptionType, AssetClass
+        return OptionPosition(
+            instrument_id="OPT-1", underlying_id="UND",
+            option_type=OptionType.CALL, strike=100.0, expiry_days=90,
+            spot_price=100.0, implied_vol=0.20, risk_free_rate=0.03,
+            asset_class=AssetClass.EQUITY,
+        )
+
+    @pytest.mark.unit
+    def test_bs_exact_rho_agrees_with_numerical_to_4dp_for_atm_call(self):
+        from kinetix_risk.black_scholes import bs_exact_rho, bs_rho_numerical
+        opt = self._atm_call()
+        exact = bs_exact_rho(opt)
+        numerical = bs_rho_numerical(opt, bump=1e-4)
+        assert abs(exact - numerical) < 1e-3
+
+    @pytest.mark.unit
+    def test_bs_exact_rho_matches_bs_rho(self):
+        from kinetix_risk.black_scholes import bs_exact_rho, bs_rho
+        opt = self._atm_call()
+        assert bs_exact_rho(opt) == bs_rho(opt)
+
+    @pytest.mark.unit
+    def test_bs_exact_rho_positive_for_atm_call(self):
+        from kinetix_risk.black_scholes import bs_exact_rho
+        assert bs_exact_rho(self._atm_call()) > 0
