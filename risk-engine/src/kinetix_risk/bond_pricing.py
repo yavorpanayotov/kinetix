@@ -52,6 +52,40 @@ def bond_modified_duration(bond: BondPosition, yield_rate: float) -> float:
     return bond_dv01(bond, yield_rate) * 10_000 / pv
 
 
+def bond_effective_duration(
+    pv_up: float,
+    pv_down: float,
+    pv_baseline: float,
+    yield_bump: float = 0.01,
+) -> float:
+    """Effective duration via non-linear bumped pricing.
+
+    .. math::
+
+        ED = \\frac{P_{-} - P_{+}}{2 \\cdot P_0 \\cdot \\Delta y}
+
+    Modified duration assumes a linear (or convex-quadratic) price/yield
+    relationship and breaks down for callable bonds because the call
+    option creates a kink in the price/yield curve. Effective duration
+    uses *bumped* prices ``P_-`` (yield down by ``Δy``) and ``P_+``
+    (yield up) computed by the option-aware pricer, so the kink is
+    captured.
+
+    Callers must supply ``pv_up`` and ``pv_down`` computed by the
+    bond's *full* pricer (one that accounts for the embedded call);
+    this function just stitches the bumps into the duration formula
+    so the same algebra is reused across pricers.
+
+    @raise ValueError: if pv_baseline is non-positive (no useful
+        sensitivity from a zero or negative anchor).
+    """
+    if pv_baseline <= 0:
+        raise ValueError(
+            f"effective duration needs a positive pv_baseline (got {pv_baseline})",
+        )
+    return (pv_down - pv_up) / (2.0 * pv_baseline * yield_bump)
+
+
 def _years_to_maturity(bond: BondPosition) -> float:
     if not bond.maturity_date:
         return 0.0

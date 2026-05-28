@@ -49,3 +49,43 @@ class TestBondPricing:
         md = bond_modified_duration(self._par_bond(), yield_rate=0.03)
         # 10-year bond should have duration roughly 8-9 years
         assert 6 < md < 12
+
+
+class TestEffectiveDurationHelper:
+    """bond_effective_duration() stitches caller-supplied bumped PVs into
+    the standard formula. Pricer responsibility for option-aware bumps;
+    this helper just verifies the algebra."""
+
+    def test_basic_effective_duration_formula(self):
+        from kinetix_risk.bond_pricing import bond_effective_duration
+
+        # Linear: 1% bump moves price by 5% in each direction => ED = 5.
+        ed = bond_effective_duration(
+            pv_up=95.0,
+            pv_down=105.0,
+            pv_baseline=100.0,
+            yield_bump=0.01,
+        )
+        assert ed == 5.0
+
+    def test_zero_curvature_zero_duration(self):
+        from kinetix_risk.bond_pricing import bond_effective_duration
+
+        ed = bond_effective_duration(
+            pv_up=100.0, pv_down=100.0, pv_baseline=100.0, yield_bump=0.01,
+        )
+        assert ed == 0.0
+
+    def test_negative_baseline_raises(self):
+        from kinetix_risk.bond_pricing import bond_effective_duration
+        import pytest
+
+        with pytest.raises(ValueError):
+            bond_effective_duration(95.0, 105.0, pv_baseline=-1.0)
+
+    def test_zero_baseline_raises(self):
+        from kinetix_risk.bond_pricing import bond_effective_duration
+        import pytest
+
+        with pytest.raises(ValueError):
+            bond_effective_duration(95.0, 105.0, pv_baseline=0.0)
