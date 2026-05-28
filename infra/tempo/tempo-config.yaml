@@ -1,6 +1,15 @@
 server:
   http_listen_port: 3200
 
+# Tempo v2.7+ routes distributor writes through Kafka before the ingester
+# stores them.  Without a topic name the distributor refuses to start.
+# Kafka runs at kafka:9092 (infra/docker-compose.infra.yml); the topic is
+# auto-created on first use with Tempo's default partition settings.
+ingest:
+  kafka:
+    topic: "tempo-traces"
+    address: "kafka:9092"
+
 distributor:
   receivers:
     otlp:
