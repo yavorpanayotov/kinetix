@@ -33,6 +33,23 @@ def _intrinsic_value(option: OptionPosition) -> float:
 
 
 def _d1(option: OptionPosition) -> float:
+    """Black-Scholes d1.
+
+    .. math::
+
+        d_1 = \\frac{\\ln(S/K) + (r - q + \\frac{1}{2}\\sigma^2) T}{\\sigma \\sqrt{T}}
+
+    Derivation: starts from the Black-Scholes PDE under the risk-neutral
+    measure with continuous dividend yield ``q``. The numerator is the
+    expected log-moneyness of the underlying at expiry under the
+    risk-neutral drift ``r - q + 0.5 σ²``; the denominator is the
+    standard deviation of log-moneyness over horizon ``T``. ``d1``
+    appears as the input to ``N(.)`` for the *delta* (= ``e^(-qT) N(d1)``
+    for a call) and is the upper limit of the integral that gives the
+    call's expected payoff.
+
+    See Hull (2018) Chapter 13 for the full derivation.
+    """
     S = option.spot_price
     K = option.strike
     r = option.risk_free_rate
@@ -43,6 +60,20 @@ def _d1(option: OptionPosition) -> float:
 
 
 def _d2(option: OptionPosition) -> float:
+    """Black-Scholes d2 = d1 - σ√T.
+
+    .. math::
+
+        d_2 = d_1 - \\sigma \\sqrt{T}
+
+    Derivation: ``d2`` is the input to ``N(.)`` for the *probability the
+    option finishes in the money* under the risk-neutral measure
+    (``N(d2)`` for a call). The relationship ``d2 = d1 - σ√T`` falls
+    out of the change-of-numéraire that converts the asset-measure
+    expectation in d1's role into the money-market-measure expectation
+    in d2's role. Equivalently, d2 is the expected log-moneyness less
+    the half-vol-squared "Itô correction" that gets baked into d1.
+    """
     T = option.expiry_days / 365.0
     return _d1(option) - option.implied_vol * math.sqrt(T)
 
