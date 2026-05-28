@@ -65,7 +65,17 @@ interface PfeChartProps {
 }
 
 function PfeChart({ profile }: PfeChartProps) {
-  if (profile.length === 0) {
+  // Filter out any rows where either required numeric field is not a finite
+  // number. This guards against partially-populated API responses where a
+  // tenor entry is missing expectedExposure or pfe95 — without this filter,
+  // undefined values propagate through the coordinate calculations and produce
+  // NaN in SVG polyline points, which crashes real browser SVG renderers with:
+  //   Cannot read properties of undefined (reading 'toFixed')
+  const validProfile = profile.filter(
+    (p) => Number.isFinite(p.pfe95) && Number.isFinite(p.expectedExposure),
+  )
+
+  if (validProfile.length === 0) {
     return (
       <div
         data-testid="pfe-chart-empty"
@@ -80,17 +90,17 @@ function PfeChart({ profile }: PfeChartProps) {
   const CHART_HEIGHT = 180
   const PLOT_WIDTH = 480
 
-  const maxValue = Math.max(...profile.flatMap((p) => [p.pfe95, p.expectedExposure])) * 1.1 || 1
+  const maxValue = Math.max(...validProfile.flatMap((p) => [p.pfe95, p.expectedExposure])) * 1.1 || 1
 
   const toY = (value: number) =>
     PADDING.top + (1 - value / maxValue) * (CHART_HEIGHT - PADDING.top - PADDING.bottom)
 
-  const xStep = (PLOT_WIDTH - PADDING.left - PADDING.right) / Math.max(profile.length - 1, 1)
+  const xStep = (PLOT_WIDTH - PADDING.left - PADDING.right) / Math.max(validProfile.length - 1, 1)
 
   const toX = (i: number) => PADDING.left + i * xStep
 
-  const pfe95Points = profile.map((p, i) => `${toX(i)},${toY(p.pfe95)}`).join(' ')
-  const eePoints = profile.map((p, i) => `${toX(i)},${toY(p.expectedExposure)}`).join(' ')
+  const pfe95Points = validProfile.map((p, i) => `${toX(i)},${toY(p.pfe95)}`).join(' ')
+  const eePoints = validProfile.map((p, i) => `${toX(i)},${toY(p.expectedExposure)}`).join(' ')
 
   const gridLines = [0, 0.25, 0.5, 0.75, 1].map((frac) => frac * maxValue)
 
@@ -122,7 +132,7 @@ function PfeChart({ profile }: PfeChartProps) {
       })}
 
       {/* X-axis labels */}
-      {profile.map((p, i) => (
+      {validProfile.map((p, i) => (
         <text
           key={i}
           x={toX(i)}
@@ -155,7 +165,7 @@ function PfeChart({ profile }: PfeChartProps) {
       />
 
       {/* Dots on PFE 95 */}
-      {profile.map((p, i) => (
+      {validProfile.map((p, i) => (
         <circle key={i} cx={toX(i)} cy={toY(p.pfe95)} r={3} fill="#f59e0b" />
       ))}
 
