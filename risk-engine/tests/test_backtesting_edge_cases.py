@@ -114,3 +114,34 @@ def test_overshoot_magnitude_ignores_non_breach_days():
     s = overshoot_magnitude_summary([100.0, 100.0], [-150.0, 50.0])
     assert s["overshoot_count"] == 1
     assert s["mean_overshoot"] == 50.0
+
+
+# kx-msy — rolling 252-day window backtest
+@pytest.mark.unit
+def test_rolling_window_short_sample_returns_empty():
+    from kinetix_risk.backtesting import rolling_window_violation_counts
+    # 100 days, window 252 -> empty.
+    assert rolling_window_violation_counts([100.0]*100, [50.0]*100) == []
+
+
+@pytest.mark.unit
+def test_rolling_window_returns_one_count_per_window_position():
+    from kinetix_risk.backtesting import rolling_window_violation_counts
+    # 500 days, window 252 -> 500 - 252 + 1 = 249 windows.
+    counts = rolling_window_violation_counts([100.0]*500, [50.0]*500, window_days=252)
+    assert len(counts) == 249
+    # No breaches anywhere (50 < 100).
+    assert all(c == 0 for c in counts)
+
+
+@pytest.mark.unit
+def test_rolling_window_captures_drift():
+    """The first window (all in the past) has fewer breaches than the
+    last window (which contains the recent regime break)."""
+    from kinetix_risk.backtesting import rolling_window_violation_counts
+    # 300 days: first 252 are clean (P&L=50), last 48 are breaches (P&L=-300).
+    var_preds = [100.0] * 300
+    pnl = [50.0] * 252 + [-300.0] * 48
+    counts = rolling_window_violation_counts(var_preds, pnl, window_days=252)
+    assert counts[0] == 0
+    assert counts[-1] == 48

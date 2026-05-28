@@ -285,3 +285,35 @@ def overshoot_magnitude_summary(
         "max_overshoot": max(breach_overshoots) if count else 0.0,
         "total_overshoot": sum(breach_overshoots),
     }
+
+
+def rolling_window_violation_counts(
+    daily_var_predictions: list[float],
+    daily_pnl: list[float],
+    window_days: int = 252,
+) -> list[int]:
+    """Sliding window-of-252 violation counts for time-varying backtest.
+
+    Basel's 99% VaR backtest evaluates exception counts on a rolling
+    250-day window — a model that started clean a year ago might be
+    drifting today and a single full-sample count hides that. The
+    helper returns the per-step violation count, sliding the window
+    one day at a time after warmup.
+
+    Window of 252 = 1 trading year. Returns an empty list if the
+    sample is shorter than the window.
+    """
+    if len(daily_var_predictions) != len(daily_pnl):
+        raise ValueError("VaR predictions and P&L must be the same length")
+    n = len(daily_var_predictions)
+    if n < window_days:
+        return []
+    # First compute the per-day breach indicator.
+    indicators = [1 if -pnl > var else 0 for var, pnl in zip(daily_var_predictions, daily_pnl)]
+    counts: list[int] = []
+    running = sum(indicators[:window_days])
+    counts.append(running)
+    for i in range(window_days, n):
+        running += indicators[i] - indicators[i - window_days]
+        counts.append(running)
+    return counts
