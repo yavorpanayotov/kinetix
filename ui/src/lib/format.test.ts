@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  formatCurrencyPrefix,
   formatNumeric,
   formatRhoTooltip,
   formatVegaTooltip,
@@ -175,5 +176,58 @@ describe('formatZeroPadded', () => {
     expect(formatZeroPadded(42, { fractionDigits: 0 })).toBe(
       `${FIGURE_SPACE}${FIGURE_SPACE.repeat(2)}42`,
     )
+  })
+})
+
+describe('formatCurrencyPrefix', () => {
+  it('renders an em-dash for null', () => {
+    expect(formatCurrencyPrefix(null, { symbol: '$' })).toBe('—')
+  })
+
+  it('renders an em-dash for undefined', () => {
+    expect(formatCurrencyPrefix(undefined, { symbol: '$' })).toBe('—')
+  })
+
+  it('renders an em-dash for NaN', () => {
+    expect(formatCurrencyPrefix(NaN, { symbol: '$' })).toBe('—')
+  })
+
+  it('renders an em-dash for Infinity', () => {
+    expect(formatCurrencyPrefix(Infinity, { symbol: '$' })).toBe('—')
+    expect(formatCurrencyPrefix(-Infinity, { symbol: '$' })).toBe('—')
+  })
+
+  it('prefixes the symbol immediately before the value', () => {
+    expect(formatCurrencyPrefix(1234.5, { symbol: '$' })).toBe('$1234.50')
+  })
+
+  it('supports multi-character symbols (kr, R$, etc.)', () => {
+    expect(formatCurrencyPrefix(42, { symbol: 'kr' })).toBe('kr42.00')
+  })
+
+  it('supports non-ASCII symbols (€, £, ¥)', () => {
+    expect(formatCurrencyPrefix(7.5, { symbol: '€' })).toBe('€7.50')
+    expect(formatCurrencyPrefix(7.5, { symbol: '£' })).toBe('£7.50')
+    expect(formatCurrencyPrefix(7.5, { symbol: '¥' })).toBe('¥7.50')
+  })
+
+  it('renders negatives with sign before the symbol (accounting convention)', () => {
+    expect(formatCurrencyPrefix(-1234.5, { symbol: '$' })).toBe('-$1234.50')
+  })
+
+  it('honours custom fractionDigits', () => {
+    expect(formatCurrencyPrefix(7.123456, { symbol: '$', fractionDigits: 4 })).toBe(
+      '$7.1235',
+    )
+  })
+
+  it('honours custom placeholder', () => {
+    expect(
+      formatCurrencyPrefix(null, { symbol: '$', placeholder: 'n/a' }),
+    ).toBe('n/a')
+  })
+
+  it('renders zero with full precision', () => {
+    expect(formatCurrencyPrefix(0, { symbol: '$' })).toBe('$0.00')
   })
 })

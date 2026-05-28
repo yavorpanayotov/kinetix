@@ -126,3 +126,35 @@ export function formatZeroPadded(
   // U+2212 minus sign for negatives; figure space for positives (same width).
   return `${isNegative ? '−' : FIGURE_SPACE}${body}`
 }
+
+/**
+ * Format a currency amount with the symbol immediately preceding the
+ * value, right-aligned for table cells.
+ *
+ * Risk tables show currency amounts across many rows — USD positions, EUR
+ * positions, JPY positions — and the eye needs to scan the *amounts*
+ * vertically. Putting the symbol immediately before the digits (no space)
+ * lets the rendering engine right-align the cell on the last digit, which
+ * keeps the decimal points lined up even when symbol widths differ
+ * ($, €, ¥ all render at one glyph wide; £ is similar). The helper also
+ * collapses non-finite inputs to the em-dash placeholder so a missing
+ * value never renders as a bare currency symbol.
+ */
+export interface FormatCurrencyPrefixOptions extends FormatNumericOptions {
+  /** Currency symbol or short code to prepend (e.g. "$", "€", "£", "kr"). */
+  symbol: string
+}
+
+export function formatCurrencyPrefix(
+  value: number | null | undefined,
+  options: FormatCurrencyPrefixOptions,
+): string {
+  const { fractionDigits = 2, placeholder = EM_DASH, symbol } = options
+  if (value === null || value === undefined) return placeholder
+  if (!Number.isFinite(value)) return placeholder
+  // Negatives render as "-$1234.56" so the sign reads before the symbol —
+  // matches the accounting convention used in trading blotters.
+  const isNegative = value < 0
+  const absolute = Math.abs(value)
+  return `${isNegative ? '-' : ''}${symbol}${absolute.toFixed(fractionDigits)}`
+}
