@@ -14,6 +14,7 @@ interface ScenarioControlBarProps {
   onManageScenarios?: () => void
   onExportCsv?: () => void
   onReverseStress?: () => void
+  hasResults?: boolean
 }
 
 export function ScenarioControlBar({
@@ -29,6 +30,7 @@ export function ScenarioControlBar({
   onManageScenarios,
   onExportCsv,
   onReverseStress,
+  hasResults = false,
 }: ScenarioControlBarProps) {
   const canCompare = compareCount >= 2 && compareCount <= 3
 
@@ -85,6 +87,12 @@ export function ScenarioControlBar({
           size="md"
           icon={<RotateCcw className="h-3.5 w-3.5" />}
           onClick={onReverseStress}
+          disabled={!hasResults}
+          title={
+            hasResults
+              ? 'Find market scenarios that breach your loss threshold'
+              : 'Run all scenarios first to enable reverse stress'
+          }
         >
           Reverse Stress
         </Button>
@@ -121,6 +129,7 @@ export function ScenarioControlBar({
           size="md"
           icon={<Settings className="h-3.5 w-3.5" />}
           onClick={onManageScenarios}
+          title="View and manage scenario governance — submit, approve, and retire scenarios"
         >
           Manage Scenarios
         </Button>
