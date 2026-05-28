@@ -300,3 +300,28 @@ export function formatCompactLarge(
     return `${sign}${(absolute / 1_000_000_000).toFixed(fractionDigits)}B`
   return `${sign}${(absolute / 1_000_000_000_000).toFixed(fractionDigits)}T`
 }
+
+/**
+ * Format a numeric value with the accounting-style negative convention:
+ * negatives wrap in parentheses (e.g. `-1500` -> `(1,500.00)`) and
+ * positives stay bare. This is the convention finance professionals
+ * read in Excel exports, audited P&L statements, and Bloomberg reports;
+ * surfacing it as a toggle lets traders flip the column to the form
+ * their muscle memory prefers.
+ *
+ * Non-finite values collapse to the em-dash placeholder. The integer
+ * thousand separator is applied to keep large values legible.
+ */
+export function formatAccountingNegative(
+  value: number | null | undefined,
+  options: FormatNumericOptions = {},
+): string {
+  const { fractionDigits = 2, placeholder = EM_DASH } = options
+  if (value === null || value === undefined) return placeholder
+  if (!Number.isFinite(value)) return placeholder
+  const formatted = Math.abs(value).toLocaleString('en-US', {
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  })
+  return value < 0 ? `(${formatted})` : formatted
+}

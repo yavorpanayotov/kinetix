@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  formatAccountingNegative,
   formatCompactLarge,
   formatCurrencyPrefix,
   formatGreekWithSign,
@@ -444,5 +445,38 @@ describe('formatCompactLarge', () => {
     expect(formatCompactLarge(undefined)).toBe('—')
     expect(formatCompactLarge(NaN)).toBe('—')
     expect(formatCompactLarge(Infinity)).toBe('—')
+  })
+})
+
+describe('formatAccountingNegative', () => {
+  it('renders positives without parentheses', () => {
+    expect(formatAccountingNegative(1500)).toBe('1,500.00')
+  })
+
+  it('renders negatives wrapped in parentheses', () => {
+    expect(formatAccountingNegative(-1500)).toBe('(1,500.00)')
+  })
+
+  it('uses comma thousands separator on large negatives', () => {
+    expect(formatAccountingNegative(-1234567.89)).toBe('(1,234,567.89)')
+  })
+
+  it('renders zero without parentheses', () => {
+    expect(formatAccountingNegative(0)).toBe('0.00')
+  })
+
+  it('honours custom fractionDigits', () => {
+    expect(formatAccountingNegative(-1.5, { fractionDigits: 4 })).toBe('(1.5000)')
+  })
+
+  it('renders em-dash for null / undefined / non-finite', () => {
+    expect(formatAccountingNegative(null)).toBe('—')
+    expect(formatAccountingNegative(undefined)).toBe('—')
+    expect(formatAccountingNegative(NaN)).toBe('—')
+    expect(formatAccountingNegative(Infinity)).toBe('—')
+  })
+
+  it('renders small negatives correctly', () => {
+    expect(formatAccountingNegative(-0.01)).toBe('(0.01)')
   })
 })
