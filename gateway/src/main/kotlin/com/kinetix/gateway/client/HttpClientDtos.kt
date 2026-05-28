@@ -543,6 +543,15 @@ data class PositionRiskClientDto(
     val delta: String? = null,
     val gamma: String? = null,
     val vega: String? = null,
+    // Per-instrument Theta / Rho (trader-review P0 #2): options carry both
+    // from the Black-Scholes engine; linear instruments report zero.
+    val theta: String? = null,
+    val rho: String? = null,
+    // Per-instrument DV01 (dollar value of a 1bp parallel rates shift).
+    // Populated for FIXED_INCOME / rates instruments; zero for cash equity
+    // / FX. Optional on the wire so older orchestrator responses keep
+    // deserialising during a rolling upgrade.
+    val dv01: String? = null,
     val varContribution: String,
     val esContribution: String,
     val percentageOfTotal: String,
@@ -885,6 +894,9 @@ fun PositionRiskClientDto.toDomain() = PositionRiskSummaryItem(
     delta = delta,
     gamma = gamma,
     vega = vega,
+    theta = theta,
+    rho = rho,
+    dv01 = dv01,
     varContribution = varContribution,
     esContribution = esContribution,
     percentageOfTotal = percentageOfTotal,

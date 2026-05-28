@@ -330,6 +330,17 @@ data class PositionRiskSummaryItem(
     val delta: String?,
     val gamma: String?,
     val vega: String?,
+    // Per-instrument Theta / Rho (trader-review P0 #2). Null when the
+    // upstream did not return them (e.g. a pre-fix orchestrator on the
+    // network); otherwise carries the per-position value formatted to 6
+    // decimal places.
+    val theta: String? = null,
+    val rho: String? = null,
+    // DV01 (dollar value of a 1bp parallel rates shift). Non-null only
+    // for rates instruments; cash equity / FX surface "0.000000" rather
+    // than null so the UI can distinguish "computed and zero" from
+    // "missing".
+    val dv01: String? = null,
     val varContribution: String,
     val esContribution: String,
     val percentageOfTotal: String,
