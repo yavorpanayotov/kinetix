@@ -158,3 +158,32 @@ export function formatCurrencyPrefix(
   const absolute = Math.abs(value)
   return `${isNegative ? '-' : ''}${symbol}${absolute.toFixed(fractionDigits)}`
 }
+
+/**
+ * Format a fractional ratio as a percentage with normalised precision.
+ *
+ * The platform was rendering rates inconsistently — "5.25%" in one cell,
+ * "5.2500%" in another — because each callsite picked its own fraction
+ * digit count. This helper standardises on 2 fraction digits (the common
+ * trader convention for fixed-income coupons and IR-curve points) and
+ * trims trailing zeros so 5% reads as "5%" and 5.5% reads as "5.5%",
+ * never "5.0000%" or "5.5000%". Callers override [fractionDigits] when
+ * they need more precision (e.g. spread tables in basis points).
+ *
+ * The input is the *fraction* (0.0525 = 5.25%), matching the convention
+ * used by [formatRhoTooltip] and the upstream API types. Non-finite
+ * inputs collapse to the em-dash placeholder.
+ */
+export function formatPercent(
+  fraction: number | null | undefined,
+  options: FormatNumericOptions = {},
+): string {
+  const { fractionDigits = 2, placeholder = EM_DASH } = options
+  if (fraction === null || fraction === undefined) return placeholder
+  if (!Number.isFinite(fraction)) return placeholder
+  const fixed = (fraction * 100).toFixed(fractionDigits)
+  // Trim trailing zeros after the decimal point so "5.0000" -> "5"
+  // and "5.5000" -> "5.5", but leave integers like "5" alone.
+  const trimmed = fixed.includes('.') ? fixed.replace(/\.?0+$/, '') : fixed
+  return `${trimmed}%`
+}

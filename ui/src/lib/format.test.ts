@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   formatCurrencyPrefix,
   formatNumeric,
+  formatPercent,
   formatRhoTooltip,
   formatVegaTooltip,
   formatZeroPadded,
@@ -229,5 +230,53 @@ describe('formatCurrencyPrefix', () => {
 
   it('renders zero with full precision', () => {
     expect(formatCurrencyPrefix(0, { symbol: '$' })).toBe('$0.00')
+  })
+})
+
+describe('formatPercent', () => {
+  it('renders an em-dash for null', () => {
+    expect(formatPercent(null)).toBe('—')
+  })
+
+  it('renders an em-dash for undefined', () => {
+    expect(formatPercent(undefined)).toBe('—')
+  })
+
+  it('renders an em-dash for NaN / Infinity', () => {
+    expect(formatPercent(NaN)).toBe('—')
+    expect(formatPercent(Infinity)).toBe('—')
+  })
+
+  it('renders 5% as "5%" (trims trailing zeros)', () => {
+    expect(formatPercent(0.05)).toBe('5%')
+  })
+
+  it('renders 5.25% as "5.25%"', () => {
+    expect(formatPercent(0.0525)).toBe('5.25%')
+  })
+
+  it('rounds to two fraction digits by default (5.2500 -> 5.25)', () => {
+    expect(formatPercent(0.05250000)).toBe('5.25%')
+  })
+
+  it('trims trailing zeros so 5.5000% reads as "5.5%"', () => {
+    expect(formatPercent(0.055)).toBe('5.5%')
+  })
+
+  it('honours custom fractionDigits for basis-point precision', () => {
+    expect(formatPercent(0.012345, { fractionDigits: 4 })).toBe('1.2345%')
+  })
+
+  it('renders zero as "0%"', () => {
+    expect(formatPercent(0)).toBe('0%')
+  })
+
+  it('renders negative ratios', () => {
+    expect(formatPercent(-0.025)).toBe('-2.5%')
+  })
+
+  it('rounds half to even by default toFixed semantics', () => {
+    // 5.005 * 100 = 500.49999... in IEEE-754, so toFixed(2) gives 5.00 — trims to 5%
+    expect(formatPercent(0.05005)).toBe('5%')
   })
 })
