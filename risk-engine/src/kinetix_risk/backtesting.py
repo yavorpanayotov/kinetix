@@ -317,3 +317,38 @@ def rolling_window_violation_counts(
         running += indicators[i] - indicators[i - window_days]
         counts.append(running)
     return counts
+
+
+def duration_clustering_test(
+    daily_var_predictions: list[float],
+    daily_pnl: list[float],
+) -> dict[str, int]:
+    """Detect clustering of VaR violations by counting run lengths.
+
+    Christoffersen tests independence via a Markov chain on the
+    pair (yesterday, today). The duration-clustering test goes further
+    and counts the *lengths* of consecutive-breach runs — if you see
+    a 5-day run of breaches, that's a regime break the Markov model
+    captures less directly. Returns a histogram of run lengths.
+
+    Output keys are stringified lengths so the result serialises to
+    JSON without effort.
+    """
+    if len(daily_var_predictions) != len(daily_pnl):
+        raise ValueError("VaR predictions and P&L must be the same length")
+    indicators = [1 if -pnl > var else 0 for var, pnl in zip(daily_var_predictions, daily_pnl)]
+    counts: dict[str, int] = {}
+    run_len = 0
+    for ind in indicators:
+        if ind == 1:
+            run_len += 1
+        else:
+            if run_len > 0:
+                key = str(run_len)
+                counts[key] = counts.get(key, 0) + 1
+            run_len = 0
+    # Trailing run.
+    if run_len > 0:
+        key = str(run_len)
+        counts[key] = counts.get(key, 0) + 1
+    return counts

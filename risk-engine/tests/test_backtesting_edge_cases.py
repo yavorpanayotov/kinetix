@@ -145,3 +145,39 @@ def test_rolling_window_captures_drift():
     counts = rolling_window_violation_counts(var_preds, pnl, window_days=252)
     assert counts[0] == 0
     assert counts[-1] == 48
+
+
+# kx-n5z — duration clustering of consecutive breaches
+@pytest.mark.unit
+def test_duration_clustering_no_breaches_empty_histogram():
+    from kinetix_risk.backtesting import duration_clustering_test
+    assert duration_clustering_test([100.0]*10, [50.0]*10) == {}
+
+
+@pytest.mark.unit
+def test_duration_clustering_single_breaches_count_as_runs_of_one():
+    from kinetix_risk.backtesting import duration_clustering_test
+    # Two isolated single-day breaches.
+    histogram = duration_clustering_test(
+        [100.0]*5, [50.0, -200.0, 50.0, -200.0, 50.0],
+    )
+    assert histogram == {"1": 2}
+
+
+@pytest.mark.unit
+def test_duration_clustering_counts_one_run_of_three():
+    from kinetix_risk.backtesting import duration_clustering_test
+    histogram = duration_clustering_test(
+        [100.0]*5, [50.0, -200.0, -200.0, -200.0, 50.0],
+    )
+    assert histogram == {"3": 1}
+
+
+@pytest.mark.unit
+def test_duration_clustering_handles_trailing_run():
+    """A run that goes to the end of the sample is still counted."""
+    from kinetix_risk.backtesting import duration_clustering_test
+    histogram = duration_clustering_test(
+        [100.0]*4, [50.0, -200.0, -200.0, -200.0],
+    )
+    assert histogram == {"3": 1}
