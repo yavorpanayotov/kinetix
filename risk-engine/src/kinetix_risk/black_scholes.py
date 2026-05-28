@@ -199,6 +199,18 @@ def bs_volga(option: OptionPosition) -> float:
     return calculate_volga(option.spot_price, option.strike, T, option.risk_free_rate, option.implied_vol, option.dividend_yield)
 
 
+def bs_volga_put(option: OptionPosition) -> float:
+    """Put-side volga = d^2 Price / d sigma^2.
+
+    By put-call parity (price difference is linear in spot/strike,
+    independent of vol), volga is the SAME for puts and calls.
+    The function exists as a named entry point so callers reading
+    "put volga" find it where they expect; internally it delegates
+    to bs_volga().
+    """
+    return bs_volga(option)
+
+
 def bs_charm(option: OptionPosition) -> float:
     from kinetix_risk.cross_greeks import calculate_charm
     T = option.expiry_days / 365.0

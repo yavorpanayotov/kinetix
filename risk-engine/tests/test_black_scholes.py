@@ -282,3 +282,30 @@ class TestBsExactRho:
     def test_bs_exact_rho_positive_for_atm_call(self):
         from kinetix_risk.black_scholes import bs_exact_rho
         assert bs_exact_rho(self._atm_call()) > 0
+
+
+# kx-sze — put-side volga with put-call parity verification
+class TestBsVolgaPut:
+    def _opt(self, kind):
+        from kinetix_risk.models import OptionPosition, OptionType, AssetClass
+        return OptionPosition(
+            instrument_id="OPT-1", underlying_id="UND",
+            option_type=OptionType.CALL if kind == "call" else OptionType.PUT,
+            strike=100.0, expiry_days=90, spot_price=100.0,
+            implied_vol=0.20, risk_free_rate=0.03,
+            asset_class=AssetClass.EQUITY,
+        )
+
+    @pytest.mark.unit
+    def test_bs_volga_put_matches_bs_volga_for_same_other_params(self):
+        """By put-call parity, volga is the same for puts and calls."""
+        from kinetix_risk.black_scholes import bs_volga, bs_volga_put
+        put = self._opt("put")
+        call = self._opt("call")
+        assert bs_volga_put(put) == pytest.approx(bs_volga(call))
+
+    @pytest.mark.unit
+    def test_bs_volga_put_finite(self):
+        from kinetix_risk.black_scholes import bs_volga_put
+        v = bs_volga_put(self._opt("put"))
+        assert v == v  # not NaN
