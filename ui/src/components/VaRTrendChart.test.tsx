@@ -121,6 +121,111 @@ describe('VaRTrendChart', () => {
     expect(yLabels.length).toBeGreaterThanOrEqual(3)
   })
 
+  describe('Y-axis auto-fit', () => {
+    // Parse a compact-currency label ("$190K", "$1.2M", "$0", "$3M") back to a
+    // numeric value so we can reason about the rendered domain.
+    const parseCompactCurrency = (raw: string): number => {
+      const m = /^(-)?\$([0-9.]+)([KMB]?)$/.exec(raw.trim())
+      if (!m) return NaN
+      const sign = m[1] ? -1 : 1
+      const num = parseFloat(m[2])
+      const unit = m[3]
+      const scale = unit === 'B' ? 1_000_000_000 : unit === 'M' ? 1_000_000 : unit === 'K' ? 1_000 : 1
+      return sign * num * scale
+    }
+
+    const readYAxisLabels = (): string[] => {
+      const svg = screen.getByTestId('var-trend-chart').querySelector('svg')!
+      return Array.from(svg.querySelectorAll('text[text-anchor="end"]')).map(
+        (el) => el.textContent ?? '',
+      )
+    }
+
+    it('keeps the computed Y-domain max within 1.5x of the max series value', () => {
+      // VaR / ES both around 190K — typical trader's-view scenario where the
+      // recent VaR was ~$190K and we must not blow the axis up to ~$3M.
+      const tightHistory: VaRHistoryEntry[] = [
+        { varValue: 190_000, expectedShortfall: 230_000, calculatedAt: '2025-01-15T10:00:00Z', confidenceLevel: 'CL_95' },
+        { varValue: 195_000, expectedShortfall: 235_000, calculatedAt: '2025-01-15T10:30:00Z', confidenceLevel: 'CL_95' },
+        { varValue: 188_000, expectedShortfall: 228_000, calculatedAt: '2025-01-15T11:00:00Z', confidenceLevel: 'CL_95' },
+        { varValue: 192_000, expectedShortfall: 232_000, calculatedAt: '2025-01-15T11:30:00Z', confidenceLevel: 'CL_95' },
+        { varValue: 191_000, expectedShortfall: 231_000, calculatedAt: '2025-01-15T12:00:00Z', confidenceLevel: 'CL_95' },
+      ]
+
+      render(<VaRTrendChart history={tightHistory} />)
+
+      const labels = readYAxisLabels()
+      expect(labels.length).toBeGreaterThan(0)
+
+      const maxLabelValue = Math.max(...labels.map(parseCompactCurrency).filter((v) => !Number.isNaN(v)))
+      const maxSeriesValue = Math.max(
+        ...tightHistory.flatMap((e) => [e.varValue, e.expectedShortfall]),
+      )
+
+      expect(maxLabelValue).toBeLessThanOrEqual(maxSeriesValue * 1.5)
+    })
+
+    it('does not show $1M / $2M / $3M labels when all series values are around $190K', () => {
+      const smallHistory: VaRHistoryEntry[] = Array.from({ length: 6 }, (_, i) => ({
+        varValue: 190_000 + i * 1_000,
+        expectedShortfall: 238_000 + i * 1_000,
+        calculatedAt: `2025-01-15T1${i}:00:00Z`,
+        confidenceLevel: 'CL_95',
+      }))
+
+      render(<VaRTrendChart history={smallHistory} />)
+
+      const labels = readYAxisLabels()
+      // No grid label should jump into the millions when the data is in the
+      // 200K range — this is the trader's "looks like a flatline" complaint.
+      expect(labels.some((l) => /\$\d+(\.\d+)?M/.test(l))).toBe(false)
+    })
+
+    it('clamps Y-domain top to dataMax * ~1.2 even when the series is a single tight cluster', () => {
+      const dataMax = 190_000
+      const constantHistory: VaRHistoryEntry[] = Array.from({ length: 5 }, (_, i) => ({
+        varValue: dataMax,
+        expectedShortfall: dataMax,
+        calculatedAt: `2025-01-15T1${i}:00:00Z`,
+        confidenceLevel: 'CL_95',
+      }))
+
+      render(<VaRTrendChart history={constantHistory} />)
+
+      const labels = readYAxisLabels()
+      const maxLabelValue = Math.max(...labels.map(parseCompactCurrency).filter((v) => !Number.isNaN(v)))
+
+      // Axis top should be close to dataMax — well below a hard-coded 3M scale.
+      expect(maxLabelValue).toBeLessThanOrEqual(dataMax * 1.5)
+      expect(maxLabelValue).toBeGreaterThan(0)
+    })
+
+    it('ignores zero-sentinel ES values (null fallback) when fitting the Y-domain', () => {
+      // useVaR.loadHistory converts null expectedShortfall to 0. The chart
+      // should not let those sentinel zeros drag the Y-axis bottom below the
+      // meaningful VaR range — VaR is conventionally non-negative, and the
+      // Y-domain max must stay tight to the real data.
+      const sentinelHistory: VaRHistoryEntry[] = [
+        { varValue: 190_000, expectedShortfall: 0, calculatedAt: '2025-01-15T10:00:00Z', confidenceLevel: 'CL_95' },
+        { varValue: 192_000, expectedShortfall: 0, calculatedAt: '2025-01-15T10:30:00Z', confidenceLevel: 'CL_95' },
+        { varValue: 188_000, expectedShortfall: 0, calculatedAt: '2025-01-15T11:00:00Z', confidenceLevel: 'CL_95' },
+        { varValue: 195_000, expectedShortfall: 0, calculatedAt: '2025-01-15T11:30:00Z', confidenceLevel: 'CL_95' },
+      ]
+
+      render(<VaRTrendChart history={sentinelHistory} />)
+
+      const labels = readYAxisLabels()
+      const labelValues = labels.map(parseCompactCurrency).filter((v) => !Number.isNaN(v))
+      const maxLabelValue = Math.max(...labelValues)
+      const maxVarValue = Math.max(...sentinelHistory.map((e) => e.varValue))
+
+      // Domain max should remain anchored to the real VaR values, not pulled
+      // down/up by zero sentinels.
+      expect(maxLabelValue).toBeLessThanOrEqual(maxVarValue * 1.5)
+      expect(maxLabelValue).toBeGreaterThanOrEqual(maxVarValue * 0.9)
+    })
+  })
+
   it('renders X-axis timestamp labels', () => {
     render(<VaRTrendChart history={history} />)
 
