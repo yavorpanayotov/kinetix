@@ -379,3 +379,48 @@ class TestVolmageddon2018:
         loss_low = apply_volmageddon_2018_to_short_vol_position(1_000_000.0, 0.15)
         loss_high = apply_volmageddon_2018_to_short_vol_position(1_000_000.0, 0.30)
         assert loss_high > loss_low
+
+
+class TestYenCarryUnwind:
+    @pytest.mark.unit
+    def test_yen_carry_unwind_default_shock_directions(self):
+        from kinetix_risk.stress.yen_carry_unwind import YenCarryUnwindShock
+        s = YenCarryUnwindShock()
+        assert s.usdjpy_pct < 0  # yen rallies
+        assert s.funding_cost_bps > 0  # rates rise
+        assert s.em_equity_pct < 0  # EM sells off
+        assert s.risk_on_fx_pct < 0  # AUD/MXN fall
+
+    @pytest.mark.unit
+    def test_yen_carry_unwind_loss_scales_with_leverage(self):
+        from kinetix_risk.stress.yen_carry_unwind import (
+            apply_yen_carry_unwind_to_funded_position,
+        )
+        l1 = apply_yen_carry_unwind_to_funded_position(
+            usd_notional=1_000_000.0, leverage=1.0, initial_carry_rate=0.05,
+        )
+        l5 = apply_yen_carry_unwind_to_funded_position(
+            usd_notional=1_000_000.0, leverage=5.0, initial_carry_rate=0.05,
+        )
+        assert l5 == pytest.approx(l1 * 5.0)
+
+    @pytest.mark.unit
+    def test_yen_carry_unwind_zero_position_zero_loss(self):
+        from kinetix_risk.stress.yen_carry_unwind import (
+            apply_yen_carry_unwind_to_funded_position,
+        )
+        assert apply_yen_carry_unwind_to_funded_position(
+            usd_notional=0.0, leverage=5.0, initial_carry_rate=0.05,
+        ) == 0.0
+
+    @pytest.mark.unit
+    def test_yen_carry_unwind_combines_fx_and_funding_losses(self):
+        from kinetix_risk.stress.yen_carry_unwind import (
+            apply_yen_carry_unwind_to_funded_position, YenCarryUnwindShock,
+        )
+        shock = YenCarryUnwindShock(usdjpy_pct=-0.10, funding_cost_bps=200)
+        # 10% FX + 2% funding = 12% of leveraged notional
+        loss = apply_yen_carry_unwind_to_funded_position(
+            usd_notional=1_000_000.0, leverage=1.0, initial_carry_rate=0.05, shock=shock,
+        )
+        assert loss == pytest.approx(120_000.0)
