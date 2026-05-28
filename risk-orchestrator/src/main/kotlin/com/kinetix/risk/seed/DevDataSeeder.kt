@@ -129,21 +129,36 @@ class DevDataSeeder(
             val baseVaR: Double,
             val volatilityPct: Double,
             val baseES: Double,
+            /**
+             * Baseline portfolio value used to populate `valuation_jobs.pv_value`
+             * on every SEED job. Picked at ~30x baseVaR so the VaR/PV ratio sits
+             * in the 2-4% band typical for a real institutional book — keeps the
+             * EOD History "PV" column meaningful for risk-vs-PV reconciliation
+             * (kx-pv-eod).
+             */
+            val basePv: Double,
         )
 
         private val BOOK_VAR_PROFILES = listOf(
-            VaRProfile("equity-growth", 4_800_000.0, 0.08, 5_900_000.0),
-            VaRProfile("tech-momentum", 4_200_000.0, 0.10, 5_100_000.0),
-            VaRProfile("emerging-markets", 3_600_000.0, 0.12, 4_400_000.0),
-            VaRProfile("fixed-income", 1_800_000.0, 0.04, 2_200_000.0),
-            VaRProfile("multi-asset", 6_500_000.0, 0.07, 7_900_000.0),
-            VaRProfile("macro-hedge", 4_100_000.0, 0.09, 5_000_000.0),
-            VaRProfile("balanced-income", 2_200_000.0, 0.05, 2_700_000.0),
-            VaRProfile("derivatives-book", 5_800_000.0, 0.11, 7_100_000.0),
+            VaRProfile("equity-growth", 4_800_000.0, 0.08, 5_900_000.0, 144_000_000.0),
+            VaRProfile("tech-momentum", 4_200_000.0, 0.10, 5_100_000.0, 126_000_000.0),
+            VaRProfile("emerging-markets", 3_600_000.0, 0.12, 4_400_000.0, 108_000_000.0),
+            VaRProfile("fixed-income", 1_800_000.0, 0.04, 2_200_000.0, 54_000_000.0),
+            VaRProfile("multi-asset", 6_500_000.0, 0.07, 7_900_000.0, 195_000_000.0),
+            VaRProfile("macro-hedge", 4_100_000.0, 0.09, 5_000_000.0, 123_000_000.0),
+            VaRProfile("balanced-income", 2_200_000.0, 0.05, 2_700_000.0, 66_000_000.0),
+            VaRProfile("derivatives-book", 5_800_000.0, 0.11, 7_100_000.0, 174_000_000.0),
         )
 
         private const val HISTORY_DAYS = 30
         private const val INTRADAY_HOURS = 8
+
+        /**
+         * Smaller-than-VaR daily PV drift — a real book's NAV moves O(0.5-1%)
+         * day-to-day, not the O(8-12%) swings the VaR profiles dial in. Keeps
+         * PV visibly stable in the EOD History grid (kx-pv-eod).
+         */
+        private const val PV_VOLATILITY_PCT = 0.01
 
         private fun deterministicJitter(bookIndex: Int, dayIndex: Int, hourIndex: Int): Double {
             val seed = bookIndex * 1000.0 + dayIndex * 10.0 + hourIndex
@@ -259,6 +274,10 @@ class DevDataSeeder(
                     val jitter = deterministicJitter(bookIdx, dayOffset, 0)
                     val varValue = profile.baseVaR * (1.0 + jitter * profile.volatilityPct)
                     val esValue = profile.baseES * (1.0 + jitter * profile.volatilityPct)
+                    // PV drifts with the same deterministic jitter but at a
+                    // smaller amplitude — a real book's NAV moves day-to-day
+                    // far less than its VaR (kx-pv-eod).
+                    val pvValue = profile.basePv * (1.0 + jitter * PV_VOLATILITY_PCT)
 
                     jobs += ValuationJob(
                         jobId = UUID.nameUUIDFromBytes("seed-var-${profile.bookId}-d$dayOffset".toByteArray()),
@@ -273,6 +292,7 @@ class DevDataSeeder(
                         confidenceLevel = "CL_95",
                         varValue = varValue,
                         expectedShortfall = esValue,
+                        pvValue = pvValue,
                         triggeredBy = "SEED",
                     )
                 }
@@ -283,6 +303,7 @@ class DevDataSeeder(
                     val jitter = deterministicJitter(bookIdx, 0, hour)
                     val varValue = profile.baseVaR * (1.0 + jitter * profile.volatilityPct)
                     val esValue = profile.baseES * (1.0 + jitter * profile.volatilityPct)
+                    val pvValue = profile.basePv * (1.0 + jitter * PV_VOLATILITY_PCT)
 
                     jobs += ValuationJob(
                         jobId = UUID.nameUUIDFromBytes("seed-var-${profile.bookId}-h$hour".toByteArray()),
@@ -297,6 +318,7 @@ class DevDataSeeder(
                         confidenceLevel = "CL_95",
                         varValue = varValue,
                         expectedShortfall = esValue,
+                        pvValue = pvValue,
                         triggeredBy = "SEED",
                     )
                 }

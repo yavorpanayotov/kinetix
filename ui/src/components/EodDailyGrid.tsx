@@ -28,7 +28,7 @@ function formatDod(value: number | null, pct: number | null): { text: string; cl
 }
 
 function CellValue({ value }: { value: number | null }) {
-  if (value === null) return <span className="text-slate-400 dark:text-slate-500">\u2014</span>
+  if (value === null) return <span className="text-slate-400 dark:text-slate-500">{'\u2014'}</span>
   return <span>{formatCurrency(value)}</span>
 }
 
@@ -138,7 +138,11 @@ const EodGridRow = memo(function EodGridRow({
       </td>
 
       {/* PV */}
-      <td className="py-2 pr-3 text-right font-mono text-xs" role="gridcell">
+      <td
+        data-testid={`eod-pv-cell-${entry.valuationDate}`}
+        className="py-2 pr-3 text-right font-mono text-xs"
+        role="gridcell"
+      >
         <CellValue value={entry.pvValue} />
       </td>
 
