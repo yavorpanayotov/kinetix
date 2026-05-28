@@ -1,6 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { LiquidityRiskPanel, formatLvar } from './LiquidityRiskPanel'
+import { LiquidityRiskPanel } from './LiquidityRiskPanel'
+import { formatLvar } from '../utils/liquidityFormat'
 import type { LiquidityRiskResultDto } from '../types'
 
 const sampleResult: LiquidityRiskResultDto = {

@@ -1,5 +1,6 @@
 import { AlertTriangle, RefreshCw } from 'lucide-react'
 import type { LiquidityRiskResultDto } from '../types'
+import { computeStalenessDays, formatLvar } from '../utils/liquidityFormat'
 import { LiquidityScoreBar } from './LiquidityScoreBar'
 import { Card } from './ui'
 import { Spinner } from './ui/Spinner'
@@ -17,8 +18,6 @@ const STATUS_STYLES: Record<string, string> = {
   BREACHED: 'text-red-700 bg-red-100 dark:text-red-300 dark:bg-red-900/30',
 }
 
-const STALENESS_THRESHOLD_MS = 24 * 60 * 60 * 1000
-
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -26,55 +25,6 @@ function formatCurrency(value: number): string {
     notation: 'compact',
     maximumFractionDigits: 1,
   }).format(value)
-}
-
-/**
- * Format an LVaR contribution / portfolio LVaR magnitude.
- *
- * Trader-review P0 #7 surfaced that LVaR rendered in single dollars
- * (`$0.7`, `$1.4`) while the rest of the dashboard rendered in compact
- * notation (`$13.3K`, `$58.3K`). The inconsistency made the order-of-
- * magnitude difference easy to miss. Rule:
- *
- *   |v| >= $1,000  → compact notation (matches `Stressed Liq` column)
- *   |v| <  $1,000  → fixed two-decimal `$X.XX` so single-dollar
- *                    magnitudes are unambiguous (never a misleading
- *                    `$0.7` that looks like `$0.7K` at a glance)
- */
-export function formatLvar(value: number): string {
-  if (!Number.isFinite(value)) return '—'
-  if (Math.abs(value) >= 1_000) {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      notation: 'compact',
-      maximumFractionDigits: 1,
-    }).format(value)
-  }
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value)
-}
-
-/**
- * Compute the staleness of a liquidity snapshot in whole days, or null
- * when the snapshot is fresher than [STALENESS_THRESHOLD_MS]. Drives the
- * staleness banner — trader-review P0 #7 flagged a 50-day-old LVaR
- * calculation rendered with no warning.
- */
-export function computeStalenessDays(
-  calculatedAt: string,
-  now: Date,
-): number | null {
-  const calculated = new Date(calculatedAt).getTime()
-  const ageMs = now.getTime() - calculated
-  if (!Number.isFinite(ageMs) || ageMs < STALENESS_THRESHOLD_MS) {
-    return null
-  }
-  return Math.floor(ageMs / (24 * 60 * 60 * 1000))
 }
 
 export function LiquidityRiskPanel({
