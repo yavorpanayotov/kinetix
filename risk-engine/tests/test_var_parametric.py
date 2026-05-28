@@ -148,3 +148,31 @@ class TestParametricVaRZeroExposure:
         corr = np.array([[1.0, 0.5], [0.5, 1.0]])
         result = calculate_parametric_var(exposures, ConfidenceLevel.CL_95, 1, corr)
         assert result.var_value == 0.0
+
+
+class TestAnalyticExpectedShortfall:
+    @pytest.mark.unit
+    def test_expected_shortfall_at_99_for_unit_portfolio(self):
+        from kinetix_risk.var_parametric import analytic_expected_shortfall_normal
+        # ES_99 for unit portfolio, daily sigma 1, T=1: ~2.66 (canonical value).
+        es = analytic_expected_shortfall_normal(
+            sigma=1.0, confidence=0.99, horizon_days=1, portfolio_value=1.0,
+        )
+        assert es == pytest.approx(2.66, abs=0.01)
+
+    @pytest.mark.unit
+    def test_expected_shortfall_scales_with_sqrt_horizon(self):
+        """ES at T=4d should be twice ES at T=1d under sqrt(T) scaling."""
+        from kinetix_risk.var_parametric import analytic_expected_shortfall_normal
+        es_1d = analytic_expected_shortfall_normal(1.0, 0.99, 1, 1.0)
+        es_4d = analytic_expected_shortfall_normal(1.0, 0.99, 4, 1.0)
+        assert es_4d == pytest.approx(es_1d * 2.0, rel=1e-6)
+
+    @pytest.mark.unit
+    def test_expected_shortfall_rejects_invalid_confidence(self):
+        from kinetix_risk.var_parametric import analytic_expected_shortfall_normal
+        import pytest
+        with pytest.raises(ValueError):
+            analytic_expected_shortfall_normal(1.0, 0.0, 1, 1.0)
+        with pytest.raises(ValueError):
+            analytic_expected_shortfall_normal(1.0, 1.0, 1, 1.0)

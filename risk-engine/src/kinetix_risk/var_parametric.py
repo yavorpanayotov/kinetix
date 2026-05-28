@@ -111,3 +111,33 @@ def calculate_parametric_var(
         breakdown.append(ComponentBreakdown(exp.asset_class, float(component_var[i]), float(pct)))
 
     return VaRResult(float(var_value), float(es_value), breakdown)
+
+
+def analytic_expected_shortfall_normal(
+    sigma: float,
+    confidence: float,
+    horizon_days: int,
+    portfolio_value: float,
+) -> float:
+    """Closed-form Expected Shortfall under the normal-returns assumption.
+
+    .. math::
+
+        ES_\\alpha = \\sigma \\sqrt{T} \\cdot \\frac{\\phi(\\Phi^{-1}(\\alpha))}{1 - \\alpha} \\cdot V_0
+
+    where ``\\phi`` is the standard-normal PDF, ``\\Phi^{-1}`` the
+    standard-normal quantile, ``\\sigma`` the 1-day return stdev,
+    and ``T`` the horizon in days. The factor
+    ``\\phi(\\Phi^{-1}(\\alpha))/(1-\\alpha)`` is the conditional mean
+    of a standard normal beyond its alpha-quantile (the "hazard
+    function") — a closed-form alternative to the Monte-Carlo
+    averaging used in the historical ES path.
+
+    @raise ValueError: if confidence is outside (0, 1).
+    """
+    if not 0 < confidence < 1:
+        raise ValueError(f"confidence must be in (0, 1) (got {confidence})")
+    z_alpha = norm.ppf(confidence)
+    pdf_at_z = norm.pdf(z_alpha)
+    hazard = pdf_at_z / (1.0 - confidence)
+    return float(sigma * np.sqrt(horizon_days) * hazard * portfolio_value)
