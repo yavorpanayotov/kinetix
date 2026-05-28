@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { CalendarDays } from 'lucide-react'
 import type { EodTimelineEntryDto } from '../types'
 import { useEodTimeline } from '../hooks/useEodTimeline'
@@ -17,6 +17,43 @@ export function EodTimelineTab({ bookId }: EodTimelineTabProps) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [compareDates, setCompareDates] = useState<string[]>([])
   const [showComparison, setShowComparison] = useState(false)
+
+  // Reset drawer state when the component unmounts (i.e. the user switches to a
+  // different top-level tab). This ensures the panel does not linger as a fixed
+  // overlay that intercepts clicks on subsequent re-mounts or on sibling tabs
+  // that are revealed while React processes the unmount commit.
+  useEffect(() => {
+    return () => {
+      setSelectedDate(null)
+      setCompareDates([])
+      setShowComparison(false)
+    }
+  }, [])
+
+  // Window-level Escape handler at the tab level. This mirrors the pattern used
+  // by the global '?' shortcut in App.tsx: skip when a text input is focused so
+  // the shortcut does not swallow the user's keystrokes inside form fields.
+  useEffect(() => {
+    if (selectedDate === null) return
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key !== 'Escape') return
+      const target = e.target
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      ) {
+        return
+      }
+      setSelectedDate(null)
+      setShowComparison(false)
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [selectedDate])
 
   if (!bookId) {
     return (

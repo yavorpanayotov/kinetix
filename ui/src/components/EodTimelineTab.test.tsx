@@ -181,4 +181,55 @@ describe('EodTimelineTab', () => {
     fireEvent.click(screen.getByTestId('grid-row-2026-03-14'))
     expect(screen.queryByTestId('eod-drill-panel')).not.toBeInTheDocument()
   })
+
+  it('closes the drill panel when Escape is pressed at the window level', () => {
+    mockUseEodTimeline.mockReturnValue(mockHookState({
+      entries: [entry('2026-03-14')],
+    }))
+
+    render(<EodTimelineTab bookId="BOOK-001" />)
+
+    fireEvent.click(screen.getByTestId('grid-row-2026-03-14'))
+    expect(screen.getByTestId('eod-drill-panel')).toBeInTheDocument()
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByTestId('eod-drill-panel')).not.toBeInTheDocument()
+  })
+
+  it('does not close the drill panel on Escape when an input is focused', () => {
+    mockUseEodTimeline.mockReturnValue(mockHookState({
+      entries: [entry('2026-03-14')],
+    }))
+
+    render(<EodTimelineTab bookId="BOOK-001" />)
+
+    fireEvent.click(screen.getByTestId('grid-row-2026-03-14'))
+    expect(screen.getByTestId('eod-drill-panel')).toBeInTheDocument()
+
+    // Simulate pressing Escape while an input element is the event target.
+    // Dispatching keyDown on the input makes it the event.target and the
+    // handler's input-focused guard should prevent the drawer from closing.
+    const input = document.createElement('input')
+    document.body.appendChild(input)
+    fireEvent.keyDown(input, { key: 'Escape' })
+    // Panel should still be visible — the guard skips Escape when typing
+    expect(screen.getByTestId('eod-drill-panel')).toBeInTheDocument()
+    document.body.removeChild(input)
+  })
+
+  it('resets the drill panel state when the component unmounts', () => {
+    mockUseEodTimeline.mockReturnValue(mockHookState({
+      entries: [entry('2026-03-14')],
+    }))
+
+    const { unmount } = render(<EodTimelineTab bookId="BOOK-001" />)
+
+    fireEvent.click(screen.getByTestId('grid-row-2026-03-14'))
+    expect(screen.getByTestId('eod-drill-panel')).toBeInTheDocument()
+
+    // Unmount simulates the user switching to a different top-level tab.
+    // The drawer must not remain in the DOM (stale overlay).
+    unmount()
+    expect(screen.queryByTestId('eod-drill-panel')).not.toBeInTheDocument()
+  })
 })

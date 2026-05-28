@@ -693,7 +693,7 @@ function AppContent() {
         </div>
       </header>
 
-      <nav className="bg-surface-800 px-6 flex gap-1 border-b border-surface-700 overflow-x-auto" data-testid="tab-bar" role="tablist" onKeyDown={handleTabKeyDown}>
+      <nav className="relative z-50 bg-surface-800 px-6 flex gap-1 border-b border-surface-700 overflow-x-auto" data-testid="tab-bar" role="tablist" onKeyDown={handleTabKeyDown}>
         {TABS.map(({ key, label, icon: Icon, clusterStart }, index) => (
           <Fragment key={key}>
             {/* Plan §2.1: cluster divider sits between cluster boundaries.
