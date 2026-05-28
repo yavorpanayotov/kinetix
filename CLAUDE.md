@@ -138,6 +138,7 @@ Start any spec-related task by reading [`specs/README.md`](specs/README.md). Dri
 
 - **Never delete, disable, or skip a test** (test file, test function, or test assertion) without my explicit permission. This includes marking tests as ignored, disabled, skipped, or xfail (e.g. `@Ignore`, `@Disabled`, `xconfig`, `pytest.mark.skip`, `test.skip`, `.todo`). If a test is failing, fix the code under test or fix the test — do not delete, skip, or suppress it to make the build pass. Always explain the failure and ask before removing or disabling any test.
 - **Never force-push or rewrite published git history** without my explicit permission.
+- **Never push a non-`main` branch to `origin`.** Only `main` is pushed. Subagent worktree branches, feature branches, and any other local branches must stay local — integrate the work into `main` first (rebase or cherry-pick), then push `main`. This prevents stray branches showing up on GitHub as "Compare & pull request" suggestions and keeps the remote clean.
 - **Never modify CI/CD pipeline files** without my approval.
 - **Never add a new library/dependency** without my approval.
 - **Never skip pre-commit hooks** (no `--no-verify`).
