@@ -125,16 +125,41 @@ fun Route.executionRoutes(
                     code(HttpStatusCode.NoContent) { }
                     code(HttpStatusCode.BadRequest) { }
                     code(HttpStatusCode.NotFound) { }
+                    code(HttpStatusCode.Conflict) { }
                 }
             }) {
                 val reconciliationId = call.requirePathParam("reconciliationId")
                 val instrumentId = call.requirePathParam("instrumentId")
                 val request = call.receive<UpdateBreakStatusRequest>()
-                val status = runCatching { ReconciliationBreakStatus.valueOf(request.status) }.getOrElse {
+                val target = runCatching { ReconciliationBreakStatus.valueOf(request.status) }.getOrElse {
                     call.respond(HttpStatusCode.BadRequest, "Invalid status: ${request.status}. Must be one of ${ReconciliationBreakStatus.entries.map { it.name }}")
                     return@patch
                 }
-                primeBrokerReconciliationRepository.updateBreakStatus(reconciliationId, instrumentId, status)
+
+                // Enforce the status state machine (specs/execution.allium
+                // UpdateReconciliationBreakStatus): OPEN <-> INVESTIGATING ->
+                // RESOLVED; RESOLVED is terminal. Mirrors the alert escalation
+                // pattern (AlertStatus.canTransitionTo, commit 4679ce0d).
+                val reconciliation = primeBrokerReconciliationRepository.findById(reconciliationId)
+                if (reconciliation == null) {
+                    call.respond(HttpStatusCode.NotFound, "Reconciliation not found: $reconciliationId")
+                    return@patch
+                }
+                val currentBreak = reconciliation.breaks.firstOrNull { it.instrumentId == instrumentId }
+                if (currentBreak == null) {
+                    call.respond(HttpStatusCode.NotFound, "Break not found for instrument: $instrumentId")
+                    return@patch
+                }
+                if (!currentBreak.status.canTransitionTo(target)) {
+                    call.respond(
+                        HttpStatusCode.Conflict,
+                        "Illegal status transition: ${currentBreak.status} -> $target. " +
+                            "Legal transitions: OPEN <-> INVESTIGATING -> RESOLVED (terminal).",
+                    )
+                    return@patch
+                }
+
+                primeBrokerReconciliationRepository.updateBreakStatus(reconciliationId, instrumentId, target)
                 call.respond(HttpStatusCode.NoContent)
             }
         }

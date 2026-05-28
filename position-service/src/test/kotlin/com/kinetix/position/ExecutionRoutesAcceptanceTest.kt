@@ -226,6 +226,148 @@ class ExecutionRoutesAcceptanceTest : FunSpec({
         }
     }
 
+    // kx-wszo: status-transition enforcement on PATCH
+    test("PATCH break status RESOLVED -> OPEN returns 409 Conflict and leaves status unchanged") {
+        val recon = PrimeBrokerReconciliation(
+            reconciliationDate = "2026-03-24",
+            bookId = "book-transition-1",
+            status = "BREAKS_FOUND",
+            totalPositions = 1,
+            matchedCount = 0,
+            breakCount = 1,
+            breaks = listOf(
+                ReconciliationBreak(
+                    instrumentId = "AAPL",
+                    internalQty = BigDecimal("105"),
+                    primeBrokerQty = BigDecimal("100"),
+                    breakQty = BigDecimal("5"),
+                    breakNotional = BigDecimal("775.00"),
+                    severity = ReconciliationBreakSeverity.NORMAL,
+                    status = ReconciliationBreakStatus.RESOLVED,
+                ),
+            ),
+            reconciledAt = Instant.parse("2026-03-24T18:00:00Z"),
+        )
+        reconRepo.save(recon, "recon-transition-1")
+
+        testApplication {
+            application { configureTestApp(costRepo, reconRepo, reconService, positionRepo) }
+            val response = client.patch("/api/v1/execution/reconciliation-breaks/recon-transition-1/AAPL/status") {
+                contentType(ContentType.Application.Json)
+                setBody("""{"status": "OPEN"}""")
+            }
+            response.status shouldBe HttpStatusCode.Conflict
+        }
+
+        val unchanged = reconRepo.findById("recon-transition-1")!!
+        unchanged.breaks[0].status shouldBe ReconciliationBreakStatus.RESOLVED
+    }
+
+    test("PATCH break status OPEN -> INVESTIGATING returns 204 (legal transition)") {
+        val recon = PrimeBrokerReconciliation(
+            reconciliationDate = "2026-03-24",
+            bookId = "book-transition-2",
+            status = "BREAKS_FOUND",
+            totalPositions = 1,
+            matchedCount = 0,
+            breakCount = 1,
+            breaks = listOf(
+                ReconciliationBreak(
+                    instrumentId = "MSFT",
+                    internalQty = BigDecimal("50"),
+                    primeBrokerQty = BigDecimal("45"),
+                    breakQty = BigDecimal("5"),
+                    breakNotional = BigDecimal("2100.00"),
+                    severity = ReconciliationBreakSeverity.NORMAL,
+                    status = ReconciliationBreakStatus.OPEN,
+                ),
+            ),
+            reconciledAt = Instant.parse("2026-03-24T18:00:00Z"),
+        )
+        reconRepo.save(recon, "recon-transition-2")
+
+        testApplication {
+            application { configureTestApp(costRepo, reconRepo, reconService, positionRepo) }
+            val response = client.patch("/api/v1/execution/reconciliation-breaks/recon-transition-2/MSFT/status") {
+                contentType(ContentType.Application.Json)
+                setBody("""{"status": "INVESTIGATING"}""")
+            }
+            response.status shouldBe HttpStatusCode.NoContent
+        }
+
+        val updated = reconRepo.findById("recon-transition-2")!!
+        updated.breaks[0].status shouldBe ReconciliationBreakStatus.INVESTIGATING
+    }
+
+    test("PATCH break status RESOLVED -> INVESTIGATING returns 409 Conflict (RESOLVED is terminal)") {
+        val recon = PrimeBrokerReconciliation(
+            reconciliationDate = "2026-03-24",
+            bookId = "book-transition-3",
+            status = "BREAKS_FOUND",
+            totalPositions = 1,
+            matchedCount = 0,
+            breakCount = 1,
+            breaks = listOf(
+                ReconciliationBreak(
+                    instrumentId = "GOOG",
+                    internalQty = BigDecimal("10"),
+                    primeBrokerQty = BigDecimal("8"),
+                    breakQty = BigDecimal("2"),
+                    breakNotional = BigDecimal("3000.00"),
+                    severity = ReconciliationBreakSeverity.NORMAL,
+                    status = ReconciliationBreakStatus.RESOLVED,
+                ),
+            ),
+            reconciledAt = Instant.parse("2026-03-24T18:00:00Z"),
+        )
+        reconRepo.save(recon, "recon-transition-3")
+
+        testApplication {
+            application { configureTestApp(costRepo, reconRepo, reconService, positionRepo) }
+            val response = client.patch("/api/v1/execution/reconciliation-breaks/recon-transition-3/GOOG/status") {
+                contentType(ContentType.Application.Json)
+                setBody("""{"status": "INVESTIGATING"}""")
+            }
+            response.status shouldBe HttpStatusCode.Conflict
+        }
+    }
+
+    test("PATCH break status INVESTIGATING -> OPEN returns 204 (legal regression)") {
+        val recon = PrimeBrokerReconciliation(
+            reconciliationDate = "2026-03-24",
+            bookId = "book-transition-4",
+            status = "BREAKS_FOUND",
+            totalPositions = 1,
+            matchedCount = 0,
+            breakCount = 1,
+            breaks = listOf(
+                ReconciliationBreak(
+                    instrumentId = "TSLA",
+                    internalQty = BigDecimal("20"),
+                    primeBrokerQty = BigDecimal("15"),
+                    breakQty = BigDecimal("5"),
+                    breakNotional = BigDecimal("1250.00"),
+                    severity = ReconciliationBreakSeverity.NORMAL,
+                    status = ReconciliationBreakStatus.INVESTIGATING,
+                ),
+            ),
+            reconciledAt = Instant.parse("2026-03-24T18:00:00Z"),
+        )
+        reconRepo.save(recon, "recon-transition-4")
+
+        testApplication {
+            application { configureTestApp(costRepo, reconRepo, reconService, positionRepo) }
+            val response = client.patch("/api/v1/execution/reconciliation-breaks/recon-transition-4/TSLA/status") {
+                contentType(ContentType.Application.Json)
+                setBody("""{"status": "OPEN"}""")
+            }
+            response.status shouldBe HttpStatusCode.NoContent
+        }
+
+        val updated = reconRepo.findById("recon-transition-4")!!
+        updated.breaks[0].status shouldBe ReconciliationBreakStatus.OPEN
+    }
+
     test("POST statement with book mismatch returns 400") {
         testApplication {
             application { configureTestApp(costRepo, reconRepo, reconService, positionRepo) }
