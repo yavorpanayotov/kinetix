@@ -192,3 +192,32 @@ class TestZSpread:
         from kinetix_risk.bond_pricing import bond_z_spread
         with pytest.raises(ValueError):
             bond_z_spread(0.0, [(1.0, 5.0)], base_zero_rate=0.05)
+
+
+class TestKeyRateDuration:
+    @pytest.mark.unit
+    def test_basic_key_rate_duration_formula(self):
+        from kinetix_risk.bond_pricing import bond_key_rate_duration
+        krd = bond_key_rate_duration(
+            pv_up=99.5, pv_down=100.5, pv_baseline=100.0, yield_bump=0.0001,
+        )
+        # (100.5 - 99.5) / (2 * 100 * 0.0001) = 1.0 / 0.02 = 50
+        assert krd == pytest.approx(50.0)
+
+    @pytest.mark.unit
+    def test_zero_curvature_zero_key_rate_duration(self):
+        from kinetix_risk.bond_pricing import bond_key_rate_duration
+        krd = bond_key_rate_duration(100.0, 100.0, 100.0)
+        assert krd == 0.0
+
+    @pytest.mark.unit
+    def test_negative_baseline_raises(self):
+        from kinetix_risk.bond_pricing import bond_key_rate_duration
+        with pytest.raises(ValueError):
+            bond_key_rate_duration(99.5, 100.5, -1.0)
+
+    @pytest.mark.unit
+    def test_non_positive_bump_raises(self):
+        from kinetix_risk.bond_pricing import bond_key_rate_duration
+        with pytest.raises(ValueError):
+            bond_key_rate_duration(99.5, 100.5, 100.0, yield_bump=0.0)

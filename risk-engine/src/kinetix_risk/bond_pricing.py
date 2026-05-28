@@ -232,3 +232,38 @@ def bond_z_spread(
     raise ValueError(
         f"z-spread: failed to converge within {max_iterations} iterations",
     )
+
+
+def bond_key_rate_duration(
+    pv_up: float,
+    pv_down: float,
+    pv_baseline: float,
+    yield_bump: float = 0.0001,
+) -> float:
+    """Key-rate duration (KRD) at one tenor point on the curve.
+
+    .. math::
+
+        KRD_t = \\frac{P_- - P_+}{2 \\cdot P_0 \\cdot \\Delta y}
+
+    The bond is repriced after bumping ONLY the yield at the chosen
+    tenor (a key-rate "twist"), while the rest of the curve stays
+    flat. Caller supplies the bumped PVs; this function just stitches
+    them into the duration formula so every per-tenor sensitivity in
+    a basket KRD profile uses the same algebra.
+
+    A bond's per-tenor KRDs sum (in flat-curve assumption) to its
+    overall modified duration, so the helper output can be aggregated.
+
+    @raise ValueError: if pv_baseline is non-positive or yield_bump is
+    non-positive.
+    """
+    if pv_baseline <= 0:
+        raise ValueError(
+            f"KRD: pv_baseline must be positive (got {pv_baseline})",
+        )
+    if yield_bump <= 0:
+        raise ValueError(
+            f"KRD: yield_bump must be positive (got {yield_bump})",
+        )
+    return (pv_down - pv_up) / (2.0 * pv_baseline * yield_bump)
