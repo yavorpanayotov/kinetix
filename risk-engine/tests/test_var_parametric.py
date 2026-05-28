@@ -206,3 +206,32 @@ class TestModifiedVarCornishFisher:
             modified_var_cornish_fisher(1.0, 0.0, 0.0, 0.0, 1, 1.0)
         with pytest.raises(ValueError):
             modified_var_cornish_fisher(1.0, 0.0, 0.0, 1.0, 1, 1.0)
+
+
+class TestCornishFisherVar:
+    @pytest.mark.unit
+    def test_cornish_fisher_var_matches_modified_var(self):
+        """The named entry point should produce identical output."""
+        from kinetix_risk.var_parametric import cornish_fisher_var, modified_var_cornish_fisher
+        a = cornish_fisher_var(1.0, 0.5, 3.0, 0.99, 1, 1.0)
+        b = modified_var_cornish_fisher(1.0, 0.5, 3.0, 0.99, 1, 1.0)
+        assert a == b
+
+    @pytest.mark.unit
+    def test_cornish_fisher_var_with_fat_tail_exceeds_normal(self):
+        from kinetix_risk.var_parametric import cornish_fisher_var
+        normal = cornish_fisher_var(1.0, 0.0, 0.0, 0.99, 1, 1.0)
+        fat = cornish_fisher_var(1.0, 0.0, 5.0, 0.99, 1, 1.0)
+        assert fat > normal
+
+    @pytest.mark.unit
+    def test_cornish_fisher_var_with_positive_skew_raises_right_tail_quantile(self):
+        """Cornish-Fisher is computed on the upper alpha quantile of
+        the return distribution; positive skew RAISES that quantile,
+        which the helper reports as a larger VaR magnitude. Callers
+        wanting the left-tail (loss-of-return) interpretation feed
+        in 1-alpha as the confidence argument."""
+        from kinetix_risk.var_parametric import cornish_fisher_var
+        symmetric = cornish_fisher_var(1.0, 0.0, 0.0, 0.99, 1, 1.0)
+        right_skew = cornish_fisher_var(1.0, 1.0, 0.0, 0.99, 1, 1.0)
+        assert right_skew > symmetric

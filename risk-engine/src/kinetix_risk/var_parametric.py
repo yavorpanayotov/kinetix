@@ -188,3 +188,28 @@ def modified_var_cornish_fisher(
         - (1.0 / 36.0) * (2.0 * z * z * z - 5.0 * z) * S * S
     )
     return float(sigma * np.sqrt(horizon_days) * z_cf * portfolio_value)
+
+
+def cornish_fisher_var(
+    sigma: float,
+    skewness: float,
+    excess_kurtosis: float,
+    confidence: float,
+    horizon_days: int,
+    portfolio_value: float,
+) -> float:
+    """Named entry point for Cornish-Fisher VaR.
+
+    Equivalent to [modified_var_cornish_fisher]; this alias exists so
+    code that says "Cornish-Fisher VaR" by name imports a function
+    with the same name, rather than the more generic "modified VaR"
+    label.
+    """
+    return modified_var_cornish_fisher(
+        sigma=sigma,
+        skewness=skewness,
+        excess_kurtosis=excess_kurtosis,
+        confidence=confidence,
+        horizon_days=horizon_days,
+        portfolio_value=portfolio_value,
+    )
