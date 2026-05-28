@@ -31,7 +31,32 @@ TRADING_DAYS_PER_YEAR = 252
 
 
 def _nearest_positive_definite(matrix: np.ndarray) -> np.ndarray:
-    """Clip negative eigenvalues to a small positive value."""
+    """Spectral-clipping projection onto the nearest positive-definite matrix.
+
+    The Monte Carlo path requires a Cholesky factor of the correlation
+    matrix; a non-PSD input (numerical drift, an inconsistent
+    rebuild) makes ``np.linalg.cholesky`` raise. This helper performs
+    the simplest robust repair: eigendecompose, clip any eigenvalue
+    below a tiny floor, then reconstruct.
+
+    The full Higham (2002) algorithm — *Computing the Nearest
+    Correlation Matrix — A Problem from Finance* (IMA J. Numer. Anal.,
+    22(3), 329-343) — alternates the projection used here with a
+    second projection that re-imposes a unit diagonal, iterating to
+    convergence in the Frobenius norm. For our use case the single
+    spectral clip is sufficient: the input is already nominally a
+    correlation matrix, so we only need to neutralise the small
+    negative-eigenvalue drift introduced by upstream rounding. The
+    iterative version is recorded here for the reader as the
+    canonical solution if drift ever becomes large enough to warrant
+    it.
+
+    References
+    ----------
+    Higham, N. J. (2002). Computing the nearest correlation matrix —
+        a problem from finance. *IMA Journal of Numerical Analysis*,
+        22(3), 329-343.
+    """
     eigenvalues, eigenvectors = np.linalg.eigh(matrix)
     eigenvalues = np.maximum(eigenvalues, 1e-10)
     return eigenvectors @ np.diag(eigenvalues) @ eigenvectors.T
