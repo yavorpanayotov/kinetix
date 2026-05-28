@@ -463,3 +463,33 @@ class TestLtcm1998:
         )
         # Net notional 0, illiquidity 0 -> no loss in this approximation.
         assert loss == 0.0
+
+
+class TestSvb2023:
+    @pytest.mark.unit
+    def test_svb_2023_default_shock(self):
+        from kinetix_risk.stress.svb_2023 import Svb2023Shock
+        s = Svb2023Shock()
+        assert s.rates_shock_bps == 200
+        assert s.htm_duration_years > 3
+        assert 0 < s.deposit_flight_pct < 1
+
+    @pytest.mark.unit
+    def test_svb_2023_htm_loss_scales_linearly_with_duration(self):
+        from kinetix_risk.stress.svb_2023 import apply_svb_2023_to_htm_book
+        loss_short = apply_svb_2023_to_htm_book(1_000_000_000.0, duration_years=3.0)
+        loss_long = apply_svb_2023_to_htm_book(1_000_000_000.0, duration_years=6.0)
+        assert loss_long == pytest.approx(loss_short * 2)
+
+    @pytest.mark.unit
+    def test_svb_2023_zero_book_zero_loss(self):
+        from kinetix_risk.stress.svb_2023 import apply_svb_2023_to_htm_book
+        assert apply_svb_2023_to_htm_book(0.0, duration_years=6.0) == 0.0
+
+    @pytest.mark.unit
+    def test_svb_2023_realistic_magnitude(self):
+        from kinetix_risk.stress.svb_2023 import apply_svb_2023_to_htm_book
+        # $100bn HTM book at 6yr duration under +200bps -> ~$12bn loss.
+        # (SVB's actual unrealised loss was ~$17bn at the time of failure.)
+        loss = apply_svb_2023_to_htm_book(100_000_000_000.0, duration_years=6.0)
+        assert loss == pytest.approx(12_000_000_000.0)
