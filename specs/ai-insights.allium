@@ -35,16 +35,17 @@ enum ChatMode { canned | live }
 
 -- Terminal error codes stamped on an aborted chat stream. Exactly one
 -- is set on the terminal frame when generation fails a safety net or
--- the upstream model errors.
---   policy_violation     — the narrative contained a banned phrase.
---   citation_unverifiable — a numeric token or ticker-shaped symbol
+-- the upstream model errors. Wire form is UPPERCASE, matching the
+-- code (banned_phrases.py / claude_agent_chat_client.py).
+--   POLICY_VIOLATION      — the narrative contained a banned phrase.
+--   CITATION_UNVERIFIABLE — a numeric token or ticker-shaped symbol
 --                           in the narrative lacked a backing citation.
---   upstream_error       — the Claude Agent SDK was unavailable or
+--   UPSTREAM_ERROR        — the Claude Agent SDK was unavailable or
 --                           raised mid-stream.
 enum ChatErrorCode {
-    policy_violation
-    | citation_unverifiable
-    | upstream_error
+    `POLICY_VIOLATION`
+    | `CITATION_UNVERIFIABLE`
+    | `UPSTREAM_ERROR`
 }
 
 -- The terminal verdict of a completed chat response — the safety-net
@@ -74,11 +75,22 @@ enum ChatVerdict {
 -- that produced it. The UI renders these as inline footnotes and
 -- staleness indicators; the post-generation verifier flags numeric
 -- tokens that lack a matching Citation.
+value CitationParam {
+    key: String
+    value: String
+}
+-- A single key/value entry inside a Citation.params list. Modelled as
+-- a value type list rather than Map<K,V> because Allium has no
+-- first-class Map compound type (mirrors DependencyParameter in
+-- discovery-valuation.allium). The wire shape is dict[str, Any];
+-- values are normalised to their JSON string representation here.
+
 value Citation {
     tool: String
-    params: String
+    params: List<CitationParam>
     result_field: String
-    result_value: String
+    result_value_numeric: Decimal?
+    result_value_text: String?
     result_currency: String?
     as_of_timestamp: Timestamp
     data_source: String
@@ -89,13 +101,20 @@ value Citation {
         -- Source: citations/models.py — a frozen Pydantic model.
         -- tool + params together identify the MCP tool call that
         -- produced the value. params is a free-form key/value map in
-        -- the code (dict[str, Any]); modelled here as String because
-        -- its shape is tool-specific and not part of the contract.
+        -- the code (dict[str, Any]); modelled here as a list of
+        -- CitationParam entries because Allium has no Map type and
+        -- the symbol verifier walks param values structurally
+        -- (symbol_verifier.py _flatten_param_values).
         -- result_field is a dotted/JSON-pointer path into the tool
         -- result (e.g. "total_var", "var_by_asset_class[0].value").
-        -- result_value is the value itself — usually numeric, but a
-        -- pre-formatted string like "5.2M USD" is accepted; modelled
-        -- as String here since the wire type is float | int | str.
+        -- result_value carries the cited value itself — the wire type
+        -- in code is the union ``float | int | str``. Modelled here as
+        -- two optional fields: result_value_numeric for float / int
+        -- and result_value_text for pre-formatted strings (e.g.
+        -- "5.2M USD"). Exactly one of the two is set on the wire;
+        -- downstream numeric verification (verifier.py find_uncited_
+        -- tokens) reads result_value_numeric, the UI footnote renderer
+        -- prefers result_value_text when present.
         -- result_currency is the ISO 4217 code for monetary values,
         -- null for ratios and dimensionless quantities.
         -- as_of_timestamp is when the underlying data was captured
@@ -106,6 +125,42 @@ value Citation {
         -- TIMEOUT sentinel (citations/models.py TIMEOUT_FLAG).
 }
 
+-- The outcome of one MCP tool invocation recorded during a chat
+-- response. Carried on the wire as a frame on ChatChunk.tool_calls
+-- (live and canned clients both populate it); the audit trail
+-- aggregates these alongside the citation-derived tool list.
+enum ToolCallOutcome { ok | error | timeout }
+
+value ToolCall {
+    name: String
+    params: List<ToolCallParam>
+    status: ToolCallOutcome
+    started_at: Timestamp
+    completed_at: Timestamp
+
+    @guidance
+        -- Source: chat/models.py ToolCall (Pydantic model, frozen by
+        -- Pydantic defaults). name is the MCP tool name (e.g.
+        -- ``get_book_var``). params mirrors the arguments the SDK
+        -- passed to the tool — free-form key/value pairs so it can
+        -- accommodate any tool without a per-tool schema here, modelled
+        -- as a List<ToolCallParam> because Allium has no first-class
+        -- Map type (mirrors the DependencyParameter pattern in
+        -- discovery-valuation.allium). status is one of ok / error /
+        -- timeout. started_at and completed_at are the UTC timestamps
+        -- captured at the point the tool-use event and its matching
+        -- tool-result event were received from the SDK stream.
+}
+
+value ToolCallParam {
+    key: String
+    value: String
+}
+-- A single key/value entry inside a ToolCall.params list. Modelled as
+-- a value type list rather than Map<K,V> because Allium has no
+-- first-class Map compound type. The wire shape is dict[str, Any];
+-- values are normalised to their JSON string representation here.
+
 -- One frame of the outbound Server-Sent-Events chat stream. The chat
 -- endpoint streams a sequence of ChatChunk frames serialised as
 -- ``data: <chunk-json>\n\n`` on the wire.
@@ -113,6 +168,7 @@ value ChatChunk {
     delta: String?
     done: Boolean
     citations: List<Citation>?
+    tool_calls: List<ToolCall>?
     model: String?
     mode: ChatMode?
     error_code: ChatErrorCode?
@@ -123,11 +179,15 @@ value ChatChunk {
         -- frame. delta carries an incremental piece of generated text
         -- on non-terminal frames and is null on pure metadata frames.
         -- citations populates terminal frames (and dedicated
-        -- "event: source" frames) with provenance. model and mode are
-        -- stamped on the final chunk to record which LLM produced the
-        -- output and whether it came from a live call or a canned
-        -- fixture. error_code is set when an upstream failure, policy
-        -- block, or unverifiable citation aborts the stream.
+        -- "event: source" frames) with provenance. tool_calls is the
+        -- list of MCP tool invocations the live client tracked while
+        -- generating the response — distinct from the citation-derived
+        -- tool list because a tool may have errored or timed out
+        -- without producing a citation. model and mode are stamped on
+        -- the final chunk to record which LLM produced the output and
+        -- whether it came from a live call or a canned fixture.
+        -- error_code is set when an upstream failure, policy block, or
+        -- unverifiable citation aborts the stream.
         -- See the ErrorFramesAreTerminal invariant below: when
         -- error_code is set, done must be true (enforced by a Pydantic
         -- model_validator in the code).
@@ -145,9 +205,24 @@ value ChatChunk {
 -- An inbound chat request from the UI. The UI POSTs one of these to
 -- ``POST /api/v1/insights/chat``; the service streams back ChatChunk
 -- frames.
+value PageContextEntry {
+    key: String
+    value: String
+}
+-- A single key/value entry inside ChatRequest.page_context. Modelled
+-- as a value type list rather than Map<K,V> because Allium has no
+-- first-class Map compound type (mirrors DependencyParameter in
+-- discovery-valuation.allium). The wire shape is dict[str, Any];
+-- scalar leaves are normalised to their JSON string representation
+-- here. The live client both formats this for the prompt
+-- (claude_agent_chat_client.py _format_page_context) and synthesises
+-- a verification citation per scalar leaf (_citations_from_page_
+-- context, lines 177-250). The canned client reads the entry whose
+-- key is "page" for deterministic transcript selection.
+
 entity ChatRequest {
     message: String
-    page_context: String
+    page_context: List<PageContextEntry>
     session_id: String?
     conversation_id: String?
 
@@ -156,12 +231,14 @@ entity ChatRequest {
         -- message is the user's prompt — it must be non-empty and not
         -- whitespace-only (a Pydantic field_validator rejects blank
         -- input; see the MessageMustNotBeBlank invariant).
-        -- page_context is a free-form, intentionally-untyped bag of
-        -- metadata captured from wherever the user opened the chat
-        -- (current route, selected book, filters). The wire type is
-        -- dict[str, Any]; modelled here as String because its shape
-        -- is not part of the contract. The canned client reads
-        -- page_context["page"] for deterministic transcript selection.
+        -- page_context is a free-form bag of metadata captured from
+        -- wherever the user opened the chat (current route, selected
+        -- book, filters). The wire type is dict[str, Any]; modelled
+        -- here as a list of PageContextEntry entries because Allium
+        -- has no Map type and the citation synthesiser walks the
+        -- scalar leaves structurally to generate verification
+        -- grounding (claude_agent_chat_client.py
+        -- _citations_from_page_context).
         -- session_id and conversation_id are opaque strings with no
         -- format constraints. The route handler stamps any missing id
         -- with a fresh UUID hex (chat/sse.py ensure_ids) so the
@@ -279,8 +356,8 @@ config {
 
     -- Artificial inter-frame delay the canned client inserts between
     -- streamed deltas so the UI gets a streamed feel. Tests pass 0.
-    -- Source: chat/canned.py _DEFAULT_DELAY_SECONDS.
-    canned_chat_frame_delay: Duration = 20.seconds
+    -- Source: chat/canned.py _DEFAULT_DELAY_SECONDS (= 0.020 s).
+    canned_chat_frame_delay: Duration = 20.milliseconds
 
     -- Canonical internal bind port for the in-process MCP server.
     -- Source: mcp/server.py MCP_PORT.
