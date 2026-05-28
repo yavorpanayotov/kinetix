@@ -107,7 +107,7 @@ Ordered top-to-bottom by dependency. P0 first because every P1 cross-tab inconsi
 - [x] **Reconcile the three Risk-tab VaR totals.** Decide canonical: header value = firm-total (or selected scope) VaR from the latest promoted run; "Sum of books" + diversification benefit must equal it; Factor Decomposition must use the same run/scope. Write a failing acceptance test that pulls all three from the gateway response and asserts they reconcile within rounding.
   Acceptance: `./gradlew :gateway:acceptanceTest --tests "*RiskDashboardReconciliationAcceptanceTest"` green.
 
-- [ ] **Single source of truth for counterparty exposure.** Wire both the Risk tab widget and the Counterparty Risk tab to the same gateway endpoint. Failing test: gateway acceptance test that the two endpoints (or single endpoint with two projections) return the same name set and net exposures for a fixture book.
+- [x] **Single source of truth for counterparty exposure.** Wire both the Risk tab widget and the Counterparty Risk tab to the same gateway endpoint. Failing test: gateway acceptance test that the two endpoints (or single endpoint with two projections) return the same name set and net exposures for a fixture book.
   Acceptance: `./gradlew :gateway:acceptanceTest --tests "*CounterpartyExposureConsistencyAcceptanceTest"` green.
 
 - [ ] **Fix liquidity classification + remove single-dollar LVaR scale.** Add a regression test asserting `JPM.liquidity == HIGH_LIQUID` and that LVaR contribution is denominated to match the rest of the dashboard ($K or $M, not $). Surface a staleness warning when the `Calculated` timestamp is more than 1 day old.
