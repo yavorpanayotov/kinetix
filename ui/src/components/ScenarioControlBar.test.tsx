@@ -53,4 +53,48 @@ describe('ScenarioControlBar', () => {
 
     expect(screen.getByTestId('run-all-btn')).toHaveTextContent('Running...')
   })
+
+  describe('Reverse Stress button', () => {
+    it('is disabled with a tooltip explaining the gate when no results exist', () => {
+      render(
+        <ScenarioControlBar
+          {...defaultProps}
+          onReverseStress={vi.fn()}
+          hasResults={false}
+        />,
+      )
+
+      const btn = screen.getByTestId('reverse-stress-btn')
+      expect(btn).toBeDisabled()
+      expect(btn).toHaveAttribute('title')
+      expect(btn.getAttribute('title')).toMatch(/run all/i)
+    })
+
+    it('is enabled when results are available', () => {
+      render(
+        <ScenarioControlBar
+          {...defaultProps}
+          onReverseStress={vi.fn()}
+          hasResults={true}
+        />,
+      )
+
+      expect(screen.getByTestId('reverse-stress-btn')).not.toBeDisabled()
+    })
+  })
+
+  describe('Manage Scenarios button', () => {
+    it('has a tooltip describing its purpose', () => {
+      render(
+        <ScenarioControlBar
+          {...defaultProps}
+          onManageScenarios={vi.fn()}
+        />,
+      )
+
+      const btn = screen.getByTestId('manage-scenarios-btn')
+      expect(btn).toHaveAttribute('title')
+      expect(btn.getAttribute('title')).toMatch(/governance/i)
+    })
+  })
 })
