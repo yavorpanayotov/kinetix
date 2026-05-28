@@ -259,3 +259,49 @@ class TestParametricGrid:
         from kinetix_risk.stress.parametric_grid import default_rates_credit_grid
         scenarios = default_rates_credit_grid()
         assert len(scenarios) == 20  # 5 rates levels x 4 credit spread levels
+
+
+# kx-k6p — historical-replay -> backtester integration hook
+class TestHistoricalReplayHook:
+    @pytest.mark.unit
+    def test_historical_replay_loss_below_var_is_not_breach(self):
+        from kinetix_risk.historical_replay import HistoricalReplayResult
+        r = HistoricalReplayResult("2008-09-15", hypothetical_pnl=-50.0, portfolio_market_value=1000.0)
+        assert r.is_var_breach(var_value=100.0) is False
+        assert r.hypothetical_loss() == 50.0
+
+    @pytest.mark.unit
+    def test_historical_replay_loss_above_var_is_breach(self):
+        from kinetix_risk.historical_replay import HistoricalReplayResult
+        r = HistoricalReplayResult("2020-03-12", hypothetical_pnl=-200.0, portfolio_market_value=1000.0)
+        assert r.is_var_breach(var_value=100.0) is True
+
+    @pytest.mark.unit
+    def test_historical_replay_gain_is_never_breach(self):
+        from kinetix_risk.historical_replay import HistoricalReplayResult
+        r = HistoricalReplayResult("2021-01-01", hypothetical_pnl=+200.0, portfolio_market_value=1000.0)
+        assert r.is_var_breach(var_value=100.0) is False
+        assert r.hypothetical_loss() == 0.0
+
+    @pytest.mark.unit
+    def test_historical_replay_summary_counts_breaches(self):
+        from kinetix_risk.historical_replay import HistoricalReplayResult, assemble_replay_breach_summary
+        replays = [
+            HistoricalReplayResult("2008-09-15", -200.0, 1000.0),
+            HistoricalReplayResult("2020-03-12", -300.0, 1000.0),
+            HistoricalReplayResult("2018-02-05", -50.0, 1000.0),
+        ]
+        summary = assemble_replay_breach_summary(replays, var_value=100.0)
+        assert summary["total_replays"] == 3
+        assert summary["breach_count"] == 2
+        assert summary["breach_rate"] == 2 / 3
+        assert summary["worst_loss"] == 300.0
+
+    @pytest.mark.unit
+    def test_historical_replay_summary_empty(self):
+        from kinetix_risk.historical_replay import assemble_replay_breach_summary
+        summary = assemble_replay_breach_summary([], var_value=100.0)
+        assert summary["total_replays"] == 0
+        assert summary["breach_count"] == 0
+        assert summary["breach_rate"] == 0.0
+        assert summary["worst_loss"] == 0.0
