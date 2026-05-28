@@ -424,3 +424,42 @@ class TestYenCarryUnwind:
             usd_notional=1_000_000.0, leverage=1.0, initial_carry_rate=0.05, shock=shock,
         )
         assert loss == pytest.approx(120_000.0)
+
+
+class TestLtcm1998:
+    @pytest.mark.unit
+    def test_ltcm_1998_default_shock_values(self):
+        from kinetix_risk.stress.ltcm_1998 import Ltcm1998Shock
+        s = Ltcm1998Shock()
+        assert s.ig_spread_bps == 200
+        assert s.hy_spread_bps > s.ig_spread_bps
+        assert s.correlation_floor > 0.5
+        assert s.illiquid_haircut_pct > 0
+
+    @pytest.mark.unit
+    def test_ltcm_1998_convergent_position_takes_loss(self):
+        from kinetix_risk.stress.ltcm_1998 import (
+            apply_ltcm_1998_to_convergent_position,
+        )
+        loss = apply_ltcm_1998_to_convergent_position(
+            long_leg_notional=100_000_000.0,
+            short_leg_notional=95_000_000.0,
+            spread_shock_bps=300,
+            illiquidity_score=0.5,
+        )
+        # Spread loss: 5M * 0.03 = 150k. Liquidity loss: 100M * 0.5 * 0.3 = 15M.
+        assert loss == pytest.approx(150_000.0 + 15_000_000.0)
+
+    @pytest.mark.unit
+    def test_ltcm_1998_fully_liquid_position_only_spread_loss(self):
+        from kinetix_risk.stress.ltcm_1998 import (
+            apply_ltcm_1998_to_convergent_position,
+        )
+        loss = apply_ltcm_1998_to_convergent_position(
+            long_leg_notional=100_000_000.0,
+            short_leg_notional=100_000_000.0,
+            spread_shock_bps=300,
+            illiquidity_score=0.0,
+        )
+        # Net notional 0, illiquidity 0 -> no loss in this approximation.
+        assert loss == 0.0
