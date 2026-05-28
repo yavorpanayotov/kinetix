@@ -89,6 +89,26 @@ def _christoffersen_independence_test(
     daily_var_predictions: list[float],
     daily_pnl: list[float],
 ) -> tuple[float, float]:
+    """Christoffersen (1998) test for independence of VaR violations.
+
+    The Kupiec POF test only checks the *unconditional* violation
+    rate — it accepts a model that prints the right number of
+    violations but clusters them all in a single week. Christoffersen
+    adds a Markov-chain conditional check: given that yesterday was a
+    violation, what's the probability today is a violation? If the
+    violations are truly independent, that probability equals the
+    overall violation rate. If violations cluster, today's
+    probability conditioned on yesterday's violation is much higher.
+
+    Implementation: encode each day as an indicator (1 = violation,
+    0 = clean), count the four transition pairs (n00, n01, n10, n11),
+    fit a first-order Markov chain, and compare the likelihood under
+    the conditional model to the likelihood under the i.i.d. model
+    via a chi-squared LR statistic with 1 d.o.f.
+
+    Reference: Christoffersen, P. F. (1998). Evaluating Interval
+    Forecasts. *International Economic Review*, 39(4), 841-862.
+    """
     n = len(daily_var_predictions)
     indicators = []
     for i in range(n):
