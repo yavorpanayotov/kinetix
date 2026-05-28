@@ -1123,6 +1123,12 @@ export interface LimitDefinitionFixture {
   intradayLimit: string | null
   overnightLimit: string | null
   active: boolean
+  // Optional trader-review P0 fields. When the server populates these,
+  // the Limits screen renders e.g. `$640,000,000 (80%)` in the intraday
+  // and overnight cells instead of just the ceiling. Tests can omit
+  // them to keep mocking the legacy shape.
+  current?: string | null
+  utilisationPct?: number | null
 }
 
 /**

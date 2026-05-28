@@ -20,6 +20,29 @@ function formatNumeric(value: string | null): string {
   return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(numeric)
 }
 
+/**
+ * Render the utilisation cell against a ceiling. The trader-review P0
+ * pattern is `$640,000,000 (80%)` — `current` formatted as a number,
+ * followed by the utilisation percentage in parentheses. When either the
+ * ceiling for this period (intraday / overnight) is absent OR the server
+ * couldn't compute utilisation for this limit type (VAR / CONCENTRATION /
+ * non-position-attributable scopes), we fall back to the bare ceiling
+ * value so the row still tells the trader what the wall is, even when we
+ * can't say how close they are.
+ */
+function formatUtilisationCell(
+  ceiling: string | null,
+  current?: string | null,
+  utilisationPct?: number | null,
+): string {
+  if (ceiling == null) return '—'
+  if (current == null || utilisationPct == null) {
+    return formatNumeric(ceiling)
+  }
+  const pct = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format(utilisationPct)
+  return `${formatNumeric(current)} (${pct}%)`
+}
+
 function groupByLevel(
   limits: LimitDefinitionDto[],
 ): Map<LimitLevel, LimitDefinitionDto[]> {
@@ -152,8 +175,18 @@ export function LimitsPanel() {
                     <td className="py-2 text-slate-900 dark:text-slate-100">{row.entityId}</td>
                     <td className="py-2 text-slate-700 dark:text-slate-300">{row.limitType}</td>
                     <td className="py-2 text-right text-slate-900 dark:text-slate-100">{formatNumeric(row.limitValue)}</td>
-                    <td className="py-2 text-right text-slate-700 dark:text-slate-300">{formatNumeric(row.intradayLimit)}</td>
-                    <td className="py-2 text-right text-slate-700 dark:text-slate-300">{formatNumeric(row.overnightLimit)}</td>
+                    <td
+                      className="py-2 text-right text-slate-700 dark:text-slate-300"
+                      data-testid={`limits-cell-intraday-${row.id}`}
+                    >
+                      {formatUtilisationCell(row.intradayLimit, row.current, row.utilisationPct)}
+                    </td>
+                    <td
+                      className="py-2 text-right text-slate-700 dark:text-slate-300"
+                      data-testid={`limits-cell-overnight-${row.id}`}
+                    >
+                      {formatUtilisationCell(row.overnightLimit, row.current, row.utilisationPct)}
+                    </td>
                     <td className="py-2 text-center">
                       {row.active ? (
                         <span className="text-green-600 dark:text-green-400 text-xs">●</span>

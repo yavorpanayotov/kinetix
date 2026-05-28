@@ -144,6 +144,69 @@ describe('LimitsPanel', () => {
     expect(screen.getByTestId('limits-no-matching')).toBeInTheDocument()
   })
 
+  it('renders intraday and overnight cells as current + utilisation% when the server populates them', () => {
+    // Trader-review P0 — the limits screen used to show only the ceiling
+    // in the intraday/overnight cells, hiding "how close to the wall" the
+    // book actually is. With the utilisation pair on the DTO, the cells
+    // now show e.g. "$640,000,000 (80%)".
+    mockUseLimits.mockReturnValue(mockHookState({
+      limits: [
+        limit({
+          id: 'l-utilised',
+          level: 'BOOK',
+          entityId: 'equity-growth',
+          limitType: 'NOTIONAL',
+          limitValue: '40000000',
+          intradayLimit: '45000000',
+          overnightLimit: '38000000',
+          current: '32000000',
+          utilisationPct: 71.1,
+          active: true,
+        }),
+      ],
+    }))
+
+    render(<LimitsPanel />)
+
+    const row = screen.getByTestId('limits-row-l-utilised')
+    const intraday = within(row).getByTestId('limits-cell-intraday-l-utilised')
+    const overnight = within(row).getByTestId('limits-cell-overnight-l-utilised')
+    expect(intraday).toHaveTextContent('32,000,000 (71.1%)')
+    expect(overnight).toHaveTextContent('32,000,000 (71.1%)')
+  })
+
+  it('falls back to ceiling-only when the server reports null utilisation (e.g. VAR limit)', () => {
+    // VAR / CONCENTRATION limits live in risk-orchestrator and
+    // position-service emits null for both `current` and `utilisationPct`.
+    // The UI must render the bare ceiling (or em-dash when the ceiling
+    // itself is null) rather than "$0 (0%)".
+    mockUseLimits.mockReturnValue(mockHookState({
+      limits: [
+        limit({
+          id: 'l-var-no-usage',
+          level: 'FIRM',
+          entityId: 'firm-1',
+          limitType: 'VAR',
+          limitValue: '5000000',
+          intradayLimit: '5000000',
+          overnightLimit: null,
+          current: null,
+          utilisationPct: null,
+          active: true,
+        }),
+      ],
+    }))
+
+    render(<LimitsPanel />)
+
+    const row = screen.getByTestId('limits-row-l-var-no-usage')
+    const intraday = within(row).getByTestId('limits-cell-intraday-l-var-no-usage')
+    const overnight = within(row).getByTestId('limits-cell-overnight-l-var-no-usage')
+    expect(intraday).toHaveTextContent('5,000,000')
+    expect(intraday).not.toHaveTextContent('%')
+    expect(overnight).toHaveTextContent('—')
+  })
+
   it('shows the error banner with retry when the hook reports an error', () => {
     const refresh = vi.fn()
     mockUseLimits.mockReturnValue(mockHookState({
