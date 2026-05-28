@@ -305,3 +305,37 @@ class TestHistoricalReplayHook:
         assert summary["breach_count"] == 0
         assert summary["breach_rate"] == 0.0
         assert summary["worst_loss"] == 0.0
+
+
+class TestReverseStressOptimization:
+    @pytest.mark.unit
+    def test_reverse_stress_finds_worst_scenario(self):
+        from kinetix_risk.scenario_heatmap import find_worst_scenario_for_portfolio
+        worst = find_worst_scenario_for_portfolio({
+            "GFC-2008": 1_000_000.0,
+            "COVID-2020": 2_500_000.0,
+            "SVB-2023": 1_800_000.0,
+        })
+        assert worst == ("COVID-2020", 2_500_000.0)
+
+    @pytest.mark.unit
+    def test_reverse_stress_empty_input_returns_neutral(self):
+        from kinetix_risk.scenario_heatmap import find_worst_scenario_for_portfolio
+        assert find_worst_scenario_for_portfolio({}) == ("", 0.0)
+
+    @pytest.mark.unit
+    def test_reverse_stress_rank_returns_descending_loss_order(self):
+        from kinetix_risk.scenario_heatmap import rank_scenarios_by_loss
+        ranked = rank_scenarios_by_loss({
+            "GFC-2008": 1_000_000.0,
+            "COVID-2020": 2_500_000.0,
+            "SVB-2023": 1_800_000.0,
+        })
+        assert [scenario for scenario, _ in ranked] == [
+            "COVID-2020", "SVB-2023", "GFC-2008",
+        ]
+
+    @pytest.mark.unit
+    def test_reverse_stress_rank_empty_is_empty_list(self):
+        from kinetix_risk.scenario_heatmap import rank_scenarios_by_loss
+        assert rank_scenarios_by_loss({}) == []
