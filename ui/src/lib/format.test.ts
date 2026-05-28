@@ -6,6 +6,7 @@ import {
   formatPercent,
   formatRhoTooltip,
   formatVegaTooltip,
+  formatWithThousands,
   formatZeroPadded,
 } from './format'
 
@@ -318,5 +319,45 @@ describe('formatGreekWithSign', () => {
 
   it('renders large negatives correctly', () => {
     expect(formatGreekWithSign(-9999.99)).toBe('-9999.99')
+  })
+})
+
+describe('formatWithThousands', () => {
+  it('renders an em-dash for null', () => {
+    expect(formatWithThousands(null)).toBe('—')
+  })
+
+  it('renders an em-dash for undefined / NaN / Infinity', () => {
+    expect(formatWithThousands(undefined)).toBe('—')
+    expect(formatWithThousands(NaN)).toBe('—')
+    expect(formatWithThousands(Infinity)).toBe('—')
+  })
+
+  it('inserts comma thousands separator on small notionals', () => {
+    expect(formatWithThousands(1234.5)).toBe('1,234.50')
+  })
+
+  it('inserts comma separators every three digits on large notionals', () => {
+    expect(formatWithThousands(1234567.89)).toBe('1,234,567.89')
+  })
+
+  it('uses en-US locale regardless of system locale (always comma)', () => {
+    expect(formatWithThousands(1000)).toBe('1,000.00')
+  })
+
+  it('renders zero with default precision', () => {
+    expect(formatWithThousands(0)).toBe('0.00')
+  })
+
+  it('renders negatives with the leading minus', () => {
+    expect(formatWithThousands(-1234567.89)).toBe('-1,234,567.89')
+  })
+
+  it('honours custom fractionDigits', () => {
+    expect(formatWithThousands(1234.5, { fractionDigits: 4 })).toBe('1,234.5000')
+  })
+
+  it('handles small numbers without inserting a stray separator', () => {
+    expect(formatWithThousands(42)).toBe('42.00')
   })
 })

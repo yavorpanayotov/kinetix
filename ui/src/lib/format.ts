@@ -212,3 +212,28 @@ export function formatGreekWithSign(
     ? `+${value.toFixed(fractionDigits)}`
     : value.toFixed(fractionDigits)
 }
+
+/**
+ * Format a numeric value with thousands separators for table cell
+ * legibility (e.g. "1,234,567.89").
+ *
+ * Currency and notional columns in the position blotter run to seven or
+ * eight digits — without a thousands separator the eye loses count and
+ * mis-reads "1234567" as "12345" plus three trailing noise digits.
+ * `Number.prototype.toLocaleString` is fast and locale-aware; this helper
+ * pins the locale to `en-US` so the separator is always a comma
+ * (matching Bloomberg / Reuters convention) regardless of the trader's
+ * browser locale. Non-finite values collapse to the em-dash.
+ */
+export function formatWithThousands(
+  value: number | null | undefined,
+  options: FormatNumericOptions = {},
+): string {
+  const { fractionDigits = 2, placeholder = EM_DASH } = options
+  if (value === null || value === undefined) return placeholder
+  if (!Number.isFinite(value)) return placeholder
+  return value.toLocaleString('en-US', {
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  })
+}
