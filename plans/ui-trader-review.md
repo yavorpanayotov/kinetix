@@ -127,7 +127,7 @@ Ordered top-to-bottom by dependency. P0 first because every P1 cross-tab inconsi
 - [x] **Expand Currency Breakdown to all currencies with non-zero exposure.** Failing acceptance test on the gateway summary endpoint asserting GBP/JPY rows when fixture positions include them.
   Acceptance: `./gradlew :gateway:acceptanceTest --tests "*CurrencyBreakdownAllCurrenciesAcceptanceTest"` green.
 
-- [ ] **Fix the "VaR delta since last" being stuck at $0.00.** Failing test in risk-orchestrator: after two distinct valuation runs with different inputs, the surfaced delta is non-zero.
+- [x] **Fix the "VaR delta since last" being stuck at $0.00.** Failing test in risk-orchestrator: after two distinct valuation runs with different inputs, the surfaced delta is non-zero.
   Acceptance: `./gradlew :risk-orchestrator:test --tests "*VarDeltaSurfaceTest"` green.
 
 - [ ] **Auto-fit VaR trend chart Y-axis.** Vitest unit on the chart component; assert the computed Y-domain ≤ 1.5× max series value.
