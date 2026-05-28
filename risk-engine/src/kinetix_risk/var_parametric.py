@@ -141,3 +141,50 @@ def analytic_expected_shortfall_normal(
     pdf_at_z = norm.pdf(z_alpha)
     hazard = pdf_at_z / (1.0 - confidence)
     return float(sigma * np.sqrt(horizon_days) * hazard * portfolio_value)
+
+
+def modified_var_cornish_fisher(
+    sigma: float,
+    skewness: float,
+    excess_kurtosis: float,
+    confidence: float,
+    horizon_days: int,
+    portfolio_value: float,
+) -> float:
+    """Modified VaR with Cornish-Fisher skew + kurtosis adjustment.
+
+    Parametric VaR assumes normality and uses the standard quantile
+    z_alpha = Phi^{-1}(alpha). The Cornish-Fisher expansion adjusts
+    that quantile for the third (skew) and fourth (kurtosis) moments
+    of the empirical distribution:
+
+    .. math::
+
+        z_{CF} = z + \\frac{1}{6}(z^2 - 1) S + \\frac{1}{24}(z^3 - 3z) K - \\frac{1}{36}(2z^3 - 5z) S^2
+
+    where S = skewness and K = excess kurtosis (kurtosis minus 3).
+
+    A fat-tailed distribution (K > 0) drives z_CF further into the
+    tail than z, raising VaR. A right-skewed distribution (S > 0)
+    drives the LEFT tail less negative, lowering VaR — which is the
+    correct behaviour for an asset class that tends to rally
+    asymmetrically.
+
+    Reference
+    ---------
+    Cornish, E. A., & Fisher, R. A. (1937). Moments and cumulants in
+    the specification of distributions. *Review of the International
+    Statistical Institute*, 5(4), 307-320.
+    """
+    if not 0 < confidence < 1:
+        raise ValueError(f"confidence must be in (0, 1) (got {confidence})")
+    z = norm.ppf(confidence)
+    S = skewness
+    K = excess_kurtosis
+    z_cf = (
+        z
+        + (1.0 / 6.0) * (z * z - 1.0) * S
+        + (1.0 / 24.0) * (z * z * z - 3.0 * z) * K
+        - (1.0 / 36.0) * (2.0 * z * z * z - 5.0 * z) * S * S
+    )
+    return float(sigma * np.sqrt(horizon_days) * z_cf * portfolio_value)

@@ -176,3 +176,33 @@ class TestAnalyticExpectedShortfall:
             analytic_expected_shortfall_normal(1.0, 0.0, 1, 1.0)
         with pytest.raises(ValueError):
             analytic_expected_shortfall_normal(1.0, 1.0, 1, 1.0)
+
+
+class TestModifiedVarCornishFisher:
+    @pytest.mark.unit
+    def test_modified_var_with_zero_skew_kurt_matches_parametric_var(self):
+        """At skew=0 and excess_kurt=0, Cornish-Fisher reduces to the
+        standard parametric VaR formula."""
+        from kinetix_risk.var_parametric import modified_var_cornish_fisher
+        from scipy.stats import norm
+        sigma, confidence, T, V0 = 1.0, 0.99, 1, 1.0
+        mv = modified_var_cornish_fisher(sigma, 0.0, 0.0, confidence, T, V0)
+        standard_var = norm.ppf(confidence) * sigma * V0  # T=1 so sqrt(T)=1
+        assert mv == pytest.approx(standard_var, rel=1e-9)
+
+    @pytest.mark.unit
+    def test_modified_var_with_fat_tails_exceeds_normal_var(self):
+        """Positive excess kurtosis (fat tails) pushes the quantile
+        further into the tail -> larger VaR."""
+        from kinetix_risk.var_parametric import modified_var_cornish_fisher
+        mv_normal = modified_var_cornish_fisher(1.0, 0.0, 0.0, 0.99, 1, 1.0)
+        mv_fat = modified_var_cornish_fisher(1.0, 0.0, 3.0, 0.99, 1, 1.0)
+        assert mv_fat > mv_normal
+
+    @pytest.mark.unit
+    def test_modified_var_rejects_invalid_confidence(self):
+        from kinetix_risk.var_parametric import modified_var_cornish_fisher
+        with pytest.raises(ValueError):
+            modified_var_cornish_fisher(1.0, 0.0, 0.0, 0.0, 1, 1.0)
+        with pytest.raises(ValueError):
+            modified_var_cornish_fisher(1.0, 0.0, 0.0, 1.0, 1, 1.0)
