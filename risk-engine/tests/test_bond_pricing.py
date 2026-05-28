@@ -112,3 +112,39 @@ class TestOptionAdjustedSpread:
         import pytest
         with pytest.raises(ValueError):
             bond_option_adjusted_spread(0.0, 100.0, yield_rate=0.03)
+
+
+class TestPortfolioDuration:
+    def test_single_position_portfolio_duration_equals_its_duration(self):
+        from kinetix_risk.bond_pricing import market_value_weighted_portfolio_duration
+        assert market_value_weighted_portfolio_duration(
+            durations=[7.5], market_values=[1_000_000.0],
+        ) == 7.5
+
+    def test_two_position_portfolio_duration_is_mv_weighted(self):
+        from kinetix_risk.bond_pricing import market_value_weighted_portfolio_duration
+        # 4-yr bond at $1M + 8-yr bond at $1M => weighted = 6.0
+        d = market_value_weighted_portfolio_duration(
+            durations=[4.0, 8.0], market_values=[1_000_000.0, 1_000_000.0],
+        )
+        assert d == 6.0
+
+    def test_skewed_portfolio_duration(self):
+        from kinetix_risk.bond_pricing import market_value_weighted_portfolio_duration
+        # 4-yr bond at $1M + 8-yr bond at $9M => weighted = 7.6
+        d = market_value_weighted_portfolio_duration(
+            durations=[4.0, 8.0], market_values=[1_000_000.0, 9_000_000.0],
+        )
+        assert d == 7.6
+
+    def test_length_mismatch_raises(self):
+        from kinetix_risk.bond_pricing import market_value_weighted_portfolio_duration
+        import pytest
+        with pytest.raises(ValueError):
+            market_value_weighted_portfolio_duration([4.0], [1.0, 2.0])
+
+    def test_zero_total_mv_raises(self):
+        from kinetix_risk.bond_pricing import market_value_weighted_portfolio_duration
+        import pytest
+        with pytest.raises(ValueError):
+            market_value_weighted_portfolio_duration([4.0, 8.0], [0.0, 0.0])

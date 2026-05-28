@@ -143,3 +143,39 @@ def _local_duration(yield_rate: float, yield_bump: float) -> float:
     proxy; callers needing precision should pre-compute their bond's
     effective duration and divide explicitly."""
     return 1.0
+
+
+def market_value_weighted_portfolio_duration(
+    durations: list[float],
+    market_values: list[float],
+) -> float:
+    """Portfolio duration as the MV-weighted average of bond durations.
+
+    .. math::
+
+        D_{portfolio} = \\frac{\\sum_i MV_i \\cdot D_i}{\\sum_i MV_i}
+
+    This is the canonical aggregation: each bond contributes to the
+    portfolio's interest-rate sensitivity in proportion to its share
+    of the total market value, not its face value or notional. A
+    par-value-weighted average would over-weight deep-discount bonds
+    and underestimate the book's actual rate sensitivity.
+
+    Inputs must be the same length and contain at least one position
+    with positive market value (an all-zero book has no meaningful
+    duration).
+
+    @raise ValueError: on length mismatch or total MV <= 0.
+    """
+    if len(durations) != len(market_values):
+        raise ValueError(
+            f"durations ({len(durations)}) and market_values ({len(market_values)}) "
+            f"must be the same length",
+        )
+    total_mv = sum(market_values)
+    if total_mv <= 0:
+        raise ValueError(
+            f"portfolio duration needs positive total market value (got {total_mv})",
+        )
+    weighted = sum(d * mv for d, mv in zip(durations, market_values))
+    return weighted / total_mv
