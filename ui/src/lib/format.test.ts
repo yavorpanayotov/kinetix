@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { formatNumeric, formatRhoTooltip, formatVegaTooltip } from './format'
+import {
+  formatNumeric,
+  formatRhoTooltip,
+  formatVegaTooltip,
+  formatZeroPadded,
+} from './format'
 
 describe('formatNumeric', () => {
   it('renders an em-dash for null', () => {
@@ -109,5 +114,66 @@ describe('formatVegaTooltip', () => {
 
   it('formats negative values with the unit suffix', () => {
     expect(formatVegaTooltip(-42.5)).toBe('-42.50 %/1pp vol')
+  })
+})
+
+describe('formatZeroPadded', () => {
+  const FIGURE_SPACE = ' '
+  const MINUS = '−'
+
+  it('renders an em-dash for null', () => {
+    expect(formatZeroPadded(null)).toBe('—')
+  })
+
+  it('renders an em-dash for undefined', () => {
+    expect(formatZeroPadded(undefined)).toBe('—')
+  })
+
+  it('renders an em-dash for NaN', () => {
+    expect(formatZeroPadded(NaN)).toBe('—')
+  })
+
+  it('renders an em-dash for Infinity', () => {
+    expect(formatZeroPadded(Infinity)).toBe('—')
+    expect(formatZeroPadded(-Infinity)).toBe('—')
+  })
+
+  it('pads the integer part to the default 4-digit width with figure spaces', () => {
+    expect(formatZeroPadded(3.14)).toBe(`${FIGURE_SPACE}${FIGURE_SPACE}${FIGURE_SPACE}${FIGURE_SPACE}3.14`)
+  })
+
+  it('does not pad when the integer part already meets the width', () => {
+    expect(formatZeroPadded(1234.5)).toBe(`${FIGURE_SPACE}1234.50`)
+  })
+
+  it('renders the sign slot for positive values (figure space) and negative values (minus)', () => {
+    const positive = formatZeroPadded(3.14)
+    const negative = formatZeroPadded(-3.14)
+    // Both strings start with the sign slot, followed by the same padded body.
+    expect(positive[0]).toBe(FIGURE_SPACE)
+    expect(negative[0]).toBe(MINUS)
+    expect(positive.slice(1)).toBe(negative.slice(1))
+  })
+
+  it('honours a custom integerWidth', () => {
+    expect(formatZeroPadded(3.14, { integerWidth: 6 })).toBe(
+      `${FIGURE_SPACE}${FIGURE_SPACE.repeat(5)}3.14`,
+    )
+  })
+
+  it('honours custom fractionDigits', () => {
+    expect(formatZeroPadded(3.14159, { fractionDigits: 4 })).toBe(
+      `${FIGURE_SPACE}${FIGURE_SPACE.repeat(3)}3.1416`,
+    )
+  })
+
+  it('handles zero with the same padding so columns of zeros still align', () => {
+    expect(formatZeroPadded(0)).toBe(`${FIGURE_SPACE}${FIGURE_SPACE.repeat(3)}0.00`)
+  })
+
+  it('omits the decimal point when fractionDigits is 0', () => {
+    expect(formatZeroPadded(42, { fractionDigits: 0 })).toBe(
+      `${FIGURE_SPACE}${FIGURE_SPACE.repeat(2)}42`,
+    )
   })
 })

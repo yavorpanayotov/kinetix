@@ -82,3 +82,47 @@ export function formatVegaTooltip(
   if (!Number.isFinite(value)) return placeholder
   return `${value.toFixed(fractionDigits)} %/1pp vol`
 }
+
+/**
+ * Format a numeric value with zero-padding on the integer part so values
+ * in a decimal column line up on the decimal point.
+ *
+ * Decimal columns in risk tables are read by scanning down a vertical
+ * line — Δ values for one portfolio, then another, then a third. When the
+ * integer widths vary (3.14, 11.2, 1234.5), the decimal points zig-zag
+ * and the eye loses its place. Padding the integer part to a fixed width
+ * with figure spaces (U+2007, the digit-width whitespace character that
+ * does not collapse in HTML) keeps the column aligned without forcing
+ * fixed-width fonts on the whole document.
+ *
+ * Non-finite inputs collapse to the placeholder (em-dash) so a missing
+ * Greek does not render as "  —" or "0000.00".
+ */
+export interface FormatZeroPaddedOptions extends FormatNumericOptions {
+  /** Number of digits to pad the integer part to (default 4). */
+  integerWidth?: number
+}
+
+export function formatZeroPadded(
+  value: number | null | undefined,
+  options: FormatZeroPaddedOptions = {},
+): string {
+  const {
+    fractionDigits = 2,
+    placeholder = EM_DASH,
+    integerWidth = 4,
+  } = options
+  if (value === null || value === undefined) return placeholder
+  if (!Number.isFinite(value)) return placeholder
+  const isNegative = value < 0
+  const absolute = Math.abs(value)
+  const fixed = absolute.toFixed(fractionDigits)
+  const [intPart, fracPart] = fixed.split('.')
+  // U+2007 figure space — same width as a digit and does not collapse.
+  const FIGURE_SPACE = ' '
+  const padded = intPart.padStart(integerWidth, FIGURE_SPACE)
+  const body = fracPart === undefined ? padded : `${padded}.${fracPart}`
+  // Always prefix with the sign slot so positives and negatives line up.
+  // U+2212 minus sign for negatives; figure space for positives (same width).
+  return `${isNegative ? '−' : FIGURE_SPACE}${body}`
+}
