@@ -366,7 +366,7 @@ fun Application.module(
         runComparisonRoutes(riskClient)
         marketRegimeRoutes(riskClient)
         hedgeRecommendationRoutes(riskClient)
-        counterpartyRiskRoutes(riskClient)
+        counterpartyRiskRoutes(riskClient, positionClient)
         keyRateDurationRoutes(riskClient)
         saCcrRoutes(riskClient)
         reportProxyRoutes(riskClient)
@@ -417,7 +417,10 @@ fun Application.module(
         runComparisonRoutes(riskClient)
         marketRegimeRoutes(riskClient)
         hedgeRecommendationRoutes(riskClient)
-        counterpartyRiskRoutes(riskClient)
+        // Pass the position client so /api/v1/counterparty-risk can fill in
+        // placeholder rows for counterparties that have trades but no
+        // exposure snapshot yet (trader-review P0 #6).
+        counterpartyRiskRoutes(riskClient, positionClient)
         keyRateDurationRoutes(riskClient)
         saCcrRoutes(riskClient)
         benchmarkAttributionRoutes(riskClient)
@@ -678,7 +681,10 @@ fun Application.devModule() {
                 // Non-bookId routes
                 limitsRoutes(httpClient, positionUrl)
                 marketRegimeRoutes(riskClient)
-                counterpartyRiskRoutes(riskClient)
+                // P0 #6 — the gateway merges the trade-derived counterparty
+                // set so the Risk-tab tile and the dedicated Counterparty
+                // Risk tab cannot disagree on names.
+                counterpartyRiskRoutes(riskClient, positionClient)
                 saCcrRoutes(riskClient)
                 volSurfaceRoutes(volatilityClient)
                 yieldCurveProxyRoutes(httpClient, ratesUrl)

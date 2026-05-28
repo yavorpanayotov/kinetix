@@ -175,7 +175,7 @@ class CounterpartyExposureConsistencyAcceptanceTest : FunSpec({
         val positionBackend = BackendStubServer {
             get("/api/v1/books") {
                 call.respond(
-                    Json.parseToJsonElement("""[{"id":"$bookId"}]""").jsonArray,
+                    Json.parseToJsonElement("""[{"bookId":"$bookId"}]""").jsonArray,
                 )
             }
             get("/api/v1/books/$bookId/trades/page") {
@@ -232,7 +232,7 @@ class CounterpartyExposureConsistencyAcceptanceTest : FunSpec({
         }
         val positionBackend = BackendStubServer {
             get("/api/v1/books") {
-                call.respond(Json.parseToJsonElement("""[{"id":"$bookId"}]""").jsonArray)
+                call.respond(Json.parseToJsonElement("""[{"bookId":"$bookId"}]""").jsonArray)
             }
             get("/api/v1/books/$bookId/trades/page") {
                 call.respond(Json.parseToJsonElement(tradesPageJson).jsonObject)
@@ -299,7 +299,7 @@ class CounterpartyExposureConsistencyAcceptanceTest : FunSpec({
         }
         val positionBackend = BackendStubServer {
             get("/api/v1/books") {
-                call.respond(Json.parseToJsonElement("""[{"id":"$bookId"}]""").jsonArray)
+                call.respond(Json.parseToJsonElement("""[{"bookId":"$bookId"}]""").jsonArray)
             }
             get("/api/v1/books/$bookId/trades/page") {
                 call.respond(Json.parseToJsonElement(tradesPageJson).jsonObject)
