@@ -228,6 +228,7 @@ entity HistoricalScenarioReturn {
 }
 
 entity SavedScenario {
+    id: String
     name: String
     -- Required in code (`StressScenario.description: String`); the storage
     -- column tolerates empty strings but never null.
