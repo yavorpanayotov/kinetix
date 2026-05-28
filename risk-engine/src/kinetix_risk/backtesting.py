@@ -65,6 +65,35 @@ def _kupiec_pof_test(
     violation_count: int,
     expected_rate: float,
 ) -> tuple[float, float]:
+    """Kupiec (1995) proportion-of-failures (POF) test statistic.
+
+    Tests the null hypothesis that the observed violation rate matches
+    the model's *expected* violation rate (1 − confidence_level).
+    Uses the likelihood-ratio statistic:
+
+    .. math::
+
+        LR_{POF} = -2 \\ln\\!\\left(
+            \\frac{(1-p)^{T-n} \\, p^{n}}
+                 {(1-\\hat p)^{T-n} \\, \\hat p^{n}}
+        \\right)
+
+    where ``T`` is total_days, ``n`` is violation_count, ``p`` is the
+    expected violation rate, and ``\\hat p = n/T`` is the empirical
+    rate. Under the null, ``LR_POF`` is asymptotically
+    chi-squared with 1 degree of freedom; a p-value below 0.05
+    rejects the model.
+
+    Edge cases: when ``n = 0`` or ``n = T`` the empirical rate is
+    clipped slightly away from 0/1 so the log-likelihood stays finite
+    (those cases reliably fail the test on any reasonable expected
+    rate, but the statistic must be a finite number for downstream
+    reporting).
+
+    Reference: Kupiec, P. (1995). Techniques for Verifying the
+    Accuracy of Risk Measurement Models. *Journal of Derivatives*,
+    3(2), 73-84.
+    """
     n = violation_count
     t = total_days
     p = expected_rate
