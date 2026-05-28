@@ -1,7 +1,7 @@
 # ADR-0026: HPA Scaling Metrics Strategy
 
 ## Status
-Proposed
+Accepted (2026-05-28). Rollout pending — all 16 HPA templates currently ship CPU-only; the memory + kafka_consumer_lag changes are tracked separately in beads.
 
 ## Context
 All Kinetix services currently use CPU utilisation as the sole HPA metric (80% target). In practice, CPU is a poor proxy for load in two common scenarios:

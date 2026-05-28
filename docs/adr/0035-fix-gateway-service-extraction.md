@@ -1,7 +1,7 @@
 # ADR-0035: Fix-Gateway Service Extraction
 
 ## Status
-Proposed
+Accepted (2026-05-28). Phases 1–2 shipped (`fix-gateway/` module exists with QuickFIX/J session manager, venue cutoff registry, gRPC `PlaceOrder`/`CancelOrder`, Kafka publisher for `execution.reports`). Phase 3 in flight — position-service consumes `execution.reports` via `ExecutionReportConsumer` and runs a dual-path parity test alongside the legacy in-process `FIXExecutionReportProcessor`. Phase 4 (outbound order placement migration) not started.
 
 ## Context
 
