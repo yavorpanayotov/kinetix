@@ -82,6 +82,74 @@ class HierarchyRoutesAcceptanceTest : FunSpec({
         }
     }
 
+    test("GET /api/v1/firm/summary aggregates across every book when a position client is wired up") {
+        // Backend stub serves /api/v1/books (list) and per-book /summary, just
+        // like a real position-service. The gateway must sum totalNav,
+        // totalUnrealizedPnl, and the currency breakdowns into a firm-level
+        // aggregate — not return the zero-aggregate stub.
+        val backend = BackendStubServer {
+            get("/api/v1/books") {
+                call.respond(buildJsonArray {
+                    add(buildJsonObject { put("bookId", "book-a") })
+                    add(buildJsonObject { put("bookId", "book-b") })
+                })
+            }
+            get("/api/v1/books/book-a/summary") {
+                call.respond(buildJsonObject {
+                    put("bookId", "book-a")
+                    put("baseCurrency", "USD")
+                    put("totalNav", buildJsonObject { put("amount", "1000.00"); put("currency", "USD") })
+                    put("totalUnrealizedPnl", buildJsonObject { put("amount", "100.00"); put("currency", "USD") })
+                    put("currencyBreakdown", buildJsonArray {
+                        add(buildJsonObject {
+                            put("currency", "USD")
+                            put("localValue", buildJsonObject { put("amount", "1000.00"); put("currency", "USD") })
+                            put("baseValue", buildJsonObject { put("amount", "1000.00"); put("currency", "USD") })
+                            put("fxRate", "1.0000")
+                        })
+                    })
+                })
+            }
+            get("/api/v1/books/book-b/summary") {
+                call.respond(buildJsonObject {
+                    put("bookId", "book-b")
+                    put("baseCurrency", "USD")
+                    put("totalNav", buildJsonObject { put("amount", "2500.00"); put("currency", "USD") })
+                    put("totalUnrealizedPnl", buildJsonObject { put("amount", "-50.00"); put("currency", "USD") })
+                    put("currencyBreakdown", buildJsonArray {
+                        add(buildJsonObject {
+                            put("currency", "EUR")
+                            put("localValue", buildJsonObject { put("amount", "2300.00"); put("currency", "EUR") })
+                            put("baseValue", buildJsonObject { put("amount", "2500.00"); put("currency", "USD") })
+                            put("fxRate", "1.0870")
+                        })
+                    })
+                })
+            }
+        }
+        val httpClient = HttpClient(CIO) { install(ClientContentNegotiation) { json() } }
+        try {
+            testApplication {
+                val positionClient = com.kinetix.gateway.client.HttpPositionServiceClient(httpClient, backend.baseUrl)
+                application {
+                    install(ContentNegotiation) { json() }
+                    routing { hierarchyRoutes(httpClient, backend.baseUrl, positionClient) }
+                }
+                val response = client.get("/api/v1/firm/summary")
+                response.status shouldBe HttpStatusCode.OK
+                val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+                body["bookId"]?.jsonPrimitive?.content shouldBe "firm"
+                body["totalNav"]!!.jsonObject["amount"]?.jsonPrimitive?.content shouldBe "3500.00"
+                body["totalUnrealizedPnl"]!!.jsonObject["amount"]?.jsonPrimitive?.content shouldBe "50.00"
+                val breakdown = body["currencyBreakdown"]!!.jsonArray
+                breakdown.size shouldBe 2
+                breakdown.map { it.jsonObject["currency"]!!.jsonPrimitive.content }.toSet() shouldBe setOf("USD", "EUR")
+            }
+        } finally {
+            httpClient.close(); backend.close()
+        }
+    }
+
     test("GET /api/v1/firm/summary returns a zero-aggregate stub when no cross-book data is available") {
         val backend = BackendStubServer { /* no routes — gateway should not call backend */ }
         val httpClient = HttpClient(CIO) { install(ClientContentNegotiation) { json() } }

@@ -122,6 +122,63 @@ class HttpPositionServiceClient(
         return dto.toDomain()
     }
 
+    override suspend fun aggregateAllBooks(baseCurrency: String): PortfolioAggregationSummary {
+        // Walk every book the position-service knows about and fold their
+        // per-book summaries into a single firm-level aggregate. A bookless
+        // demo seed (or a position-service that's still warming up) yields a
+        // zero-aggregate rather than throwing — matches the prior stub
+        // behaviour from `HierarchyRoutes.emptyAggregate`.
+        val books = listPortfolios()
+        if (books.isEmpty()) {
+            return zeroAggregate(baseCurrency)
+        }
+        val perBook = books.map { getBookSummary(it.id, baseCurrency) }
+        return foldFirmSummary(perBook, baseCurrency)
+    }
+
+    private fun zeroAggregate(baseCurrency: String): PortfolioAggregationSummary {
+        val currency = java.util.Currency.getInstance(baseCurrency)
+        val zero = com.kinetix.common.model.Money(java.math.BigDecimal.ZERO, currency)
+        return PortfolioAggregationSummary(
+            bookId = "firm",
+            baseCurrency = baseCurrency,
+            totalNav = zero,
+            totalUnrealizedPnl = zero,
+            currencyBreakdown = emptyList(),
+        )
+    }
+
+    private fun foldFirmSummary(
+        summaries: List<PortfolioAggregationSummary>,
+        baseCurrency: String,
+    ): PortfolioAggregationSummary {
+        val baseCurrencyObj = java.util.Currency.getInstance(baseCurrency)
+        val totalNav = summaries.fold(java.math.BigDecimal.ZERO) { a, s -> a + s.totalNav.amount }
+        val totalPnl = summaries.fold(java.math.BigDecimal.ZERO) { a, s -> a + s.totalUnrealizedPnl.amount }
+        val breakdown = summaries
+            .flatMap { it.currencyBreakdown }
+            .groupBy { it.currency }
+            .map { (currency, exposures) ->
+                val curObj = java.util.Currency.getInstance(currency)
+                val local = exposures.fold(java.math.BigDecimal.ZERO) { a, e -> a + e.localValue.amount }
+                val base = exposures.fold(java.math.BigDecimal.ZERO) { a, e -> a + e.baseValue.amount }
+                CurrencyExposureSummary(
+                    currency = currency,
+                    localValue = com.kinetix.common.model.Money(local, curObj),
+                    baseValue = com.kinetix.common.model.Money(base, baseCurrencyObj),
+                    fxRate = exposures.first().fxRate,
+                )
+            }
+            .sortedByDescending { it.baseValue.amount.abs() }
+        return PortfolioAggregationSummary(
+            bookId = "firm",
+            baseCurrency = baseCurrency,
+            totalNav = com.kinetix.common.model.Money(totalNav, baseCurrencyObj),
+            totalUnrealizedPnl = com.kinetix.common.model.Money(totalPnl, baseCurrencyObj),
+            currencyBreakdown = breakdown,
+        )
+    }
+
     override suspend fun listPositionNotes(bookId: BookId, instrumentId: String?): List<PositionNoteDto> {
         val response = httpClient.get("$baseUrl/api/v1/positions/${bookId.value}/notes") {
             if (instrumentId != null) parameter("instrumentId", instrumentId)

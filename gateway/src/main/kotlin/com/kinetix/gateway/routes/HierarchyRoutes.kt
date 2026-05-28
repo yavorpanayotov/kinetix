@@ -1,5 +1,6 @@
 package com.kinetix.gateway.routes
 
+import com.kinetix.gateway.client.PositionServiceClient
 import io.github.smiley4.ktoropenapi.get
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -10,6 +11,7 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.route
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
+import org.slf4j.LoggerFactory
 
 @Serializable
 data class MoneyDto(val amount: String, val currency: String)
@@ -31,7 +33,13 @@ data class BookAggregationDto(
     val currencyBreakdown: List<CurrencyExposureDto> = emptyList(),
 )
 
-fun Route.hierarchyRoutes(httpClient: HttpClient, referenceDataBaseUrl: String) {
+private val hierarchyLogger = LoggerFactory.getLogger("com.kinetix.gateway.routes.HierarchyRoutes")
+
+fun Route.hierarchyRoutes(
+    httpClient: HttpClient,
+    referenceDataBaseUrl: String,
+    positionClient: PositionServiceClient? = null,
+) {
     route("/api/v1/divisions") {
         get({
             summary = "List divisions"
@@ -135,10 +143,42 @@ fun Route.hierarchyRoutes(httpClient: HttpClient, referenceDataBaseUrl: String) 
             }
         }) {
             val baseCurrency = call.request.queryParameters["baseCurrency"] ?: "USD"
-            call.respond(emptyAggregate("firm", baseCurrency))
+            // Aggregate every book the position-service knows about so the
+            // default Positions tab shows a real NAV instead of a $0 stub.
+            // Any upstream failure degrades to the zero-aggregate so the UI
+            // never crashes on the firm header (the existing per-book summary
+            // calls still surface specific errors when the user drills in).
+            val response = if (positionClient != null) {
+                runCatching { positionClient.aggregateAllBooks(baseCurrency).toAggregateDto(baseCurrency) }
+                    .onFailure { hierarchyLogger.warn("Firm aggregation failed, returning zero-aggregate", it) }
+                    .getOrElse { emptyAggregate("firm", baseCurrency) }
+            } else {
+                emptyAggregate("firm", baseCurrency)
+            }
+            call.respond(response)
         }
     }
 }
+
+private fun com.kinetix.gateway.client.PortfolioAggregationSummary.toAggregateDto(
+    baseCurrency: String,
+): BookAggregationDto = BookAggregationDto(
+    bookId = bookId,
+    baseCurrency = baseCurrency,
+    totalNav = MoneyDto(totalNav.amount.toPlainString(), totalNav.currency.currencyCode),
+    totalUnrealizedPnl = MoneyDto(
+        totalUnrealizedPnl.amount.toPlainString(),
+        totalUnrealizedPnl.currency.currencyCode,
+    ),
+    currencyBreakdown = currencyBreakdown.map {
+        CurrencyExposureDto(
+            currency = it.currency,
+            localValue = MoneyDto(it.localValue.amount.toPlainString(), it.localValue.currency.currencyCode),
+            baseValue = MoneyDto(it.baseValue.amount.toPlainString(), it.baseValue.currency.currencyCode),
+            fxRate = it.fxRate.toPlainString(),
+        )
+    },
+)
 
 private fun emptyAggregate(bookId: String, baseCurrency: String) = BookAggregationDto(
     bookId = bookId,

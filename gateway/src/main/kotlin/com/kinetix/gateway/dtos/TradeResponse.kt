@@ -17,6 +17,7 @@ data class TradeResponse(
     val status: String,
     val instrumentType: String? = null,
     val displayName: String? = null,
+    val counterpartyId: String? = null,
 )
 
 fun Trade.toResponse(): TradeResponse = toResponse(emptyMap())
@@ -35,5 +36,6 @@ fun Trade.toResponse(instruments: Map<String, InstrumentSummary>): TradeResponse
         status = status.name,
         instrumentType = instrument?.instrumentType ?: instrumentType?.name,
         displayName = instrument?.displayName,
+        counterpartyId = counterpartyId,
     )
 }

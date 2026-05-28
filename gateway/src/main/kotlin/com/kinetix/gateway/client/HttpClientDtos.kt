@@ -59,6 +59,10 @@ data class TradeDto(
     val price: MoneyDto,
     val tradedAt: String,
     val instrumentType: String,
+    // The Counterparty Exposure tile on the Risk view aggregates trades by
+    // counterpartyId. Dropping it here used to leave the tile permanently
+    // empty even though the position-service was returning the data.
+    val counterpartyId: String? = null,
 )
 
 @Serializable
@@ -588,6 +592,7 @@ fun TradeDto.toDomain() = Trade(
     price = price.toDomainMoney(),
     tradedAt = Instant.parse(tradedAt),
     instrumentType = InstrumentTypeCode.fromString(instrumentType),
+    counterpartyId = counterpartyId,
 )
 
 fun BookTradeResponseDto.toDomain() = BookTradeResult(

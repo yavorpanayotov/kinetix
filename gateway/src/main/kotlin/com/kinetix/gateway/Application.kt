@@ -664,7 +664,7 @@ fun Application.devModule() {
                 }
                 instrumentRoutes(httpClient, referenceDataUrl)
                 traderRoutes(httpClient, referenceDataUrl)
-                hierarchyRoutes(httpClient, referenceDataUrl)
+                hierarchyRoutes(httpClient, referenceDataUrl, positionClient)
                 dataQualityRoutes(httpClient, positionUrl, priceUrl, riskUrl)
             }
             requirePermission(Permission.READ_AUDIT, authEnabled = authEnabled) {

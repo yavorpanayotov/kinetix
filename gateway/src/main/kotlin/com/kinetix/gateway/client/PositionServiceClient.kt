@@ -65,6 +65,14 @@ interface PositionServiceClient {
     ): TradeHistoryPage
     suspend fun getBookSummary(bookId: BookId, baseCurrency: String): PortfolioAggregationSummary
 
+    /**
+     * Firm-level aggregation across every book the position-service knows
+     * about. Used by `GET /api/v1/firm/summary` so the default Positions tab
+     * shows a real NAV instead of a $0 stub when the user hasn't drilled into
+     * a specific book yet.
+     */
+    suspend fun aggregateAllBooks(baseCurrency: String): PortfolioAggregationSummary
+
     /** Lists position notes for a book, optionally filtered to a single instrument. */
     suspend fun listPositionNotes(bookId: BookId, instrumentId: String? = null): List<PositionNoteDto>
 
