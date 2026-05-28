@@ -151,7 +151,10 @@ data class ValuationResultDto(
     val computedOutputs: List<String>? = null,
     val pvValue: String? = null,
     val valuationDate: String? = null,
-    val positionGreeks: List<PositionGreekClientDto> = emptyList(),
+    // risk-orchestrator emits `null` (not an empty array) when no per-position
+    // greeks are computed — see `RiskMappers.toDto`'s `takeIf { isNotEmpty() }`.
+    // Accept that on the wire and normalise to an empty list at the domain edge.
+    val positionGreeks: List<PositionGreekClientDto>? = null,
 )
 
 @Serializable
@@ -616,7 +619,7 @@ fun ValuationResultDto.toDomain() = ValuationResultSummary(
     greeks = greeks?.toDomain(),
     pvValue = pvValue?.toDoubleOrNull(),
     valuationDate = valuationDate,
-    positionGreeks = positionGreeks.map { pg ->
+    positionGreeks = positionGreeks.orEmpty().map { pg ->
         PositionGreekSummary(
             instrumentId = pg.instrumentId,
             delta = pg.delta.toDouble(),
