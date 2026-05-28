@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import KeycloakReal from 'keycloak-js'
 import { AuthContext, type AuthState } from './useAuth'
 import { setAuthToken } from './authFetch'
+import { UnauthenticatedLanding } from '../components/UnauthenticatedLanding'
 
 const keycloakConfig = {
   url: 'https://auth.kinetixrisk.ai',
@@ -37,7 +38,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const kc = new Keycloak(keycloakConfig)
     keycloakRef.current = kc
 
-    kc.init({ onLoad: 'login-required', pkceMethod: 'S256', checkLoginIframe: false })
+    // kx-42wk.5 — switched from `login-required` to `check-sso` so a visitor
+    // with no session is *not* auto-redirected to Keycloak. Instead the
+    // AuthProvider lands them on <UnauthenticatedLanding/>, which gives them
+    // a branded entry point, a Log in button (which calls kc.login()), and a
+    // /status link. The redirect-on-401 behaviour for *authenticated* refresh
+    // failures is preserved by the kc.login() call in the token-refresh
+    // catch block below.
+    kc.init({ onLoad: 'check-sso', pkceMethod: 'S256', checkLoginIframe: false })
       .then((authenticated) => {
         if (authenticated) {
           setAuthToken(kc.token ?? null)
@@ -95,6 +103,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
           <p className="text-sm text-slate-400 mt-2">Authenticating...</p>
         </div>
       </div>
+    )
+  }
+
+  if (!state.authenticated) {
+    // kx-42wk.5 — render the public landing so unauthenticated visitors get
+    // a branded welcome screen with a Log in CTA and a status link, rather
+    // than a blank app or an immediate Keycloak redirect.
+    return (
+      <UnauthenticatedLanding
+        onLogin={() => keycloakRef.current?.login()}
+      />
     )
   }
 
