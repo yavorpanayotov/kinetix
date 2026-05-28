@@ -179,3 +179,56 @@ def market_value_weighted_portfolio_duration(
         )
     weighted = sum(d * mv for d, mv in zip(durations, market_values))
     return weighted / total_mv
+
+
+def bond_z_spread(
+    market_price: float,
+    cash_flows: list[tuple[float, float]],
+    base_zero_rate: float,
+    max_iterations: int = 50,
+    tolerance: float = 1e-8,
+) -> float:
+    """Z-spread: the constant spread over the zero-rate curve that
+    discounts the bond's cash flows to its market price.
+
+    Solves via Newton-Raphson on the objective function
+
+    .. math::
+
+        f(s) = \\sum_i \\frac{CF_i}{(1 + r + s)^{t_i}} - P_{mkt}
+
+    where ``cash_flows = [(t_i, CF_i), ...]`` are time-from-now (years)
+    and cash-flow amount pairs, ``r`` is the flat base zero rate, and
+    ``s`` is the spread we're solving for.
+
+    Convergence: Newton-Raphson uses the analytic derivative of f,
+    so it converges quadratically and finishes within ~5 iterations
+    for a normal investment-grade bond. The implementation caps at
+    [max_iterations] passes and raises if the residual is still
+    above [tolerance] — this is the regulator-readable failure mode.
+
+    @raise ValueError: if convergence fails (typically because the
+    market price implies a negative spread larger than the base rate,
+    making the discount factor explode).
+    """
+    if market_price <= 0:
+        raise ValueError(f"z-spread: market_price must be positive (got {market_price})")
+    if not cash_flows:
+        raise ValueError("z-spread: cash_flows must be non-empty")
+    spread = 0.0  # start from a flat-curve assumption
+    for _ in range(max_iterations):
+        pv = sum(cf / (1.0 + base_zero_rate + spread) ** t for t, cf in cash_flows)
+        f_value = pv - market_price
+        if abs(f_value) < tolerance:
+            return spread
+        # f'(s) = -sum(t * CF / (1 + r + s)^(t + 1))
+        f_prime = -sum(
+            t * cf / (1.0 + base_zero_rate + spread) ** (t + 1.0)
+            for t, cf in cash_flows
+        )
+        if f_prime == 0.0:
+            raise ValueError("z-spread: Newton-Raphson hit a zero derivative")
+        spread -= f_value / f_prime
+    raise ValueError(
+        f"z-spread: failed to converge within {max_iterations} iterations",
+    )

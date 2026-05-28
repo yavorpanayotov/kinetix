@@ -148,3 +148,47 @@ class TestPortfolioDuration:
         import pytest
         with pytest.raises(ValueError):
             market_value_weighted_portfolio_duration([4.0, 8.0], [0.0, 0.0])
+
+
+class TestZSpread:
+    @pytest.mark.unit
+    def test_z_spread_recovers_zero_spread_when_market_matches_curve(self):
+        """If the bond prices exactly at its zero-rate discount, the
+        Z-spread should be 0."""
+        from kinetix_risk.bond_pricing import bond_z_spread
+        cash_flows = [(1.0, 5.0), (2.0, 5.0), (3.0, 105.0)]
+        r = 0.05
+        pv = sum(cf / (1 + r) ** t for t, cf in cash_flows)
+        assert bond_z_spread(pv, cash_flows, base_zero_rate=r) == pytest.approx(0.0, abs=1e-6)
+
+    @pytest.mark.unit
+    def test_z_spread_positive_when_market_below_riskfree_pv(self):
+        from kinetix_risk.bond_pricing import bond_z_spread
+        cash_flows = [(1.0, 5.0), (2.0, 5.0), (3.0, 105.0)]
+        r = 0.05
+        rf_pv = sum(cf / (1 + r) ** t for t, cf in cash_flows)
+        spread = bond_z_spread(rf_pv * 0.95, cash_flows, base_zero_rate=r)
+        assert spread > 0
+
+    @pytest.mark.unit
+    def test_z_spread_negative_when_market_above_riskfree_pv(self):
+        """Bond trades richer than the curve — implies negative spread
+        (e.g. flight-to-quality premium)."""
+        from kinetix_risk.bond_pricing import bond_z_spread
+        cash_flows = [(1.0, 5.0), (2.0, 5.0), (3.0, 105.0)]
+        r = 0.05
+        rf_pv = sum(cf / (1 + r) ** t for t, cf in cash_flows)
+        spread = bond_z_spread(rf_pv * 1.02, cash_flows, base_zero_rate=r)
+        assert spread < 0
+
+    @pytest.mark.unit
+    def test_z_spread_rejects_empty_cash_flows(self):
+        from kinetix_risk.bond_pricing import bond_z_spread
+        with pytest.raises(ValueError):
+            bond_z_spread(100.0, [], base_zero_rate=0.05)
+
+    @pytest.mark.unit
+    def test_z_spread_rejects_non_positive_market_price(self):
+        from kinetix_risk.bond_pricing import bond_z_spread
+        with pytest.raises(ValueError):
+            bond_z_spread(0.0, [(1.0, 5.0)], base_zero_rate=0.05)
