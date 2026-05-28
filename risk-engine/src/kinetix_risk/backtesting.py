@@ -202,9 +202,53 @@ def _christoffersen_independence_test(
 
 
 def _traffic_light_zone(violation_count: int) -> TrafficLightZone:
+    """Basel-2013 backtest classification by exception count over a
+    250-day rolling window for a 99% VaR model.
+
+    The zone bands match the Basel Committee's 1996 amendment, refined
+    in 2013 (BCBS 265):
+
+      - GREEN (0-4 exceptions): the model's exception rate is consistent
+        with the 99% confidence level (expected ~2.5 over 250 days);
+        no supervisory penalty.
+      - YELLOW / AMBER (5-9 exceptions): the model is increasingly
+        suspect; a supervisory multiplier from 0.40 to 0.85 is added
+        to the capital requirement to compensate for under-stated risk.
+      - RED (10+ exceptions): the model is rejected; the maximum
+        supervisory multiplier (1.00) applies and the bank must
+        recalibrate before re-using the model.
+
+    The amber-zone band scales the multiplier linearly with the
+    exception count so a model at the bottom of the band pays a
+    smaller penalty than one at the top. See
+    [basel_traffic_light_multiplier] for the exact mapping.
+    """
     if violation_count <= 4:
         return TrafficLightZone.GREEN
     elif violation_count <= 9:
         return TrafficLightZone.YELLOW
     else:
         return TrafficLightZone.RED
+
+
+def basel_traffic_light_multiplier(violation_count: int) -> float:
+    """Per-exception capital multiplier in the Basel traffic-light bands.
+
+    Returns 0.00 in the green zone (0-4 exceptions), a linearly
+    interpolated value in the amber zone (5 -> 0.40, 6 -> 0.50,
+    7 -> 0.65, 8 -> 0.75, 9 -> 0.85), and 1.00 in the red zone
+    (10+ exceptions).
+
+    Reference
+    ---------
+    Basel Committee on Banking Supervision. (1996, revised 2013).
+        *Supervisory framework for the use of "backtesting" in
+        conjunction with the internal models approach to market risk
+        capital requirements*. BCBS 265.
+    """
+    if violation_count <= 4:
+        return 0.0
+    if violation_count >= 10:
+        return 1.0
+    amber_table = {5: 0.40, 6: 0.50, 7: 0.65, 8: 0.75, 9: 0.85}
+    return amber_table[violation_count]
