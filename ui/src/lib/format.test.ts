@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  formatCompactLarge,
   formatCurrencyPrefix,
   formatGreekWithSign,
   formatNumeric,
@@ -398,5 +399,50 @@ describe('formatScientificToggle', () => {
   it('renders zero correctly in both modes', () => {
     expect(formatScientificToggle(0)).toBe('0.00')
     expect(formatScientificToggle(0, { scientific: true })).toBe('0.00e+0')
+  })
+})
+
+describe('formatCompactLarge', () => {
+  it('renders sub-thousand values as a raw decimal', () => {
+    expect(formatCompactLarge(123.45)).toBe('123.5')
+  })
+
+  it('renders 1,234 as 1.2K', () => {
+    expect(formatCompactLarge(1234)).toBe('1.2K')
+  })
+
+  it('renders 1,234,567 as 1.2M', () => {
+    expect(formatCompactLarge(1_234_567)).toBe('1.2M')
+  })
+
+  it('renders 1,234,567,890 as 1.2B', () => {
+    expect(formatCompactLarge(1_234_567_890)).toBe('1.2B')
+  })
+
+  it('renders 1.5 trillion as 1.5T', () => {
+    expect(formatCompactLarge(1_500_000_000_000)).toBe('1.5T')
+  })
+
+  it('renders negatives with the leading minus and the same suffix', () => {
+    expect(formatCompactLarge(-1_234_567)).toBe('-1.2M')
+  })
+
+  it('honours custom fractionDigits', () => {
+    expect(formatCompactLarge(1_234_567, { fractionDigits: 3 })).toBe('1.235M')
+  })
+
+  it('renders zero as 0.0 (no suffix)', () => {
+    expect(formatCompactLarge(0)).toBe('0.0')
+  })
+
+  it('renders 1000 exactly as 1.0K (boundary)', () => {
+    expect(formatCompactLarge(1000)).toBe('1.0K')
+  })
+
+  it('renders null / undefined / non-finite as em-dash', () => {
+    expect(formatCompactLarge(null)).toBe('—')
+    expect(formatCompactLarge(undefined)).toBe('—')
+    expect(formatCompactLarge(NaN)).toBe('—')
+    expect(formatCompactLarge(Infinity)).toBe('—')
   })
 })

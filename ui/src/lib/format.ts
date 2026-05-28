@@ -273,3 +273,30 @@ export function formatScientificToggle(
   }
   return value.toExponential(fractionDigits)
 }
+
+/**
+ * Format a numeric value in compact "1.2M / 1.2B" form, intended for
+ * dashboard cards where the full precision would not fit anyway.
+ *
+ * Thresholds: |value| < 1k -> raw decimal, |value| < 1M -> "Nk",
+ * |value| < 1B -> "NM", otherwise "NB" / "NT". The suffix is uppercase
+ * (K/M/B/T) to match the convention used in the trader-facing KPI
+ * cards. Negatives keep the leading "-". Non-finite values collapse to
+ * the em-dash placeholder.
+ */
+export function formatCompactLarge(
+  value: number | null | undefined,
+  options: FormatNumericOptions = {},
+): string {
+  const { fractionDigits = 1, placeholder = EM_DASH } = options
+  if (value === null || value === undefined) return placeholder
+  if (!Number.isFinite(value)) return placeholder
+  const absolute = Math.abs(value)
+  const sign = value < 0 ? '-' : ''
+  if (absolute < 1_000) return value.toFixed(fractionDigits)
+  if (absolute < 1_000_000) return `${sign}${(absolute / 1_000).toFixed(fractionDigits)}K`
+  if (absolute < 1_000_000_000) return `${sign}${(absolute / 1_000_000).toFixed(fractionDigits)}M`
+  if (absolute < 1_000_000_000_000)
+    return `${sign}${(absolute / 1_000_000_000).toFixed(fractionDigits)}B`
+  return `${sign}${(absolute / 1_000_000_000_000).toFixed(fractionDigits)}T`
+}
