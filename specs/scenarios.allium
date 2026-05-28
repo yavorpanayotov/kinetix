@@ -500,6 +500,45 @@ rule RunBatchStressTest {
         -- and recorded in failed_scenarios; the batch run is not aborted.
 }
 
+-- Parametric grid stress sweep — 2D cartesian product of two shock axes
+
+rule RunParametricGrid {
+    when: RunParametricGridRequested(book_id, user_id, user_role, grid)
+
+    ensures: RiskCalculationCompleted(
+        event_type: stress_test_run,
+        user_id: user_id,
+        user_role: user_role,
+        book_id: book_id,
+        scenario_id: null
+    )
+
+    @guidance
+        -- Implementation: StressScenarioService.runParametricGrid()
+        -- (regulatory-service/.../stress/StressScenarioService.kt:254-296).
+        -- HTTP: POST /api/v1/stress-scenarios/parametric-grid.
+        --
+        -- Walks the Cartesian product of grid.primary_range x
+        -- grid.secondary_range. For each cell, builds a combined shock
+        -- map {primary_axis: primary_shock, secondary_axis: secondary_shock}
+        -- and dispatches to the risk orchestrator's runStressTest path.
+        -- Aggregates results into a ParametricGridResult containing every
+        -- cell's pnl_impact plus worst_pnl_impact (most negative across
+        -- the grid).
+        --
+        -- Treated as a governed run, analogous to RunBatchStressTest and
+        -- single-scenario stress runs: an audit event with event_type
+        -- stress_test_run is emitted via the standard
+        -- RiskCalculationCompleted → RecordRiskCalculationAuditEvent path
+        -- (audit.allium). scenario_id is null because the sweep is an
+        -- ad-hoc grid rather than a persisted SavedScenario.
+        --
+        -- ASPIRATIONAL: as of 2026-05-28 the code path does not yet
+        -- publish the RiskCalculationCompleted event. See E-C2S-07 in
+        -- specs/divergences/2026-05-28/group-e-scenarios-governance.md
+        -- for the code-side fix.
+}
+
 ------------------------------------------------------------
 -- Invariants
 ------------------------------------------------------------
@@ -562,6 +601,7 @@ surface RestApi {
         SaveReverseStressAsScenarioRequested(client)
         RunSavedScenarioRequested(client)
         RunBatchStressTestRequested(client)
+        RunParametricGridRequested(client)
 
     @guidance
         -- One provides entry per HTTP-origin trigger. Historical replay,
