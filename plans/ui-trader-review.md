@@ -104,7 +104,7 @@ Ordered top-to-bottom by dependency. P0 first because every P1 cross-tab inconsi
 - [x] **Reconcile UST-* zero-market-value vs active trades.** After the taxonomy fix, write a failing position-service integration test that books a `UST-10Y` trade and asserts the resulting position has non-zero `marketValue` and appears under `assetClass = GOVERNMENT_BOND` in the gateway projection.
   Acceptance: `./gradlew :position-service:integrationTest --tests "*GovernmentBondPositionMaterializationIntegrationTest"` green.
 
-- [ ] **Reconcile the three Risk-tab VaR totals.** Decide canonical: header value = firm-total (or selected scope) VaR from the latest promoted run; "Sum of books" + diversification benefit must equal it; Factor Decomposition must use the same run/scope. Write a failing acceptance test that pulls all three from the gateway response and asserts they reconcile within rounding.
+- [x] **Reconcile the three Risk-tab VaR totals.** Decide canonical: header value = firm-total (or selected scope) VaR from the latest promoted run; "Sum of books" + diversification benefit must equal it; Factor Decomposition must use the same run/scope. Write a failing acceptance test that pulls all three from the gateway response and asserts they reconcile within rounding.
   Acceptance: `./gradlew :gateway:acceptanceTest --tests "*RiskDashboardReconciliationAcceptanceTest"` green.
 
 - [ ] **Single source of truth for counterparty exposure.** Wire both the Risk tab widget and the Counterparty Risk tab to the same gateway endpoint. Failing test: gateway acceptance test that the two endpoints (or single endpoint with two projections) return the same name set and net exposures for a fixture book.
