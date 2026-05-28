@@ -14,6 +14,15 @@ common:
     kvstore:
       store: inmemory
 
+ingester:
+  lifecycler:
+    # In single-binary local dev mode the ring is in-memory and there is no
+    # external KV store.  The default min_ready_duration of 1 minute causes
+    # /ready to return 503 while the ingester is still joining the ring after
+    # a restart or Docker pause/resume.  Setting it to 0s makes the process
+    # report ready as soon as the ring join completes.
+    min_ready_duration: 0s
+
 schema_config:
   configs:
     - from: "2024-01-01"
