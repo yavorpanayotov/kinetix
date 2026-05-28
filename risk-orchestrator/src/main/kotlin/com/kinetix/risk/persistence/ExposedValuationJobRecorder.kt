@@ -456,6 +456,9 @@ class ExposedValuationJobRecorder(private val db: Database? = null) : ValuationJ
         varContribution = varContribution.toPlainString(),
         esContribution = esContribution.toPlainString(),
         percentageOfTotal = percentageOfTotal.toPlainString(),
+        theta = theta,
+        rho = rho,
+        dv01 = dv01,
     )
 
     private fun PositionRiskJson.toDomain(): PositionRisk = PositionRisk(
@@ -468,6 +471,9 @@ class ExposedValuationJobRecorder(private val db: Database? = null) : ValuationJ
         varContribution = BigDecimal(varContribution),
         esContribution = BigDecimal(esContribution),
         percentageOfTotal = BigDecimal(percentageOfTotal),
+        theta = theta,
+        rho = rho,
+        dv01 = dv01,
     )
 
     private fun ComponentBreakdown.toJson(): ComponentBreakdownJson = ComponentBreakdownJson(

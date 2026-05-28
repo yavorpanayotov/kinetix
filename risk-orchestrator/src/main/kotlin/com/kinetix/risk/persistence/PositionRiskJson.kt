@@ -13,4 +13,10 @@ data class PositionRiskJson(
     val varContribution: String,
     val esContribution: String,
     val percentageOfTotal: String,
+    // Per-instrument Theta / Rho / DV01. Default null so historical
+    // snapshots persisted before the trader-review P0 #2 fix still
+    // deserialise cleanly when read back.
+    val theta: Double? = null,
+    val rho: Double? = null,
+    val dv01: Double? = null,
 )

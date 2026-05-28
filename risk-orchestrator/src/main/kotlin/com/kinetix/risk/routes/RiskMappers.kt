@@ -96,6 +96,9 @@ internal fun PositionRisk.toDto() = PositionRiskDto(
     percentageOfTotal = percentageOfTotal.toPlainString(),
     instrumentType = instrumentType,
     displayName = displayName,
+    theta = theta?.let { "%.6f".format(it) },
+    rho = rho?.let { "%.6f".format(it) },
+    dv01 = dv01?.let { "%.6f".format(it) },
 )
 
 internal fun HypotheticalTradeDto.toDomain() = HypotheticalTrade(

@@ -84,6 +84,11 @@ internal data class CachedPositionRisk(
     val varContribution: String,
     val esContribution: String,
     val percentageOfTotal: String,
+    // Per-instrument Theta / Rho / DV01. Default null so cached entries
+    // written before the trader-review P0 #2 fix still deserialise.
+    val theta: Double? = null,
+    val rho: Double? = null,
+    val dv01: Double? = null,
 )
 
 @Serializable
@@ -145,6 +150,9 @@ internal data class CachedValuationResult(
                 varContribution = BigDecimal(it.varContribution),
                 esContribution = BigDecimal(it.esContribution),
                 percentageOfTotal = BigDecimal(it.percentageOfTotal),
+                theta = it.theta,
+                rho = it.rho,
+                dv01 = it.dv01,
             )
         },
         jobId = jobId?.let { UUID.fromString(it) },
@@ -194,6 +202,9 @@ internal data class CachedValuationResult(
                     varContribution = it.varContribution.toPlainString(),
                     esContribution = it.esContribution.toPlainString(),
                     percentageOfTotal = it.percentageOfTotal.toPlainString(),
+                    theta = it.theta,
+                    rho = it.rho,
+                    dv01 = it.dv01,
                 )
             },
             jobId = result.jobId?.toString(),
