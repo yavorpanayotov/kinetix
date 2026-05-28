@@ -113,8 +113,8 @@ Ordered top-to-bottom by dependency. P0 first because every P1 cross-tab inconsi
 - [x] **Fix liquidity classification + remove single-dollar LVaR scale.** Add a regression test asserting `JPM.liquidity == HIGH_LIQUID` and that LVaR contribution is denominated to match the rest of the dashboard ($K or $M, not $). Surface a staleness warning when the `Calculated` timestamp is more than 1 day old.
   Acceptance: `./gradlew :risk-orchestrator:test --tests "*LiquidityClassificationTest"` plus a UI Vitest assertion on the LVaR formatter.
 
-- [ ] **Populate EOD History `PV` column.** Failing test: `EodHistoryAcceptanceTest` asserts `pv != null` on each promoted row.
-  Acceptance: `./gradlew :risk-orchestrator:acceptanceTest --tests "*EodHistoryProjection*"` green plus `cd ui && npx playwright test e2e/eod-history.spec.ts` updated to assert PV cell content.
+- [x] **Populate EOD History `PV` column.** Failing test: `EodHistoryAcceptanceTest` asserts `pv != null` on each promoted row.
+  Acceptance: `./gradlew :risk-orchestrator:acceptanceTest --tests "*EodHistoryProjection*"` green plus `cd ui && npx playwright test e2e/eod-timeline.spec.ts` updated to assert PV cell content.
 
 - [ ] **Fix the stress test "no results yet" / has-results inconsistency.** Either show last-run summary when one exists, or hide the inline `Δ PV` widget when the headline says "no results". Failing test: Playwright assertion that the headline and the inline result agree.
   Acceptance: `cd ui && npx playwright test e2e/risk-stress-summary.spec.ts` green.
