@@ -5,6 +5,7 @@ import {
   formatNumeric,
   formatPercent,
   formatRhoTooltip,
+  formatScientificToggle,
   formatVegaTooltip,
   formatWithThousands,
   formatZeroPadded,
@@ -359,5 +360,43 @@ describe('formatWithThousands', () => {
 
   it('handles small numbers without inserting a stray separator', () => {
     expect(formatWithThousands(42)).toBe('42.00')
+  })
+})
+
+describe('formatScientificToggle', () => {
+  it('defaults to thousands-separator (non-scientific) form', () => {
+    expect(formatScientificToggle(1234567.89)).toBe('1,234,567.89')
+  })
+
+  it('renders scientific form when toggled on', () => {
+    expect(formatScientificToggle(1234567.89, { scientific: true })).toBe('1.23e+6')
+  })
+
+  it('renders small extremes in scientific form (negative exponent)', () => {
+    expect(formatScientificToggle(0.000001234, { scientific: true })).toBe('1.23e-6')
+  })
+
+  it('honours custom fractionDigits in scientific mode', () => {
+    expect(
+      formatScientificToggle(1234567.89, { scientific: true, fractionDigits: 4 }),
+    ).toBe('1.2346e+6')
+  })
+
+  it('renders an em-dash for null / undefined / non-finite regardless of toggle', () => {
+    expect(formatScientificToggle(null, { scientific: true })).toBe('—')
+    expect(formatScientificToggle(undefined, { scientific: false })).toBe('—')
+    expect(formatScientificToggle(NaN, { scientific: true })).toBe('—')
+    expect(formatScientificToggle(Infinity, { scientific: false })).toBe('—')
+  })
+
+  it('preserves the sign in scientific form', () => {
+    expect(formatScientificToggle(-1234567.89, { scientific: true })).toBe(
+      '-1.23e+6',
+    )
+  })
+
+  it('renders zero correctly in both modes', () => {
+    expect(formatScientificToggle(0)).toBe('0.00')
+    expect(formatScientificToggle(0, { scientific: true })).toBe('0.00e+0')
   })
 })

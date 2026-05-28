@@ -237,3 +237,39 @@ export function formatWithThousands(
     maximumFractionDigits: fractionDigits,
   })
 }
+
+/**
+ * Format a numeric value, optionally in scientific notation, for cells
+ * that may contain extreme magnitudes.
+ *
+ * Daily P&L is normally readable as decimal (e.g. `1,234,567.89`), but
+ * stress scenarios sometimes print P&L impacts in the billions or
+ * trillions where the full decimal is unreadable and a `1.2e9` form is
+ * easier to compare. The toggle is per-render so the trader can flip
+ * the column without changing global state.
+ *
+ * When [scientific] is false (default), uses [formatWithThousands]
+ * semantics. When true, uses the IEEE-754 exponent (`toExponential`)
+ * with the same [fractionDigits] precision. Non-finite values collapse
+ * to the em-dash placeholder.
+ */
+export interface FormatScientificOptions extends FormatNumericOptions {
+  /** When true, render in `1.23e6` exponent form. Default false. */
+  scientific?: boolean
+}
+
+export function formatScientificToggle(
+  value: number | null | undefined,
+  options: FormatScientificOptions = {},
+): string {
+  const { fractionDigits = 2, placeholder = EM_DASH, scientific = false } = options
+  if (value === null || value === undefined) return placeholder
+  if (!Number.isFinite(value)) return placeholder
+  if (!scientific) {
+    return value.toLocaleString('en-US', {
+      minimumFractionDigits: fractionDigits,
+      maximumFractionDigits: fractionDigits,
+    })
+  }
+  return value.toExponential(fractionDigits)
+}
