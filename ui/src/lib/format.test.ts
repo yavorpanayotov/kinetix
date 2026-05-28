@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatNumeric, formatRhoTooltip } from './format'
+import { formatNumeric, formatRhoTooltip, formatVegaTooltip } from './format'
 
 describe('formatNumeric', () => {
   it('renders an em-dash for null', () => {
@@ -72,5 +72,42 @@ describe('formatRhoTooltip', () => {
 
   it('formats negative values with the unit suffix', () => {
     expect(formatRhoTooltip(-42.5)).toBe('-42.50 $/bp IR')
+  })
+})
+
+describe('formatVegaTooltip', () => {
+  it('renders an em-dash for null', () => {
+    expect(formatVegaTooltip(null)).toBe('—')
+  })
+
+  it('renders an em-dash for undefined', () => {
+    expect(formatVegaTooltip(undefined)).toBe('—')
+  })
+
+  it('renders an em-dash for NaN', () => {
+    expect(formatVegaTooltip(NaN)).toBe('—')
+  })
+
+  it('renders an em-dash for Infinity', () => {
+    expect(formatVegaTooltip(Infinity)).toBe('—')
+    expect(formatVegaTooltip(-Infinity)).toBe('—')
+  })
+
+  it('appends the %/1pp vol unit suffix to a finite value', () => {
+    expect(formatVegaTooltip(1234.5678)).toBe('1234.57 %/1pp vol')
+  })
+
+  it('honours custom fractionDigits', () => {
+    expect(formatVegaTooltip(1.23456, { fractionDigits: 4 })).toBe(
+      '1.2346 %/1pp vol',
+    )
+  })
+
+  it('formats zero with the unit suffix', () => {
+    expect(formatVegaTooltip(0)).toBe('0.00 %/1pp vol')
+  })
+
+  it('formats negative values with the unit suffix', () => {
+    expect(formatVegaTooltip(-42.5)).toBe('-42.50 %/1pp vol')
   })
 })

@@ -60,3 +60,25 @@ export function formatRhoTooltip(
   if (!Number.isFinite(value)) return placeholder
   return `${value.toFixed(fractionDigits)} $/bp IR`
 }
+
+/**
+ * Tooltip-friendly Vega format that appends a "%/1pp vol" unit suffix.
+ *
+ * Vega measures the change in option value per 1 percentage-point shift
+ * in implied volatility, expressed in the option's currency. The "1 vol
+ * point" unit is the standard confusion — depending on the vendor it can
+ * mean a basis point or a percentage point. Surfacing the explicit unit
+ * alongside the number in tooltips removes that ambiguity.
+ *
+ * Non-finite inputs collapse to the placeholder (em-dash) so a missing
+ * Vega doesn't render a bare "%/1pp vol" suffix on its own.
+ */
+export function formatVegaTooltip(
+  value: number | null | undefined,
+  options: FormatNumericOptions = {},
+): string {
+  const { fractionDigits = 2, placeholder = EM_DASH } = options
+  if (value === null || value === undefined) return placeholder
+  if (!Number.isFinite(value)) return placeholder
+  return `${value.toFixed(fractionDigits)} %/1pp vol`
+}
