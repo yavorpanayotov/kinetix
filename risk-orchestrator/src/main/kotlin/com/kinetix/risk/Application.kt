@@ -528,9 +528,24 @@ fun Application.moduleWithRoutes() {
     }
 
     val crossBookResultPublisher = com.kinetix.risk.kafka.KafkaCrossBookRiskResultPublisher(kafkaProducer)
-    val crossBookVaRCache = com.kinetix.risk.cache.InMemoryCrossBookVaRCache()
-    // kx-wxy — backing store for the canned stress-scenario tile endpoints.
-    val cannedStressCache = com.kinetix.risk.cache.InMemoryCannedStressCache()
+    // kx-wxy followup — cross-book VaR + canned stress caches are Redis-backed
+    // when REDIS_URL is configured so the firm-level VaR tile and the canned
+    // stress tile survive a risk-orchestrator restart between daily seeds.
+    // Falls back to in-memory only when Redis isn't wired up (local unit dev).
+    val crossBookVaRCache: com.kinetix.risk.cache.CrossBookVaRCache = if (redisConnection != null) {
+        log.info("Using RedisCrossBookVaRCache (TTL {}s)", com.kinetix.risk.cache.RedisCrossBookVaRCache.DEFAULT_TTL_SECONDS)
+        com.kinetix.risk.cache.RedisCrossBookVaRCache(redisConnection)
+    } else {
+        log.info("No REDIS_URL configured, using InMemoryCrossBookVaRCache")
+        com.kinetix.risk.cache.InMemoryCrossBookVaRCache()
+    }
+    val cannedStressCache: com.kinetix.risk.cache.CannedStressCache = if (redisConnection != null) {
+        log.info("Using RedisCannedStressCache (TTL {}s)", com.kinetix.risk.cache.RedisCannedStressCache.DEFAULT_TTL_SECONDS)
+        com.kinetix.risk.cache.RedisCannedStressCache(redisConnection)
+    } else {
+        log.info("No REDIS_URL configured, using InMemoryCannedStressCache")
+        com.kinetix.risk.cache.InMemoryCannedStressCache()
+    }
     val crossBookVaRService = com.kinetix.risk.service.CrossBookVaRCalculationService(
         effectivePositionProvider, effectiveRiskEngineClient, crossBookResultPublisher,
         varCache = varCache,
