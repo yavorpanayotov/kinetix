@@ -71,7 +71,7 @@ The acceptance command below is identical for every batch — it just verifies t
   Acceptance: `[ "$(git log --oneline -6 | grep -c 'kx-')" -ge 4 ]`
 - [x] Batch 14
   Acceptance: `[ "$(git log --oneline -6 | grep -c 'kx-')" -ge 4 ]`
-- [ ] Batch 15
+- [x] Batch 15
   Acceptance: `[ "$(git log --oneline -6 | grep -c 'kx-')" -ge 4 ]`
 - [ ] Batch 16
   Acceptance: `[ "$(git log --oneline -6 | grep -c 'kx-')" -ge 4 ]`
