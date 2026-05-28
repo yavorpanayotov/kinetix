@@ -82,3 +82,35 @@ def test_basel_traffic_light_amber_band_boundary_values():
     from kinetix_risk.backtesting import basel_traffic_light_multiplier
     assert basel_traffic_light_multiplier(5) == 0.40
     assert basel_traffic_light_multiplier(9) == 0.85
+
+
+# kx-66s — VaR overshoot magnitude tracking
+@pytest.mark.unit
+def test_overshoot_magnitude_no_breaches_returns_zero():
+    from kinetix_risk.backtesting import overshoot_magnitude_summary
+    s = overshoot_magnitude_summary([100.0] * 252, [50.0] * 252)  # all gains
+    assert s["overshoot_count"] == 0
+    assert s["mean_overshoot"] == 0
+    assert s["max_overshoot"] == 0
+    assert s["total_overshoot"] == 0
+
+
+@pytest.mark.unit
+def test_overshoot_magnitude_captures_excess_loss():
+    from kinetix_risk.backtesting import overshoot_magnitude_summary
+    # VaR=100, P&L=-150 on day 0 -> actual_loss=150, overshoot=50.
+    # Day 1: VaR=100, P&L=-200 -> overshoot=100.
+    s = overshoot_magnitude_summary([100.0, 100.0], [-150.0, -200.0])
+    assert s["overshoot_count"] == 2
+    assert s["mean_overshoot"] == 75.0
+    assert s["max_overshoot"] == 100.0
+    assert s["total_overshoot"] == 150.0
+
+
+@pytest.mark.unit
+def test_overshoot_magnitude_ignores_non_breach_days():
+    from kinetix_risk.backtesting import overshoot_magnitude_summary
+    # First day breaches by 50; second day is a gain (no breach).
+    s = overshoot_magnitude_summary([100.0, 100.0], [-150.0, 50.0])
+    assert s["overshoot_count"] == 1
+    assert s["mean_overshoot"] == 50.0

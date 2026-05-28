@@ -252,3 +252,36 @@ def basel_traffic_light_multiplier(violation_count: int) -> float:
         return 1.0
     amber_table = {5: 0.40, 6: 0.50, 7: 0.65, 8: 0.75, 9: 0.85}
     return amber_table[violation_count]
+
+
+def overshoot_magnitude_summary(
+    daily_var_predictions: list[float],
+    daily_pnl: list[float],
+) -> dict[str, float]:
+    """Summarise the *magnitudes* of VaR overshoots, not just the count.
+
+    Kupiec POF tells you how many days breached, Christoffersen tells
+    you whether those breaches clustered, but neither captures how
+    *bad* an individual breach was. A model can be Kupiec-clean (right
+    number of breaches) while still understating tail loss — if every
+    breach is 3-5x the VaR you have a fat-tail problem that calls for
+    Expected Shortfall, not just VaR.
+
+    Returns:
+      - mean_overshoot: average of (actual_loss - VaR) over breach days
+      - max_overshoot: worst single-day overshoot
+      - total_overshoot: sum of all overshoots (the "extra" loss)
+      - overshoot_count: count of breach days (parity with Kupiec)
+    """
+    breach_overshoots: list[float] = []
+    for var_pred, pnl in zip(daily_var_predictions, daily_pnl):
+        actual_loss = -pnl
+        if actual_loss > var_pred:
+            breach_overshoots.append(actual_loss - var_pred)
+    count = len(breach_overshoots)
+    return {
+        "overshoot_count": float(count),
+        "mean_overshoot": sum(breach_overshoots) / count if count else 0.0,
+        "max_overshoot": max(breach_overshoots) if count else 0.0,
+        "total_overshoot": sum(breach_overshoots),
+    }
