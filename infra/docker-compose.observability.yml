@@ -70,6 +70,12 @@ services:
       GF_AUTH_ANONYMOUS_ENABLED: "true"
       GF_AUTH_ANONYMOUS_ORG_ROLE: "Viewer"
       GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      # Set GRAFANA_ROOT_URL=https://grafana.kinetixrisk.ai on the prod host so
+      # Grafana emits correct absolute asset URLs through the Caddy reverse
+      # proxy. Without it, the SPA bootstrap fails with "Grafana has failed to
+      # load its application files". Default keeps localhost dev working.
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3000}
+      GF_SERVER_SERVE_FROM_SUB_PATH: "false"
     restart: unless-stopped
     depends_on:
       prometheus:
