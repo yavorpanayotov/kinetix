@@ -193,6 +193,17 @@ def bs_vanna(option: OptionPosition) -> float:
     return calculate_vanna(option.spot_price, option.strike, T, option.risk_free_rate, option.implied_vol, option.dividend_yield)
 
 
+def bs_vanna_put(option: OptionPosition) -> float:
+    """Put-side vanna = d^2 Price / d sigma d spot.
+
+    By put-call parity (the put-call price difference is independent
+    of vol), vanna is identical for puts and calls — the second-order
+    cross sensitivity has no parity offset. This named entry point
+    delegates to bs_vanna().
+    """
+    return bs_vanna(option)
+
+
 def bs_volga(option: OptionPosition) -> float:
     from kinetix_risk.cross_greeks import calculate_volga
     T = option.expiry_days / 365.0

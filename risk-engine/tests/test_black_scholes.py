@@ -309,3 +309,29 @@ class TestBsVolgaPut:
         from kinetix_risk.black_scholes import bs_volga_put
         v = bs_volga_put(self._opt("put"))
         assert v == v  # not NaN
+
+
+# kx-5zt — put-side vanna with put-call parity verification
+class TestBsVannaPut:
+    def _opt(self, kind):
+        from kinetix_risk.models import OptionPosition, OptionType, AssetClass
+        return OptionPosition(
+            instrument_id="OPT-1", underlying_id="UND",
+            option_type=OptionType.CALL if kind == "call" else OptionType.PUT,
+            strike=100.0, expiry_days=90, spot_price=100.0,
+            implied_vol=0.20, risk_free_rate=0.03,
+            asset_class=AssetClass.EQUITY,
+        )
+
+    @pytest.mark.unit
+    def test_bs_vanna_put_matches_bs_vanna_for_same_params(self):
+        from kinetix_risk.black_scholes import bs_vanna, bs_vanna_put
+        put = self._opt("put")
+        call = self._opt("call")
+        assert bs_vanna_put(put) == pytest.approx(bs_vanna(call))
+
+    @pytest.mark.unit
+    def test_bs_vanna_put_finite(self):
+        from kinetix_risk.black_scholes import bs_vanna_put
+        v = bs_vanna_put(self._opt("put"))
+        assert v == v
