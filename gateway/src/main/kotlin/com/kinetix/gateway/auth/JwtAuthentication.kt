@@ -42,7 +42,8 @@ fun Application.configureJwtAuth(config: JwtConfig, jwkProvider: JwkProvider? = 
                     null
                 }
             }
-            challenge { _, _ ->
+            challenge { defaultScheme, realm ->
+                call.response.header(HttpHeaders.WWWAuthenticate, "$defaultScheme realm=\"$realm\"")
                 call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "unauthorized", "message" to "Token is not valid or has expired"))
             }
         }
