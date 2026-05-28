@@ -89,3 +89,26 @@ class TestEffectiveDurationHelper:
 
         with pytest.raises(ValueError):
             bond_effective_duration(95.0, 105.0, pv_baseline=0.0)
+
+
+class TestOptionAdjustedSpread:
+    def test_oas_is_zero_when_market_matches_option_free(self):
+        from kinetix_risk.bond_pricing import bond_option_adjusted_spread
+        oas = bond_option_adjusted_spread(100.0, 100.0, yield_rate=0.03)
+        assert oas == 0.0
+
+    def test_oas_positive_when_market_below_option_free(self):
+        from kinetix_risk.bond_pricing import bond_option_adjusted_spread
+        oas = bond_option_adjusted_spread(98.0, 100.0, yield_rate=0.03)
+        assert oas > 0
+
+    def test_oas_negative_when_market_above_option_free(self):
+        from kinetix_risk.bond_pricing import bond_option_adjusted_spread
+        oas = bond_option_adjusted_spread(102.0, 100.0, yield_rate=0.03)
+        assert oas < 0
+
+    def test_oas_rejects_non_positive_market_price(self):
+        from kinetix_risk.bond_pricing import bond_option_adjusted_spread
+        import pytest
+        with pytest.raises(ValueError):
+            bond_option_adjusted_spread(0.0, 100.0, yield_rate=0.03)

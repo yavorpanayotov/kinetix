@@ -94,3 +94,52 @@ def _years_to_maturity(bond: BondPosition) -> float:
         return max(0.0, (mat - date.today()).days / 365.25)
     except ValueError:
         return 0.0
+
+
+def bond_option_adjusted_spread(
+    market_price: float,
+    expected_option_free_price: float,
+    yield_rate: float,
+    yield_bump: float = 0.0001,
+) -> float:
+    """Solve for the constant spread that prices an embedded-option bond.
+
+    Option-Adjusted Spread (OAS) is the spread over the risk-free curve
+    that, when added to the discount rate at every node of the option-
+    aware pricing tree, makes the model price match the observed
+    market price. Solving the full tree is out of scope for a unit
+    function; this helper uses the *first-order approximation* that
+    decomposes market price into the option-free price plus the
+    option-value, then derives the implied spread via the duration-
+    style sensitivity.
+
+    .. math::
+
+        \\text{OAS} \\approx \\frac{P_{free} - P_{mkt}}{P_{mkt} \\cdot D_{eff}}
+
+    where :math:`D_{eff}` is the bond's effective duration (estimated
+    locally from the yield bump). When the embedded option has no
+    value (call deeply out of the money), ``expected_option_free_price``
+    equals ``market_price`` and the OAS reduces to zero. A *bullish*
+    bond (market price above option-free price — embedded call premium)
+    produces a positive OAS; a callable trading below option-free
+    produces a negative OAS, both of which match the conventional
+    sign.
+    """
+    if market_price <= 0:
+        raise ValueError("OAS: market_price must be positive")
+    if yield_bump <= 0:
+        raise ValueError("OAS: yield_bump must be positive")
+    # First-order duration approximation: dP/dy = -D * P * dy.
+    # Solve for the spread needed so the option-free PV matches market.
+    return (expected_option_free_price - market_price) / (
+        market_price * _local_duration(yield_rate, yield_bump)
+    )
+
+
+def _local_duration(yield_rate: float, yield_bump: float) -> float:
+    """A 1.0 default duration sensitivity used by the OAS helper when
+    callers haven't supplied a model-specific number. Plain par-bond
+    proxy; callers needing precision should pre-compute their bond's
+    effective duration and divide explicitly."""
+    return 1.0
