@@ -27,6 +27,10 @@ docker network inspect kinetix >/dev/null 2>&1 || {
 # ── Override observability configs for containerised targets ─────────────────
 export PROMETHEUS_CONFIG="${ROOT_DIR}/deploy/observability/prometheus.yml"
 export ALERTMANAGER_CONFIG="${ROOT_DIR}/deploy/observability/alertmanager.yml"
+# Prod public hostname so Grafana emits correct absolute asset URLs through
+# the Caddy reverse proxy. Without it the SPA bootstrap fails with "Grafana
+# has failed to load its application files".
+export GRAFANA_ROOT_URL="https://grafana.kinetixrisk.ai"
 
 # ── Ensure databases exist ──────────────────────────────────────────────────
 echo "==> Starting infrastructure..."
