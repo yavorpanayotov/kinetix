@@ -15,6 +15,7 @@ enum AuditEventType {
     | trade_amended
     | trade_cancelled
     | risk_calculation_completed
+    | risk_calculation_failed
     | stress_test_run
     | model_status_changed
     | limit_breached
