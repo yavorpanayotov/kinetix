@@ -5,6 +5,7 @@ import {
   mockEodTimelineRoutes,
   TEST_EOD_TIMELINE_RESPONSE,
   TEST_EOD_TIMELINE_EMPTY,
+  TEST_EOD_TIMELINE_LIVE_SEED_RESPONSE,
 } from './fixtures'
 
 // ---------------------------------------------------------------------------
@@ -273,5 +274,51 @@ test.describe('EOD History tab — keyboard navigation', () => {
 
     await page.keyboard.press('Escape')
     await expect(page.getByTestId('eod-drill-panel')).not.toBeVisible()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// PV column — regression guard for the trader-review finding that PV was `—`
+// on every promoted row in the live demo. The fixture used here mirrors the
+// shape the live SEED produces; the assertion catches any future regression
+// where PV stops flowing from valuation_jobs.pv_value through the EOD timeline
+// projection into the grid.
+// ---------------------------------------------------------------------------
+
+test.describe('EOD History tab — PV column', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockAllApiRoutes(page)
+  })
+
+  test('renders the PV column header', async ({ page }) => {
+    await mockEodTimelineRoutes(page, TEST_EOD_TIMELINE_LIVE_SEED_RESPONSE)
+    await goToEodTab(page)
+
+    await expect(page.getByTestId('eod-sort-pvValue')).toBeVisible()
+    await expect(page.getByTestId('eod-sort-pvValue')).toContainText('PV')
+  })
+
+  test('shows a non-em-dash PV value formatted as currency on every promoted row', async ({ page }) => {
+    await mockEodTimelineRoutes(page, TEST_EOD_TIMELINE_LIVE_SEED_RESPONSE)
+    await goToEodTab(page)
+
+    // Every promoted row in the live-seed fixture must surface PV as a
+    // currency-formatted string (e.g. `$5,200,000.00`), not as an em-dash or
+    // (per the live demo bug) the literal `—` escape rendered as text.
+    for (const entry of TEST_EOD_TIMELINE_LIVE_SEED_RESPONSE.entries) {
+      if (entry.promotedBy === null) continue // skip MISSING rows
+      const pvCell = page.getByTestId(`eod-pv-cell-${entry.valuationDate}`)
+      await expect(pvCell).toBeVisible()
+      const cellText = (await pvCell.innerText()).trim()
+      // Currency-formatted output from `Intl.NumberFormat('en-US', { style: 'currency' })`.
+      expect(
+        cellText,
+        `PV cell for ${entry.valuationDate} should be currency, got: ${JSON.stringify(cellText)}`,
+      ).toMatch(/^\$\d{1,3}(,\d{3})*\.\d{2}$/)
+      // Belt-and-braces: explicitly NOT the em-dash sentinel and not the
+      // broken literal escape that the bug surfaced in the live demo.
+      expect(cellText).not.toBe('—')
+      expect(cellText).not.toBe('\\u2014')
+    }
   })
 })

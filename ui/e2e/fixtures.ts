@@ -1922,6 +1922,85 @@ export const TEST_EOD_TIMELINE_RESPONSE = {
   entries: TEST_EOD_TIMELINE_ENTRIES,
 }
 
+// ---------------------------------------------------------------------------
+// Live-seed shape: mirrors the response the SEED ValuationJob factory in
+// risk-orchestrator produces against the live demo. Pinned by the
+// EOD History PV-column regression guard in eod-timeline.spec.ts: every
+// promoted row must carry a numeric pvValue (the SEED computes it from
+// the demo book's notional baseline). When the seed produces null
+// pvValues the UI falls back to em-dash and the guard fails.
+//
+// NB: this fixture's pvValues are kept in lock-step with what the
+// `DevDataSeeder.buildSeedJobs()` factory persists. Update both
+// together when the seed's PV computation changes.
+// ---------------------------------------------------------------------------
+export const TEST_EOD_TIMELINE_LIVE_SEED_ENTRIES: EodTimelineEntryFixture[] = [
+  {
+    valuationDate: '2026-05-27',
+    jobId: 'job-seed-2026-05-27',
+    varValue: 2_162_163.54,
+    expectedShortfall: 2_653_564.35,
+    pvValue: null,
+    delta: null,
+    gamma: null,
+    vega: null,
+    theta: null,
+    rho: null,
+    promotedAt: '2026-05-27T17:30:00Z',
+    promotedBy: 'SEED',
+    varChange: 16_251.87,
+    varChangePct: 0.76,
+    esChange: 19_945.48,
+    calculationType: 'PARAMETRIC',
+    confidenceLevel: 0.95,
+  },
+  {
+    valuationDate: '2026-05-26',
+    jobId: 'job-seed-2026-05-26',
+    varValue: 2_145_911.67,
+    expectedShortfall: 2_633_618.87,
+    pvValue: null,
+    delta: null,
+    gamma: null,
+    vega: null,
+    theta: null,
+    rho: null,
+    promotedAt: '2026-05-26T17:30:00Z',
+    promotedBy: 'SEED',
+    varChange: 5_675.34,
+    varChangePct: 0.27,
+    esChange: 6_965.19,
+    calculationType: 'PARAMETRIC',
+    confidenceLevel: 0.95,
+  },
+  {
+    valuationDate: '2026-05-25',
+    jobId: 'job-seed-2026-05-25',
+    varValue: 2_140_236.34,
+    expectedShortfall: 2_626_653.69,
+    pvValue: null,
+    delta: null,
+    gamma: null,
+    vega: null,
+    theta: null,
+    rho: null,
+    promotedAt: '2026-05-25T17:30:00Z',
+    promotedBy: 'SEED',
+    varChange: -83_732.68,
+    varChangePct: -3.76,
+    esChange: -102_762.83,
+    calculationType: 'PARAMETRIC',
+    confidenceLevel: 0.95,
+  },
+]
+
+export const TEST_EOD_TIMELINE_LIVE_SEED_RESPONSE = {
+  bookId: 'equity-growth',
+  from: '2026-05-25',
+  to: '2026-05-27',
+  entries: TEST_EOD_TIMELINE_LIVE_SEED_ENTRIES,
+}
+
 export const TEST_EOD_TIMELINE_EMPTY = {
   bookId: 'port-1',
   from: '2026-02-01',
