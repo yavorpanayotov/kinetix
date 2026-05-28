@@ -1,3 +1,19 @@
+"""Black-Scholes option pricing and Greeks.
+
+References
+----------
+Hull, J. C. (2018). *Options, Futures, and Other Derivatives*
+    (10th ed.). Pearson. — canonical reference for the Black-Scholes
+    PDE derivation, the closed-form solutions for European calls and
+    puts, and the standard Greeks (delta, gamma, vega, theta, rho).
+Gatheral, J. (2006). *The Volatility Surface: A Practitioner's Guide*.
+    Wiley. — covers the second-order Greeks (vanna, volga, charm) and
+    the practitioner's use of the implied-vol surface.
+Black, F., & Scholes, M. (1973). The Pricing of Options and Corporate
+    Liabilities. *Journal of Political Economy*, 81(3), 637-654. —
+    the original paper.
+"""
+
 import math
 
 from scipy.stats import norm
