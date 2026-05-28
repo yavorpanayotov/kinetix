@@ -352,3 +352,50 @@ def duration_clustering_test(
         key = str(run_len)
         counts[key] = counts.get(key, 0) + 1
     return counts
+
+
+def acerbi_szekely_es_backtest(
+    daily_var_predictions: list[float],
+    daily_es_predictions: list[float],
+    daily_pnl: list[float],
+) -> float:
+    """Acerbi-Szekely Z-score for an Expected-Shortfall backtest.
+
+    .. math::
+
+        Z = \\frac{1}{T \\, p} \\sum_t \\frac{L_t \\cdot I_t}{\\text{ES}_t} + 1
+
+    where ``I_t`` is the VaR-violation indicator, ``L_t`` is the
+    realised loss on day t, ``T`` is the sample size, and ``p`` is
+    the expected violation rate (1 - confidence). A perfectly
+    calibrated ES model gives Z near 0; Z < 0 means ES under-states
+    tail losses (model is too optimistic), Z > 0 means ES over-states.
+
+    Acerbi-Szekely's contribution: ES is *not* elicitable — there is
+    no scoring function that uniquely identifies the true ES — but
+    it IS jointly elicitable with VaR, so this Z statistic conditions
+    on the VaR breach days where the model is making a tail claim.
+
+    Reference
+    ---------
+    Acerbi, C., & Szekely, B. (2014). Back-testing expected
+    shortfall. *Risk Magazine*, December 2014.
+    """
+    if not (len(daily_var_predictions) == len(daily_es_predictions) == len(daily_pnl)):
+        raise ValueError("VaR, ES, and P&L lists must be the same length")
+    n = len(daily_var_predictions)
+    if n == 0:
+        return 0.0
+    # Approximate p = expected violation rate; in production this would
+    # come from the configured confidence level.
+    breaches = 0
+    z_contribution = 0.0
+    for var_pred, es_pred, pnl in zip(daily_var_predictions, daily_es_predictions, daily_pnl):
+        actual_loss = -pnl
+        if actual_loss > var_pred:
+            breaches += 1
+            if es_pred > 0:
+                z_contribution += actual_loss / es_pred
+    if breaches == 0:
+        return 0.0
+    return z_contribution / breaches - 1.0

@@ -181,3 +181,44 @@ def test_duration_clustering_handles_trailing_run():
         [100.0]*4, [50.0, -200.0, -200.0, -200.0],
     )
     assert histogram == {"3": 1}
+
+
+# kx-np5 — Acerbi-Szekely ES backtest
+@pytest.mark.unit
+def test_acerbi_szekely_no_breaches_returns_zero():
+    from kinetix_risk.backtesting import acerbi_szekely_es_backtest
+    z = acerbi_szekely_es_backtest([100.0]*10, [120.0]*10, [50.0]*10)
+    assert z == 0.0
+
+
+@pytest.mark.unit
+def test_acerbi_szekely_perfectly_calibrated_model_returns_zero():
+    """Every breach has actual_loss = ES (perfectly calibrated):
+    z_contribution / breaches = 1, z = 0."""
+    from kinetix_risk.backtesting import acerbi_szekely_es_backtest
+    z = acerbi_szekely_es_backtest(
+        daily_var_predictions=[100.0, 100.0],
+        daily_es_predictions=[150.0, 150.0],
+        daily_pnl=[-150.0, -150.0],  # actual loss = 150 = ES on both days
+    )
+    assert z == pytest.approx(0.0)
+
+
+@pytest.mark.unit
+def test_acerbi_szekely_negative_z_for_understated_es():
+    """If realised losses exceed ES (ES is too low), Z > 0 — model
+    under-stated tail."""
+    from kinetix_risk.backtesting import acerbi_szekely_es_backtest
+    z = acerbi_szekely_es_backtest(
+        daily_var_predictions=[100.0],
+        daily_es_predictions=[150.0],
+        daily_pnl=[-300.0],  # actual loss = 300 (2x ES)
+    )
+    assert z > 0
+
+
+@pytest.mark.unit
+def test_acerbi_szekely_rejects_length_mismatch():
+    from kinetix_risk.backtesting import acerbi_szekely_es_backtest
+    with pytest.raises(ValueError):
+        acerbi_szekely_es_backtest([100.0], [150.0, 150.0], [-50.0])
