@@ -268,4 +268,32 @@ class PositionTest : FunSpec({
         pos.currency shouldBe USD
         pos.instrumentType shouldBe com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY
     }
+
+    // First-trade marketPrice seeding (trader-review P0 #4)
+    //
+    // PriceConsumer is the long-term owner of marketPrice but it lags
+    // booking — for asset classes the demo stack doesn't tick
+    // (FIXED_INCOME, etc.) it never catches up at all. So when a trade
+    // arrives at a position whose marketPrice is still zero we seed
+    // marketPrice from the trade price ("last trade" mark) so the
+    // position immediately surfaces a realistic marketValue instead of
+    // a $0.00 placeholder.
+
+    test("applyTrade onto a freshly-seeded position carries the trade price into marketPrice") {
+        val flat = Position.fromFirstTrade(buyTrade(quantity = "100", price = "50.00"))
+        flat.marketPrice shouldBe Money.zero(USD)
+
+        val updated = flat.applyTrade(buyTrade(quantity = "100", price = "97.50"))
+        updated.marketPrice shouldBe usd("97.50")
+        updated.marketValue shouldBe usd("9750.00")
+    }
+
+    test("applyTrade onto a position with a non-zero marketPrice leaves the marketPrice untouched") {
+        // Once PriceConsumer has supplied a mark, ownership of marketPrice
+        // belongs to the price feed — the trade price is the wrong signal
+        // (could be stale or off-market) and must not displace the tick.
+        val pos = position(quantity = "100", averageCost = "50.00", marketPrice = "55.00")
+        val updated = pos.applyTrade(buyTrade(quantity = "50", price = "62.00"))
+        updated.marketPrice shouldBe usd("55.00")
+    }
 })

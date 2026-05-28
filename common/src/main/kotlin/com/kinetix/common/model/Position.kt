@@ -82,9 +82,26 @@ data class Position(
             else -> averageCost
         }
 
+        // Seed marketPrice from the trade when the position has no prior
+        // mark — i.e. this is the first trade arriving at a (book,
+        // instrument) pair that has not yet received a PriceConsumer
+        // update. Without this, the position sits at marketPrice = 0
+        // until a price-update event happens to land for the instrument;
+        // for asset classes the demo stack doesn't tick (notably
+        // FIXED_INCOME / GOVERNMENT_BOND) that "until" is "never", so
+        // the Risk → Position Risk Breakdown row renders $0.00 even
+        // though there's real exposure. Trader-review P0 #4.
+        //
+        // Once the position has a non-zero marketPrice, mark-to-market
+        // is owned by PriceUpdateService and we leave the existing
+        // price alone here (the trade price is the wrong signal once
+        // we have a live tick).
+        val newMarketPrice = if (marketPrice.amount.signum() == 0) trade.price else marketPrice
+
         return copy(
             quantity = newQuantity,
             averageCost = newAverageCost,
+            marketPrice = newMarketPrice,
             realizedPnl = realizedPnl + Money(tradeRealizedPnl, currency),
         )
     }
