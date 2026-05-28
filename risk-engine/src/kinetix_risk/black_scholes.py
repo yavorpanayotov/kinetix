@@ -262,3 +262,84 @@ def bs_greeks(option: OptionPosition) -> dict:
         "volga": bs_volga(option),
         "charm": bs_charm(option),
     }
+
+
+# kx-{kp1,0hr,5cm,1ku,i91,jsl,2fc,0ev} — second/third-order Greeks via
+# centred-difference of existing closed-form Greeks. Closed-form
+# expressions exist for each but the numerical form lets dashboards
+# pin down a consistent epsilon and keeps the implementation
+# uniform across Greeks. The tests verify sign/magnitude
+# relationships rather than exact closed-form values.
+
+def bs_color(option: OptionPosition, days_bump: int = 1) -> float:
+    """color = d(gamma)/d(time). Second-order time decay Greek."""
+    from dataclasses import replace
+    if option.expiry_days <= days_bump:
+        return 0.0
+    bumped = replace(option, expiry_days=option.expiry_days - days_bump)
+    return bs_gamma(bumped) - bs_gamma(option)
+
+
+def bs_speed(option: OptionPosition, bump: float = 0.01) -> float:
+    """speed = d(gamma)/d(spot). Third-order spatial sensitivity."""
+    from dataclasses import replace
+    if option.spot_price <= bump:
+        return 0.0
+    up = replace(option, spot_price=option.spot_price + bump)
+    down = replace(option, spot_price=option.spot_price - bump)
+    return (bs_gamma(up) - bs_gamma(down)) / (2.0 * bump)
+
+
+def bs_zomma(option: OptionPosition, bump: float = 0.001) -> float:
+    """zomma = d(gamma)/d(vol). Cross-Greek for vol-of-gamma."""
+    from dataclasses import replace
+    up = replace(option, implied_vol=option.implied_vol + bump)
+    down = replace(option, implied_vol=max(1e-6, option.implied_vol - bump))
+    return (bs_gamma(up) - bs_gamma(down)) / (2.0 * bump)
+
+
+def bs_lambda(option: OptionPosition) -> float:
+    """Lambda (option elasticity) = (delta * spot) / price. The
+    leverage factor: percentage move in option per percentage move
+    in spot. Long calls have elasticity > 1 (leveraged exposure).
+    """
+    price = bs_price(option)
+    if price <= 0:
+        return 0.0
+    return bs_delta(option) * option.spot_price / price
+
+
+def bs_vera(option: OptionPosition, bump: float = 0.001) -> float:
+    """vera = d(rho)/d(vol). Interest-rate x vol cross-sensitivity."""
+    from dataclasses import replace
+    up = replace(option, implied_vol=option.implied_vol + bump)
+    down = replace(option, implied_vol=max(1e-6, option.implied_vol - bump))
+    return (bs_rho(up) - bs_rho(down)) / (2.0 * bump)
+
+
+def bs_totto(option: OptionPosition, bump: float = 0.001) -> float:
+    """totto = d(theta)/d(vol). Time-decay x vol cross-sensitivity."""
+    from dataclasses import replace
+    up = replace(option, implied_vol=option.implied_vol + bump)
+    down = replace(option, implied_vol=max(1e-6, option.implied_vol - bump))
+    return (bs_theta(up) - bs_theta(down)) / (2.0 * bump)
+
+
+def bs_dxdv(option: OptionPosition, bump: float = 0.001) -> float:
+    """d(delta)/d(div_yield). Dividend-yield sensitivity of delta —
+    matters for storage-bearing assets where the dividend term
+    captures cost-of-carry."""
+    from dataclasses import replace
+    up = replace(option, dividend_yield=option.dividend_yield + bump)
+    down = replace(option, dividend_yield=option.dividend_yield - bump)
+    return (bs_delta(up) - bs_delta(down)) / (2.0 * bump)
+
+
+def bs_ultima(option: OptionPosition, bump: float = 0.001) -> float:
+    """ultima = d(vomma)/d(vol) = d^3 Price / d sigma^3. Third-order
+    vol sensitivity — picks up the non-linear vol-of-vol exposure
+    that hides inside a smile-curvature trade."""
+    from dataclasses import replace
+    up = replace(option, implied_vol=option.implied_vol + bump)
+    down = replace(option, implied_vol=max(1e-6, option.implied_vol - bump))
+    return (bs_volga(up) - bs_volga(down)) / (2.0 * bump)

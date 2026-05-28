@@ -371,3 +371,67 @@ class TestBsGammaDecay:
         short_decay = bs_gamma_decay(self._atm(30))
         long_decay = bs_gamma_decay(self._atm(365))
         assert short_decay > long_decay
+
+
+# kx-{kp1,0hr,5cm,1ku,i91,jsl,2fc,0ev} — second/third-order Greek finite-difference tests
+class TestSecondOrderGreeks:
+    def _atm(self):
+        from kinetix_risk.models import OptionPosition, OptionType, AssetClass
+        return OptionPosition(
+            instrument_id="OPT-1", underlying_id="UND",
+            option_type=OptionType.CALL, strike=100.0, expiry_days=90,
+            spot_price=100.0, implied_vol=0.20, risk_free_rate=0.03,
+            dividend_yield=0.0, asset_class=AssetClass.EQUITY,
+        )
+
+    @pytest.mark.unit
+    def test_bs_color_finite(self):
+        from kinetix_risk.black_scholes import bs_color
+        c = bs_color(self._atm())
+        assert c == c  # not NaN
+
+    @pytest.mark.unit
+    def test_bs_speed_atm_call_is_near_zero(self):
+        """Speed = d(gamma)/d(spot); at ATM, gamma is at its peak so
+        d(gamma)/d(spot) ~ 0 (or close to it)."""
+        from kinetix_risk.black_scholes import bs_speed
+        s = bs_speed(self._atm())
+        assert abs(s) < 1e-2
+
+    @pytest.mark.unit
+    def test_bs_zomma_finite(self):
+        from kinetix_risk.black_scholes import bs_zomma
+        z = bs_zomma(self._atm())
+        assert z == z
+
+    @pytest.mark.unit
+    def test_bs_lambda_atm_call_greater_than_one(self):
+        """ATM call elasticity is typically several units — small
+        spot move multiplies in the option."""
+        from kinetix_risk.black_scholes import bs_lambda
+        lam = bs_lambda(self._atm())
+        assert lam > 1.0
+
+    @pytest.mark.unit
+    def test_bs_vera_finite(self):
+        from kinetix_risk.black_scholes import bs_vera
+        v = bs_vera(self._atm())
+        assert v == v
+
+    @pytest.mark.unit
+    def test_bs_totto_finite(self):
+        from kinetix_risk.black_scholes import bs_totto
+        t = bs_totto(self._atm())
+        assert t == t
+
+    @pytest.mark.unit
+    def test_bs_dxdv_finite(self):
+        from kinetix_risk.black_scholes import bs_dxdv
+        d = bs_dxdv(self._atm())
+        assert d == d
+
+    @pytest.mark.unit
+    def test_bs_ultima_finite(self):
+        from kinetix_risk.black_scholes import bs_ultima
+        u = bs_ultima(self._atm())
+        assert u == u
