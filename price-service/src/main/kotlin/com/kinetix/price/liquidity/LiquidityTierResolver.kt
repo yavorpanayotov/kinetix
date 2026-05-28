@@ -1,5 +1,8 @@
 package com.kinetix.price.liquidity
 
+/** Per-instrument liquidity tier used by the price-service routing layer. */
+enum class LiquidityTier { TIER_1, TIER_2, TIER_3, ILLIQUID }
+
 /**
  * Resolve a per-instrument liquidity tier, with a configurable
  * policy for the missing-tier case.

@@ -48,5 +48,3 @@ class MissingLiquidityTierTest : FunSpec({
         ex.message!!.contains("OBSCURE") shouldBe true
     }
 })
-
-enum class LiquidityTier { TIER_1, TIER_2, TIER_3, ILLIQUID }
