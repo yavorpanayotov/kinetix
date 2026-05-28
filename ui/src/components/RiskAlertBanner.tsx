@@ -24,20 +24,26 @@ function formatRelativeTime(triggeredAt: string): string {
 }
 
 function alertStyles(severity: string) {
+  // Dark-mode variants match the "Need a hedge?" button next to this banner
+  // — without them the body text inherits the page's near-white slate-100
+  // colour over a near-white bg-*-50 fill and becomes invisible.
   switch (severity) {
     case 'CRITICAL':
       return {
-        container: 'border-red-200 bg-red-50',
+        container:
+          'border-red-200 bg-red-50 text-red-900 dark:border-red-700 dark:bg-red-900/30 dark:text-red-200',
         icon: <XCircle className="h-4 w-4 text-red-500 shrink-0" />,
       }
     case 'WARNING':
       return {
-        container: 'border-amber-200 bg-amber-50',
+        container:
+          'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200',
         icon: <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />,
       }
     default:
       return {
-        container: 'border-slate-200 bg-slate-50',
+        container:
+          'border-slate-200 bg-slate-50 text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200',
         icon: <AlertTriangle className="h-4 w-4 text-slate-500 shrink-0" />,
       }
   }
