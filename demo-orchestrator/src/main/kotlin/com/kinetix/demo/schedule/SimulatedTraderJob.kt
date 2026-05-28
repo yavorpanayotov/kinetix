@@ -269,7 +269,14 @@ class SimulatedTraderJob(
             profile.notionalRangeUsd.first,
             profile.notionalRangeUsd.last + 1,
         )
-        val price = priceBook.priceFor(instrumentId, profile.assetClass)
+        // Per-instrument taxonomy beats the book-level tag (kx-trader-review
+        // P0 #3). Treasury / FX identifiers that sit inside an EQUITY-tagged
+        // book must carry their own asset class on the wire; only fall back
+        // to the book-level tag when the classifier has no opinion.
+        val classification = DemoInstrumentTaxonomy.classify(instrumentId)
+        val assetClass = classification?.assetClass ?: profile.assetClass
+        val instrumentType = classification?.instrumentType ?: instrumentTypeFor(profile.assetClass)
+        val price = priceBook.priceFor(instrumentId, assetClass)
         val quantity = maxOf(
             1L,
             notional.toBigDecimal()
@@ -281,13 +288,13 @@ class SimulatedTraderJob(
         return StrategyTradeRequest(
             tradeId = null,
             instrumentId = instrumentId,
-            assetClass = profile.assetClass,
+            assetClass = assetClass,
             side = side,
             quantity = quantity.toString(),
             priceAmount = price.toPlainString(),
             priceCurrency = "USD",
             tradedAt = tradedAt,
-            instrumentType = instrumentTypeFor(profile.assetClass),
+            instrumentType = instrumentType,
             userId = "demo-orchestrator",
             userRole = "DEMO",
             counterpartyId = counterpartyRotation.next(profile.bookId),

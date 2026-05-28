@@ -381,6 +381,30 @@ class DevDataSeeder(
                 GovernmentBond(currency = "EUR", couponRate = 0.02, couponFrequency = 1, maturityDate = "2036-05-15", faceValue = 1000.0, dayCountConvention = "ACT/ACT"),
                 "German 10Y Bund", "EUR",
             ),
+            // ── US Treasury aliases (kx-trader-review P0 #3) ──
+            // The demo orchestrator's SimulatedTraderJob books trades against
+            // these UST-prefixed identifiers. Without them in the master, the
+            // gateway projection and Trades blotter fall back to the trade's
+            // (book-inherited) asset class — which mis-labelled the Treasuries
+            // as Cash Equity on the live demo. Adding them here makes the
+            // canonical (FIXED_INCOME, GOVERNMENT_BOND) classification the
+            // source of truth for every downstream service.
+            "UST-2Y" to InstrumentConfig(
+                GovernmentBond(currency = "USD", couponRate = 0.04, couponFrequency = 2, maturityDate = "2028-03-15", faceValue = 1000.0, dayCountConvention = "ACT/ACT"),
+                "US 2Y Treasury", "USD",
+            ),
+            "UST-5Y" to InstrumentConfig(
+                GovernmentBond(currency = "USD", couponRate = 0.0375, couponFrequency = 2, maturityDate = "2031-05-15", faceValue = 1000.0, dayCountConvention = "ACT/ACT"),
+                "US 5Y Treasury", "USD",
+            ),
+            "UST-10Y" to InstrumentConfig(
+                GovernmentBond(currency = "USD", couponRate = 0.025, couponFrequency = 2, maturityDate = "2036-05-15", faceValue = 1000.0, dayCountConvention = "ACT/ACT"),
+                "US 10Y Treasury", "USD",
+            ),
+            "UST-30Y" to InstrumentConfig(
+                GovernmentBond(currency = "USD", couponRate = 0.03, couponFrequency = 2, maturityDate = "2056-05-15", faceValue = 1000.0, dayCountConvention = "ACT/ACT"),
+                "US 30Y Treasury", "USD",
+            ),
             // ── Corporate bonds ──
             "JPM-BOND-2031" to InstrumentConfig(
                 CorporateBond(currency = "USD", couponRate = 0.045, couponFrequency = 2, maturityDate = "2031-03-15", faceValue = 1000.0, issuer = "JPMorgan Chase", creditRating = "A+", seniority = BondSeniority.SENIOR_UNSECURED),
@@ -480,6 +504,13 @@ class DevDataSeeder(
             "WMT" to InstrumentConfig(
                 CashEquity(currency = "USD", exchange = "NYSE", sector = "Consumer", countryCode = "US"),
                 "Walmart Inc.", "USD",
+            ),
+            // Procter & Gamble — a dividend-paying consumer staple, used in
+            // the balanced-income demo book alongside JNJ/KO. Real equity,
+            // not to be confused with any rates ticker.
+            "PG" to InstrumentConfig(
+                CashEquity(currency = "USD", exchange = "NYSE", sector = "Consumer", countryCode = "US"),
+                "Procter & Gamble Co.", "USD",
             ),
             "JNJ" to InstrumentConfig(
                 CashEquity(currency = "USD", exchange = "NYSE", sector = "Healthcare", countryCode = "US"),
