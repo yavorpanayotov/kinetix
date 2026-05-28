@@ -124,7 +124,7 @@ Ordered top-to-bottom by dependency. P0 first because every P1 cross-tab inconsi
 - [x] **Make page scope explicit on Positions.** Add a "Showing: book = balanced-income" badge near "Firm Summary", or relabel when filtered. Failing Playwright test asserts the badge reflects the active filter.
   Acceptance: `cd ui && npx playwright test e2e/positions-scope-banner.spec.ts` green.
 
-- [ ] **Expand Currency Breakdown to all currencies with non-zero exposure.** Failing acceptance test on the gateway summary endpoint asserting GBP/JPY rows when fixture positions include them.
+- [x] **Expand Currency Breakdown to all currencies with non-zero exposure.** Failing acceptance test on the gateway summary endpoint asserting GBP/JPY rows when fixture positions include them.
   Acceptance: `./gradlew :gateway:acceptanceTest --tests "*CurrencyBreakdownAllCurrenciesAcceptanceTest"` green.
 
 - [ ] **Fix the "VaR delta since last" being stuck at $0.00.** Failing test in risk-orchestrator: after two distinct valuation runs with different inputs, the surfaced delta is non-zero.
