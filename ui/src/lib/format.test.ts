@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   formatCurrencyPrefix,
+  formatGreekWithSign,
   formatNumeric,
   formatPercent,
   formatRhoTooltip,
@@ -278,5 +279,44 @@ describe('formatPercent', () => {
   it('rounds half to even by default toFixed semantics', () => {
     // 5.005 * 100 = 500.49999... in IEEE-754, so toFixed(2) gives 5.00 — trims to 5%
     expect(formatPercent(0.05005)).toBe('5%')
+  })
+})
+
+describe('formatGreekWithSign', () => {
+  it('renders an em-dash for null', () => {
+    expect(formatGreekWithSign(null)).toBe('—')
+  })
+
+  it('renders an em-dash for undefined', () => {
+    expect(formatGreekWithSign(undefined)).toBe('—')
+  })
+
+  it('renders an em-dash for NaN / Infinity', () => {
+    expect(formatGreekWithSign(NaN)).toBe('—')
+    expect(formatGreekWithSign(Infinity)).toBe('—')
+  })
+
+  it('prefixes positive Greeks with an explicit "+"', () => {
+    expect(formatGreekWithSign(100)).toBe('+100.00')
+  })
+
+  it('renders negative Greeks with the default "-" sign (toFixed handles it)', () => {
+    expect(formatGreekWithSign(-100)).toBe('-100.00')
+  })
+
+  it('renders zero without a sign prefix (avoids "+0.00" rounding artefact)', () => {
+    expect(formatGreekWithSign(0)).toBe('0.00')
+  })
+
+  it('honours custom fractionDigits', () => {
+    expect(formatGreekWithSign(1.23456, { fractionDigits: 4 })).toBe('+1.2346')
+  })
+
+  it('renders small positives with the "+" prefix (Greeks scaling matters)', () => {
+    expect(formatGreekWithSign(0.01)).toBe('+0.01')
+  })
+
+  it('renders large negatives correctly', () => {
+    expect(formatGreekWithSign(-9999.99)).toBe('-9999.99')
   })
 })

@@ -187,3 +187,28 @@ export function formatPercent(
   const trimmed = fixed.includes('.') ? fixed.replace(/\.?0+$/, '') : fixed
   return `${trimmed}%`
 }
+
+/**
+ * Format a Greek value with an explicit "+" prefix for non-negatives.
+ *
+ * Greeks columns in the risk blotter render P&L sensitivities — delta,
+ * vega, theta — and the sign is meaningful: positive vega means the book
+ * benefits from a vol uptick, negative vega means it bleeds. A bare
+ * "100" cell is ambiguous (is it +100 or -100?). The explicit "+"
+ * prefix anchors the sign so the eye picks it up at the same place it
+ * reads "-" for negatives. Zero renders without a sign prefix (a "+0"
+ * suggests a rounding artefact). Non-finite values collapse to the
+ * em-dash placeholder.
+ */
+export function formatGreekWithSign(
+  value: number | null | undefined,
+  options: FormatNumericOptions = {},
+): string {
+  const { fractionDigits = 2, placeholder = EM_DASH } = options
+  if (value === null || value === undefined) return placeholder
+  if (!Number.isFinite(value)) return placeholder
+  if (value === 0) return value.toFixed(fractionDigits)
+  return value > 0
+    ? `+${value.toFixed(fractionDigits)}`
+    : value.toFixed(fractionDigits)
+}
