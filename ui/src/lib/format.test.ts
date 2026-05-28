@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   formatAccountingNegative,
+  formatBasisPoints,
   formatCompactLarge,
   formatCurrencyPrefix,
   formatGreekWithSign,
@@ -478,5 +479,42 @@ describe('formatAccountingNegative', () => {
 
   it('renders small negatives correctly', () => {
     expect(formatAccountingNegative(-0.01)).toBe('(0.01)')
+  })
+})
+
+describe('formatBasisPoints', () => {
+  it('renders 0.005 (50bps) as "50 bps"', () => {
+    expect(formatBasisPoints(0.005)).toBe('50 bps')
+  })
+
+  it('renders 0.0125 as "125 bps"', () => {
+    expect(formatBasisPoints(0.0125)).toBe('125 bps')
+  })
+
+  it('trims trailing zeros', () => {
+    expect(formatBasisPoints(0.005)).toBe('50 bps')
+  })
+
+  it('renders fractional bps with default precision', () => {
+    expect(formatBasisPoints(0.0001234)).toBe('1.23 bps')
+  })
+
+  it('honours custom fractionDigits', () => {
+    expect(formatBasisPoints(0.0001234, { fractionDigits: 4 })).toBe('1.234 bps')
+  })
+
+  it('renders negatives', () => {
+    expect(formatBasisPoints(-0.005)).toBe('-50 bps')
+  })
+
+  it('renders zero as "0 bps"', () => {
+    expect(formatBasisPoints(0)).toBe('0 bps')
+  })
+
+  it('renders null / undefined / non-finite as em-dash', () => {
+    expect(formatBasisPoints(null)).toBe('—')
+    expect(formatBasisPoints(undefined)).toBe('—')
+    expect(formatBasisPoints(NaN)).toBe('—')
+    expect(formatBasisPoints(Infinity)).toBe('—')
   })
 })

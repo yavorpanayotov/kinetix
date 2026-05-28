@@ -325,3 +325,26 @@ export function formatAccountingNegative(
   })
   return value < 0 ? `(${formatted})` : formatted
 }
+
+/**
+ * Format a numeric value as basis points (e.g. `0.0050 -> "50 bps"`),
+ * intended for Greek sensitivities (DV01, rho) that traders read in bp
+ * rather than raw decimal.
+ *
+ * Input is the *fraction* (0.005 = 50 bps), matching the convention
+ * used by [formatRhoTooltip] and [formatPercent]. Output trims
+ * unnecessary trailing zeros so 50 bps reads as "50 bps", not
+ * "50.00 bps". Non-finite inputs collapse to the em-dash placeholder.
+ */
+export function formatBasisPoints(
+  fraction: number | null | undefined,
+  options: FormatNumericOptions = {},
+): string {
+  const { fractionDigits = 2, placeholder = EM_DASH } = options
+  if (fraction === null || fraction === undefined) return placeholder
+  if (!Number.isFinite(fraction)) return placeholder
+  const bp = fraction * 10_000
+  const fixed = bp.toFixed(fractionDigits)
+  const trimmed = fixed.includes('.') ? fixed.replace(/\.?0+$/, '') : fixed
+  return `${trimmed} bps`
+}
