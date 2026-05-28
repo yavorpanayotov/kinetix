@@ -9,6 +9,16 @@ use "./core.allium" as core
 
 enum EstimationMethod { historical | exponentially_weighted | shrinkage }
 
+enum PriceRoutingTier { tier_1 | tier_2 | tier_3 | illiquid }
+-- Price-service-internal routing taxonomy used by the tick pipeline to
+-- decide per-instrument routing policy: tier_1 names pass any tick
+-- straight through, lower tiers attract progressively tighter
+-- stale-quote / dead-band checks, illiquid names get multi-hour
+-- staleness thresholds. This is NOT the canonical core/LiquidityTier
+-- (market-tradability classification derived from ADV + bid-ask spread,
+-- consumed by reference-data and liquidity risk) — it is a distinct
+-- pipeline concern owned by price-service/LiquidityTierResolver.kt.
+
 ------------------------------------------------------------
 -- Entities and Variants
 ------------------------------------------------------------

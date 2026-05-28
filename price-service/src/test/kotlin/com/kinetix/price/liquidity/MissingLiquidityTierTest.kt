@@ -20,15 +20,15 @@ class MissingLiquidityTierTest : FunSpec({
     test("returns the stored tier when present") {
         resolveLiquidityTier(
             instrumentId = "AAPL",
-            knownTiers = mapOf("AAPL" to LiquidityTier.TIER_1),
-        ) shouldBe LiquidityTier.TIER_1
+            knownTiers = mapOf("AAPL" to PriceRoutingTier.TIER_1),
+        ) shouldBe PriceRoutingTier.TIER_1
     }
 
     test("missing tier falls back to ILLIQUID by default (conservative)") {
         resolveLiquidityTier(
             instrumentId = "NEW",
             knownTiers = emptyMap(),
-        ) shouldBe LiquidityTier.ILLIQUID
+        ) shouldBe PriceRoutingTier.ILLIQUID
     }
 
     test("missing tier with reject-on-missing throws") {

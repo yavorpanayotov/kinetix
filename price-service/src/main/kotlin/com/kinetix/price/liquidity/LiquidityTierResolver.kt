@@ -1,10 +1,7 @@
 package com.kinetix.price.liquidity
 
-/** Per-instrument liquidity tier used by the price-service routing layer. */
-enum class LiquidityTier { TIER_1, TIER_2, TIER_3, ILLIQUID }
-
 /**
- * Resolve a per-instrument liquidity tier, with a configurable
+ * Resolve a per-instrument price-routing tier, with a configurable
  * policy for the missing-tier case.
  *
  * Price-service routes ticks through this resolver — TIER_1 names
@@ -13,18 +10,21 @@ enum class LiquidityTier { TIER_1, TIER_2, TIER_3, ILLIQUID }
  * default — losing a tick is worse than running extra checks, but
  * callers wanting fail-closed semantics can flip [rejectOnMissing].
  *
+ * The tier is the price-pipeline-internal [PriceRoutingTier], NOT the
+ * canonical `common.LiquidityTier` (market-tradability classification).
+ *
  * @throws IllegalStateException when [rejectOnMissing] is true and
  * the tier is missing.
  */
 fun resolveLiquidityTier(
     instrumentId: String,
-    knownTiers: Map<String, LiquidityTier>,
+    knownTiers: Map<String, PriceRoutingTier>,
     rejectOnMissing: Boolean = false,
-): LiquidityTier {
+): PriceRoutingTier {
     val tier = knownTiers[instrumentId]
     if (tier != null) return tier
     check(!rejectOnMissing) {
         "no liquidity tier configured for instrument '$instrumentId'"
     }
-    return LiquidityTier.ILLIQUID
+    return PriceRoutingTier.ILLIQUID
 }
