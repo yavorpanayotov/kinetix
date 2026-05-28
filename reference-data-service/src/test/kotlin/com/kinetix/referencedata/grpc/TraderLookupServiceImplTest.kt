@@ -78,7 +78,7 @@ class TraderLookupServiceImplTest : FunSpec({
         observer.completed shouldBe true
         observer.values.size shouldBe 1
         with(observer.values.single()) {
-            id shouldBe "tr-eg-001"
+            traderId shouldBe "tr-eg-001"
             name shouldBe "Sarah Chen"
             deskId shouldBe "equity-growth"
             email shouldBe "tr-eg-001@kinetix.test"
@@ -116,7 +116,7 @@ class TraderLookupServiceImplTest : FunSpec({
 
         observer.error shouldBe null
         observer.completed shouldBe true
-        val ids = observer.values.single().tradersList.map { it.id }.toSet()
+        val ids = observer.values.single().tradersList.map { it.traderId }.toSet()
         ids shouldBe setOf("tr-eg-001", "tr-eg-002")
     }
 

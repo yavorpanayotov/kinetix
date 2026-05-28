@@ -18,7 +18,7 @@ message GetTraderRequest {
 }
 
 message GetTraderResponse {
-  string id = 1;
+  string trader_id = 1;
   string name = 2;
   string desk_id = 3;
   string email = 4;            // empty string if unset

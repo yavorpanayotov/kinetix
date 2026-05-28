@@ -30,7 +30,7 @@ private class FakeTraderLookup(
         if (request.traderId in knownIds) {
             responseObserver.onNext(
                 GetTraderResponse.newBuilder()
-                    .setId(request.traderId)
+                    .setTraderId(request.traderId)
                     .setName("Trader ${request.traderId}")
                     .setDeskId("desk-x")
                     .build(),

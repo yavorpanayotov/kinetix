@@ -55,7 +55,7 @@ class TraderLookupServiceImpl(
         }
         responseObserver.onNext(
             GetTraderResponse.newBuilder()
-                .setId(trader.id.value)
+                .setTraderId(trader.id.value)
                 .setName(trader.name)
                 .setDeskId(trader.deskId.value)
                 .setEmail(trader.email ?: "")
@@ -89,7 +89,7 @@ class TraderLookupServiceImpl(
         for (t in traders) {
             builder.addTraders(
                 GetTraderResponse.newBuilder()
-                    .setId(t.id.value)
+                    .setTraderId(t.id.value)
                     .setName(t.name)
                     .setDeskId(t.deskId.value)
                     .setEmail(t.email ?: "")
