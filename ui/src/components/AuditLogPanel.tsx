@@ -8,6 +8,7 @@ import {
   type AuditVerifyResultDto,
 } from '../api/audit'
 import { useAuth } from '../auth/useAuth'
+import { formatTimestamp } from '../utils/format'
 import { Badge, Card, EmptyState, ErrorCard, Spinner } from './ui'
 
 /** Number of events requested per cursor page. */
@@ -308,7 +309,7 @@ export function AuditLogPanel({ initialBookId = '', initialTradeId = '' }: Audit
                         data-testid="audit-event-row"
                         className="px-4 py-2 text-sm text-slate-600 dark:text-slate-400 whitespace-nowrap"
                       >
-                        {new Date(event.receivedAt).toLocaleString()}
+                        {formatTimestamp(event.receivedAt)}
                       </td>
                       <td className="px-4 py-2 text-sm">
                         <Badge
