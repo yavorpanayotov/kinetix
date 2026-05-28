@@ -130,10 +130,10 @@ Ordered top-to-bottom by dependency. P0 first because every P1 cross-tab inconsi
 - [x] **Fix the "VaR delta since last" being stuck at $0.00.** Failing test in risk-orchestrator: after two distinct valuation runs with different inputs, the surfaced delta is non-zero.
   Acceptance: `./gradlew :risk-orchestrator:test --tests "*VarDeltaSurfaceTest"` green.
 
-- [ ] **Auto-fit VaR trend chart Y-axis.** Vitest unit on the chart component; assert the computed Y-domain ≤ 1.5× max series value.
+- [x] **Auto-fit VaR trend chart Y-axis.** Vitest unit on the chart component; assert the computed Y-domain ≤ 1.5× max series value.
   Acceptance: `cd ui && npm run test -- VarTrendChart` green.
 
-- [ ] **Normalise date formats to ISO across all tabs.** Failing Playwright test scans every visible date string on Activity and asserts ISO-8601 shape.
+- [x] **Normalise date formats to ISO across all tabs.** Failing Playwright test scans every visible date string on Activity and asserts ISO-8601 shape.
   Acceptance: `cd ui && npx playwright test e2e/date-format-consistency.spec.ts` green.
 
 ### P2 — Workflow gaps
@@ -141,7 +141,7 @@ Ordered top-to-bottom by dependency. P0 first because every P1 cross-tab inconsi
 - [ ] **Risk-impact preview on Place Order.** Spec change first (Allium under `specs/`), then a gateway endpoint that runs the candidate trade through the existing valuation path and returns Δ VaR, Δ Delta, Δ Notional, Δ counterparty exposure. UI Vitest + Playwright asserting the preview panel populates on form-blur.
   Acceptance: `./gradlew :gateway:acceptanceTest --tests "*PreTradeRiskPreviewAcceptanceTest"` plus `cd ui && npx playwright test e2e/place-order-risk-preview.spec.ts` green. **Get approval before adding the gateway route** (architecture-touching).
 
-- [ ] **Limits screen shows utilisation, not just limit.** For each limit row, populate the Intraday and Overnight cells with current value + utilisation %. Failing acceptance test on the limits endpoint.
+- [x] **Limits screen shows utilisation, not just limit.** For each limit row, populate the Intraday and Overnight cells with current value + utilisation %. Failing acceptance test on the limits endpoint.
   Acceptance: `./gradlew :gateway:acceptanceTest --tests "*LimitsUtilisationAcceptanceTest"` green plus Playwright assertion on the rendered cells.
 
 - [ ] **Alert deduplication + batch acknowledge.** Suppression rules and a `Select all visible` / `Acknowledge selected` action. Failing acceptance tests on both the alerting service and UI.
