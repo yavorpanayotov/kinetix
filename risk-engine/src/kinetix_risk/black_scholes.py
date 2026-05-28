@@ -210,6 +210,28 @@ def bs_volga(option: OptionPosition) -> float:
     return calculate_volga(option.spot_price, option.strike, T, option.risk_free_rate, option.implied_vol, option.dividend_yield)
 
 
+def bs_gamma_decay(option: OptionPosition, bump_days: int = 1) -> float:
+    """Pure time decay of gamma — change in gamma over one day, holding
+    spot/vol/rate fixed.
+
+    Charm captures d(delta)/d(time); gamma_decay captures the analogous
+    second-order quantity d(gamma)/d(time). It tells the trader how
+    much their delta-hedge frequency will spike tomorrow vs today —
+    short-gamma positions get progressively harder to manage as
+    expiry approaches.
+
+    Computed by bumping expiry by 1 day and re-evaluating gamma; not a
+    closed form because gamma's time derivative crosses zero at the
+    ATM-spike point and a finite-difference signal is more interpretable
+    for the dashboard.
+    """
+    from dataclasses import replace
+    if option.expiry_days <= bump_days:
+        return 0.0
+    bumped = replace(option, expiry_days=option.expiry_days - bump_days)
+    return bs_gamma(bumped) - bs_gamma(option)
+
+
 def bs_volga_put(option: OptionPosition) -> float:
     """Put-side volga = d^2 Price / d sigma^2.
 

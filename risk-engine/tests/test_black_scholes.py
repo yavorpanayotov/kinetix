@@ -335,3 +335,39 @@ class TestBsVannaPut:
         from kinetix_risk.black_scholes import bs_vanna_put
         v = bs_vanna_put(self._opt("put"))
         assert v == v
+
+
+# kx-hb8 — pure time decay of gamma
+class TestBsGammaDecay:
+    def _atm(self, expiry_days):
+        from kinetix_risk.models import OptionPosition, OptionType, AssetClass
+        return OptionPosition(
+            instrument_id="OPT-1", underlying_id="UND",
+            option_type=OptionType.CALL, strike=100.0, expiry_days=expiry_days,
+            spot_price=100.0, implied_vol=0.20, risk_free_rate=0.03,
+            asset_class=AssetClass.EQUITY,
+        )
+
+    @pytest.mark.unit
+    def test_bs_gamma_decay_positive_near_expiry(self):
+        """As expiry shrinks, ATM gamma increases — so the decay
+        (gamma_tomorrow - gamma_today) is positive when there's still
+        time on the clock."""
+        from kinetix_risk.black_scholes import bs_gamma_decay
+        decay = bs_gamma_decay(self._atm(30))
+        assert decay > 0
+
+    @pytest.mark.unit
+    def test_bs_gamma_decay_zero_at_expiry(self):
+        """Within 1 day of expiry, the function returns 0 (no time
+        left to decay)."""
+        from kinetix_risk.black_scholes import bs_gamma_decay
+        assert bs_gamma_decay(self._atm(1)) == 0
+
+    @pytest.mark.unit
+    def test_bs_gamma_decay_smaller_for_long_dated(self):
+        """Decay is smaller (slower) for long-dated options."""
+        from kinetix_risk.black_scholes import bs_gamma_decay
+        short_decay = bs_gamma_decay(self._atm(30))
+        long_decay = bs_gamma_decay(self._atm(365))
+        assert short_decay > long_decay
