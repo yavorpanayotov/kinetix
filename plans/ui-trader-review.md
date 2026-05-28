@@ -110,7 +110,7 @@ Ordered top-to-bottom by dependency. P0 first because every P1 cross-tab inconsi
 - [x] **Single source of truth for counterparty exposure.** Wire both the Risk tab widget and the Counterparty Risk tab to the same gateway endpoint. Failing test: gateway acceptance test that the two endpoints (or single endpoint with two projections) return the same name set and net exposures for a fixture book.
   Acceptance: `./gradlew :gateway:acceptanceTest --tests "*CounterpartyExposureConsistencyAcceptanceTest"` green.
 
-- [ ] **Fix liquidity classification + remove single-dollar LVaR scale.** Add a regression test asserting `JPM.liquidity == HIGH_LIQUID` and that LVaR contribution is denominated to match the rest of the dashboard ($K or $M, not $). Surface a staleness warning when the `Calculated` timestamp is more than 1 day old.
+- [x] **Fix liquidity classification + remove single-dollar LVaR scale.** Add a regression test asserting `JPM.liquidity == HIGH_LIQUID` and that LVaR contribution is denominated to match the rest of the dashboard ($K or $M, not $). Surface a staleness warning when the `Calculated` timestamp is more than 1 day old.
   Acceptance: `./gradlew :risk-orchestrator:test --tests "*LiquidityClassificationTest"` plus a UI Vitest assertion on the LVaR formatter.
 
 - [ ] **Populate EOD History `PV` column.** Failing test: `EodHistoryAcceptanceTest` asserts `pv != null` on each promoted row.
