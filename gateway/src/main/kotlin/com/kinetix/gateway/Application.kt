@@ -332,6 +332,48 @@ fun Application.module(riskClient: RiskServiceClient) {
     }
 }
 
+/**
+ * Module overload that wires both position-service and risk-service routes.
+ * Used by the Counterparty Exposure consistency surface (trader-review P0 #6,
+ * `plans/ui-trader-review.md`), where the gateway needs to merge the
+ * trade-derived counterparty set (from position-service) with the credit-risk
+ * snapshot set (from risk-service) so the Risk-tab tile and the dedicated
+ * Counterparty Risk tab see the same names.
+ */
+fun Application.module(
+    positionClient: PositionServiceClient,
+    riskClient: RiskServiceClient,
+) {
+    module()
+    routing {
+        positionRoutes(positionClient)
+        varRoutes(riskClient)
+        crossBookVaRRoutes(riskClient)
+        hierarchyRiskRoutes(riskClient)
+        riskBudgetRoutes(riskClient)
+        croReportRoutes(riskClient)
+        liquidityRiskRoutes(riskClient)
+        marginRoutes(riskClient)
+        factorRiskRoutes(riskClient)
+        stressTestRoutes(riskClient)
+        whatIfRoutes(riskClient)
+        positionRiskRoutes(riskClient)
+        regulatoryRoutes(riskClient)
+        dependenciesRoutes(riskClient)
+        jobHistoryRoutes(riskClient)
+        eodTimelineRoutes(riskClient)
+        sodSnapshotRoutes(riskClient)
+        runComparisonRoutes(riskClient)
+        marketRegimeRoutes(riskClient)
+        hedgeRecommendationRoutes(riskClient)
+        counterpartyRiskRoutes(riskClient)
+        keyRateDurationRoutes(riskClient)
+        saCcrRoutes(riskClient)
+        reportProxyRoutes(riskClient)
+        benchmarkAttributionRoutes(riskClient)
+    }
+}
+
 fun Application.module(
     positionClient: PositionServiceClient,
     priceClient: PriceServiceClient,
