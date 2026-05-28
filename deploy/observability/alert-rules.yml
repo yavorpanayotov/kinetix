@@ -106,6 +106,7 @@ groups:
         annotations:
           summary: "Dead-letter queue {{ $labels.topic }} is growing"
           description: "New messages have been written to dead-letter topic {{ $labels.topic }} in the last 15m — a consumer has exhausted its retries and is shedding messages that need manual replay."
+          runbook_url: "https://github.com/panayotovk/kinetix/blob/main/docs/runbooks/support/position-missing.md"
 
       # Business-event alert: unprocessed backlog sitting in a dead-letter queue.
       # DLQ topics follow the `<topic>.dlq` naming convention emitted by
@@ -120,6 +121,7 @@ groups:
         annotations:
           summary: "Dead-letter queue {{ $labels.topic }} has an unprocessed backlog"
           description: "Consumer group {{ $labels.consumergroup }} has lag of {{ $value }} on dead-letter topic {{ $labels.topic }} — failed messages are parked in the DLQ and need manual triage and replay."
+          runbook_url: "https://github.com/panayotovk/kinetix/blob/main/docs/runbooks/support/position-missing.md"
 
   # ---------------------------------------------------------------------------
   - name: kinetix-price
@@ -132,6 +134,7 @@ groups:
         annotations:
           summary: "Price data is stale for {{ $labels.instrument_id }}"
           description: "Price staleness is {{ $value }}s for {{ $labels.instrument_id }} — risk and P&L are running on stale prices."
+          runbook_url: "https://github.com/panayotovk/kinetix/blob/main/docs/runbooks/support/market-data-frozen.md"
 
       - alert: PriceSeverelyStale
         expr: price_staleness_seconds > 300
@@ -141,6 +144,7 @@ groups:
         annotations:
           summary: "Market data severely stale for {{ $labels.instrument_id }}"
           description: "The price for {{ $labels.instrument_id }} is more than 300s old ({{ $value }}s) and has not refreshed for 5m."
+          runbook_url: "https://github.com/panayotovk/kinetix/blob/main/docs/runbooks/support/market-data-frozen.md"
 
   # ---------------------------------------------------------------------------
   - name: kinetix-risk
@@ -162,6 +166,7 @@ groups:
         annotations:
           summary: "Risk calculation p95 latency exceeds 30s"
           description: "P95 VaR calculation duration is {{ $value }}s — risk runs are slow and may delay the risk picture."
+          runbook_url: "https://github.com/panayotovk/kinetix/blob/main/docs/runbooks/support/var-is-stale.md"
 
       - alert: RiskRunStale
         expr: |
@@ -174,6 +179,7 @@ groups:
         annotations:
           summary: "Risk run stale for book {{ $labels.book_id }}"
           description: "No completed VaR calculation has been recorded for book {{ $labels.book_id }} in over an hour — the risk picture for this book is out of date."
+          runbook_url: "https://github.com/panayotovk/kinetix/blob/main/docs/runbooks/support/var-is-stale.md"
 
       # Business-event alert: failed risk calculations (RISK_CALCULATION_FAILED).
       # DISABLED — no Prometheus metric for this signal is emitted yet.
