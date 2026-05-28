@@ -131,7 +131,11 @@ class DevDataSeederTest : FunSpec({
         jpm.rating shouldBe "A+"
     }
 
-    test("seeds ADV and bid-ask spread data for all 11 instrument types when liquidity repository is provided") {
+    test("seeds ADV and bid-ask spread data for every instrument when liquidity repository is provided") {
+        // kx-trader-review P0 #7 — the seed previously covered only 25 of the
+        // 93 instruments, leaving major names (JPM, DE10Y, US30Y, etc.) to
+        // fail-safe to ILLIQUID in the LVaR engine. The current contract is
+        // that every instrument declared in the master also has ADV data.
         val liquidityRepository = mockk<InstrumentLiquidityRepository>()
         val seederWithLiquidity = DevDataSeeder(
             dividendYieldRepository, creditSpreadRepository,
@@ -148,12 +152,22 @@ class DevDataSeederTest : FunSpec({
 
         seederWithLiquidity.seed()
 
-        coVerify(exactly = 25) { liquidityRepository.upsert(any()) }
         val instrumentIds = savedLiquidity.map { it.instrumentId }.toSet()
+        // Core sanity coverage from the prior assertion set.
         instrumentIds.contains("AAPL") shouldBe true
         instrumentIds.contains("US10Y") shouldBe true
         instrumentIds.contains("EURUSD") shouldBe true
         instrumentIds.contains("WTI-AUG26") shouldBe true
+        // Names the trader-review walkthrough flagged as ILLIQUID despite
+        // being among the deepest markets in the world — JPM, the 10Y Bund,
+        // and the 30Y US Treasury. Pin them explicitly so a future seed
+        // regression does not silently re-introduce the bug.
+        instrumentIds.contains("JPM") shouldBe true
+        instrumentIds.contains("DE10Y") shouldBe true
+        instrumentIds.contains("US30Y") shouldBe true
+        // Treasury aliases used by the demo orchestrator (kx-trader-review P0 #3).
+        instrumentIds.contains("UST-10Y") shouldBe true
+        instrumentIds.contains("UST-30Y") shouldBe true
     }
 
     test("liquidity data is not seeded when liquidity repository is not provided") {

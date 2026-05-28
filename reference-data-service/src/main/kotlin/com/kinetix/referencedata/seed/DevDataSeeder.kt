@@ -758,6 +758,100 @@ class DevDataSeeder(
             // Additional equity options
             "MSFT-C-450-20260620"   to LiquidityConfig(adv = 4_000_000.0,   bidAskSpreadBps = 22.0,  assetClass = AssetClass.EQUITY),
             "TSLA-C-280-20260620"   to LiquidityConfig(adv = 6_000_000.0,   bidAskSpreadBps = 25.0,  assetClass = AssetClass.EQUITY),
+            // kx-trader-review P0 #7 — every cash equity, sovereign bond,
+            // and major FX/commodity declared in INSTRUMENTS must have an
+            // ADV/spread row so the LVaR engine has the data to classify
+            // its tier. Anything missing fail-safes to ILLIQUID with a
+            // 10-day horizon, which is what flagged JPM/DE10Y/US30Y as
+            // illiquid on the trader-review walkthrough.
+            // Mega-cap US tech equities — exchange-deep, sub-bp spreads.
+            "GOOGL"                 to LiquidityConfig(adv = 70_000_000.0,  bidAskSpreadBps = 1.0,   assetClass = AssetClass.EQUITY),
+            "MSFT"                  to LiquidityConfig(adv = 90_000_000.0,  bidAskSpreadBps = 1.0,   assetClass = AssetClass.EQUITY),
+            "AMZN"                  to LiquidityConfig(adv = 70_000_000.0,  bidAskSpreadBps = 1.0,   assetClass = AssetClass.EQUITY),
+            "TSLA"                  to LiquidityConfig(adv = 100_000_000.0, bidAskSpreadBps = 1.0,   assetClass = AssetClass.EQUITY),
+            "NVDA"                  to LiquidityConfig(adv = 120_000_000.0, bidAskSpreadBps = 1.0,   assetClass = AssetClass.EQUITY),
+            "META"                  to LiquidityConfig(adv = 80_000_000.0,  bidAskSpreadBps = 1.0,   assetClass = AssetClass.EQUITY),
+            "BABA"                  to LiquidityConfig(adv = 40_000_000.0,  bidAskSpreadBps = 2.0,   assetClass = AssetClass.EQUITY),
+            // Large US financials — the trader-review explicitly called out
+            // `JPM` (one of the largest US bank holdings) as ILLIQUID. Fix.
+            "JPM"                   to LiquidityConfig(adv = 80_000_000.0,  bidAskSpreadBps = 1.0,   assetClass = AssetClass.EQUITY),
+            "MS"                    to LiquidityConfig(adv = 35_000_000.0,  bidAskSpreadBps = 1.5,   assetClass = AssetClass.EQUITY),
+            // Defensive / consumer staples — large-cap, liquid.
+            "DIS"                   to LiquidityConfig(adv = 30_000_000.0,  bidAskSpreadBps = 1.5,   assetClass = AssetClass.EQUITY),
+            "WMT"                   to LiquidityConfig(adv = 35_000_000.0,  bidAskSpreadBps = 1.0,   assetClass = AssetClass.EQUITY),
+            "PG"                    to LiquidityConfig(adv = 25_000_000.0,  bidAskSpreadBps = 1.5,   assetClass = AssetClass.EQUITY),
+            // Healthcare large caps.
+            "JNJ"                   to LiquidityConfig(adv = 30_000_000.0,  bidAskSpreadBps = 1.5,   assetClass = AssetClass.EQUITY),
+            "PFE"                   to LiquidityConfig(adv = 25_000_000.0,  bidAskSpreadBps = 1.5,   assetClass = AssetClass.EQUITY),
+            "UNH"                   to LiquidityConfig(adv = 20_000_000.0,  bidAskSpreadBps = 2.0,   assetClass = AssetClass.EQUITY),
+            // Energy large caps.
+            "CVX"                   to LiquidityConfig(adv = 30_000_000.0,  bidAskSpreadBps = 1.5,   assetClass = AssetClass.EQUITY),
+            // Additional tech large caps.
+            "INTC"                  to LiquidityConfig(adv = 40_000_000.0,  bidAskSpreadBps = 1.5,   assetClass = AssetClass.EQUITY),
+            "CRM"                   to LiquidityConfig(adv = 25_000_000.0,  bidAskSpreadBps = 2.0,   assetClass = AssetClass.EQUITY),
+            "ORCL"                  to LiquidityConfig(adv = 25_000_000.0,  bidAskSpreadBps = 2.0,   assetClass = AssetClass.EQUITY),
+            "ADBE"                  to LiquidityConfig(adv = 20_000_000.0,  bidAskSpreadBps = 2.5,   assetClass = AssetClass.EQUITY),
+            // Equity indices (deep cash-settled benchmarks).
+            "IDX-SPX"               to LiquidityConfig(adv = 200_000_000.0, bidAskSpreadBps = 0.5,   assetClass = AssetClass.EQUITY),
+            "IDX-VIX"               to LiquidityConfig(adv = 80_000_000.0,  bidAskSpreadBps = 1.0,   assetClass = AssetClass.EQUITY),
+            // Sovereign bonds — explicitly called out by trader-review.
+            // 10Y Bund and 30Y Treasury are among the deepest sovereigns on
+            // the planet; mis-flagging them as illiquid was the bug.
+            "US2Y"                  to LiquidityConfig(adv = 600_000_000.0, bidAskSpreadBps = 0.25,  assetClass = AssetClass.FIXED_INCOME),
+            "US30Y"                 to LiquidityConfig(adv = 300_000_000.0, bidAskSpreadBps = 0.5,   assetClass = AssetClass.FIXED_INCOME),
+            "DE10Y"                 to LiquidityConfig(adv = 500_000_000.0, bidAskSpreadBps = 0.5,   assetClass = AssetClass.FIXED_INCOME),
+            "DE2Y"                  to LiquidityConfig(adv = 400_000_000.0, bidAskSpreadBps = 0.5,   assetClass = AssetClass.FIXED_INCOME),
+            "UK10Y"                 to LiquidityConfig(adv = 300_000_000.0, bidAskSpreadBps = 0.5,   assetClass = AssetClass.FIXED_INCOME),
+            "JP10Y"                 to LiquidityConfig(adv = 250_000_000.0, bidAskSpreadBps = 0.5,   assetClass = AssetClass.FIXED_INCOME),
+            // US Treasury aliases used by the demo orchestrator (kx-trader-review
+            // P0 #3) — must match their US{2,5,10,30}Y counterparts in liquidity.
+            "UST-2Y"                to LiquidityConfig(adv = 600_000_000.0, bidAskSpreadBps = 0.25,  assetClass = AssetClass.FIXED_INCOME),
+            "UST-5Y"                to LiquidityConfig(adv = 400_000_000.0, bidAskSpreadBps = 0.3,   assetClass = AssetClass.FIXED_INCOME),
+            "UST-10Y"               to LiquidityConfig(adv = 500_000_000.0, bidAskSpreadBps = 0.25,  assetClass = AssetClass.FIXED_INCOME),
+            "UST-30Y"               to LiquidityConfig(adv = 300_000_000.0, bidAskSpreadBps = 0.5,   assetClass = AssetClass.FIXED_INCOME),
+            // Additional corporate bonds.
+            "GS-BOND-2029"          to LiquidityConfig(adv = 10_000_000.0,  bidAskSpreadBps = 12.0,  assetClass = AssetClass.FIXED_INCOME),
+            "MSFT-BOND-2032"        to LiquidityConfig(adv = 12_000_000.0,  bidAskSpreadBps = 8.0,   assetClass = AssetClass.FIXED_INCOME),
+            // Major FX spot — deepest markets on earth.
+            "GBPUSD"                to LiquidityConfig(adv = 700_000_000.0, bidAskSpreadBps = 0.2,   assetClass = AssetClass.FX),
+            "USDJPY"                to LiquidityConfig(adv = 900_000_000.0, bidAskSpreadBps = 0.1,   assetClass = AssetClass.FX),
+            "USDCHF"                to LiquidityConfig(adv = 300_000_000.0, bidAskSpreadBps = 0.5,   assetClass = AssetClass.FX),
+            "EURGBP"                to LiquidityConfig(adv = 250_000_000.0, bidAskSpreadBps = 0.5,   assetClass = AssetClass.FX),
+            "NZDUSD"                to LiquidityConfig(adv = 200_000_000.0, bidAskSpreadBps = 0.5,   assetClass = AssetClass.FX),
+            "EURUSD-6M"             to LiquidityConfig(adv = 150_000_000.0, bidAskSpreadBps = 1.0,   assetClass = AssetClass.FX),
+            "USDJPY-3M"             to LiquidityConfig(adv = 200_000_000.0, bidAskSpreadBps = 1.0,   assetClass = AssetClass.FX),
+            "USDJPY-C-155-SEP26"    to LiquidityConfig(adv = 15_000_000.0,  bidAskSpreadBps = 18.0,  assetClass = AssetClass.FX),
+            // Interest-rate swaps.
+            "USD-SOFR-10Y"          to LiquidityConfig(adv = 6_000_000.0,   bidAskSpreadBps = 6.0,   assetClass = AssetClass.FIXED_INCOME),
+            "EUR-ESTR-5Y"           to LiquidityConfig(adv = 5_000_000.0,   bidAskSpreadBps = 6.0,   assetClass = AssetClass.FIXED_INCOME),
+            // Commodity futures.
+            "GC"                    to LiquidityConfig(adv = 180_000_000.0, bidAskSpreadBps = 1.5,   assetClass = AssetClass.COMMODITY),
+            "CL"                    to LiquidityConfig(adv = 300_000_000.0, bidAskSpreadBps = 1.5,   assetClass = AssetClass.COMMODITY),
+            "SI"                    to LiquidityConfig(adv = 90_000_000.0,  bidAskSpreadBps = 3.0,   assetClass = AssetClass.COMMODITY),
+            "PL"                    to LiquidityConfig(adv = 30_000_000.0,  bidAskSpreadBps = 5.0,   assetClass = AssetClass.COMMODITY),
+            "ZC"                    to LiquidityConfig(adv = 60_000_000.0,  bidAskSpreadBps = 4.0,   assetClass = AssetClass.COMMODITY),
+            // Commodity options.
+            "CL-P-70-DEC26"         to LiquidityConfig(adv = 10_000_000.0,  bidAskSpreadBps = 25.0,  assetClass = AssetClass.COMMODITY),
+            // Equity index futures and options.
+            "RTY-SEP26"             to LiquidityConfig(adv = 60_000_000.0,  bidAskSpreadBps = 1.5,   assetClass = AssetClass.EQUITY),
+            "ES-FUT-MAR"            to LiquidityConfig(adv = 200_000_000.0, bidAskSpreadBps = 0.5,   assetClass = AssetClass.EQUITY),
+            "SPX-CALL-5000"         to LiquidityConfig(adv = 8_000_000.0,   bidAskSpreadBps = 15.0,  assetClass = AssetClass.EQUITY),
+            "SPX-PUT-4500"          to LiquidityConfig(adv = 6_000_000.0,   bidAskSpreadBps = 18.0,  assetClass = AssetClass.EQUITY),
+            "SPX-PUT-4800"          to LiquidityConfig(adv = 6_000_000.0,   bidAskSpreadBps = 18.0,  assetClass = AssetClass.EQUITY),
+            "SPX-CALL-5200"         to LiquidityConfig(adv = 8_000_000.0,   bidAskSpreadBps = 15.0,  assetClass = AssetClass.EQUITY),
+            "SPX-OPT-5000C"         to LiquidityConfig(adv = 8_000_000.0,   bidAskSpreadBps = 15.0,  assetClass = AssetClass.EQUITY),
+            "VIX-PUT-15"            to LiquidityConfig(adv = 4_000_000.0,   bidAskSpreadBps = 25.0,  assetClass = AssetClass.EQUITY),
+            "VIX-OPT-20C"           to LiquidityConfig(adv = 4_000_000.0,   bidAskSpreadBps = 25.0,  assetClass = AssetClass.EQUITY),
+            // Single-name equity options.
+            "NVDA-C-950-20260620"   to LiquidityConfig(adv = 6_000_000.0,   bidAskSpreadBps = 25.0,  assetClass = AssetClass.EQUITY),
+            "NVDA-P-800-20260620"   to LiquidityConfig(adv = 5_000_000.0,   bidAskSpreadBps = 28.0,  assetClass = AssetClass.EQUITY),
+            "AAPL-P-180-20260620"   to LiquidityConfig(adv = 5_000_000.0,   bidAskSpreadBps = 22.0,  assetClass = AssetClass.EQUITY),
+            "MSFT-P-400-20260620"   to LiquidityConfig(adv = 4_000_000.0,   bidAskSpreadBps = 22.0,  assetClass = AssetClass.EQUITY),
+            "TSLA-P-220-20260620"   to LiquidityConfig(adv = 6_000_000.0,   bidAskSpreadBps = 25.0,  assetClass = AssetClass.EQUITY),
+            "GOOGL-C-190-20260620"  to LiquidityConfig(adv = 4_000_000.0,   bidAskSpreadBps = 22.0,  assetClass = AssetClass.EQUITY),
+            "GOOGL-P-160-20260620"  to LiquidityConfig(adv = 4_000_000.0,   bidAskSpreadBps = 25.0,  assetClass = AssetClass.EQUITY),
+            "AMZN-C-220-20260620"   to LiquidityConfig(adv = 4_000_000.0,   bidAskSpreadBps = 22.0,  assetClass = AssetClass.EQUITY),
+            "AMZN-P-190-20260620"   to LiquidityConfig(adv = 4_000_000.0,   bidAskSpreadBps = 25.0,  assetClass = AssetClass.EQUITY),
         )
 
         private val DESKS: Map<String, DeskConfig> = mapOf(

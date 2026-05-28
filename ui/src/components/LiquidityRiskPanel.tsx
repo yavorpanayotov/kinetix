@@ -1,4 +1,4 @@
-import { RefreshCw } from 'lucide-react'
+import { AlertTriangle, RefreshCw } from 'lucide-react'
 import type { LiquidityRiskResultDto } from '../types'
 import { LiquidityScoreBar } from './LiquidityScoreBar'
 import { Card } from './ui'
@@ -17,6 +17,8 @@ const STATUS_STYLES: Record<string, string> = {
   BREACHED: 'text-red-700 bg-red-100 dark:text-red-300 dark:bg-red-900/30',
 }
 
+const STALENESS_THRESHOLD_MS = 24 * 60 * 60 * 1000
+
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -24,6 +26,55 @@ function formatCurrency(value: number): string {
     notation: 'compact',
     maximumFractionDigits: 1,
   }).format(value)
+}
+
+/**
+ * Format an LVaR contribution / portfolio LVaR magnitude.
+ *
+ * Trader-review P0 #7 surfaced that LVaR rendered in single dollars
+ * (`$0.7`, `$1.4`) while the rest of the dashboard rendered in compact
+ * notation (`$13.3K`, `$58.3K`). The inconsistency made the order-of-
+ * magnitude difference easy to miss. Rule:
+ *
+ *   |v| >= $1,000  → compact notation (matches `Stressed Liq` column)
+ *   |v| <  $1,000  → fixed two-decimal `$X.XX` so single-dollar
+ *                    magnitudes are unambiguous (never a misleading
+ *                    `$0.7` that looks like `$0.7K` at a glance)
+ */
+export function formatLvar(value: number): string {
+  if (!Number.isFinite(value)) return '—'
+  if (Math.abs(value) >= 1_000) {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      notation: 'compact',
+      maximumFractionDigits: 1,
+    }).format(value)
+  }
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value)
+}
+
+/**
+ * Compute the staleness of a liquidity snapshot in whole days, or null
+ * when the snapshot is fresher than [STALENESS_THRESHOLD_MS]. Drives the
+ * staleness banner — trader-review P0 #7 flagged a 50-day-old LVaR
+ * calculation rendered with no warning.
+ */
+export function computeStalenessDays(
+  calculatedAt: string,
+  now: Date,
+): number | null {
+  const calculated = new Date(calculatedAt).getTime()
+  const ageMs = now.getTime() - calculated
+  if (!Number.isFinite(ageMs) || ageMs < STALENESS_THRESHOLD_MS) {
+    return null
+  }
+  return Math.floor(ageMs / (24 * 60 * 60 * 1000))
 }
 
 export function LiquidityRiskPanel({
@@ -66,6 +117,7 @@ export function LiquidityRiskPanel({
   const completenessPercent = Math.round(result.dataCompleteness * 100)
   const statusStyle =
     STATUS_STYLES[result.portfolioConcentrationStatus] ?? STATUS_STYLES.OK
+  const stalenessDays = computeStalenessDays(result.calculatedAt, new Date())
 
   return (
     <Card className="p-4 flex flex-col gap-4">
@@ -84,6 +136,21 @@ export function LiquidityRiskPanel({
         </button>
       </div>
 
+      {/* Staleness banner — trader-review P0 #7 */}
+      {stalenessDays !== null && (
+        <div
+          data-testid="liquidity-staleness-banner"
+          role="alert"
+          className="flex items-start gap-2 rounded border border-yellow-300 bg-yellow-50 px-3 py-2 text-xs text-yellow-800 dark:border-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-200"
+        >
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>
+            Liquidity snapshot is {stalenessDays}d old. Trigger a refresh to
+            recalculate against the latest positions and ADV data.
+          </span>
+        </div>
+      )}
+
       {/* Summary metrics */}
       <div className="grid grid-cols-3 gap-3">
         <div className="flex flex-col">
@@ -94,7 +161,7 @@ export function LiquidityRiskPanel({
             data-testid="portfolio-lvar"
             className="text-lg font-bold text-gray-900 dark:text-gray-100"
           >
-            {formatCurrency(result.portfolioLvar)}
+            {formatLvar(result.portfolioLvar)}
           </span>
         </div>
 
@@ -165,7 +232,7 @@ export function LiquidityRiskPanel({
                     />
                   </td>
                   <td className="py-1.5 text-right text-gray-900 dark:text-gray-100">
-                    {formatCurrency(pos.lvarContribution)}
+                    {formatLvar(pos.lvarContribution)}
                   </td>
                   <td className="py-1.5 text-right text-gray-900 dark:text-gray-100">
                     {formatCurrency(pos.stressedLiquidationValue)}
