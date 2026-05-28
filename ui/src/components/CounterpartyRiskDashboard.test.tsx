@@ -318,6 +318,48 @@ describe('CounterpartyRiskDashboard', () => {
     expect(screen.getByTestId('pfe-chart-empty')).toBeInTheDocument()
   })
 
+  it('does not render NaN coordinates when a pfeProfile row is missing expectedExposure', () => {
+    // Simulates a malformed API response where one tenor row is missing numeric
+    // fields. Before the fix, the chart rendered polyline points containing "NaN"
+    // (e.g. "64,NaN") which crashes real SVG renderers with:
+    //   Cannot read properties of undefined (reading 'toFixed')
+    // After the fix, bad rows are filtered out and no NaN appears in the SVG.
+    const malformedProfile = {
+      ...SAMPLE_EXPOSURE,
+      pfeProfile: [
+        { tenor: '1Y', tenorYears: 1, expectedExposure: 1_500_000, pfe95: 1_800_000, pfe99: 2_000_000 },
+        // Missing expectedExposure — simulates what the API can return when a
+        // tenor entry is partially populated.
+        { tenor: '2Y', tenorYears: 2, expectedExposure: undefined as unknown as number, pfe95: 1_500_000, pfe99: 1_700_000 },
+      ],
+    }
+
+    mockUseCounterpartyRisk.mockReturnValue({
+      ...defaultHook,
+      exposures: [malformedProfile],
+      selected: malformedProfile,
+    })
+
+    const { container } = render(<CounterpartyRiskDashboard />)
+
+    // The SVG must not contain any NaN coordinate — that indicates the bad row
+    // was not filtered and would crash a real browser SVG renderer.
+    const svg = container.querySelector('[data-testid="pfe-chart"]')
+    const empty = container.querySelector('[data-testid="pfe-chart-empty"]')
+
+    if (svg !== null) {
+      // Chart is rendered — ensure no polyline has NaN in its points attribute
+      const polylines = svg.querySelectorAll('polyline')
+      polylines.forEach((polyline) => {
+        const points = polyline.getAttribute('points') ?? ''
+        expect(points).not.toContain('NaN')
+      })
+    } else {
+      // Empty state is acceptable when all rows are bad
+      expect(empty).not.toBeNull()
+    }
+  })
+
   it('calls computePFE when Compute PFE button is clicked', async () => {
     const computePFE = vi.fn().mockResolvedValue(undefined)
     mockUseCounterpartyRisk.mockReturnValue({
