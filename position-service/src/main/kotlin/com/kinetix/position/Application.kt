@@ -188,6 +188,10 @@ fun Application.moduleWithRoutes() {
     val limitDefinitionRepo = ExposedLimitDefinitionRepository(db)
     val temporaryLimitIncreaseRepo = ExposedTemporaryLimitIncreaseRepository(db)
     val limitBreachEventWriter = ExposedLimitBreachEventWriter(db)
+    val limitUsageProvider = com.kinetix.position.service.PositionBasedLimitUsageProvider(
+        positionRepository = positionRepository,
+        bookHierarchyRepository = bookHierarchyRepository,
+    )
     val limitHierarchyService = LimitHierarchyService(
         limitDefinitionRepo,
         temporaryLimitIncreaseRepo,
@@ -471,7 +475,7 @@ fun Application.moduleWithRoutes() {
         positionRoutes(positionRepository, positionQueryService, tradeBookingService, tradeEventRepository, tradeLifecycleService, portfolioAggregationService)
         positionNotesRoutes(positionNotesService)
         strategyRoutes(tradeStrategyService, tradeBookingService)
-        limitRoutes(limitDefinitionRepo, temporaryLimitIncreaseRepo)
+        limitRoutes(limitDefinitionRepo, temporaryLimitIncreaseRepo, limitUsageProvider)
         counterpartyRoutes(counterpartyExposureService)
         collateralRoutes(collateralTrackingService)
         internalRoutes(tradeEventRepository)
