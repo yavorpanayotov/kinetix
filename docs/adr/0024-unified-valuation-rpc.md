@@ -3,6 +3,9 @@
 ## Status
 Accepted
 
+## Related specs
+- [`specs/discovery-valuation.allium`](../../specs/discovery-valuation.allium) — Discovery-Valuation two-phase contract and Instrument Type Dependency Registry; see also ADR-0029.
+
 ## Context
 The original gRPC contract had a single `CalculateVaR` RPC that returned VaR and expected shortfall. As the platform evolved to support Greeks (delta, gamma, vega, theta, rho), present value, and multiple calculation types, extending the original RPC became awkward — callers couldn't specify which outputs they needed, and the response lacked fields for Greeks.
 

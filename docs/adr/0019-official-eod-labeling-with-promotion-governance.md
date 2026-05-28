@@ -3,6 +3,9 @@
 ## Status
 Accepted
 
+## Related specs
+- [`specs/eod-close.allium`](../../specs/eod-close.allium) — scheduled EOD trigger, idempotent per-book VaR, and promotion to OFFICIAL_EOD with audit trail.
+
 ## Context
 Multiple VaR calculations run throughout the day (ad hoc, intraday, pre-close). Regulators and risk managers need to distinguish the "official" end-of-day (EOD) result from ad hoc runs. This official result feeds regulatory reporting and daily P&L attribution.
 

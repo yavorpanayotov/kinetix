@@ -3,6 +3,9 @@
 ## Status
 Accepted
 
+## Related specs
+- [`specs/audit.allium`](../../specs/audit.allium) — hash-chained, immutable audit trail for trade lifecycle, risk calculations, model governance, limit changes, and regulatory submissions.
+
 ## Context
 Financial regulations require an immutable, tamper-evident audit trail for all trade events. A simple append-only table can be modified after the fact by anyone with database access. We need a mechanism to detect unauthorized changes.
 

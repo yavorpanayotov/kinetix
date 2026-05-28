@@ -42,3 +42,7 @@ Allium is a domain-specific language for capturing system behaviour as executabl
 
 - alert-escalation.allium: Alert escalation workflow: timeout-driven promotion, severity escalation, multi-channel delivery routing, scheduled polling, audit trail, and debounce semantics for the notification-service escalation pipeline.
 - alerts.allium: Alert rules engine: rule evaluation, deduplication, auto-resolution, suggested actions, delivery routing, and alert acknowledgement.
+
+## AI
+
+- ai-insights.allium: AI insights service — LLM-fronted risk copilot: conversational chat (SSE) contract and history persistence, citation verification and banned-phrase policy guard, in-process MCP read-tool registry, and canned-vs-Claude chat-client switch. See ADR-0036.

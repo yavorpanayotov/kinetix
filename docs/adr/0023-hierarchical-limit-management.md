@@ -3,6 +3,9 @@
 ## Status
 Accepted
 
+## Related specs
+- [`specs/limits.allium`](../../specs/limits.allium) — limit hierarchy, pre-trade checks, and temporary increase governance.
+
 ## Context
 Trading firms enforce exposure limits at multiple organisational levels: firm-wide, division, desk, book (portfolio), trader, and counterparty. A trade that passes a book-level limit may still breach a desk or firm limit. Limits also differ between intraday and overnight horizons, and temporary increases may be granted.
 

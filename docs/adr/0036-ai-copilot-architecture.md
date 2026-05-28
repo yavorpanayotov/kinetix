@@ -3,6 +3,9 @@
 ## Status
 Accepted (2026-05-19)
 
+## Related specs
+- [`specs/ai-insights.allium`](../../specs/ai-insights.allium) — chat SSE contract and history, citation verification and banned-phrase policy guard, in-process MCP read-tool registry, canned-vs-Claude chat-client switch.
+
 ## Context
 
 AI v1 shipped two narrow explainers (VaR Explainer, Report Commentary) that demoed well but were not load-bearing for traders. The v2 product goal — *"showcase AI"* — only succeeds if the feature is something a trader opens Kinetix for daily. The trader review by *Marcus* (senior FX/rates desk) was unambiguous: the headline must be **proactive push**, not chat. *"Kinetix tells you what changed and why, before you ask."*

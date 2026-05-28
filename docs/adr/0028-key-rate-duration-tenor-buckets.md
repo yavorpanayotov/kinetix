@@ -3,6 +3,9 @@
 ## Status
 Accepted
 
+## Related specs
+- [`specs/risk-models.allium`](../../specs/risk-models.allium) — quantitative risk models including bond/swap pricing, Greeks, and FRTB capital.
+
 ## Context
 
 Key Rate Duration (KRD) decomposes a bond portfolio's interest rate sensitivity into tenor-specific DV01 buckets. This is essential for rates trading desks managing curve trades (e.g., 2s10s steepeners) where flat DV01 provides no useful information about where on the curve the risk sits.
