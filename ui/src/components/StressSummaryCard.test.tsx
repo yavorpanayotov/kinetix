@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import type { StressTestResultDto } from '../types'
+import type { CannedStressResultDto, StressTestResultDto } from '../types'
 import { StressSummaryCard } from './StressSummaryCard'
 
 const stressResult: StressTestResultDto = {
@@ -226,6 +226,67 @@ describe('StressSummaryCard', () => {
       expect(pnlCells).toHaveLength(2)
       expect(pnlCells[0]).toHaveTextContent('-$1,500,000.00')
       expect(pnlCells[0].className).toContain('text-red-600')
+    })
+  })
+
+  // trader-review P0 #10: the summary card and the inline StressScenarioTile
+  // must agree on whether stress results exist for the active book. When the
+  // orchestrator has seeded a canned scenario but the user hasn't kicked off
+  // a batch run yet, fall back to a single-row summary derived from the
+  // canned payload instead of the "no stress test results yet" empty state.
+  describe('canned scenario fallback', () => {
+    const cannedResult: CannedStressResultDto = {
+      bookId: 'port-1',
+      scenario: '+100BPS_PARALLEL',
+      deltaPv: '-1589994.06',
+      asOf: '2026-05-28T10:25:00Z',
+    }
+
+    it('hides the empty state when results are empty but a canned result is present', () => {
+      render(<StressSummaryCard {...defaultProps} cannedResult={cannedResult} />)
+
+      expect(screen.queryByText(/no stress test results/i)).not.toBeInTheDocument()
+      expect(screen.getByTestId('stress-summary-table')).toBeInTheDocument()
+    })
+
+    it('renders the canned scenario as a single fallback row', () => {
+      render(<StressSummaryCard {...defaultProps} cannedResult={cannedResult} />)
+
+      const rows = screen.getAllByTestId('stress-summary-row')
+      expect(rows).toHaveLength(1)
+      expect(rows[0]).toHaveTextContent('+100BPS PARALLEL')
+      expect(rows[0]).toHaveTextContent('-$1,589,994.06')
+    })
+
+    it('renders base/stressed VaR as "—" when the canned fallback row is shown (those fields are unknown)', () => {
+      render(<StressSummaryCard {...defaultProps} cannedResult={cannedResult} />)
+
+      const row = screen.getByTestId('stress-summary-row')
+      // Two "—" cells (Base VaR, Stressed VaR) — the P&L Impact cell renders the deltaPv.
+      const dashCells = row.querySelectorAll('td')
+      expect(dashCells[1].textContent).toBe('—')
+      expect(dashCells[2].textContent).toBe('—')
+    })
+
+    it('prefers user-triggered batch results over the canned fallback when both are present', () => {
+      render(
+        <StressSummaryCard
+          {...defaultProps}
+          results={[stressResult]}
+          cannedResult={cannedResult}
+        />,
+      )
+
+      const rows = screen.getAllByTestId('stress-summary-row')
+      expect(rows).toHaveLength(1)
+      expect(rows[0]).toHaveTextContent('MARKET CRASH')
+      expect(rows[0]).not.toHaveTextContent('+100BPS')
+    })
+
+    it('still shows the empty state when results are empty and there is no canned result', () => {
+      render(<StressSummaryCard {...defaultProps} cannedResult={null} />)
+
+      expect(screen.getByText(/no stress test results/i)).toBeInTheDocument()
     })
   })
 })

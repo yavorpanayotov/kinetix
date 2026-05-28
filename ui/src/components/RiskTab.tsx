@@ -490,6 +490,7 @@ export function RiskTab({
                   onRun={onRunStress}
                   onViewDetails={onViewStressDetails}
                   activeScenario={activeScenario}
+                  cannedResult={cannedStressResult}
                 />
               </div>
               <div className="mt-4">
