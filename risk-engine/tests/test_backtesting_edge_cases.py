@@ -222,3 +222,41 @@ def test_acerbi_szekely_rejects_length_mismatch():
     from kinetix_risk.backtesting import acerbi_szekely_es_backtest
     with pytest.raises(ValueError):
         acerbi_szekely_es_backtest([100.0], [150.0, 150.0], [-50.0])
+
+
+# kx-7e8 — Marbach combined coverage + independence test
+@pytest.mark.unit
+def test_marbach_combined_returns_nonnegative_statistic():
+    from kinetix_risk.backtesting import marbach_combined_test
+    lr, p = marbach_combined_test([100.0]*252, [50.0]*252, confidence_level=0.99)
+    assert lr >= 0
+    assert 0 <= p <= 1
+
+
+@pytest.mark.unit
+def test_marbach_combined_clean_model_passes():
+    """A model with the right number of breaches (252 * 0.01 = ~2.5)
+    and no clustering should have a high p-value."""
+    from kinetix_risk.backtesting import marbach_combined_test
+    var_preds = [100.0] * 252
+    pnl = [50.0] * 250 + [-200.0] * 2
+    _, p = marbach_combined_test(var_preds, pnl, confidence_level=0.99)
+    assert p > 0.05
+
+
+@pytest.mark.unit
+def test_marbach_combined_too_many_breaches_fails():
+    """A model with way too many breaches (50/252) at 99% confidence
+    should fail the combined test."""
+    from kinetix_risk.backtesting import marbach_combined_test
+    var_preds = [100.0] * 252
+    pnl = [50.0] * 202 + [-200.0] * 50
+    _, p = marbach_combined_test(var_preds, pnl, confidence_level=0.99)
+    assert p < 0.05
+
+
+@pytest.mark.unit
+def test_marbach_rejects_length_mismatch():
+    from kinetix_risk.backtesting import marbach_combined_test
+    with pytest.raises(ValueError):
+        marbach_combined_test([100.0, 100.0], [50.0])

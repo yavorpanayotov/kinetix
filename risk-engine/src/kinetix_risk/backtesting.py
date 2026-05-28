@@ -399,3 +399,35 @@ def acerbi_szekely_es_backtest(
     if breaches == 0:
         return 0.0
     return z_contribution / breaches - 1.0
+
+
+def marbach_combined_test(
+    daily_var_predictions: list[float],
+    daily_pnl: list[float],
+    confidence_level: float = 0.99,
+) -> tuple[float, float]:
+    """Marbach (Christoffersen) combined coverage + independence test.
+
+    The conditional coverage test stacks Kupiec POF (unconditional
+    coverage) and Christoffersen's independence test into a single
+    statistic, asymptotically chi-squared with 2 d.o.f.:
+
+    .. math::
+
+        LR_{cc} = LR_{POF} + LR_{ind}
+
+    A model that's both correctly calibrated AND has uncorrelated
+    breaches passes; failing either component fails the combined test.
+
+    Returns (LR_cc, p_value).
+    """
+    if len(daily_var_predictions) != len(daily_pnl):
+        raise ValueError("VaR and P&L must be the same length")
+    n = len(daily_var_predictions)
+    expected_rate = 1.0 - confidence_level
+    breaches = sum(1 for v, p in zip(daily_var_predictions, daily_pnl) if -p > v)
+    lr_pof, _ = _kupiec_pof_test(n, breaches, expected_rate)
+    lr_ind, _ = _christoffersen_independence_test(daily_var_predictions, daily_pnl)
+    lr_cc = lr_pof + lr_ind
+    p_value = 1.0 - chi2.cdf(lr_cc, df=2)
+    return lr_cc, float(p_value)
