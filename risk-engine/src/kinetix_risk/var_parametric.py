@@ -1,22 +1,60 @@
-"""
-Parametric (variance-covariance) Value at Risk.
+"""Parametric (variance-covariance) Value at Risk.
 
-Multi-day VaR is derived from 1-day VaR using the Basel square-root-of-time rule:
+Derivation
+----------
+Let ``r_t`` be the per-day log-return of a position, and assume
 
-    VaR(T) = VaR(1) * sqrt(T)
+.. math::
 
-Assumption: daily returns are i.i.d. (independent and identically distributed)
-and normally distributed.  Under i.i.d. the variance of a T-day return is
-T times the 1-day variance, so the standard deviation scales by sqrt(T).
+    r_t \\sim \\mathcal{N}(\\mu, \\sigma^2), \\quad
+    \\text{Cov}(r_s, r_t) = 0 \\;\\; \\forall s \\neq t.
 
-Validity: holds reasonably well for short horizons (1-10 days) in liquid markets.
+That is, daily returns are *independent and identically distributed*
+(i.i.d.). Under i.i.d., the T-day return is the sum
+``R_T = r_1 + r_2 + ... + r_T`` of T independent normals, so
 
-Known limitation: understates risk when:
-  - returns exhibit autocorrelation (positive serial correlation makes multi-day
-    losses larger than sqrt(T) scaling implies),
-  - volatility is time-varying / clustered (GARCH effects mean variance does not
-    grow linearly with time), or
-  - return distributions have fat tails or skew (normality assumption breaks down).
+.. math::
+
+    R_T \\sim \\mathcal{N}(T \\mu, T \\sigma^2),
+
+and the standard deviation grows as ``\\sigma \\sqrt{T}`` — this is
+the *square-root-of-time* scaling. For small drift over short
+horizons we approximate ``\\mu \\approx 0`` and get the practitioner
+formula
+
+.. math::
+
+    VaR_\\alpha(T) = \\Phi^{-1}(\\alpha) \\, \\sigma \\, \\sqrt{T} \\, V_0,
+
+where ``\\alpha`` is the confidence level (typically 0.99 or 0.999),
+``\\Phi^{-1}`` is the standard-normal quantile, ``\\sigma`` is the
+1-day return standard deviation, and ``V_0`` is current notional.
+For multi-asset portfolios, replace ``\\sigma`` with
+``\\sqrt{w^T \\Sigma w}`` where ``\\Sigma`` is the daily-return
+covariance matrix and ``w`` the asset-weight vector.
+
+Equivalently:
+
+.. math::
+
+    VaR(T) = VaR(1) \\cdot \\sqrt{T}
+
+which is the Basel pillar-1 multi-day scaling rule.
+
+Validity & limitations
+----------------------
+The i.i.d. assumption holds reasonably well for short horizons
+(1-10 days) in liquid markets. It understates risk when:
+
+  - returns exhibit autocorrelation — positive serial correlation
+    makes multi-day losses larger than ``\\sqrt{T}`` scaling implies;
+  - volatility is time-varying / clustered — GARCH effects mean
+    variance does not grow linearly with time;
+  - return distributions have fat tails or skew — the normality
+    assumption breaks down and ``\\Phi^{-1}`` understates the tail.
+
+Cornish-Fisher and EVT-based VaR variants relax these assumptions
+at the cost of additional model complexity.
 """
 
 import numpy as np
