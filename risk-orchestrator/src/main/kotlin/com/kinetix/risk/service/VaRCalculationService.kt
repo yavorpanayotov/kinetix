@@ -467,13 +467,14 @@ class VaRCalculationService(
         instrumentMap: Map<String, InstrumentDto> = emptyMap(),
     ): List<PositionRisk> {
         val breakdownByAssetClass = result.componentBreakdown.associateBy { it.assetClass }
-        val greeksByAssetClass = result.greeks?.assetClassGreeks?.associateBy { it.assetClass }
+        val positionGreeksByInstrument = result.positionGreeks.associateBy { it.instrumentId }
         val absMarketValueByAssetClass = positions.groupBy { it.assetClass }
             .mapValues { (_, poses) -> poses.fold(BigDecimal.ZERO) { acc, p -> acc + p.marketValue.amount.abs() } }
 
         val varVal = result.varValue ?: 0.0
         val esVal = result.expectedShortfall ?: 0.0
         val totalVaR = BigDecimal(varVal)
+        val greeksRequested = result.greeks != null || result.positionGreeks.isNotEmpty()
 
         return positions.map { pos ->
             val breakdown = breakdownByAssetClass[pos.assetClass]
@@ -495,16 +496,26 @@ class VaRCalculationService(
                 BigDecimal.ZERO
             }
 
-            val greeks = greeksByAssetClass?.get(pos.assetClass)
+            // Per-instrument Greeks. Prefer the engine's per-position values
+            // (currently populated for options); otherwise derive analytical
+            // Greeks from the position itself by instrument type. We must
+            // NEVER fall back to the per-asset-class aggregate here — that
+            // smears the same number across every row in the class (the
+            // trader-review P0 bug).
+            val perInstrumentGreeks = computePerInstrumentGreeks(
+                position = pos,
+                engineGreeks = positionGreeksByInstrument[pos.instrumentId.value],
+                greeksRequested = greeksRequested,
+            )
             val instrument = instrumentMap[pos.instrumentId.value]
 
             PositionRisk(
                 instrumentId = pos.instrumentId,
                 assetClass = pos.assetClass,
                 marketValue = pos.marketValue.amount,
-                delta = greeks?.delta,
-                gamma = greeks?.gamma,
-                vega = greeks?.vega,
+                delta = perInstrumentGreeks?.delta,
+                gamma = perInstrumentGreeks?.gamma,
+                vega = perInstrumentGreeks?.vega,
                 varContribution = varContribution.setScale(2, RoundingMode.HALF_UP),
                 esContribution = esContribution.setScale(2, RoundingMode.HALF_UP),
                 percentageOfTotal = percentageOfTotal.setScale(2, RoundingMode.HALF_UP),
@@ -513,6 +524,56 @@ class VaRCalculationService(
             )
         }
     }
+
+    /**
+     * Returns per-instrument Greeks for a single position, or null if none
+     * can be attributed for this asset class / instrument type.
+     *
+     * Priority:
+     *  1. Engine-provided per-position Greeks (populated for options today).
+     *  2. Analytical Greeks for linear instruments (cash equity, FX spot):
+     *     dollar delta = qty * marketPrice; gamma = vega = 0.
+     *  3. Null for instruments where the engine has not yet returned a
+     *     per-position number (bonds, swaps, etc.). The next checkbox in
+     *     the trader-review plan wires up DV01 / Theta / Rho for rates.
+     *
+     * Notes:
+     *  - We must NEVER fall back to the per-asset-class aggregate. That is
+     *    exactly the bug this method exists to fix.
+     *  - When the upstream valuation did not request Greeks at all, we
+     *    return null so the response carries `delta=null` (matching the
+     *    pre-fix behaviour for greek-less runs).
+     */
+    private fun computePerInstrumentGreeks(
+        position: com.kinetix.common.model.Position,
+        engineGreeks: PositionGreek?,
+        greeksRequested: Boolean,
+    ): PerInstrumentGreeks? {
+        if (!greeksRequested) return null
+
+        if (engineGreeks != null) {
+            return PerInstrumentGreeks(
+                delta = engineGreeks.delta,
+                gamma = engineGreeks.gamma,
+                vega = engineGreeks.vega,
+            )
+        }
+
+        // Linear-exposure analytical fallback. Cash equity dollar delta is
+        // signed quantity * spot; cash equity has no convexity and no vol
+        // sensitivity. FX spot is also linear in the same shape.
+        return when (position.instrumentType) {
+            com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
+            com.kinetix.common.model.instrument.InstrumentTypeCode.FX_SPOT -> PerInstrumentGreeks(
+                delta = (position.quantity * position.marketPrice.amount).toDouble(),
+                gamma = 0.0,
+                vega = 0.0,
+            )
+            else -> null
+        }
+    }
+
+    private data class PerInstrumentGreeks(val delta: Double, val gamma: Double, val vega: Double)
 
     private fun serializePositionBreakdown(positionRiskList: List<PositionRisk>, greeks: GreeksResult?): String {
         val items = positionRiskList.map { risk ->

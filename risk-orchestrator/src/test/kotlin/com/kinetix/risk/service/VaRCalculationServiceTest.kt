@@ -692,22 +692,26 @@ class VaRCalculationServiceTest : FunSpec({
     }
 
     test("includes per-position Greeks in CALCULATE_VAR step details when greeks are computed") {
+        // Two cash-equity positions with DIFFERENT share counts must surface
+        // DISTINCT per-instrument deltas — this is the trader-review P0 fix.
+        // Cash-equity gamma/vega are zero regardless of any asset-class
+        // aggregate the engine returns (only options have them).
         val positions = listOf(
-            position(instrumentId = "AAPL", assetClass = AssetClass.EQUITY),
-            position(instrumentId = "UST10Y", assetClass = AssetClass.FIXED_INCOME),
+            position(instrumentId = "AAPL", assetClass = AssetClass.EQUITY, quantity = "100", marketPrice = "170.00"),
+            position(instrumentId = "JNJ", assetClass = AssetClass.EQUITY, quantity = "50", marketPrice = "160.00"),
         )
         val greeks = GreeksResult(
+            // Aggregate is intentionally non-zero so any future regression that
+            // smears it onto each row trips this test loudly.
             assetClassGreeks = listOf(
                 GreekValues(AssetClass.EQUITY, delta = 0.85, gamma = 0.02, vega = 1500.0),
-                GreekValues(AssetClass.FIXED_INCOME, delta = -0.30, gamma = 0.01, vega = 200.0),
             ),
             theta = -45.0,
             rho = 120.0,
         )
         val expectedResult = varResult(
             componentBreakdown = listOf(
-                ComponentBreakdown(AssetClass.EQUITY, 3000.0, 60.0),
-                ComponentBreakdown(AssetClass.FIXED_INCOME, 2000.0, 40.0),
+                ComponentBreakdown(AssetClass.EQUITY, 5000.0, 100.0),
             ),
         ).copy(greeks = greeks)
 
@@ -733,15 +737,18 @@ class VaRCalculationServiceTest : FunSpec({
         val parsed = Json.parseToJsonElement(breakdownJson).jsonArray
         parsed shouldHaveSize 2
 
-        val equity = parsed.first { it.jsonObject["instrumentId"]!!.jsonPrimitive.content == "AAPL" }.jsonObject
-        equity["delta"]!!.jsonPrimitive.content shouldBe "0.850000"
-        equity["gamma"]!!.jsonPrimitive.content shouldBe "0.020000"
-        equity["vega"]!!.jsonPrimitive.content shouldBe "1500.000000"
+        // 100 shares * $170 = $17,000 dollar delta.
+        val aapl = parsed.first { it.jsonObject["instrumentId"]!!.jsonPrimitive.content == "AAPL" }.jsonObject
+        aapl["delta"]!!.jsonPrimitive.content shouldBe "17000.000000"
+        aapl["gamma"]!!.jsonPrimitive.content shouldBe "0.000000"
+        aapl["vega"]!!.jsonPrimitive.content shouldBe "0.000000"
 
-        val fi = parsed.first { it.jsonObject["instrumentId"]!!.jsonPrimitive.content == "UST10Y" }.jsonObject
-        fi["delta"]!!.jsonPrimitive.content shouldBe "-0.300000"
-        fi["gamma"]!!.jsonPrimitive.content shouldBe "0.010000"
-        fi["vega"]!!.jsonPrimitive.content shouldBe "200.000000"
+        // 50 shares * $160 = $8,000 dollar delta. Distinct from AAPL — proving
+        // the row is per-position, not per-asset-class.
+        val jnj = parsed.first { it.jsonObject["instrumentId"]!!.jsonPrimitive.content == "JNJ" }.jsonObject
+        jnj["delta"]!!.jsonPrimitive.content shouldBe "8000.000000"
+        jnj["gamma"]!!.jsonPrimitive.content shouldBe "0.000000"
+        jnj["vega"]!!.jsonPrimitive.content shouldBe "0.000000"
     }
 
     test("omits Greeks from position breakdown when greeks are null") {
@@ -873,22 +880,23 @@ class VaRCalculationServiceTest : FunSpec({
     }
 
     test("positionRisk includes per-position greeks when greeks are present") {
+        // Per-instrument Greeks must scale with the position, not the asset
+        // class. Trader-review P0 regression: the table previously showed the
+        // same delta on every equity row.
         val positions = listOf(
-            position(instrumentId = "AAPL", assetClass = AssetClass.EQUITY),
-            position(instrumentId = "UST10Y", assetClass = AssetClass.FIXED_INCOME),
+            position(instrumentId = "AAPL", assetClass = AssetClass.EQUITY, quantity = "100", marketPrice = "170.00"),
+            position(instrumentId = "JNJ", assetClass = AssetClass.EQUITY, quantity = "50", marketPrice = "160.00"),
         )
         val greeks = GreeksResult(
             assetClassGreeks = listOf(
                 GreekValues(AssetClass.EQUITY, delta = 0.85, gamma = 0.02, vega = 1500.0),
-                GreekValues(AssetClass.FIXED_INCOME, delta = -0.30, gamma = 0.01, vega = 200.0),
             ),
             theta = -45.0,
             rho = 120.0,
         )
         val expectedResult = varResult(
             componentBreakdown = listOf(
-                ComponentBreakdown(AssetClass.EQUITY, 3000.0, 60.0),
-                ComponentBreakdown(AssetClass.FIXED_INCOME, 2000.0, 40.0),
+                ComponentBreakdown(AssetClass.EQUITY, 5000.0, 100.0),
             ),
         ).copy(greeks = greeks)
 
@@ -907,15 +915,17 @@ class VaRCalculationServiceTest : FunSpec({
         result.shouldNotBeNull()
         result.positionRisk shouldHaveSize 2
 
-        val equity = result.positionRisk.first { it.instrumentId == InstrumentId("AAPL") }
-        equity.delta shouldBe 0.85
-        equity.gamma shouldBe 0.02
-        equity.vega shouldBe 1500.0
+        val aapl = result.positionRisk.first { it.instrumentId == InstrumentId("AAPL") }
+        // Dollar delta = qty * spot = 100 * 170.
+        aapl.delta shouldBe 17000.0
+        aapl.gamma shouldBe 0.0
+        aapl.vega shouldBe 0.0
 
-        val fi = result.positionRisk.first { it.instrumentId == InstrumentId("UST10Y") }
-        fi.delta shouldBe -0.30
-        fi.gamma shouldBe 0.01
-        fi.vega shouldBe 200.0
+        val jnj = result.positionRisk.first { it.instrumentId == InstrumentId("JNJ") }
+        // 50 * 160 — distinct from AAPL, proving per-position attribution.
+        jnj.delta shouldBe 8000.0
+        jnj.gamma shouldBe 0.0
+        jnj.vega shouldBe 0.0
     }
 
     test("positionRisk has null greeks when greeks are not computed") {
