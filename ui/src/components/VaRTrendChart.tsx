@@ -108,23 +108,36 @@ export function VaRTrendChart({ history, isLoading, timeRange, onZoom, zoomDepth
   const plotHeight = CHART_HEIGHT - PADDING.top - PADDING.bottom
 
   const { min, max } = useMemo(() => {
+    // VaR and ES are conventionally non-negative. Zero-sentinel values
+    // (e.g. useVaR fills missing ES with 0) would otherwise drag the
+    // Y-domain bottom below the meaningful range and make the recent VaR
+    // look like a flatline. Filter them out before fitting.
+    const meaningful = (xs: number[]) => xs.filter((v) => Number.isFinite(v) && v > 0)
     const values = [
-      ...(varVisible ? history.map((e) => e.varValue) : []),
-      ...(esVisible ? history.map((e) => e.expectedShortfall) : []),
+      ...(varVisible ? meaningful(history.map((e) => e.varValue)) : []),
+      ...(esVisible ? meaningful(history.map((e) => e.expectedShortfall)) : []),
     ]
     if (values.length === 0) {
-      const fallback = history.flatMap((e) => [e.varValue, e.expectedShortfall])
+      const fallback = meaningful(history.flatMap((e) => [e.varValue, e.expectedShortfall]))
+      if (fallback.length === 0) return { min: 0, max: 1 }
       const fMin = Math.min(...fallback)
       const fMax = Math.max(...fallback)
       const fRange = fMax - fMin
       const fPad = fRange * 0.1 || fMax * 0.1 || 1
-      return { min: fMin - fPad, max: fMax + fPad }
+      // Clamp top to 1.5x dataMax so padding never blows the axis open.
+      return { min: Math.max(0, fMin - fPad), max: Math.min(fMax + fPad, fMax * 1.5) }
     }
     const minVal = Math.min(...values)
     const maxVal = Math.max(...values)
     const range = maxVal - minVal
     const padding = range * 0.1 || maxVal * 0.1 || 1
-    return { min: minVal - padding, max: maxVal + padding }
+    // Clamp the domain: bottom >= 0 (VaR/ES are non-negative) and
+    // top <= 1.5x maxVal so a single outlier can't push the axis into
+    // a regime where typical values flatline visually.
+    return {
+      min: Math.max(0, minVal - padding),
+      max: Math.min(maxVal + padding, maxVal * 1.5),
+    }
   }, [history, varVisible, esVisible])
 
   const gridLines = useMemo(() => computeNiceGridLines(min, max, 4), [min, max])
