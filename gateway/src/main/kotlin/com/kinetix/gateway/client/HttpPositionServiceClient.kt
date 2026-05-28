@@ -169,6 +169,13 @@ class HttpPositionServiceClient(
                     fxRate = exposures.first().fxRate,
                 )
             }
+            // Drop currencies whose firm-wide exposure nets to zero (e.g. a
+            // closed FX hedge). Keeping them produces $0 rows in the Currency
+            // Breakdown card that look like real positions a trader needs to
+            // think about. Anything with a non-zero local OR base value stays
+            // — we don't want a rounding-induced zero on one side to hide a
+            // real exposure on the other.
+            .filter { it.localValue.amount.signum() != 0 || it.baseValue.amount.signum() != 0 }
             .sortedByDescending { it.baseValue.amount.abs() }
         return PortfolioAggregationSummary(
             bookId = "firm",
