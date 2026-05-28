@@ -135,24 +135,6 @@ kube-prometheus-stack:
     grafana.ini:
       auth.anonymous:
         enabled: false
-      server:
-        # The ingress terminates TLS and forwards to Grafana over HTTP inside
-        # the cluster.  Without root_url Grafana generates asset URLs relative
-        # to "/" which an nginx rewrite strips, breaking the SPA bootstrap.
-        root_url: "https://grafana.kinetixrisk.ai"
-        serve_from_sub_path: false
-    ingress:
-      enabled: true
-      ingressClassName: nginx
-      annotations:
-        nginx.ingress.kubernetes.io/rewrite-target: "/$2"
-      hosts:
-        - grafana.kinetixrisk.ai
-      path: "/()(.*)"
-      tls:
-        - secretName: grafana-kinetixrisk-ai-tls
-          hosts:
-            - grafana.kinetixrisk.ai
     resources:
       requests:
         cpu: 100m
@@ -200,17 +182,6 @@ loki:
       replication_factor: 1
     storage:
       type: filesystem
-    # Schema config required by loki chart v6+. Must be defined here rather
-    # than as structuredConfig so the chart validation (validate.yaml) passes.
-    schemaConfig:
-      configs:
-        - from: "2024-01-01"
-          store: tsdb
-          object_store: filesystem
-          schema: v13
-          index:
-            prefix: index_
-            period: 24h
     # Log retention: 90 days. Without this Loki keeps logs indefinitely
     # and the filesystem store grows without bound. The compactor must be
     # enabled with retention_enabled for limits_config.retention_period to
@@ -230,14 +201,6 @@ loki:
       limits:
         cpu: 500m
         memory: 512Mi
-  # In SingleBinary deploymentMode the scalable targets must be zeroed out,
-  # otherwise the chart validation rejects the config.
-  write:
-    replicas: 0
-  read:
-    replicas: 0
-  backend:
-    replicas: 0
 
 tempo:
   enabled: true
@@ -263,10 +226,6 @@ tempo:
 opentelemetry-collector:
   enabled: true
   mode: deployment
-  # image.repository is required by opentelemetry-collector chart v0.100+.
-  # The k8s distribution image includes all contrib receivers and exporters.
-  image:
-    repository: otel/opentelemetry-collector-k8s
   resources:
     requests:
       cpu: 100m
