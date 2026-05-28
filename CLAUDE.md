@@ -55,7 +55,7 @@ cd ui && npx playwright test --ui            # Playwright UI mode
 
 ## Local Dev
 
-- **Bring the platform up:** `./deploy/redeploy.sh` — rebuilds Kotlin images, starts infra (postgres, redis, kafka) and all services. Compose files live in `deploy/` and `deploy/infra/`.
+- **Bring the platform up:** `./deploy/redeploy.sh` — rebuilds Kotlin images, starts infra (postgres, redis, kafka) and all services. Compose files: `docker-compose.services.yml` at the repo root, plus `infra/docker-compose.infra.yml` and `infra/docker-compose.observability.yml`.
 - **Local URLs:** UI `https://kinetixrisk.ai`, Gateway `https://api.kinetixrisk.ai`, Grafana `https://grafana.kinetixrisk.ai`.
 - **Observability stack:** Prometheus + Loki + Tempo (see ADR-0008). Configs in `deploy/observability/`.
 - **Useful slash commands:** `/health` (service health check), `/incident` (triage), `/deploy` (full redeploy), `/demo` (seed demo data).
@@ -72,6 +72,18 @@ Follow TDD (Test-Driven Development) and BDD (Behaviour-Driven Development) prac
 - **Run the full suite for every affected module after each change.** Tests must be fast, independent, and self-contained — no execution-order dependencies.
 - **Run linting before pushing UI changes.** Always run `cd ui && npm run lint` before committing UI code. ESLint catches errors (e.g. `react-hooks/set-state-in-effect`) that unit tests do not.
 - **Bug fixes need a reproducing test before the fix.** Refactors must not reduce coverage. If you change behaviour that existing tests cover, update those tests — do not leave them failing.
+
+## Allium Specs (source of truth)
+
+Behaviour for this platform is defined in Allium specifications under [`specs/`](specs/README.md), not in code. Services, schemas, and tests are kept aligned with the specs via three skills:
+
+- `/distill` — extract a spec from existing code (reverse-engineer behaviour into a spec).
+- `/weed` — find divergences between a spec and the implementation; resolve by updating one side or the other.
+- `/propagate` — generate tests from a spec.
+
+When making a behavioural change, **change the spec first**, then propagate to code and tests. For language questions about Allium, the `/allium` skill is the reference; for building a new spec from a conversation, use `/elicit`; for editing an existing spec, use `/tend`. Several ADRs (e.g. 0031–0034) cite specs by line number — keep that pattern when an ADR records a decision that a spec already encodes.
+
+Start any spec-related task by reading [`specs/README.md`](specs/README.md). Drift reports live in [`specs/divergences/`](specs/divergences/).
 
 ## Project Conventions
 
@@ -107,13 +119,18 @@ Follow TDD (Test-Driven Development) and BDD (Behaviour-Driven Development) prac
 
 ## Architectural Decisions
 
-- **30 ADRs are recorded in [`docs/adr/`](docs/adr/README.md).** Consult them before changes that overlap. Notable ones to know about:
+- **36 ADRs are recorded in [`docs/adr/`](docs/adr/README.md).** Consult them before changes that overlap. Notable ones to know about:
   - ADR-0001 monorepo structure
   - ADR-0004 Kafka for async messaging
   - ADR-0008 observability stack (Prometheus + Loki + Tempo)
   - ADR-0013 Keycloak for authentication
+  - ADR-0017 hash-chained audit trail
   - ADR-0018 run reproducibility via manifests
   - ADR-0021 risk orchestration architecture
+  - ADR-0024 unified Valuate RPC (supersedes CalculateVaR)
+  - ADR-0029 Discovery-Valuation two-phase contract
+  - ADR-0036 AI Copilot architecture (v2)
+- ADRs 0031–0034 each cite an Allium spec by line — use that style when a decision is also captured in a spec.
 - **Ask before changing architecture.** Before introducing a new service, module, library, messaging topic, database table, or API contract — or before significantly restructuring existing ones — explain the trade-offs and get my approval.
 - **Act autonomously within existing boundaries.** Adding a class/file within an existing service, writing tests, refactoring internals, or adding a route to an existing API — follow established patterns without asking.
 
