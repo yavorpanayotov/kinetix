@@ -267,3 +267,30 @@ def bond_key_rate_duration(
             f"KRD: yield_bump must be positive (got {yield_bump})",
         )
     return (pv_down - pv_up) / (2.0 * pv_baseline * yield_bump)
+
+
+def bond_convexity(bond: BondPosition, yield_rate: float, yield_bump: float = 0.0001) -> float:
+    """Bond convexity — the second derivative of price w.r.t. yield.
+
+    .. math::
+
+        Convexity = \\frac{P_+ + P_- - 2 P_0}{P_0 \\cdot \\Delta y^2}
+
+    Modified duration captures only the linear price/yield relationship;
+    convexity captures the curvature, which becomes the dominant term
+    in big yield moves. The full second-order Taylor expansion is
+
+    .. math::
+
+        \\Delta P / P \\approx -D \\cdot \\Delta y + \\frac{1}{2} \\cdot C \\cdot \\Delta y^2
+
+    so the convexity adjustment dampens the linear estimate when
+    yields fall sharply (price gains MORE than duration predicts) and
+    when yields rise (price drops LESS than duration predicts).
+    """
+    pv_baseline = bond_pv(bond, yield_rate)
+    if pv_baseline <= 0:
+        return 0.0
+    pv_up = bond_pv(bond, yield_rate + yield_bump)
+    pv_down = bond_pv(bond, yield_rate - yield_bump)
+    return (pv_up + pv_down - 2.0 * pv_baseline) / (pv_baseline * yield_bump * yield_bump)

@@ -221,3 +221,33 @@ class TestKeyRateDuration:
         from kinetix_risk.bond_pricing import bond_key_rate_duration
         with pytest.raises(ValueError):
             bond_key_rate_duration(99.5, 100.5, 100.0, yield_bump=0.0)
+
+
+class TestBondConvexity:
+    @staticmethod
+    def _bond(maturity_iso: str):
+        from kinetix_risk.models import BondPosition, AssetClass
+        return BondPosition(
+            instrument_id=f"G-{maturity_iso}",
+            asset_class=AssetClass.FIXED_INCOME,
+            market_value=1_000_000.0,
+            currency="USD",
+            face_value=1_000_000.0,
+            coupon_rate=0.03,
+            coupon_frequency=2,
+            maturity_date=maturity_iso,
+        )
+
+    @pytest.mark.unit
+    def test_convexity_positive_for_typical_bond(self):
+        from kinetix_risk.bond_pricing import bond_convexity
+        c = bond_convexity(self._bond("2036-05-28"), yield_rate=0.03)
+        assert c > 0
+
+    @pytest.mark.unit
+    def test_convexity_grows_with_maturity(self):
+        """Longer-dated bonds have larger convexity (more curvature)."""
+        from kinetix_risk.bond_pricing import bond_convexity
+        short_bond = self._bond("2029-05-28")
+        long_bond = self._bond("2046-05-28")
+        assert bond_convexity(long_bond, 0.03) > bond_convexity(short_bond, 0.03)
