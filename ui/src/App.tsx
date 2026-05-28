@@ -21,6 +21,7 @@ import { ReportsTab } from './components/ReportsTab'
 import { AuditLogPanel } from './components/AuditLogPanel'
 import { EodTimelineTab } from './components/EodTimelineTab'
 import { BookSummaryCard } from './components/BookSummaryCard'
+import { Badge } from './components/ui'
 import { RiskTickerStrip } from './components/RiskTickerStrip'
 import { BreachBanner } from './components/BreachBanner'
 import { SystemStatusBanner } from './components/SystemStatusBanner'
@@ -865,6 +866,18 @@ function AppContent() {
                         What-If
                       </button>
                     </div>
+                    {hierarchy.selection.level === 'book' && hierarchy.selection.bookId && (
+                      // Plan ui-trader-review.md P1 §12 — when the Positions tab
+                      // is filtered to a single book, the existing "Firm
+                      // Summary" heading misrepresents the scope. Surface an
+                      // explicit badge so the trader sees the filter at a
+                      // glance.
+                      <div className="mb-2">
+                        <Badge variant="info" data-testid="positions-scope-banner">
+                          Showing: book = {hierarchy.selection.bookId}
+                        </Badge>
+                      </div>
+                    )}
                     <div className="mb-4">
                       <BookSummaryCard
                         summary={hierarchySummary.summary}
