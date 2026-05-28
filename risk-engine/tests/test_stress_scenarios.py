@@ -339,3 +339,43 @@ class TestReverseStressOptimization:
     def test_reverse_stress_rank_empty_is_empty_list(self):
         from kinetix_risk.scenario_heatmap import rank_scenarios_by_loss
         assert rank_scenarios_by_loss({}) == []
+
+
+class TestVolmageddon2018:
+    @pytest.mark.unit
+    def test_volmageddon_2018_default_shock_doubles_vol(self):
+        from kinetix_risk.stress.volmageddon_2018 import Volmageddon2018Shock
+        s = Volmageddon2018Shock()
+        assert s.vol_shock_multiplier == 2.5
+        assert s.equity_spot_shock_pct < 0
+        assert s.vix_basis_shock_pct > 0
+
+    @pytest.mark.unit
+    def test_volmageddon_2018_short_vol_position_loses(self):
+        from kinetix_risk.stress.volmageddon_2018 import (
+            apply_volmageddon_2018_to_short_vol_position,
+        )
+        loss = apply_volmageddon_2018_to_short_vol_position(
+            notional=1_000_000.0, initial_vol=0.15,
+        )
+        # 1M * (0.375 - 0.15) = 1M * 0.225 = 225k loss
+        assert loss == pytest.approx(225_000.0)
+
+    @pytest.mark.unit
+    def test_volmageddon_2018_zero_position_zero_loss(self):
+        from kinetix_risk.stress.volmageddon_2018 import (
+            apply_volmageddon_2018_to_short_vol_position,
+        )
+        assert apply_volmageddon_2018_to_short_vol_position(0.0, 0.15) == 0.0
+
+    @pytest.mark.unit
+    def test_volmageddon_2018_higher_initial_vol_means_more_loss(self):
+        """A short-vol position at 30% initial vol loses MORE in the
+        scenario than the same notional at 15% — the multiplier is
+        proportional to starting vol."""
+        from kinetix_risk.stress.volmageddon_2018 import (
+            apply_volmageddon_2018_to_short_vol_position,
+        )
+        loss_low = apply_volmageddon_2018_to_short_vol_position(1_000_000.0, 0.15)
+        loss_high = apply_volmageddon_2018_to_short_vol_position(1_000_000.0, 0.30)
+        assert loss_high > loss_low
