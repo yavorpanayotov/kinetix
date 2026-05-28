@@ -11,7 +11,11 @@ data class Tenor(
     init {
         require(label.isNotBlank()) { "Tenor label must not be blank" }
         require(days > 0) { "Tenor days must be positive, was $days" }
-        require(rate >= BigDecimal.ZERO) { "Tenor rate must be non-negative, was $rate" }
+        // Note: negative rates are intentionally allowed — ECB deposit rate
+        // was -0.50% from 2019 through 2022 and bund yields were negative
+        // across the curve. Curve-level invariants (finite values, ordering)
+        // live in rates-service YieldCurveValidation, which is the
+        // authoritative validator for yield curve quotes.
     }
 
     override fun compareTo(other: Tenor): Int = days.compareTo(other.days)

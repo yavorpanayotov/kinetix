@@ -38,10 +38,13 @@ class TenorTest : FunSpec({
         }
     }
 
-    test("Tenor with negative rate throws IllegalArgumentException") {
-        shouldThrow<IllegalArgumentException> {
-            Tenor("1Y", 365, BigDecimal("-0.01"))
-        }
+    test("Tenor with negative rate is allowed (ECB negative-rates era)") {
+        // Negative rates are a legitimate market reality — ECB deposit rate
+        // was -0.50% from 2019 through 2022. Curve-level invariants live in
+        // rates-service YieldCurveValidation; the Tenor constructor must not
+        // reject negative rates.
+        val tenor = Tenor("2Y", 730, BigDecimal("-0.005"))
+        tenor.rate shouldBe BigDecimal("-0.005")
     }
 
     test("Tenor with zero rate is allowed") {
