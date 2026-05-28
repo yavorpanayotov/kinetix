@@ -121,7 +121,7 @@ Ordered top-to-bottom by dependency. P0 first because every P1 cross-tab inconsi
 
 ### P1 — Cross-tab data consistency
 
-- [ ] **Make page scope explicit on Positions.** Add a "Showing: book = balanced-income" badge near "Firm Summary", or relabel when filtered. Failing Playwright test asserts the badge reflects the active filter.
+- [x] **Make page scope explicit on Positions.** Add a "Showing: book = balanced-income" badge near "Firm Summary", or relabel when filtered. Failing Playwright test asserts the badge reflects the active filter.
   Acceptance: `cd ui && npx playwright test e2e/positions-scope-banner.spec.ts` green.
 
 - [ ] **Expand Currency Breakdown to all currencies with non-zero exposure.** Failing acceptance test on the gateway summary endpoint asserting GBP/JPY rows when fixture positions include them.
