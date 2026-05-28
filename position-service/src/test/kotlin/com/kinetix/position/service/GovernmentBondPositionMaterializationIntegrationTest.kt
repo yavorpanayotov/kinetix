@@ -59,7 +59,7 @@ private val BOOK = BookId("rates-book-1")
 private val UST_10Y = InstrumentId("UST-10Y")
 private val TRADED_AT: Instant = Instant.parse("2026-05-28T10:14:15Z")
 
-class GovernmentBondPositionMaterializationTest : FunSpec({
+class GovernmentBondPositionMaterializationIntegrationTest : FunSpec({
 
     val db = DatabaseTestSetup.startAndMigrate()
     val tradeRepo = ExposedTradeEventRepository(db)

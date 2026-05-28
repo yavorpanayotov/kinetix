@@ -101,8 +101,8 @@ Ordered top-to-bottom by dependency. P0 first because every P1 cross-tab inconsi
 - [x] **Fix asset-class taxonomy for Treasuries.** Find the classifier that maps `UST-5Y/UST-10Y/PG` to `EQUITY/Cash Equity`. Reference-data or instrument-master miscoding is the likely culprit. Failing test: `ReferenceDataAcceptanceTest` asserting `UST-10Y.assetClass == GOVERNMENT_BOND` and `UST-10Y.instrumentType != CASH_EQUITY`. Then fix the upstream seed/classifier and re-derive everywhere it propagates.
   Acceptance: `./gradlew :reference-data-service:acceptanceTest --tests "*InstrumentTaxonomy*"` plus `./gradlew :position-service:acceptanceTest --tests "*PositionAssetClassAcceptanceTest"` green.
 
-- [ ] **Reconcile UST-* zero-market-value vs active trades.** After the taxonomy fix, write a failing position-service integration test that books a `UST-10Y` trade and asserts the resulting position has non-zero `marketValue` and appears under `assetClass = GOVERNMENT_BOND` in the gateway projection.
-  Acceptance: `./gradlew :position-service:integrationTest --tests "*GovernmentBondPositionMaterializationTest"` green.
+- [x] **Reconcile UST-* zero-market-value vs active trades.** After the taxonomy fix, write a failing position-service integration test that books a `UST-10Y` trade and asserts the resulting position has non-zero `marketValue` and appears under `assetClass = GOVERNMENT_BOND` in the gateway projection.
+  Acceptance: `./gradlew :position-service:integrationTest --tests "*GovernmentBondPositionMaterializationIntegrationTest"` green.
 
 - [ ] **Reconcile the three Risk-tab VaR totals.** Decide canonical: header value = firm-total (or selected scope) VaR from the latest promoted run; "Sum of books" + diversification benefit must equal it; Factor Decomposition must use the same run/scope. Write a failing acceptance test that pulls all three from the gateway response and asserts they reconcile within rounding.
   Acceptance: `./gradlew :gateway:acceptanceTest --tests "*RiskDashboardReconciliationAcceptanceTest"` green.
