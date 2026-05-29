@@ -50,12 +50,46 @@ docker compose \
   build --no-cache
 
 # ── Start the full stack (demo mode — no Keycloak) ──────────────────────────
+# Reused for the start + the Created-state recovery sweep below.
+COMPOSE_FILES=(
+  -f "$ROOT_DIR/infra/docker-compose.infra.yml"
+  -f "$ROOT_DIR/infra/docker-compose.observability.yml"
+  -f "$ROOT_DIR/docker-compose.services.yml"
+)
+
 echo "==> Starting all services in demo mode..."
-docker compose \
-  -f "$ROOT_DIR/infra/docker-compose.infra.yml" \
-  -f "$ROOT_DIR/infra/docker-compose.observability.yml" \
-  -f "$ROOT_DIR/docker-compose.services.yml" \
-  up -d --wait
+# Allow a non-zero exit so we can recover stuck containers rather than aborting:
+# if --wait times out (e.g. a dependency was slow to become healthy) compose
+# leaves the dependants in 'Created' state and exits non-zero.
+set +e
+docker compose "${COMPOSE_FILES[@]}" up -d --wait
+up_rc=$?
+set -e
+
+# ── Recover containers stuck in 'Created' state ──────────────────────────────
+# Symptom this guards against: public URLs down while backends are healthy,
+# because caddy/ui (chained on `condition: service_healthy`) were never started
+# after an interrupted or timed-out `up --wait`. Re-running `up -d --wait` is
+# idempotent — it starts the Created ones and waits for them to go healthy.
+for attempt in 1 2 3; do
+  created="$(docker compose "${COMPOSE_FILES[@]}" ps --status created -q)"
+  [ -z "$created" ] && break
+  echo "==> Found containers stuck in 'Created' state (attempt ${attempt}/3) — starting them:"
+  docker compose "${COMPOSE_FILES[@]}" ps --status created --format '    {{.Name}}'
+  set +e
+  docker compose "${COMPOSE_FILES[@]}" up -d --wait
+  up_rc=$?
+  set -e
+done
+
+created="$(docker compose "${COMPOSE_FILES[@]}" ps --status created -q)"
+if [ -n "$created" ]; then
+  echo "WARNING: containers are still in 'Created' state after recovery attempts:" >&2
+  docker compose "${COMPOSE_FILES[@]}" ps --status created --format '    {{.Name}}' >&2
+  echo "         Inspect with 'docker compose ${COMPOSE_FILES[*]} ps' / 'docker logs <name>'." >&2
+elif [ "${up_rc:-0}" -ne 0 ]; then
+  echo "WARNING: 'docker compose up --wait' reported errors (rc=${up_rc}); review 'docker compose ps'." >&2
+fi
 
 # ── Summary ─────────────────────────────────────────────────────────────────
 echo ""
