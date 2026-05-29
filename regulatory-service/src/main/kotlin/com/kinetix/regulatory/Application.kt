@@ -42,6 +42,9 @@ import io.ktor.server.application.*
 import io.ktor.server.metrics.micrometer.*
 import io.ktor.server.netty.*
 import com.kinetix.common.observability.CorrelationIdHttpServerPlugin
+import com.kinetix.common.observability.OtelHttpClientInterceptor
+import com.kinetix.common.observability.OtelHttpServerPlugin
+import com.kinetix.common.observability.OtelInit
 import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.request.header
@@ -71,6 +74,8 @@ fun Application.module() {
     attributes.put(MicrometerRegistryKey, appMicrometerRegistry)
     install(MicrometerMetrics) { registry = appMicrometerRegistry }
     install(ContentNegotiation) { json() }
+    val otel = OtelInit.init(serviceName = "regulatory-service")
+    install(OtelHttpServerPlugin) { openTelemetry = otel }
     install(CorrelationIdHttpServerPlugin)
     install(CallLogging) {
         level = Level.INFO
@@ -161,10 +166,12 @@ fun Application.moduleWithRoutes() {
         .property("url")
         .getString()
 
+    val regulatoryOtel = OtelInit.init(serviceName = "regulatory-service")
     val httpClient = HttpClient(CIO) {
         install(io.ktor.client.plugins.contentnegotiation.ContentNegotiation) {
             json()
         }
+        install(OtelHttpClientInterceptor) { openTelemetry = regulatoryOtel }
     }
 
     val client = RiskOrchestratorClient(httpClient, riskOrchestratorUrl)

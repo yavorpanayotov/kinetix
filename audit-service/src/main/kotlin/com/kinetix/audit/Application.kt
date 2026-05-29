@@ -26,6 +26,8 @@ import io.ktor.server.application.*
 import io.ktor.server.metrics.micrometer.*
 import io.ktor.server.netty.*
 import com.kinetix.common.observability.CorrelationIdHttpServerPlugin
+import com.kinetix.common.observability.OtelHttpServerPlugin
+import com.kinetix.common.observability.OtelInit
 import io.ktor.server.plugins.calllogging.*
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.request.*
@@ -75,6 +77,8 @@ fun Application.module() {
             encodeDefaults = true
         })
     }
+    val otel = OtelInit.init(serviceName = "audit-service")
+    install(OtelHttpServerPlugin) { openTelemetry = otel }
     install(CorrelationIdHttpServerPlugin)
     install(CallLogging) {
         level = Level.INFO

@@ -26,6 +26,8 @@ import io.ktor.server.application.log
 import io.ktor.server.metrics.micrometer.MicrometerMetrics
 import io.ktor.server.netty.EngineMain
 import com.kinetix.common.observability.CorrelationIdHttpServerPlugin
+import com.kinetix.common.observability.OtelHttpServerPlugin
+import com.kinetix.common.observability.OtelInit
 import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.request.header
@@ -54,6 +56,8 @@ fun Application.module(
             ignoreUnknownKeys = true
         })
     }
+    val otel = OtelInit.init(serviceName = "fix-gateway")
+    install(OtelHttpServerPlugin) { openTelemetry = otel }
     install(CorrelationIdHttpServerPlugin)
     install(CallLogging) {
         level = Level.INFO

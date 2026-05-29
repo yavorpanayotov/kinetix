@@ -52,6 +52,8 @@ import io.ktor.server.metrics.micrometer.MicrometerMetrics
 import kotlinx.coroutines.launch
 import io.ktor.server.netty.EngineMain
 import com.kinetix.common.observability.CorrelationIdHttpServerPlugin
+import com.kinetix.common.observability.OtelHttpServerPlugin
+import com.kinetix.common.observability.OtelInit
 import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import com.kinetix.referencedata.error.configureErrorHandling
@@ -79,6 +81,8 @@ fun Application.module() {
     val appMicrometerRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
     install(MicrometerMetrics) { registry = appMicrometerRegistry }
     install(ContentNegotiation) { json() }
+    val otel = OtelInit.init(serviceName = "reference-data-service")
+    install(OtelHttpServerPlugin) { openTelemetry = otel }
     install(CorrelationIdHttpServerPlugin)
     install(CallLogging) {
         level = Level.INFO

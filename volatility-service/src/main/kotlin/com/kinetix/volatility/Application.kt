@@ -32,6 +32,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import io.ktor.server.netty.EngineMain
 import com.kinetix.common.observability.CorrelationIdHttpServerPlugin
+import com.kinetix.common.observability.OtelHttpServerPlugin
+import com.kinetix.common.observability.OtelInit
 import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import com.kinetix.volatility.error.configureErrorHandling
@@ -77,6 +79,8 @@ fun Application.module() {
     }
     install(MicrometerMetrics) { registry = appMicrometerRegistry }
     install(ContentNegotiation) { json() }
+    val otel = OtelInit.init(serviceName = "volatility-service")
+    install(OtelHttpServerPlugin) { openTelemetry = otel }
     install(CorrelationIdHttpServerPlugin)
     install(CallLogging) {
         level = Level.INFO
