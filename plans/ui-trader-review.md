@@ -140,6 +140,7 @@ Ordered top-to-bottom by dependency. P0 first because every P1 cross-tab inconsi
 
 - [ ] **Risk-impact preview on Place Order.** Spec change first (Allium under `specs/`), then a gateway endpoint that runs the candidate trade through the existing valuation path and returns Δ VaR, Δ Delta, Δ Notional, Δ counterparty exposure. UI Vitest + Playwright asserting the preview panel populates on form-blur.
   Acceptance: `./gradlew :gateway:acceptanceTest --tests "*PreTradeRiskPreviewAcceptanceTest"` plus `cd ui && npx playwright test e2e/place-order-risk-preview.spec.ts` green. **Get approval before adding the gateway route** (architecture-touching).
+  Blocked: 2026-05-29 — checkbox body and the top-of-plan "Decisions applied" section both require explicit user approval before adding the new gateway route. `/work-plan` cannot satisfy this autonomously; the user needs to (a) approve the new `/api/v1/risk/pretrade-preview` endpoint (or alternative shape), (b) confirm whether the spec change goes in `specs/` first via `/tend`, or (c) defer this checkbox and let the loop advance to the next unblocked item (e.g. P2 #20 "Alert deduplication + batch acknowledge").
 
 - [x] **Limits screen shows utilisation, not just limit.** For each limit row, populate the Intraday and Overnight cells with current value + utilisation %. Failing acceptance test on the limits endpoint.
   Acceptance: `./gradlew :gateway:acceptanceTest --tests "*LimitsUtilisationAcceptanceTest"` green plus Playwright assertion on the rendered cells.
