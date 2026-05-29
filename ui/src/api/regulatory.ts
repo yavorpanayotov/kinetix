@@ -23,6 +23,23 @@ export async function fetchFrtb(
   return response.json()
 }
 
+export async function fetchFrtbLatest(
+  bookId: string,
+): Promise<FrtbResultDto | null> {
+  const response = await authFetch(
+    `/api/v1/regulatory/frtb/${encodeURIComponent(bookId)}/latest`,
+  )
+  if (response.status === 404) {
+    return null
+  }
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch latest FRTB: ${response.status} ${response.statusText}`,
+    )
+  }
+  return response.json()
+}
+
 export async function generateReport(
   bookId: string,
   format: string,

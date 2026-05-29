@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { fetchFrtb, generateReport } from '../api/regulatory'
+import { fetchFrtb, fetchFrtbLatest, generateReport } from '../api/regulatory'
 import type { FrtbResultDto } from '../types'
 
 export interface UseRegulatoryResult {
@@ -16,9 +16,31 @@ export function useRegulatory(bookId: string | null): UseRegulatoryResult {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // On book change, reset and load the most recent persisted FRTB calculation
+  // so the tab shows the last result by default instead of an empty state.
+  // The background load does not flip `loading` (which is reserved for an
+  // explicit Calculate action) and is cancelled if the book changes again.
   useEffect(() => {
     setResult(null)
     setError(null)
+    if (!bookId) return
+
+    let cancelled = false
+    fetchFrtbLatest(bookId)
+      .then((latest) => {
+        if (!cancelled && latest) {
+          setResult(latest)
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : String(err))
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
   }, [bookId])
 
   const calculate = useCallback(async () => {

@@ -4,10 +4,11 @@ import type { FrtbResultDto } from '../types'
 
 vi.mock('../api/regulatory')
 
-import { fetchFrtb, generateReport } from '../api/regulatory'
+import { fetchFrtb, fetchFrtbLatest, generateReport } from '../api/regulatory'
 import { useRegulatory } from './useRegulatory'
 
 const mockFetchFrtb = vi.mocked(fetchFrtb)
+const mockFetchFrtbLatest = vi.mocked(fetchFrtbLatest)
 const mockGenerateReport = vi.mocked(generateReport)
 
 const frtbResult: FrtbResultDto = {
@@ -35,14 +36,64 @@ const frtbResult: FrtbResultDto = {
 describe('useRegulatory', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    // By default no prior calculation exists; individual tests override this
+    // to assert the default-load behaviour.
+    mockFetchFrtbLatest.mockResolvedValue(null)
   })
 
-  it('starts with no result', () => {
+  it('starts with no result when there is no prior calculation', async () => {
+    mockFetchFrtbLatest.mockResolvedValue(null)
+
     const { result } = renderHook(() => useRegulatory('book-1'))
 
     expect(result.current.result).toBeNull()
     expect(result.current.loading).toBe(false)
     expect(result.current.error).toBeNull()
+
+    await waitFor(() => {
+      expect(mockFetchFrtbLatest).toHaveBeenCalledWith('book-1')
+    })
+    expect(result.current.result).toBeNull()
+  })
+
+  it('loads the most recent calculation by default when one exists', async () => {
+    mockFetchFrtbLatest.mockResolvedValue(frtbResult)
+
+    const { result } = renderHook(() => useRegulatory('book-1'))
+
+    await waitFor(() => {
+      expect(result.current.result).toEqual(frtbResult)
+    })
+    expect(mockFetchFrtbLatest).toHaveBeenCalledWith('book-1')
+    // The default load must NOT trigger a recalculation (POST).
+    expect(mockFetchFrtb).not.toHaveBeenCalled()
+  })
+
+  it('does not fetch the latest calculation when no book is selected', () => {
+    mockFetchFrtbLatest.mockResolvedValue(null)
+
+    renderHook(() => useRegulatory(null))
+
+    expect(mockFetchFrtbLatest).not.toHaveBeenCalled()
+  })
+
+  it('reloads the latest calculation when the book changes', async () => {
+    mockFetchFrtbLatest.mockResolvedValue(frtbResult)
+
+    const { rerender } = renderHook(
+      ({ bookId }) => useRegulatory(bookId),
+      { initialProps: { bookId: 'book-1' as string | null } },
+    )
+
+    await waitFor(() => {
+      expect(mockFetchFrtbLatest).toHaveBeenCalledWith('book-1')
+    })
+
+    rerender({ bookId: 'book-2' })
+
+    await waitFor(() => {
+      expect(mockFetchFrtbLatest).toHaveBeenCalledWith('book-2')
+    })
   })
 
   it('calculates FRTB and returns result', async () => {

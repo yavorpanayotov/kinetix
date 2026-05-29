@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fetchFrtb, generateReport } from './regulatory'
+import { fetchFrtb, fetchFrtbLatest, generateReport } from './regulatory'
 
 describe('regulatory API', () => {
   const mockFetch = vi.fn()
@@ -74,6 +74,45 @@ describe('regulatory API', () => {
 
       await expect(fetchFrtb('book-1')).rejects.toThrow(
         'Failed to fetch FRTB: 500 Internal Server Error',
+      )
+    })
+  })
+
+  describe('fetchFrtbLatest', () => {
+    it('GETs the latest stored calculation', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(frtbResult),
+      })
+
+      const result = await fetchFrtbLatest('book-1')
+
+      expect(result).toEqual(frtbResult)
+      expect(mockFetch).toHaveBeenCalledWith('/api/v1/regulatory/frtb/book-1/latest')
+    })
+
+    it('returns null on 404 when no calculation exists', async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 404,
+        statusText: 'Not Found',
+      })
+
+      const result = await fetchFrtbLatest('book-1')
+
+      expect(result).toBeNull()
+    })
+
+    it('throws on 500', async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
+      })
+
+      await expect(fetchFrtbLatest('book-1')).rejects.toThrow(
+        'Failed to fetch latest FRTB: 500 Internal Server Error',
       )
     })
   })
