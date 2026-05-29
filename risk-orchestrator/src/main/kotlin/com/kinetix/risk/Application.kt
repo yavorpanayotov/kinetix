@@ -667,6 +667,7 @@ fun Application.moduleWithRoutes() {
         topic = "trades.lifecycle",
         dlqProducer = kafkaProducer,
         livenessTracker = tradesLivenessTracker,
+        openTelemetry = otel,
     )
     val tradeEventConsumer = TradeEventConsumer(
         KafkaConsumer<String, String>(tradeConsumerProps),

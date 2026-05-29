@@ -11,6 +11,7 @@ tasks.named<Test>("test") {
 
 dependencies {
     testImplementation(project(":common"))
+    testImplementation(project(":proto"))
     testImplementation(project(":position-service"))
     testImplementation(project(":fix-gateway"))
     testImplementation(project(":audit-service"))
@@ -35,4 +36,5 @@ dependencies {
     testImplementation(libs.ktor.server.content.negotiation)
     testImplementation(libs.ktor.serialization.kotlinx.json)
     testImplementation(libs.quickfixj.core)
+    testImplementation(libs.opentelemetry.sdk.testing)
 }

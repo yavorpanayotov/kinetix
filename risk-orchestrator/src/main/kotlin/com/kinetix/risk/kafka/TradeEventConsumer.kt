@@ -49,7 +49,11 @@ class TradeEventConsumer(
                 }
                 for (record in records) {
                     try {
-                        retryableConsumer.process(record.key() ?: "", record.value()) {
+                        retryableConsumer.process(
+                            record.key() ?: "",
+                            record.value(),
+                            originalHeaders = record.headers(),
+                        ) {
                             val event = Json.decodeFromString<TradeEventMessage>(record.value())
                             MDC.put("correlationId", event.correlationId ?: "")
                             try {
