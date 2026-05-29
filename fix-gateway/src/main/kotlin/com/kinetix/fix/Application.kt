@@ -2,6 +2,7 @@ package com.kinetix.fix
 
 import com.kinetix.common.health.ReadinessResponse
 import com.kinetix.fix.canary.CanaryGate
+import com.kinetix.fix.error.configureErrorHandling
 import com.kinetix.fix.canary.MicrometerSliReader
 import com.kinetix.fix.canary.PromotionDecision
 import com.kinetix.fix.canary.SliThresholds
@@ -60,6 +61,7 @@ fun Application.module(
             it.request.header("X-Correlation-ID") ?: UUID.randomUUID().toString()
         }
     }
+    configureErrorHandling()
     routing {
         get("/health") {
             call.respondText("""{"status":"UP"}""", ContentType.Application.Json)

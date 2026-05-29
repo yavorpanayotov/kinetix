@@ -164,7 +164,7 @@ class PriceRoutesTest : FunSpec({
             response.status shouldBe HttpStatusCode.BadRequest
 
             val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
-            body["error"]!!.jsonPrimitive.content shouldBe "bad_request"
+            body["code"]!!.jsonPrimitive.content shouldBe "BAD_REQUEST"
             body["message"]!!.jsonPrimitive.content shouldBe "Unsupported interval: 5m. Supported values: 1d"
         }
     }
@@ -181,7 +181,7 @@ class PriceRoutesTest : FunSpec({
             response.status shouldBe HttpStatusCode.BadRequest
 
             val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
-            body["error"]!!.jsonPrimitive.content shouldBe "bad_request"
+            body["code"]!!.jsonPrimitive.content shouldBe "BAD_REQUEST"
             body["message"]!!.jsonPrimitive.content shouldBe "priceAmount must be non-negative, was -1.00"
         }
 
@@ -200,7 +200,7 @@ class PriceRoutesTest : FunSpec({
             response.status shouldBe HttpStatusCode.BadRequest
 
             val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
-            body["error"]!!.jsonPrimitive.content shouldBe "bad_request"
+            body["code"]!!.jsonPrimitive.content shouldBe "BAD_REQUEST"
             body["message"]!!.jsonPrimitive.content shouldBe "instrumentId must not be blank"
         }
 
@@ -231,13 +231,13 @@ class PriceRoutesTest : FunSpec({
             val noParams = client.get("/api/v1/prices/AAPL/history")
             noParams.status shouldBe HttpStatusCode.BadRequest
             val noParamsBody = Json.parseToJsonElement(noParams.bodyAsText()).jsonObject
-            noParamsBody["error"]!!.jsonPrimitive.content shouldBe "bad_request"
+            noParamsBody["code"]!!.jsonPrimitive.content shouldBe "BAD_REQUEST"
             noParamsBody["message"]!!.jsonPrimitive.content shouldBe "Missing required query parameter: from"
 
             val onlyFrom = client.get("/api/v1/prices/AAPL/history?from=2025-01-15T09:00:00Z")
             onlyFrom.status shouldBe HttpStatusCode.BadRequest
             val onlyFromBody = Json.parseToJsonElement(onlyFrom.bodyAsText()).jsonObject
-            onlyFromBody["error"]!!.jsonPrimitive.content shouldBe "bad_request"
+            onlyFromBody["code"]!!.jsonPrimitive.content shouldBe "BAD_REQUEST"
             onlyFromBody["message"]!!.jsonPrimitive.content shouldBe "Missing required query parameter: to"
         }
     }

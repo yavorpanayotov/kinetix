@@ -32,7 +32,7 @@ import io.ktor.server.netty.EngineMain
 import com.kinetix.common.observability.CorrelationIdHttpServerPlugin
 import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.server.plugins.statuspages.StatusPages
+import com.kinetix.correlation.error.configureErrorHandling
 import io.ktor.server.request.header
 import org.slf4j.event.Level
 import io.ktor.server.response.respond
@@ -43,7 +43,6 @@ import io.ktor.server.routing.routing
 import io.lettuce.core.RedisClient
 import io.micrometer.prometheusmetrics.PrometheusConfig
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.apache.kafka.clients.producer.KafkaProducer
 import java.util.concurrent.atomic.AtomicBoolean
@@ -89,6 +88,7 @@ fun Application.module() {
             description = "Manages correlation matrices"
         }
     }
+    configureErrorHandling()
     routing {
         get("/health") {
             call.respondText("""{"status":"UP"}""", ContentType.Application.Json)
@@ -101,29 +101,11 @@ fun Application.module() {
     }
 }
 
-@Serializable
-private data class ErrorBody(val error: String, val message: String)
-
 fun Application.module(
     correlationMatrixRepository: CorrelationMatrixRepository,
     ingestionService: CorrelationIngestionService,
 ) {
     module()
-    install(StatusPages) {
-        exception<IllegalArgumentException> { call, cause ->
-            call.respond(
-                HttpStatusCode.BadRequest,
-                ErrorBody("bad_request", cause.message ?: "Invalid request"),
-            )
-        }
-        exception<Throwable> { call, cause ->
-            call.application.log.error("Unhandled exception", cause)
-            call.respond(
-                HttpStatusCode.InternalServerError,
-                ErrorBody("internal_error", "An unexpected error occurred"),
-            )
-        }
-    }
     routing {
         correlationRoutes(correlationMatrixRepository, ingestionService)
     }

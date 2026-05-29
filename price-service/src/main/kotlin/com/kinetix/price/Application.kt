@@ -26,7 +26,7 @@ import io.ktor.server.netty.*
 import com.kinetix.common.observability.CorrelationIdHttpServerPlugin
 import io.ktor.server.plugins.calllogging.*
 import io.ktor.server.plugins.contentnegotiation.*
-import io.ktor.server.plugins.statuspages.*
+import com.kinetix.price.error.configureErrorHandling
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import org.slf4j.event.Level
@@ -38,7 +38,6 @@ import com.kinetix.common.model.PriceSource
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.math.BigDecimal
 import java.util.concurrent.atomic.AtomicBoolean
@@ -71,6 +70,7 @@ fun Application.module(
             description = "Manages instrument prices, price history and ingestion"
         }
     }
+    configureErrorHandling()
     routing {
         get("/health") {
             call.respondText("""{"status":"UP"}""", ContentType.Application.Json)
@@ -85,28 +85,10 @@ fun Application.module(
 
 fun Application.module(repository: PriceRepository, ingestionService: PriceIngestionService) {
     module()
-    install(StatusPages) {
-        exception<IllegalArgumentException> { call, cause ->
-            call.respond(
-                HttpStatusCode.BadRequest,
-                ErrorBody("bad_request", cause.message ?: "Invalid request"),
-            )
-        }
-        exception<Throwable> { call, cause ->
-            call.application.log.error("Unhandled exception", cause)
-            call.respond(
-                HttpStatusCode.InternalServerError,
-                ErrorBody("internal_error", "An unexpected error occurred"),
-            )
-        }
-    }
     routing {
         priceRoutes(repository, ingestionService)
     }
 }
-
-@Serializable
-private data class ErrorBody(val error: String, val message: String)
 
 fun Application.moduleWithRoutes() {
     val appMicrometerRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
@@ -163,21 +145,6 @@ fun Application.moduleWithRoutes() {
         }
     }
 
-    install(StatusPages) {
-        exception<IllegalArgumentException> { call, cause ->
-            call.respond(
-                HttpStatusCode.BadRequest,
-                ErrorBody("bad_request", cause.message ?: "Invalid request"),
-            )
-        }
-        exception<Throwable> { call, cause ->
-            call.application.log.error("Unhandled exception", cause)
-            call.respond(
-                HttpStatusCode.InternalServerError,
-                ErrorBody("internal_error", "An unexpected error occurred"),
-            )
-        }
-    }
     routing {
         priceRoutes(repository, ingestionService)
 

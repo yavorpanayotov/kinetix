@@ -34,7 +34,7 @@ import io.ktor.server.netty.EngineMain
 import com.kinetix.common.observability.CorrelationIdHttpServerPlugin
 import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.server.plugins.statuspages.StatusPages
+import com.kinetix.volatility.error.configureErrorHandling
 import io.ktor.server.request.header
 import org.slf4j.event.Level
 import io.ktor.server.response.respond
@@ -47,7 +47,6 @@ import io.micrometer.prometheusmetrics.PrometheusConfig
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry
 import java.math.RoundingMode
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerConfig
@@ -92,6 +91,7 @@ fun Application.module() {
             description = "Manages volatility surfaces"
         }
     }
+    configureErrorHandling()
     routing {
         get("/health") {
             call.respondText("""{"status":"UP"}""", ContentType.Application.Json)
@@ -104,29 +104,11 @@ fun Application.module() {
     }
 }
 
-@Serializable
-private data class ErrorBody(val error: String, val message: String)
-
 fun Application.module(
     volSurfaceRepository: VolSurfaceRepository,
     ingestionService: VolatilityIngestionService,
 ) {
     module()
-    install(StatusPages) {
-        exception<IllegalArgumentException> { call, cause ->
-            call.respond(
-                HttpStatusCode.BadRequest,
-                ErrorBody("bad_request", cause.message ?: "Invalid request"),
-            )
-        }
-        exception<Throwable> { call, cause ->
-            call.application.log.error("Unhandled exception", cause)
-            call.respond(
-                HttpStatusCode.InternalServerError,
-                ErrorBody("internal_error", "An unexpected error occurred"),
-            )
-        }
-    }
     routing {
         volatilityRoutes(volSurfaceRepository, ingestionService)
     }
