@@ -59,6 +59,7 @@ import com.kinetix.position.service.LiveFxRateProvider
 import com.kinetix.position.service.StaticFxRateProvider
 import com.kinetix.position.service.TradeLifecycleService
 import com.kinetix.position.client.HttpReferenceDataServiceClient
+import com.kinetix.position.error.configureErrorHandling
 import com.kinetix.position.service.NettingSetAssigner
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
@@ -76,7 +77,6 @@ import io.ktor.server.metrics.micrometer.*
 import io.ktor.server.netty.*
 import io.ktor.server.plugins.calllogging.*
 import io.ktor.server.plugins.contentnegotiation.*
-import io.ktor.server.plugins.statuspages.*
 import io.ktor.server.request.*
 import org.slf4j.event.Level
 import io.ktor.server.response.*
@@ -85,7 +85,6 @@ import kotlinx.serialization.json.Json
 import io.micrometer.prometheusmetrics.PrometheusConfig
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.producer.KafkaProducer
@@ -120,6 +119,7 @@ fun Application.module() {
             it.request.header("X-Correlation-ID") ?: java.util.UUID.randomUUID().toString()
         }
     }
+    configureErrorHandling()
     install(OpenApi) {
         info {
             title = "Position Service API"
@@ -138,9 +138,6 @@ fun Application.module() {
         route("swagger") { swaggerUI("/openapi.json") }
     }
 }
-
-@Serializable
-private data class ErrorBody(val error: String, val message: String)
 
 fun Application.moduleWithRoutes() {
     val dbConfig = environment.config.config("database")
@@ -425,40 +422,6 @@ fun Application.moduleWithRoutes() {
                 Json.encodeToString(com.kinetix.common.health.ReadinessResponse.serializer(), response),
                 ContentType.Application.Json,
                 status,
-            )
-        }
-    }
-
-    install(StatusPages) {
-        exception<IllegalArgumentException> { call, cause ->
-            call.respond(
-                HttpStatusCode.BadRequest,
-                ErrorBody("bad_request", cause.message ?: "Invalid request"),
-            )
-        }
-        exception<IllegalStateException> { call, cause ->
-            call.respond(
-                HttpStatusCode.Conflict,
-                ErrorBody("conflict", cause.message ?: "Invalid state"),
-            )
-        }
-        exception<com.kinetix.position.service.TradeNotFoundException> { call, cause ->
-            call.respond(
-                HttpStatusCode.NotFound,
-                ErrorBody("trade_not_found", cause.message ?: "Trade not found"),
-            )
-        }
-        exception<com.kinetix.position.service.InvalidTradeStateException> { call, cause ->
-            call.respond(
-                HttpStatusCode.Conflict,
-                ErrorBody("invalid_trade_state", cause.message ?: "Invalid trade state"),
-            )
-        }
-        exception<Throwable> { call, cause ->
-            call.application.log.error("Unhandled exception", cause)
-            call.respond(
-                HttpStatusCode.InternalServerError,
-                ErrorBody("internal_error", "An unexpected error occurred"),
             )
         }
     }
