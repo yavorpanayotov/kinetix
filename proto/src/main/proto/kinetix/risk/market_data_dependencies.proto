@@ -25,6 +25,10 @@ message DataDependenciesRequest {
 
 message DataDependenciesResponse {
   repeated MarketDataDependency dependencies = 1;
+  // Identifies the risk-engine version that produced this response.
+  // CachedMarketDataDependenciesClient uses this to detect risk-engine deploys
+  // and invalidate cached dependency declarations.
+  string engine_version = 2;
 }
 
 service MarketDataDependenciesService {
