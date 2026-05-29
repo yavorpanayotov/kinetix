@@ -16,6 +16,8 @@ import com.kinetix.position.fix.FIXSessionRepository
 import com.kinetix.position.fix.FIXSessionStatus
 import com.kinetix.position.fix.GhostFill
 import com.kinetix.position.fix.GhostFillRepository
+import com.kinetix.position.client.MidPrice
+import com.kinetix.position.client.PriceLookupClient
 import com.kinetix.position.fix.GrpcFixGatewayClient
 import com.kinetix.position.fix.Order
 import com.kinetix.position.fix.OrderStatus
@@ -166,11 +168,15 @@ class OrderPlacementEnd2EndTest : FunSpec({
         val approvingPreTradeCheck = object : PreTradeCheckService {
             override suspend fun check(command: BookTradeCommand) = LimitBreachResult(emptyList())
         }
+        val noopPriceLookup = object : PriceLookupClient {
+            override suspend fun currentMidPrice(instrumentId: com.kinetix.common.model.InstrumentId): MidPrice? = null
+        }
         orderSubmissionService = OrderSubmissionService(
             orderRepository = orderRepo,
             sessionRepository = sessionRepo,
             fixOrderSender = noopSender,
             preTradeCheckService = approvingPreTradeCheck,
+            priceLookupClient = noopPriceLookup,
             fixGatewayClient = GrpcFixGatewayClient(fixGatewayChannel),
         )
     }
@@ -266,6 +272,9 @@ class OrderPlacementEnd2EndTest : FunSpec({
             },
             preTradeCheckService = object : PreTradeCheckService {
                 override suspend fun check(command: BookTradeCommand) = LimitBreachResult(emptyList())
+            },
+            priceLookupClient = object : PriceLookupClient {
+                override suspend fun currentMidPrice(instrumentId: com.kinetix.common.model.InstrumentId): MidPrice? = null
             },
             fixGatewayClient = GrpcFixGatewayClient(silentChannel),
         )
