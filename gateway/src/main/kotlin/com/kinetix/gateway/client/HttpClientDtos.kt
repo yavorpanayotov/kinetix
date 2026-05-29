@@ -63,6 +63,18 @@ data class TradeDto(
     // counterpartyId. Dropping it here used to leave the tile permanently
     // empty even though the position-service was returning the data.
     val counterpartyId: String? = null,
+    // Lifecycle status of the booked record (LIVE / AMENDED / CANCELLED).
+    // Trader-review P2 §21: the blotter projects this into a FIX-style fill
+    // state. Optional on the wire because some upstream paths predate the
+    // field — the default `LIVE` matches the position-service default.
+    val status: String? = null,
+    // Trader-review P2 §21: real fill state surfaced by trades reconciled
+    // from working orders. When present, the gateway forwards these
+    // verbatim; when absent, the gateway derives FILLED/CANCELLED from
+    // [status].
+    val fillStatus: String? = null,
+    val qtyFilled: String? = null,
+    val qtyOpen: String? = null,
 )
 
 @Serializable
@@ -602,6 +614,19 @@ fun TradeDto.toDomain() = Trade(
     tradedAt = Instant.parse(tradedAt),
     instrumentType = InstrumentTypeCode.fromString(instrumentType),
     counterpartyId = counterpartyId,
+    status = status?.let { TradeStatus.valueOf(it) } ?: TradeStatus.LIVE,
+)
+
+/**
+ * Project an upstream [TradeDto] into the gateway-internal blotter row,
+ * carrying both the booked trade and any explicit fill-state projection
+ * that the upstream chose to expose.
+ */
+fun TradeDto.toBlotterRow() = TradeBlotterRow(
+    trade = toDomain(),
+    fillStatus = fillStatus,
+    qtyFilled = qtyFilled?.let { BigDecimal(it) },
+    qtyOpen = qtyOpen?.let { BigDecimal(it) },
 )
 
 fun BookTradeResponseDto.toDomain() = BookTradeResult(

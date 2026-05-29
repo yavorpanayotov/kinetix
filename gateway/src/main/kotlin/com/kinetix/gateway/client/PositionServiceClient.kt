@@ -45,7 +45,7 @@ data class PortfolioAggregationSummary(
 )
 
 data class TradeHistoryPage(
-    val items: List<Trade>,
+    val items: List<TradeBlotterRow>,
     val total: Long,
     val offset: Long,
     val limit: Int,
@@ -56,7 +56,7 @@ interface PositionServiceClient {
     suspend fun listPortfolios(): List<PortfolioSummary>
     suspend fun bookTrade(command: BookTradeCommand): BookTradeResult
     suspend fun getPositions(bookId: BookId): List<Position>
-    suspend fun getTradeHistory(bookId: BookId): List<Trade>
+    suspend fun getTradeHistory(bookId: BookId): List<TradeBlotterRow>
     suspend fun getTradeHistoryPage(
         bookId: BookId,
         offset: Long,

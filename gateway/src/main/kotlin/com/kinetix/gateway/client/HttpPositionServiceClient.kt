@@ -4,7 +4,6 @@ import com.kinetix.common.dtos.CreatePositionNoteRequest
 import com.kinetix.common.dtos.PositionNoteDto
 import com.kinetix.common.model.BookId
 import com.kinetix.common.model.Position
-import com.kinetix.common.model.Trade
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
@@ -84,11 +83,11 @@ class HttpPositionServiceClient(
         return dtos.map { it.toDomain() }
     }
 
-    override suspend fun getTradeHistory(bookId: BookId): List<Trade> {
+    override suspend fun getTradeHistory(bookId: BookId): List<TradeBlotterRow> {
         val response = httpClient.get("$baseUrl/api/v1/books/${bookId.value}/trades")
         if (!response.status.isSuccess()) handleErrorResponse(response)
         val dtos: List<TradeDto> = response.body()
-        return dtos.map { it.toDomain() }
+        return dtos.map { it.toBlotterRow() }
     }
 
     override suspend fun getTradeHistoryPage(
@@ -105,7 +104,7 @@ class HttpPositionServiceClient(
         if (!response.status.isSuccess()) handleErrorResponse(response)
         val dto: TradeHistoryPageDto = response.body()
         return TradeHistoryPage(
-            items = dto.items.map { it.toDomain() },
+            items = dto.items.map { it.toBlotterRow() },
             total = dto.total,
             offset = dto.offset,
             limit = dto.limit,

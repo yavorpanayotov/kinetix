@@ -289,7 +289,8 @@ class PositionRoutesTest : FunSpec({
                 instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
             ),
         )
-        coEvery { positionClient.getTradeHistory(BookId("port-1")) } returns trades
+        coEvery { positionClient.getTradeHistory(BookId("port-1")) } returns
+            trades.map { com.kinetix.gateway.client.TradeBlotterRow(it) }
 
         testApplication {
             application { module(positionClient) }
@@ -329,7 +330,8 @@ class PositionRoutesTest : FunSpec({
         )
         coEvery { positionClient.getTradeHistoryPage(BookId("port-1"), 0L, 50, null) } returns
             com.kinetix.gateway.client.TradeHistoryPage(
-                items = listOf(trade), total = 250L, offset = 0L, limit = 50, hasMore = true,
+                items = listOf(com.kinetix.gateway.client.TradeBlotterRow(trade)),
+                total = 250L, offset = 0L, limit = 50, hasMore = true,
             )
 
         testApplication {
@@ -383,7 +385,8 @@ class PositionRoutesTest : FunSpec({
             status = TradeStatus.CANCELLED,
             instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
         )
-        coEvery { positionClient.getTradeHistory(BookId("port-1")) } returns listOf(liveTrade, cancelledTrade)
+        coEvery { positionClient.getTradeHistory(BookId("port-1")) } returns
+            listOf(liveTrade, cancelledTrade).map { com.kinetix.gateway.client.TradeBlotterRow(it) }
 
         testApplication {
             application { module(positionClient) }

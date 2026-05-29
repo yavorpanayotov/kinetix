@@ -65,7 +65,7 @@ fun Route.positionRoutes(client: PositionServiceClient, instrumentClient: Instru
                     val instrumentMap = fetchInstrumentMap(instrumentClient)
                     call.respond(
                         TradeHistoryPageResponse(
-                            items = page.items.map { it.toResponse(instrumentMap) },
+                            items = page.items.map { row -> row.toResponse(instrumentMap) },
                             total = page.total,
                             offset = page.offset,
                             limit = page.limit,
@@ -84,9 +84,9 @@ fun Route.positionRoutes(client: PositionServiceClient, instrumentClient: Instru
                     }
                 }) {
                     val bookId = BookId(call.requirePathParam("bookId"))
-                    val trades = client.getTradeHistory(bookId)
+                    val rows = client.getTradeHistory(bookId)
                     val instrumentMap = fetchInstrumentMap(instrumentClient)
-                    call.respond(trades.map { it.toResponse(instrumentMap) })
+                    call.respond(rows.map { row -> row.toResponse(instrumentMap) })
                 }
 
                 post({

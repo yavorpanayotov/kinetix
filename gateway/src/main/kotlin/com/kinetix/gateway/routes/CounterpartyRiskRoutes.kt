@@ -103,9 +103,9 @@ private suspend fun collectFirmTradeCounterparties(
     val books = positionClient.listPortfolios()
     val counterparties = mutableSetOf<String>()
     for (book in books) {
-        val trades = positionClient.getTradeHistory(book.id)
-        for (trade in trades) {
-            val cp = trade.counterpartyId?.takeIf { it.isNotBlank() } ?: continue
+        val rows = positionClient.getTradeHistory(book.id)
+        for (row in rows) {
+            val cp = row.trade.counterpartyId?.takeIf { it.isNotBlank() } ?: continue
             counterparties += cp
         }
     }
