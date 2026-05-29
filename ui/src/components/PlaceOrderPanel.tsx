@@ -1,9 +1,10 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { AlertTriangle, Copy } from 'lucide-react'
 import { Button, Card, Input, Select } from './ui'
 import { OrderPlacementErrorBanner } from './OrderPlacementErrorBanner'
+import { PreTradeRiskPreviewPanel } from './PreTradeRiskPreviewPanel'
 import { useOrderPlacement } from '../hooks/useOrderPlacement'
-import type { OrderTimeInForce, SubmitOrderRequestDto } from '../types'
+import type { OrderTimeInForce, PreTradeRiskPreviewRequestDto, SubmitOrderRequestDto } from '../types'
 
 /**
  * Launch venues with regular-session cutoffs in `VenueCutoffRegistry` (ADR-0035 §2.3).
@@ -67,6 +68,30 @@ export function PlaceOrderPanel({ bookId }: PlaceOrderPanelProps) {
     timeInForce,
     instrumentType: 'CASH_EQUITY',
   }), [bookId, instrumentId, side, quantity, orderType, limitPrice, arrivalPrice, timeInForce])
+
+  /**
+   * Build the candidate body sent to /api/v1/risk/pretrade-preview on
+   * form-blur. Returns null until the four required fields are filled,
+   * so the preview panel stays hidden while the trader is still typing.
+   * The price used is the limit (for LIMIT orders) or the arrival price
+   * (for MARKET orders); both are what the trader would expect the
+   * preview to value against.
+   */
+  const previewCandidate: PreTradeRiskPreviewRequestDto | null = useMemo(() => {
+    if (formIncomplete) return null
+    const priceAmount = orderType === 'LIMIT' ? limitPrice.trim() : arrivalPrice.trim()
+    return {
+      bookId,
+      instrumentId: instrumentId.trim().toUpperCase(),
+      assetClass: 'EQUITY',
+      side,
+      quantity: quantity.trim(),
+      priceAmount,
+      priceCurrency: 'USD',
+      instrumentType: 'CASH_EQUITY',
+      counterpartyId: null,
+    }
+  }, [formIncomplete, bookId, instrumentId, side, quantity, orderType, limitPrice, arrivalPrice])
 
   const handleSubmit = useCallback(async () => {
     if (formIncomplete || submitting) return
@@ -207,6 +232,8 @@ export function PlaceOrderPanel({ bookId }: PlaceOrderPanelProps) {
             </Select>
           </label>
         </div>
+
+        <PreTradeRiskPreviewPanel candidate={previewCandidate} />
 
         {holidayWarning && (
           <div

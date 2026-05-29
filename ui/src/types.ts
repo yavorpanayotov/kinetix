@@ -112,6 +112,44 @@ export interface BookDto {
   bookId: string
 }
 
+/**
+ * Body of POST /api/v1/risk/pretrade-preview. The candidate order being
+ * placed on the UI's Place Order ticket, sent on form-blur for an
+ * advisory risk-impact preview. counterpartyId is null for
+ * exchange-cleared / venue-routed orders (cash equities); bilateral OTC
+ * trades carry it. Spec: execution.allium ComputePreTradeRiskPreview.
+ */
+export interface PreTradeRiskPreviewRequestDto {
+  bookId: string
+  instrumentId: string
+  assetClass: string
+  side: 'BUY' | 'SELL'
+  quantity: string
+  priceAmount: string
+  priceCurrency: string
+  instrumentType: string
+  counterpartyId?: string | null
+}
+
+/**
+ * Response of POST /api/v1/risk/pretrade-preview. Four-delta preview
+ * surfaced on the Place Order ticket: Δ VaR, Δ Delta, Δ Notional,
+ * Δ counterparty exposure. counterpartyExposureChange is null when no
+ * bilateral counterparty was supplied.
+ */
+export interface PreTradeRiskPreviewResponseDto {
+  baseVaR: string
+  hypotheticalVaR: string
+  varChange: string
+  baseDelta: string
+  hypotheticalDelta: string
+  deltaChange: string
+  notionalChange: string
+  counterpartyId: string | null
+  counterpartyExposureChange: string | null
+  calculatedAt: string
+}
+
 export interface PriceUpdateMessage {
   type: 'price'
   instrumentId: string

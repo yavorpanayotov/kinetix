@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { PreTradeRiskPreviewPanel } from './PreTradeRiskPreviewPanel'
 import type { PreTradeRiskPreviewResponseDto } from '../types'
 
