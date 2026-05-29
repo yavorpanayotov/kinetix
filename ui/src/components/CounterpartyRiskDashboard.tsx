@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Users, AlertTriangle, RefreshCw, Activity, ArrowUp, ArrowDown, ArrowRight, Search } from 'lucide-react'
+import { Users, AlertTriangle, RefreshCw, Activity, ArrowUp, ArrowDown, ArrowRight, Search, ShieldAlert } from 'lucide-react'
 import { useCounterpartyRisk } from '../hooks/useCounterpartyRisk'
 import type { CounterpartyExposureDto, ExposureAtTenorDto } from '../api/counterpartyRisk'
 import { fetchSaCcr } from '../api/saCcr'
@@ -7,6 +7,7 @@ import type { SaCcrResultDto } from '../types'
 import { formatCurrency } from '../utils/format'
 import { SectionHeading, Spinner } from './ui'
 import { SaCcrPanel } from './SaCcrPanel'
+import { BlockTradesDialog } from './BlockTradesDialog'
 
 type SortColumn = 'counterpartyId' | 'currentNetExposure' | 'peakPfe' | 'cva' | 'wwr'
 type SortDirection = 'asc' | 'desc'
@@ -224,9 +225,15 @@ interface CounterpartyRowProps {
   onSelect: () => void
   /** Optional cross-tab jump to the Trades blotter filtered to this counterparty (plan §2.4). */
   onJumpToTrades?: (counterpartyId: string) => void
+  /**
+   * Opens the "block new trades / open remediation ticket" workflow for a
+   * counterparty whose agreement has expired (trader-review P2 #27). Only
+   * invoked from the CTA rendered on expired rows.
+   */
+  onBlockTrades: (counterpartyId: string) => void
 }
 
-function CounterpartyRow({ exposure, isSelected, highThreshold, onSelect, onJumpToTrades }: CounterpartyRowProps) {
+function CounterpartyRow({ exposure, isSelected, highThreshold, onSelect, onJumpToTrades, onBlockTrades }: CounterpartyRowProps) {
   const hasHighExposure = highThreshold !== null && exposure.currentNetExposure >= highThreshold
   const hasCva = exposure.cva !== null
   const isAgreementExpired = exposure.agreementStatus === 'EXPIRED'
@@ -261,6 +268,22 @@ function CounterpartyRow({ exposure, isSelected, highThreshold, onSelect, onJump
               <AlertTriangle className="h-2.5 w-2.5" />
               Agreement Expired
             </span>
+          )}
+          {isAgreementExpired && (
+            <button
+              type="button"
+              data-testid={`block-trades-cta-${exposure.counterpartyId}`}
+              onClick={(e) => {
+                e.stopPropagation()
+                onBlockTrades(exposure.counterpartyId)
+              }}
+              title={`Block new trades with ${exposure.counterpartyId} and open a remediation ticket`}
+              aria-label={`Block new trades with ${exposure.counterpartyId} and open a remediation ticket`}
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded bg-red-600 hover:bg-red-500 text-white transition-colors"
+            >
+              <ShieldAlert className="h-2.5 w-2.5" />
+              Block new trades
+            </button>
           )}
         </div>
       </td>
@@ -466,6 +489,7 @@ export function CounterpartyRiskDashboard({ onJumpToTrades }: CounterpartyRiskDa
   const [searchQuery, setSearchQuery] = useState('')
   const [sortColumn, setSortColumn] = useState<SortColumn>('currentNetExposure')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+  const [blockTradesFor, setBlockTradesFor] = useState<string | null>(null)
 
   const highThreshold = useMemo(() => topDecileThreshold(exposures), [exposures])
 
@@ -680,6 +704,7 @@ export function CounterpartyRiskDashboard({ onJumpToTrades }: CounterpartyRiskDa
                       highThreshold={highThreshold}
                       onSelect={() => handleSelect(e.counterpartyId)}
                       onJumpToTrades={onJumpToTrades}
+                      onBlockTrades={setBlockTradesFor}
                     />
                   ))}
                 </tbody>
@@ -720,6 +745,13 @@ export function CounterpartyRiskDashboard({ onJumpToTrades }: CounterpartyRiskDa
           </div>
         )}
         </>
+      )}
+
+      {blockTradesFor && (
+        <BlockTradesDialog
+          counterpartyId={blockTradesFor}
+          onClose={() => setBlockTradesFor(null)}
+        />
       )}
     </div>
   )

@@ -278,6 +278,54 @@ describe('CounterpartyRiskDashboard', () => {
     })
   })
 
+  // Trader-review P2 #27: expired-agreement remediation CTA.
+  describe('block-new-trades CTA on expired rows', () => {
+    const EXPIRED = { ...SAMPLE_EXPOSURE, counterpartyId: 'CP-DB', agreementStatus: 'EXPIRED' as const }
+    const ACTIVE = { ...SAMPLE_EXPOSURE, counterpartyId: 'CP-GS', agreementStatus: 'ACTIVE' as const }
+
+    it('renders the CTA only on rows whose agreement is expired', () => {
+      mockUseCounterpartyRisk.mockReturnValue({
+        ...defaultHook,
+        exposures: [EXPIRED, ACTIVE],
+      })
+
+      render(<CounterpartyRiskDashboard />)
+
+      expect(screen.getByTestId('block-trades-cta-CP-DB')).toBeInTheDocument()
+      expect(screen.queryByTestId('block-trades-cta-CP-GS')).not.toBeInTheDocument()
+    })
+
+    it('opens the remediation dialog scoped to the counterparty when the CTA is clicked', () => {
+      mockUseCounterpartyRisk.mockReturnValue({
+        ...defaultHook,
+        exposures: [EXPIRED],
+      })
+
+      render(<CounterpartyRiskDashboard />)
+
+      fireEvent.click(screen.getByTestId('block-trades-cta-CP-DB'))
+
+      const dialog = screen.getByTestId('block-trades-dialog')
+      expect(dialog).toBeInTheDocument()
+      expect(dialog).toHaveTextContent('CP-DB')
+    })
+
+    it('does not select the row when the CTA is clicked (stops propagation)', () => {
+      const selectCounterparty = vi.fn()
+      mockUseCounterpartyRisk.mockReturnValue({
+        ...defaultHook,
+        exposures: [EXPIRED],
+        selectCounterparty,
+      })
+
+      render(<CounterpartyRiskDashboard />)
+
+      fireEvent.click(screen.getByTestId('block-trades-cta-CP-DB'))
+
+      expect(selectCounterparty).not.toHaveBeenCalled()
+    })
+  })
+
   it('shows detail panel with metrics when counterparty is selected', () => {
     mockUseCounterpartyRisk.mockReturnValue({
       ...defaultHook,
