@@ -1,14 +1,11 @@
 package com.kinetix.fix.security
 
 import com.kinetix.common.security.GrpcServerTlsConfig
-import com.kinetix.common.security.TlsConfig
-import com.kinetix.common.security.applyMtls
 import com.kinetix.fix.grpc.FixGatewayServer
+import io.grpc.ConnectivityState
 import io.grpc.ManagedChannelBuilder
-import io.grpc.StatusRuntimeException
 import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder
-import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import java.io.File
@@ -62,15 +59,15 @@ class MtlsTrustModelAcceptanceTest : FunSpec({
             // failure would drive it to TRANSIENT_FAILURE before READY.
             val deadline = System.currentTimeMillis() + 5_000
             var state = channel.getState(false)
-            while (state == io.grpc.ConnectivityState.IDLE ||
-                state == io.grpc.ConnectivityState.CONNECTING
+            while (state == ConnectivityState.IDLE ||
+                state == ConnectivityState.CONNECTING
             ) {
                 if (System.currentTimeMillis() > deadline) break
                 Thread.sleep(50)
                 state = channel.getState(false)
             }
             // Channel must reach READY (handshake succeeded), not TRANSIENT_FAILURE
-            state shouldBe io.grpc.ConnectivityState.READY
+            state shouldBe ConnectivityState.READY
         } finally {
             channel.shutdownNow().awaitTermination(2, TimeUnit.SECONDS)
             server.stop()
@@ -104,15 +101,15 @@ class MtlsTrustModelAcceptanceTest : FunSpec({
             channel.getState(true)
             val deadline = System.currentTimeMillis() + 5_000
             var state = channel.getState(false)
-            while (state == io.grpc.ConnectivityState.IDLE ||
-                state == io.grpc.ConnectivityState.CONNECTING
+            while (state == ConnectivityState.IDLE ||
+                state == ConnectivityState.CONNECTING
             ) {
                 if (System.currentTimeMillis() > deadline) break
                 Thread.sleep(50)
                 state = channel.getState(false)
             }
             // Server must reject the no-cert client: TRANSIENT_FAILURE, not READY
-            state shouldBe io.grpc.ConnectivityState.TRANSIENT_FAILURE
+            state shouldBe ConnectivityState.TRANSIENT_FAILURE
         } finally {
             channel.shutdownNow().awaitTermination(2, TimeUnit.SECONDS)
             server.stop()
@@ -131,15 +128,15 @@ class MtlsTrustModelAcceptanceTest : FunSpec({
             channel.getState(true)
             val deadline = System.currentTimeMillis() + 5_000
             var state = channel.getState(false)
-            while (state == io.grpc.ConnectivityState.IDLE ||
-                state == io.grpc.ConnectivityState.CONNECTING
+            while (state == ConnectivityState.IDLE ||
+                state == ConnectivityState.CONNECTING
             ) {
                 if (System.currentTimeMillis() > deadline) break
                 Thread.sleep(50)
                 state = channel.getState(false)
             }
-            (state == io.grpc.ConnectivityState.READY ||
-                state == io.grpc.ConnectivityState.IDLE) shouldBe true
+            (state == ConnectivityState.READY ||
+                state == ConnectivityState.IDLE) shouldBe true
         } finally {
             channel.shutdownNow().awaitTermination(2, TimeUnit.SECONDS)
             server.stop()
