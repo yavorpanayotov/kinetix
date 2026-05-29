@@ -151,7 +151,7 @@ Ordered top-to-bottom by dependency. P0 first because every P1 cross-tab inconsi
 - [x] **Trade blotter: real fill states + quantity-open column.** Map current `LIVE` to WORKING/FILLED/PARTIAL/CANCELLED/REJECTED with `qtyFilled/qtyOpen`. Failing acceptance test on the blotter endpoint, Playwright asserts mixed-status rows render correctly.
   Acceptance: `./gradlew :gateway:acceptanceTest --tests "*TradeBlotterFillStateAcceptanceTest"` plus `cd ui && npx playwright test e2e/trade-blotter-status.spec.ts` green.
 
-- [ ] **Add venue column to blotter (it's already in the filter).** Failing Playwright test asserts the column header is present after enabling the "Show Venue" filter.
+- [x] **Add venue column to blotter (it's already in the filter).** Failing Playwright test asserts the column header is present after enabling the "Show Venue" filter.
   Acceptance: `cd ui && npx playwright test e2e/trade-blotter-venue.spec.ts` green.
 
 - [ ] **Reports tab: recent reports list with status.** New panel listing the last N generated reports with timestamp, user, status (RUNNING/COMPLETE/FAILED), download link. Failing acceptance test on the reports endpoint.
