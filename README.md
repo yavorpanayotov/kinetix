@@ -1,44 +1,19 @@
-<!-- BEGIN: Built with Claude Code hero -->
-# Kinetix — Built with Claude Code
+# Kinetix
 
-A multi-service institutional risk management platform built almost entirely through AI-assisted development.
+**Institutional market-risk platform — full trade-to-capital lifecycle, polyglot microservices, AI integrated into the analytics surface.**
 
-- **2032 commits** across **~14 weeks**
-- **12 microservices** (Kotlin/Ktor + Python risk engine + React/TS UI)
-- **24 Allium behavioural specifications**
-- **35 architectural decision records**
+Kinetix covers the full risk lifecycle for a multi-asset trading desk: trade capture, hierarchical pre-trade limits, mark-to-market, live intraday P&L with Greek attribution, VaR/ES across three methodologies, options pricing, scenario and reverse-stress testing, regime-adaptive risk parameters, counterparty exposure with PFE and CVA, FRTB Standardised Approach capital, model governance with four-eyes approval, and a SHA-256 hash-chained audit trail. Built as a polyglot microservices monorepo — 12 Kotlin/Ktor services, a Python quantitative engine, and a React trading dashboard — glued together by Kafka, gRPC, and PostgreSQL/TimescaleDB.
 
-**Kinetix Copilot — morning brief, intraday push, ⌘K** — a citation-enforced AI copilot that narrates overnight risk, pushes threshold breaches live, and answers free-form questions, all sourced from Kinetix's own data ([ADR-0036](docs/adr/ADR-0036-ai-copilot-architecture.md) · [plan](plans/ai-v2.md)).
+On top of that risk surface sits the **Kinetix Copilot** — citation-enforced, [MCP](https://modelcontextprotocol.io/)-backed, sourced entirely from Kinetix's own data. It narrates overnight risk, pushes threshold breaches live, and answers free-form questions in ⌘K. Reads, narrates, cites; never books, hedges, or recommends.
 
 ### Where to look next
 
-- [How it was built](docs/HOW_IT_WAS_BUILT.md) — the AI-assisted-dev workflow, agents, and skills behind the codebase.
+- [Engineering hallmarks](#engineering-hallmarks) — the architectural decisions that took the most thought.
+- [Quant & risk methodology](#quant--risk-methodology) — the financial models behind the calculator.
+- [AI features](#ai-features) — explainers, the Copilot, MCP, citation enforcement.
+- [Services in depth](#services-in-depth) — what each service owns and the interesting parts.
 - [Architectural decision records](docs/adr/README.md) — every architectural choice, indexed.
 - [Allium specifications](specs/README.md) — the behavioural specs that drive code and tests.
-
-<!-- END: Built with Claude Code hero -->
-
-## AI features
-
-Kinetix ships LLM-powered explainers routed through the host's Claude Code subscription via the [Claude Agent SDK](https://docs.anthropic.com/en/docs/claude-code/sdk) — no `ANTHROPIC_API_KEY`, no per-token spend. A dedicated Python `ai-insights-service` (FastAPI on port 8095) owns prompt construction, response validation, and a deterministic canned-mode fallback (`DEMO_MODE=true`) used by CI, Playwright, and any public demo.
-
-**v1 — shipped**
-
-- **VaR Explainer** — on the Risk tab's VaR gauge, click **Explain** for a narrative plus bullets that walk through the result and call out top contributors.
-- **AI Commentary** — on the Reports tab, every generated report renders an AI Commentary card below it summarising drivers and any limit breaches.
-- Gateway exposes `POST /api/v1/insights/explain/var` and `POST /api/v1/insights/explain/report`; both proxy to `ai-insights-service` and preserve the `{narrative, bullets, model, mode}` response shape so the UI can render a "Demo mode" badge when the SDK isn't reachable.
-
-**v2 — in flight ([ADR-0036](docs/adr/ADR-0036-ai-copilot-architecture.md))**
-
-Foundation for the Kinetix Copilot is landed: an in-process [Model Context Protocol](https://modelcontextprotocol.io/) server on internal port 8096 with ten read-only tools over Kinetix's own data (`get_book_var`, `get_positions`, `get_greeks_summary`, `get_limit_utilisation`, `get_pnl_attribution`, `get_vol_surface`, `get_stress_scenarios`, `get_correlation_matrix`, `get_active_alerts`, `get_market_data_snapshot`), a `Citation` contract requiring every numeric token in a response to carry a `{tool, params, result_field, result_value, as_of_timestamp, data_source, freshness_seconds}` source, and a server-side policy guard that rejects advisory language (`you should`, `i recommend`, `consider hedging`, …) with `POLICY_VIOLATION`. Streaming chat (SSE), morning brief, intraday push, and ⌘K integration are tracked in [`plans/ai-v2.md`](plans/ai-v2.md). **Write actions remain explicitly out of scope** — the copilot reads, narrates, and cites; it does not book, hedge, or recommend.
-
-See [`ai-insights-service/README.md`](ai-insights-service/README.md) for the host-auth model and DEMO_MODE flag, and the [AI Features wiki page](docs/wiki/AI-Features.md) for the full architecture.
-
-# Kinetix
-
-**Institutional-grade portfolio risk management platform.**
-
-Kinetix covers the full risk lifecycle for a multi-asset trading desk — trade capture, hierarchical pre-trade limits, mark-to-market, live intraday P&L with Greek attribution, VaR/ES across three methodologies, options pricing, scenario and reverse-stress testing, regime-adaptive risk parameters, counterparty exposure with PFE and CVA, FRTB Standardised Approach capital, model governance with four-eyes approval, and a SHA-256 hash-chained audit trail. Built as a polyglot microservices monorepo: 12 Kotlin/Ktor services, a Python quantitative engine, and a React trading dashboard, glued together by Kafka, gRPC, and PostgreSQL/TimescaleDB.
 
 ## At a glance
 
@@ -153,6 +128,21 @@ The pieces that took the most thought are documented under [`docs/adr/`](docs/ad
 | **ML — vol forecasting** | LSTM (PyTorch) | `ml/vol_predictor.py` |
 | **ML — credit PD** | Neural net classifier | `ml/credit_model.py` |
 
+## AI features
+
+LLM-powered analytics built *into* the platform — not bolted on. The AI surface reads from Kinetix's own data through a typed contract, cites every number it returns, and is blocked from giving advice. Reads, narrates, cites; never books, hedges, or recommends.
+
+**v1 — shipped**
+
+- **VaR Explainer** — click **Explain** on the Risk tab's VaR gauge for a narrative walk-through plus the top contributors.
+- **AI Commentary** — every generated Report renders an AI Commentary card summarising drivers and limit breaches.
+
+**v2 — in flight ([ADR-0036](docs/adr/ADR-0036-ai-copilot-architecture.md))**
+
+The Kinetix Copilot — morning brief, intraday push, ⌘K — runs over an in-process [Model Context Protocol](https://modelcontextprotocol.io/) server exposing read-only Kinetix tools, with a citation contract that requires every numeric token to declare its source and a server-side policy guard that blocks advisory language. Write actions remain out of scope by design.
+
+Full architecture — MCP tools, citation contract, policy guard, demo-mode client — lives in the [AI Insights Service](#ai-insights-service) block further down. Ongoing work is tracked in [`plans/ai-v2.md`](plans/ai-v2.md); a longer-form walkthrough lives in the [AI Features wiki page](docs/wiki/AI-Features.md).
+
 ## Services
 
 | Service | Language | Responsibilities |
@@ -172,6 +162,197 @@ The pieces that took the most thought are documented under [`docs/adr/`](docs/ad
 | **Risk Engine** | Python | Stateless gRPC calculator: VaR (3 methods), ES, Greeks, BSM/bond/swap pricing, FRTB SBM/DRC/RRAO, SA-CCR, factor model, regime classifier, reverse stress, ML services |
 | **AI Insights Service** | Python | FastAPI on port 8095 wrapping the Claude Agent SDK. v1 explainers (`/api/v1/insights/explain/var`, `/api/v1/insights/explain/report`) plus the v2 Copilot foundation — in-process MCP server (port 8096) with 10 read-only Kinetix tools, `Citation` contract, banned-phrase policy guard, and a deterministic canned client for `DEMO_MODE=true` ([ADR-0036](docs/adr/ADR-0036-ai-copilot-architecture.md)) |
 | **UI** | TypeScript | React 19 trading + risk dashboard — 11 tabs in three clusters (Trading, Risk, Ops), workspaces with saved views, WCAG 2.1 accessibility, dark mode, CSV export, WebSocket streaming, `AIInsightPanel` rendering insights with mode badge |
+
+## Services in depth
+
+Each service owns one domain and exposes a narrow contract to its neighbours. Below: what it owns, what's interesting from a market-risk *and* engineering perspective, and how it wires into the rest of the platform.
+
+### Gateway
+
+**What it owns:** Single ingress for the UI — REST aggregation, WebSocket fan-out for live risk events, JWT validation, role-based access, per-user rate limiting.
+
+**What's interesting**
+
+- **Five-role access model** (`ADMIN`, `TRADER`, `RISK_MANAGER`, `COMPLIANCE`, `VIEWER`) enforced at the route level rather than in each downstream service — risk reads and trade writes share an auth boundary instead of drifting apart.
+- **WebSocket fan-out** runs one Kafka consumer per topic in the gateway, multiplexed to many subscribers per user session. Position, intraday P&L, and limit breaches stream live without each downstream service maintaining its own socket layer.
+- **Correlation IDs minted at ingress** ([ADR-0022](docs/adr/0022-correlation-id-propagation.md)) propagate through every Kafka header and HTTP call, so a single trace links UI click → API → Kafka event → risk run → audit row.
+
+**How it connects:** Fronts every Kotlin service over HTTP; consumes `risk.results`, `risk.pnl.intraday`, `limits.breaches`, `risk.regime.changes` for WebSocket push.
+
+### Position Service
+
+**What it owns:** Trade lifecycle (book / amend / cancel), real-time position aggregation, six-level pre-trade limit enforcement, realised P&L, prime-broker reconciliation, counterparty exposure.
+
+**What's interesting**
+
+- **Six-level hierarchical pre-trade limits** — `Firm → Division → Desk → Book → Trader → Counterparty` — evaluated in a single pass over a cached hierarchy snapshot ([ADR-0023](docs/adr/0023-hierarchical-limit-management.md)). Temporary limit increases are first-class entities with their own four-eyes approval workflow.
+- **Idempotent trade processing** keyed on `(clientOrderId, version)` — at-least-once Kafka redelivery is provably safe, and trade amendments compose cleanly with the lifecycle event stream.
+- **Prime-broker reconciliation** with automated break detection — every cycle writes audit-chain entries, so a discrepancy is forensic, not anecdotal.
+- **Execution lifecycle decoupled from venue connectivity** ([ADR-0035](docs/adr/0035-fix-gateway-service-extraction.md)) — fix-gateway delivers `ExecutionReport`s over Kafka, leaving position-service focused on state rather than session management.
+
+**How it connects:** Publishes `trades.lifecycle`; consumes `execution.reports`, `price.updates`; queried by risk-orchestrator over HTTP; calls fix-gateway over gRPC for outbound orders.
+
+### Price Service
+
+**What it owns:** Market-data ingestion, tick-and-bar history, snapshot lookups.
+
+**What's interesting**
+
+- **TimescaleDB hypertables** for tick data with continuous aggregates pre-computing OHLC at multiple resolutions — historical replay queries hit pre-aggregated rows instead of raw ticks.
+- **Redis hot path** for last-price lookups; cold reads fall through to TimescaleDB. The pricing call from the risk engine is sub-millisecond on the warm path.
+- **Stale-feed detection** at the ingestion edge — a stalled feed surfaces on `risk.anomalies` before it ever reaches a VaR calculation, breaking the "we calculated yesterday's risk on yesterday's prices" failure mode.
+- **Isolation Forest anomaly detection** runs in the risk engine over gRPC, scoring incoming ticks for jumps and decoupled moves.
+
+**How it connects:** Publishes `price.updates`; gRPC client of risk-engine for anomaly scoring; ingests from external venues.
+
+### Rates Service
+
+**What it owns:** Risk-free zero curves, forward curves, yield-curve anomaly detection.
+
+**What's interesting**
+
+- **Bootstrapped zero curves** from money-market, futures, and swap inputs per major currency — the foundation for swap, bond, and rate-scenario pricing.
+- **Forward curve construction** sits behind a clean interface so the curve can be replayed exactly as it stood at any historical point — required for run reproducibility ([ADR-0018](docs/adr/0018-run-reproducibility-via-manifests.md)).
+- **Yield-curve anomaly detection** (inversions, kinks, parallel jumps) feeds the regime classifier so a curve regime shift is one of the signals that flips Kinetix between `NORMAL`, `ELEVATED_VOL`, `CRISIS`, and `RECOVERY`.
+
+**How it connects:** Publishes rate-curve updates; queried by risk-orchestrator and regulatory-service.
+
+### Volatility Service
+
+**What it owns:** Per-instrument implied volatility surfaces.
+
+**What's interesting**
+
+- **Bilinear interpolation in `(log K, √T)`** ([ADR-0033](docs/adr/0033-vol-surface-diff-method.md)) — the right coordinate space for vol surfaces, where the smile is approximately linear in `log K` and term-structure approximately linear in `√T`. Naive `(K, T)` interpolation is a quiet source of mispricing for OTM options.
+- **Surface diffing** produces a deterministic, comparable representation — drives surface-shift scenarios, vega-bucket reporting, and what-if analysis.
+- **Per-instrument granularity** rather than a single global surface — necessary for single-name equity options where each underlying has its own smile dynamics.
+
+**How it connects:** Publishes surface updates; queried by risk-engine for every option pricing call.
+
+### Correlation Service
+
+**What it owns:** Asset-asset correlation matrices.
+
+**What's interesting**
+
+- **Ledoit-Wolf shrinkage** keeps correlation estimates well-conditioned for the linear-algebra heavy paths — parametric VaR, cross-book aggregation, and factor model inversion all need invertible matrices.
+- **Rolling-window estimation with regime-aware refresh** — when the regime classifier flips, the correlation engine re-fits rather than waiting for the window to roll. Crisis correlations look nothing like normal-regime correlations; the platform reflects that within minutes, not days.
+
+**How it connects:** Publishes correlation matrix updates; input to parametric VaR and cross-book VaR in the risk engine.
+
+### Reference Data Service
+
+**What it owns:** Instruments, organisational hierarchy, counterparties, credit ratings, dividend yields, credit spreads.
+
+**What's interesting**
+
+- **11 sealed-interface instrument subtypes** ([ADR-0020](docs/adr/0020-sealed-interface-instrument-type-hierarchy.md)) — equity, bond, FX spot/forward, vanilla swap, vanilla option, swaption, CDS, and more. Consumers pattern-match exhaustively; adding a new instrument type breaks the build everywhere it must be handled.
+- **Six-level org hierarchy** stored as a tree (`Firm → Division → Desk → Book → Trader → Counterparty`) — single source of truth for both pre-trade limit roll-up in position-service *and* VaR aggregation in risk-orchestrator.
+- **Counterparty entity** carries credit rating, sector taxonomy, and credit spread — feeds wrong-way risk classification ([ADR-0031](docs/adr/0031-wrong-way-risk-sector-taxonomy.md)), CVA, PFE, and SA-CCR. One canonical counterparty record, many risk lenses.
+
+**How it connects:** Single-writer; queried by virtually every service over HTTP.
+
+### Risk Orchestrator
+
+**What it owns:** Five-phase risk pipeline, cross-book aggregation, P&L attribution, what-if engine, EOD promotion, SOD baselines, scheduled regime detection.
+
+**What's interesting**
+
+- **Five-phase pipeline** ([ADR-0021](docs/adr/0021-risk-orchestration-architecture.md)) — `positions → discover → fetch → valuate → publish`. Orchestration and calculation are cleanly separated: the risk engine never makes a market-data call.
+- **Deterministic run manifests** ([ADR-0018](docs/adr/0018-run-reproducibility-via-manifests.md)) capture every input — positions, prices, rates, vols, correlations, seeds, model versions. Any VaR run can be replayed bit-for-bit months later for backtesting, model validation, or regulator queries.
+- **EOD promotion is a separate, audited four-eyes action** ([ADR-0019](docs/adr/0019-official-eod-labeling-with-promotion-governance.md)) — reports and regulatory submissions reference frozen promoted runs, not whichever scheduled run happened to finish last.
+- **Cross-book aggregation** rolls up VaR across the full six-level hierarchy with correlation matrices; supports VaR budgeting and marginal contribution analysis — a trader can see how much VaR their next order will *cost* before sending it.
+- **Intraday P&L with Greek attribution** ([ADR-0032](docs/adr/0032-intraday-pnl-greek-source.md)) decomposes every move into `Δ · ΔS + ½Γ · ΔS² + ν · Δσ + Θ · Δt + ρ · Δr + unexplained`, sourced from pricing-time Greeks for consistency.
+- **Scheduled regime classifier** (`NORMAL`, `ELEVATED_VOL`, `CRISIS`, `RECOVERY`) auto-adapts VaR method, confidence, and horizon with debounced transitions and an explicit degraded-signal policy ([ADR-0034](docs/adr/0034-regime-degraded-signal-policy.md)) — a flip only fires when both available signals agree.
+
+**How it connects:** Publishes `risk.results`, `risk.cross-book-results`, `risk.pnl.intraday`, `risk.official-eod`, `risk.regime.changes`; gRPC client of risk-engine; HTTP client of position-, price-, rates-, volatility-, correlation-, reference-data-service.
+
+### Regulatory Service
+
+**What it owns:** FRTB Standardised Approach (SBM / DRC / RRAO), VaR backtesting, model registry, regulatory submissions.
+
+**What's interesting**
+
+- **Full FRTB SBM** — GIRR across a 12-tenor bucket structure ([ADR-0028](docs/adr/0028-key-rate-duration-tenor-buckets.md)), equity, FX, commodity, credit spread; bucket and cross-bucket correlations per the Basel parameter set.
+- **DRC** (Default Risk Charge) with rating-based PDs, seniority-driven LGD, maturity weighting, and sector concentration — the parts of FRTB capital that punish unhedged credit exposure.
+- **RRAO** (Residual Risk Add-On) for exotics that don't fit cleanly into SBM sensitivities.
+- **VaR backtesting** with Kupiec POF + Christoffersen independence tests, mapped to Basel traffic-light zones (green / yellow / red) — every official EOD VaR gets a backtest verdict.
+- **Four-stage model lifecycle** (`DRAFT → CHALLENGER → CANDIDATE → PRODUCTION`) with documented promotion gates and four-eyes approval at each transition.
+- **Submissions as XBRL/CSV templates** — every submission is anchored in a frozen EOD run so a regulator question can be traced back to exact inputs.
+
+**How it connects:** Consumes `risk.official-eod`; queries reference-data-service for instrument and counterparty data.
+
+### Audit Service
+
+**What it owns:** Hash-chained immutable audit trail for every state-changing action across the platform.
+
+**What's interesting**
+
+- **`SHA-256(payload ‖ previous_hash)` per entry** ([ADR-0017](docs/adr/0017-hash-chained-audit-trail.md)) — tamper detection is constant-time on any prefix, and any insertion breaks every subsequent hash.
+- **Row-level `pg_advisory_xact_lock` serialises chain writes** so concurrent producers can never fork the chain. The chain has one effective writer at the database layer regardless of how many services publish events.
+- **DLQ replay tooling** — failed audit writes drain into a DLQ topic and replay through the same path; the chain never develops a gap, and gap-free is the only useful invariant for a regulator.
+- **Seven-year TimescaleDB retention** with explicit retention policies and compression — designed for the lifetime of a regulatory exam, not the lifetime of a deployment.
+
+**How it connects:** Consumes `kinetix.audit.chain` and `governance.audit`; queried by regulatory-service for submission anchoring.
+
+### Notification Service
+
+**What it owns:** Alert rule engine, multi-channel delivery, escalation.
+
+**What's interesting**
+
+- **13 alert types** covering limit breaches, anomalies, regime changes, regulatory deadlines, EOD completion, audit gaps — the platform's failure modes have first-class names.
+- **Debounce + dedup** in the rule engine — repeat fires within a window are suppressed, and identical fires across channels are collapsed so a breach doesn't page four times.
+- **Multi-channel delivery** — in-app, email, webhook, PagerDuty — with per-rule channel routing. Compliance alerts go to compliance; PagerDuty is reserved for genuine production breaks.
+- **Escalation chains** for unacknowledged critical alerts; **anomaly subscriptions** let individual traders watch specific instruments or desks without spamming the desk channel.
+
+**How it connects:** Consumes `limits.breaches`, `risk.anomalies`, `risk.regime.changes`; pushes through the gateway WebSocket for in-app delivery.
+
+### Fix Gateway
+
+**What it owns:** FIX 4.4 connectivity to venues and prime brokers.
+
+**What's interesting**
+
+- **Extracted from position-service** ([ADR-0035](docs/adr/0035-fix-gateway-service-extraction.md)) so venue and protocol concerns live behind a clean boundary — position-service can stay focused on state, fix-gateway can stay focused on sessions.
+- **Asymmetric transport** — outbound `NewOrderSingle` flows over synchronous gRPC because the caller needs a confirmation; inbound `ExecutionReport` flows over Kafka because the platform fan-out is many-to-many.
+- **Session reconciliation on reconnect with mass-cancel-on-disconnect** — a session drop never leaves working orders unattended at a venue.
+
+**How it connects:** gRPC server for position-service; publishes `execution.reports`; maintains FIX 4.4 sessions to external venues.
+
+### Risk Engine
+
+**What it owns:** Stateless quantitative calculator exposing 11 gRPC services.
+
+**What's interesting**
+
+- **Pure function `(positions, market-data, seed) → results`** ([ADR-0024](docs/adr/0024-unified-valuation-rpc.md), [ADR-0029](docs/adr/0029-discovery-valuation-two-phase-contract.md)) — no I/O, no database, no market-data discovery. Replayable from any captured manifest, parallelisable horizontally, and trivially testable.
+- **Three VaR methodologies** — Parametric Delta-Normal, Historical with square-root-of-time scaling, Monte Carlo (10K paths, antithetic variates) — plus Expected Shortfall at 97.5% per Basel FRTB.
+- **Greeks via analytical Black-Scholes-Merton** with continuous dividend yield — Δ, Γ, ν, Θ, ρ — plus the cross-Greeks Vanna, Volga, Charm that matter for vol-trader books.
+- **Reverse stress solver** — SLSQP-driven minimum-norm shock that produces a target loss. Answers the question traders actually ask: *what's the smallest plausible move that breaks me?*
+- **FRTB SBM / DRC / RRAO, SA-CCR, factor model, regime classifier** — every regulatory and adaptive risk calculation lives in one engine, so behaviour is consistent across the platform.
+- **ML services** — Isolation Forest for price/vol anomaly detection, LSTM (PyTorch) for vol forecasting, neural-net classifier for credit PD. ML is a service surface, not a separate platform.
+
+**How it connects:** gRPC server only — never reaches outward. Called by risk-orchestrator and (for anomaly detection) by price-service.
+
+### AI Insights Service
+
+**What it owns:** LLM-powered explainers and the Kinetix Copilot foundation — narratives that are auditable, cite their sources, and refuse to give advice.
+
+**What's interesting**
+
+- **Routes through the host's Claude Code subscription** via the Claude Agent SDK (Python) — no `ANTHROPIC_API_KEY`, no per-token spend, host credentials never leave the box.
+- **v1 explainers** — `POST /api/v1/insights/explain/var` and `/explain/report` return `{narrative, bullets, model, mode}` so the UI can render a *Demo mode* badge when the SDK isn't reachable.
+- **In-process MCP server** ([ADR-0036](docs/adr/ADR-0036-ai-copilot-architecture.md)) on internal port 8096 with ten read-only Kinetix tools: `get_book_var`, `get_positions`, `get_greeks_summary`, `get_limit_utilisation`, `get_pnl_attribution`, `get_vol_surface`, `get_stress_scenarios`, `get_correlation_matrix`, `get_active_alerts`, `get_market_data_snapshot`. The Copilot reasons over Kinetix's own data, not a fine-tuned snapshot.
+- **Citation contract** — every numeric token in a response must carry `{tool, params, result_field, result_value, as_of_timestamp, data_source, freshness_seconds}`. Uncited numbers are a contract violation, not a stylistic preference.
+- **Server-side policy guard** rejects advisory language (`you should`, `i recommend`, `consider hedging`, …) with `POLICY_VIOLATION`. The Copilot reads, narrates, and cites; it never books, hedges, or recommends.
+- **Deterministic canned client for `DEMO_MODE=true`** — CI, Playwright, and any public demo run end-to-end against scripted responses, so the AI surface stays testable.
+
+**How it connects:** HTTP behind the gateway at `/api/v1/insights/*`; the MCP server is in-process and not exposed externally.
+
+### UI
+
+React 19 + TypeScript trading and risk dashboard — 11 tabs in three clusters (Trading, Risk, Ops), workspaces with saved views, WCAG 2.1 AA accessibility, dark mode, CSV export, WebSocket streaming for live position / P&L / limit pushes, and `AIInsightPanel` rendering insights with the mode badge. Full tab-by-tab breakdown lives in [`ui/README.md`](ui/README.md).
 
 ## Behavioural specifications
 
