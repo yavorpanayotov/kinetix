@@ -154,7 +154,7 @@ Ordered top-to-bottom by dependency. P0 first because every P1 cross-tab inconsi
 - [x] **Add venue column to blotter (it's already in the filter).** Failing Playwright test asserts the column header is present after enabling the "Show Venue" filter.
   Acceptance: `cd ui && npx playwright test e2e/trade-blotter-venue.spec.ts` green.
 
-- [ ] **Reports tab: recent reports list with status.** New panel listing the last N generated reports with timestamp, user, status (RUNNING/COMPLETE/FAILED), download link. Failing acceptance test on the reports endpoint.
+- [x] **Reports tab: recent reports list with status.** New panel listing the last N generated reports with timestamp, user, status (RUNNING/COMPLETE/FAILED), download link. Failing acceptance test on the reports endpoint.
   Acceptance: `./gradlew :gateway:acceptanceTest --tests "*RecentReportsAcceptanceTest"` green plus Playwright.
 
 - [ ] **Regulatory tab default: show last calculation, not empty state.** Failing acceptance + Playwright.
