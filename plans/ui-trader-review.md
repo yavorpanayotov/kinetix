@@ -145,7 +145,7 @@ Ordered top-to-bottom by dependency. P0 first because every P1 cross-tab inconsi
 - [x] **Limits screen shows utilisation, not just limit.** For each limit row, populate the Intraday and Overnight cells with current value + utilisation %. Failing acceptance test on the limits endpoint.
   Acceptance: `./gradlew :gateway:acceptanceTest --tests "*LimitsUtilisationAcceptanceTest"` green plus Playwright assertion on the rendered cells.
 
-- [ ] **Alert deduplication + batch acknowledge.** Suppression rules and a `Select all visible` / `Acknowledge selected` action. Failing acceptance tests on both the alerting service and UI.
+- [x] **Alert deduplication + batch acknowledge.** Suppression rules and a `Select all visible` / `Acknowledge selected` action. Failing acceptance tests on both the alerting service and UI.
   Acceptance: `./gradlew :notification-service:acceptanceTest --tests "*AlertDedupAcceptanceTest"` plus `cd ui && npx playwright test e2e/alerts-batch-ack.spec.ts` green.
 
 - [ ] **Trade blotter: real fill states + quantity-open column.** Map current `LIVE` to WORKING/FILLED/PARTIAL/CANCELLED/REJECTED with `qtyFilled/qtyOpen`. Failing acceptance test on the blotter endpoint, Playwright asserts mixed-status rows render correctly.
