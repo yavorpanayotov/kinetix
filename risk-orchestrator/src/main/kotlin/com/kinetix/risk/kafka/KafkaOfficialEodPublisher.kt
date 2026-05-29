@@ -1,5 +1,6 @@
 package com.kinetix.risk.kafka
 
+import com.kinetix.common.kafka.KafkaCorrelationIdHeaderWriter
 import com.kinetix.risk.model.OfficialEodPromotedEvent
 import com.kinetix.risk.service.OfficialEodEventPublisher
 import kotlinx.coroutines.Dispatchers
@@ -20,7 +21,9 @@ class KafkaOfficialEodPublisher(
     override suspend fun publish(event: OfficialEodPromotedEvent) {
         val key = "${event.bookId}:${event.valuationDate}"
         val json = Json.encodeToString(event)
-        val record = ProducerRecord(topic, key, json)
+        val record = KafkaCorrelationIdHeaderWriter.withCorrelationId(
+            ProducerRecord(topic, key, json)
+        )
 
         try {
             withContext(Dispatchers.IO) {

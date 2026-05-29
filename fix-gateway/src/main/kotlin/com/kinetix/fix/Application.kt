@@ -24,6 +24,7 @@ import io.ktor.server.application.install
 import io.ktor.server.application.log
 import io.ktor.server.metrics.micrometer.MicrometerMetrics
 import io.ktor.server.netty.EngineMain
+import com.kinetix.common.observability.CorrelationIdHttpServerPlugin
 import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.request.header
@@ -52,6 +53,7 @@ fun Application.module(
             ignoreUnknownKeys = true
         })
     }
+    install(CorrelationIdHttpServerPlugin)
     install(CallLogging) {
         level = Level.INFO
         mdc("correlationId") {

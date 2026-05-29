@@ -1,5 +1,6 @@
 package com.kinetix.risk.kafka
 
+import com.kinetix.common.kafka.KafkaCorrelationIdHeaderWriter
 import com.kinetix.common.kafka.events.RiskResultEvent
 import com.kinetix.common.model.LiquidityRiskResult
 import kotlinx.coroutines.Dispatchers
@@ -37,7 +38,9 @@ class KafkaLiquidityConcentrationAlertPublisher(
             liquidityConcentrationStatus = result.portfolioConcentrationStatus,
         )
         val json = Json.encodeToString(event)
-        val record = ProducerRecord(topic, result.bookId, json)
+        val record = KafkaCorrelationIdHeaderWriter.withCorrelationId(
+            ProducerRecord(topic, result.bookId, json)
+        )
         try {
             withContext(Dispatchers.IO) {
                 producer.send(record).get()

@@ -76,6 +76,7 @@ import io.ktor.server.application.*
 import io.ktor.server.metrics.micrometer.*
 import io.ktor.server.netty.*
 import io.ktor.server.plugins.calllogging.*
+import com.kinetix.common.observability.CorrelationIdHttpServerPlugin
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.request.*
 import org.slf4j.event.Level
@@ -113,6 +114,7 @@ fun Application.module() {
     // longer reads — e.g. a legacy caller-supplied `arrivalPrice` on order
     // submission, which is now captured server-side from price-service.
     install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+    install(CorrelationIdHttpServerPlugin)
     install(CallLogging) {
         level = Level.INFO
         mdc("correlationId") {

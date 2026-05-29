@@ -1,5 +1,6 @@
 package com.kinetix.risk.kafka
 
+import com.kinetix.common.kafka.KafkaCorrelationIdHeaderWriter
 import com.kinetix.common.kafka.events.InstrumentPnlItem
 import com.kinetix.common.kafka.events.IntradayPnlEvent
 import com.kinetix.risk.model.IntradayPnlSnapshot
@@ -60,7 +61,9 @@ class KafkaIntradayPnlPublisher(
             missingFxRates = snapshot.missingFxRates,
         )
         val json = Json.encodeToString(event)
-        val record = ProducerRecord(topic, snapshot.bookId.value, json)
+        val record = KafkaCorrelationIdHeaderWriter.withCorrelationId(
+            ProducerRecord(topic, snapshot.bookId.value, json)
+        )
 
         try {
             withContext(Dispatchers.IO) {

@@ -1,5 +1,6 @@
 package com.kinetix.position.kafka
 
+import com.kinetix.common.kafka.KafkaCorrelationIdHeaderWriter
 import com.kinetix.common.kafka.events.RiskResultEvent
 import com.kinetix.position.fix.PrimeBrokerReconciliation
 import com.kinetix.position.fix.ReconciliationBreak
@@ -47,7 +48,9 @@ class KafkaReconciliationAlertPublisher(
         // Key by book + instrument so per-break alerts land on consistent partitions
         // and downstream consumers can dedup by (bookId, instrumentId).
         val key = "${reconciliation.bookId}|${break_.instrumentId}"
-        val record = ProducerRecord(topic, key, json)
+        val record = KafkaCorrelationIdHeaderWriter.withCorrelationId(
+            ProducerRecord(topic, key, json)
+        )
 
         try {
             withContext(Dispatchers.IO) {

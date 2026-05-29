@@ -1,5 +1,6 @@
 package com.kinetix.risk.kafka
 
+import com.kinetix.common.kafka.KafkaCorrelationIdHeaderWriter
 import com.kinetix.common.kafka.events.ConcentrationItem
 import com.kinetix.common.kafka.events.RiskResultEvent
 import com.kinetix.risk.model.FactorDecompositionSnapshot
@@ -43,7 +44,9 @@ class KafkaFactorConcentrationAlertPublisher(
             ),
         )
         val json = Json.encodeToString(event)
-        val record = ProducerRecord(topic, snapshot.bookId, json)
+        val record = KafkaCorrelationIdHeaderWriter.withCorrelationId(
+            ProducerRecord(topic, snapshot.bookId, json)
+        )
         try {
             withContext(Dispatchers.IO) {
                 producer.send(record).get()

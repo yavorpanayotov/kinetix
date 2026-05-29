@@ -157,6 +157,9 @@ import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
 import io.ktor.server.metrics.micrometer.*
 import io.ktor.server.netty.*
+import com.kinetix.common.observability.CorrelationIdHttpClientPlugin
+import com.kinetix.common.observability.CorrelationIdGrpcClientInterceptor
+import com.kinetix.common.observability.CorrelationIdHttpServerPlugin
 import io.ktor.server.plugins.calllogging.*
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.request.*
@@ -186,6 +189,7 @@ fun Application.module() {
     attributes.put(MeterRegistryKey, appMicrometerRegistry)
     install(MicrometerMetrics) { registry = appMicrometerRegistry }
     install(ContentNegotiation) { json() }
+    install(CorrelationIdHttpServerPlugin)
     install(CallLogging) {
         level = Level.INFO
         mdc("correlationId") {
@@ -238,9 +242,12 @@ fun Application.moduleWithRoutes() {
     // Wrap the channel with the OpenTelemetry gRPC client interceptor so every
     // call to the risk-engine injects the active span context as a W3C
     // `traceparent` header — stitching risk-orchestrator → risk-engine traces.
+    // Also inject the current correlation ID into gRPC metadata so the risk
+    // engine can include it in its own log output.
     val channel = io.grpc.ClientInterceptors.intercept(
         managedChannel,
         RiskEngineTracingInterceptor.create(),
+        CorrelationIdGrpcClientInterceptor(),
     )
 
     val meterRegistry = attributes.getOrNull(MeterRegistryKey) ?: io.micrometer.core.instrument.simple.SimpleMeterRegistry()
@@ -266,6 +273,7 @@ fun Application.moduleWithRoutes() {
             requestTimeoutMillis = 5_000
             connectTimeoutMillis = 2_000
         }
+        install(CorrelationIdHttpClientPlugin)
     }
     val priceServiceClient = HttpPriceServiceClient(priceHttpClient, priceServiceBaseUrl)
     val ratesServiceBaseUrl = environment.config

@@ -1,5 +1,6 @@
 package com.kinetix.risk.kafka
 
+import com.kinetix.common.kafka.KafkaCorrelationIdHeaderWriter
 import com.kinetix.common.kafka.events.ConcentrationItem
 import com.kinetix.common.kafka.events.RiskResultEvent
 import com.kinetix.risk.model.BudgetUtilisation
@@ -45,7 +46,9 @@ class KafkaBudgetBreachAlertPublisher(
             ),
         )
         val json = Json.encodeToString(event)
-        val record = ProducerRecord(topic, partitionKey, json)
+        val record = KafkaCorrelationIdHeaderWriter.withCorrelationId(
+            ProducerRecord(topic, partitionKey, json)
+        )
         try {
             withContext(Dispatchers.IO) {
                 producer.send(record).get()

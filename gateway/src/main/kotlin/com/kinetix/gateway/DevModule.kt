@@ -72,6 +72,7 @@ import com.kinetix.gateway.websocket.copilotWebSocket
 import com.kinetix.gateway.websocket.pnlWebSocket
 import com.kinetix.gateway.websocket.priceWebSocket
 import com.kinetix.common.security.Permission
+import com.kinetix.common.observability.CorrelationIdHttpClientPlugin
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
@@ -120,6 +121,7 @@ fun Application.devModule() {
             requestTimeoutMillis = 5_000
             connectTimeoutMillis = 2_000
         }
+        install(CorrelationIdHttpClientPlugin)
     }
 
     // Dedicated client for long-lived SSE / streaming proxies (e.g. the
@@ -143,6 +145,7 @@ fun Application.devModule() {
             socketTimeoutMillis = Long.MAX_VALUE
             connectTimeoutMillis = 2_000
         }
+        install(CorrelationIdHttpClientPlugin)
     }
 
     // Dedicated client for the buffered insights endpoints
@@ -162,6 +165,7 @@ fun Application.devModule() {
             socketTimeoutMillis = 30_000
             connectTimeoutMillis = 2_000
         }
+        install(CorrelationIdHttpClientPlugin)
     }
 
     val kafkaBootstrapServers = environment.config

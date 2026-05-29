@@ -1,5 +1,6 @@
 package com.kinetix.position.kafka
 
+import com.kinetix.common.kafka.KafkaCorrelationIdHeaderWriter
 import com.kinetix.common.kafka.events.LimitBreachEvent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -18,7 +19,9 @@ class KafkaLimitBreachEventPublisher(
 
     override suspend fun publish(event: LimitBreachEvent) {
         val json = Json.encodeToString(event)
-        val record = ProducerRecord(topic, event.bookId, json)
+        val record = KafkaCorrelationIdHeaderWriter.withCorrelationId(
+            ProducerRecord(topic, event.bookId, json)
+        )
 
         try {
             withContext(Dispatchers.IO) {

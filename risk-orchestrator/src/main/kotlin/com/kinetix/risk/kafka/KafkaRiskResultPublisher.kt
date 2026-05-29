@@ -1,5 +1,6 @@
 package com.kinetix.risk.kafka
 
+import com.kinetix.common.kafka.KafkaCorrelationIdHeaderWriter
 import com.kinetix.common.kafka.events.ComponentBreakdownEvent
 import com.kinetix.common.kafka.events.PositionBreakdownItem
 import com.kinetix.common.kafka.events.RiskResultEvent
@@ -49,7 +50,9 @@ class KafkaRiskResultPublisher(
             }.ifEmpty { null },
         )
         val json = Json.encodeToString(event)
-        val record = ProducerRecord(topic, result.bookId.value, json)
+        val record = KafkaCorrelationIdHeaderWriter.withCorrelationId(
+            ProducerRecord(topic, result.bookId.value, json)
+        )
 
         try {
             withContext(Dispatchers.IO) {

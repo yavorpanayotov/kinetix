@@ -41,6 +41,7 @@ import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
 import io.ktor.server.metrics.micrometer.*
 import io.ktor.server.netty.*
+import com.kinetix.common.observability.CorrelationIdHttpServerPlugin
 import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.request.header
@@ -70,6 +71,7 @@ fun Application.module() {
     attributes.put(MicrometerRegistryKey, appMicrometerRegistry)
     install(MicrometerMetrics) { registry = appMicrometerRegistry }
     install(ContentNegotiation) { json() }
+    install(CorrelationIdHttpServerPlugin)
     install(CallLogging) {
         level = Level.INFO
         mdc("correlationId") {

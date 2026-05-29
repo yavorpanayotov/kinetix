@@ -1,5 +1,6 @@
 package com.kinetix.risk.kafka
 
+import com.kinetix.common.kafka.KafkaCorrelationIdHeaderWriter
 import com.kinetix.common.kafka.events.MarketRegimeEvent
 import com.kinetix.risk.model.MarketRegime
 import com.kinetix.risk.model.RegimeState
@@ -41,7 +42,9 @@ class KafkaRegimeEventPublisher(
         )
         val json = Json.encodeToString(event)
         // Constant partition key: regime transitions must be ordered globally
-        val record = ProducerRecord(topic, "regime", json)
+        val record = KafkaCorrelationIdHeaderWriter.withCorrelationId(
+            ProducerRecord(topic, "regime", json)
+        )
 
         try {
             withContext(Dispatchers.IO) {

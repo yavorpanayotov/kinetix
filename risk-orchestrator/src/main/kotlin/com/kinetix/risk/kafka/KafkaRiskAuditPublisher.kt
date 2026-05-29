@@ -1,5 +1,6 @@
 package com.kinetix.risk.kafka
 
+import com.kinetix.common.kafka.KafkaCorrelationIdHeaderWriter
 import com.kinetix.risk.model.RiskAuditEvent
 import com.kinetix.risk.service.RiskAuditEventPublisher
 import kotlinx.coroutines.Dispatchers
@@ -20,7 +21,9 @@ class KafkaRiskAuditPublisher(
     override suspend fun publish(event: RiskAuditEvent) {
         val key = "${event.bookId}:${event.jobId}"
         val json = Json.encodeToString(event)
-        val record = ProducerRecord(topic, key, json)
+        val record = KafkaCorrelationIdHeaderWriter.withCorrelationId(
+            ProducerRecord(topic, key, json)
+        )
 
         try {
             withContext(Dispatchers.IO) {

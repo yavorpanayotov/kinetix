@@ -1,5 +1,6 @@
 package com.kinetix.referencedata.kafka
 
+import com.kinetix.common.kafka.KafkaCorrelationIdHeaderWriter
 import com.kinetix.common.model.CreditSpread
 import com.kinetix.common.model.DividendYield
 import kotlinx.coroutines.Dispatchers
@@ -31,9 +32,10 @@ class KafkaReferenceDataPublisher(
     }
 
     private suspend fun send(record: ProducerRecord<String, String>, type: String, key: String) {
+        val recordWithId = KafkaCorrelationIdHeaderWriter.withCorrelationId(record)
         try {
             withContext(Dispatchers.IO) {
-                producer.send(record).get()
+                producer.send(recordWithId).get()
             }
         } catch (e: Exception) {
             logger.error("Failed to publish {} event to Kafka: key={}, topic={}", type, key, record.topic(), e)

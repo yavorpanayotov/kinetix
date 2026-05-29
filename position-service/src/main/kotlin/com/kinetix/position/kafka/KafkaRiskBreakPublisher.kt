@@ -1,5 +1,6 @@
 package com.kinetix.position.kafka
 
+import com.kinetix.common.kafka.KafkaCorrelationIdHeaderWriter
 import com.kinetix.common.kafka.events.RiskBreakEvent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -23,7 +24,9 @@ class KafkaRiskBreakPublisher(
 
     override suspend fun publish(event: RiskBreakEvent) {
         val key = event.orderId ?: event.breakType
-        val record = ProducerRecord(topic, key, Json.encodeToString(event))
+        val record = KafkaCorrelationIdHeaderWriter.withCorrelationId(
+            ProducerRecord(topic, key, Json.encodeToString(event))
+        )
         try {
             withContext(Dispatchers.IO) {
                 producer.send(record).get()

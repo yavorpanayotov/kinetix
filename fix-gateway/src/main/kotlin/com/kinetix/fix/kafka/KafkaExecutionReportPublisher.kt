@@ -1,5 +1,6 @@
 package com.kinetix.fix.kafka
 
+import com.kinetix.common.kafka.KafkaCorrelationIdHeaderWriter
 import com.kinetix.common.execution.ExecutionReportEvent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -31,7 +32,9 @@ class KafkaExecutionReportPublisher(
     override suspend fun publish(event: ExecutionReportEvent) {
         val payload = Json.encodeToString(ExecutionReportEvent.serializer(), event)
         val partitionKey = event.clOrdId.ifEmpty { event.venue ?: "UNKNOWN" }
-        val record = ProducerRecord(topic, partitionKey, payload)
+        val record = KafkaCorrelationIdHeaderWriter.withCorrelationId(
+            ProducerRecord(topic, partitionKey, payload)
+        )
         try {
             withContext(Dispatchers.IO) {
                 producer.send(record).get()

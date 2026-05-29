@@ -1,5 +1,6 @@
 package com.kinetix.price.kafka
 
+import com.kinetix.common.kafka.KafkaCorrelationIdHeaderWriter
 import com.kinetix.common.kafka.events.PriceEvent
 import com.kinetix.common.model.PricePoint
 import kotlinx.coroutines.Dispatchers
@@ -20,7 +21,9 @@ class KafkaPricePublisher(
     override suspend fun publish(point: PricePoint) {
         val event = PriceEvent.from(point)
         val json = Json.encodeToString(event)
-        val record = ProducerRecord(topic, point.instrumentId.value, json)
+        val record = KafkaCorrelationIdHeaderWriter.withCorrelationId(
+            ProducerRecord(topic, point.instrumentId.value, json)
+        )
 
         try {
             withContext(Dispatchers.IO) {

@@ -1,5 +1,6 @@
 package com.kinetix.position.kafka
 
+import com.kinetix.common.kafka.KafkaCorrelationIdHeaderWriter
 import com.kinetix.common.kafka.events.TradeEventMessage
 import com.kinetix.common.model.TradeEvent
 import kotlinx.coroutines.Dispatchers
@@ -20,7 +21,9 @@ class KafkaTradeEventPublisher(
     override suspend fun publish(event: TradeEvent) {
         val message = TradeEventMessage.from(event)
         val json = Json.encodeToString(message)
-        val record = ProducerRecord(topic, event.trade.bookId.value, json)
+        val record = KafkaCorrelationIdHeaderWriter.withCorrelationId(
+            ProducerRecord(topic, event.trade.bookId.value, json)
+        )
 
         try {
             withContext(Dispatchers.IO) {
