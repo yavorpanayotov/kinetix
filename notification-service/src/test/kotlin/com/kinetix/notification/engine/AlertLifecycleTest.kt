@@ -12,10 +12,16 @@ import io.kotest.matchers.shouldNotBe
 
 class AlertLifecycleTest : FunSpec({
 
-    fun createEngine(): Triple<RulesEngine, InMemoryAlertRuleRepository, InMemoryAlertEventRepository> {
+    fun createEngine(
+        suppressionWindowSeconds: Long = DEFAULT_ALERT_SUPPRESSION_WINDOW_SECONDS,
+    ): Triple<RulesEngine, InMemoryAlertRuleRepository, InMemoryAlertEventRepository> {
         val ruleRepo = InMemoryAlertRuleRepository()
         val eventRepo = InMemoryAlertEventRepository()
-        val engine = RulesEngine(ruleRepo, eventRepository = eventRepo)
+        val engine = RulesEngine(
+            ruleRepo,
+            eventRepository = eventRepo,
+            suppressionWindowSeconds = suppressionWindowSeconds,
+        )
         return Triple(engine, ruleRepo, eventRepo)
     }
 
@@ -46,8 +52,12 @@ class AlertLifecycleTest : FunSpec({
         secondAlerts.shouldBeEmpty()
     }
 
-    test("deduplication allows alert after previous one is resolved") {
-        val (engine, _, eventRepo) = createEngine()
+    test("deduplication allows alert after previous one is resolved (outside suppression window)") {
+        // Disable the sliding-window suppression so this test focuses on the
+        // status-based dedup gate: once a prior alert is RESOLVED, a fresh
+        // breach is allowed through. The 5-min suppression window is a
+        // separate guarantee covered by AlertDedupAcceptanceTest.
+        val (engine, _, eventRepo) = createEngine(suppressionWindowSeconds = 0L)
         engine.addRule(varBreachRule())
 
         val firstAlerts = engine.evaluate(riskEvent())
@@ -125,8 +135,12 @@ class AlertLifecycleTest : FunSpec({
         varAlert!!.status shouldBe AlertStatus.RESOLVED
     }
 
-    test("oscillating VaR creates two separate alert events") {
-        val (engine, _, eventRepo) = createEngine()
+    test("oscillating VaR creates two separate alert events (outside suppression window)") {
+        // Disable the sliding-window suppression so this test focuses purely
+        // on the breach→clear→breach oscillation pattern. With the window
+        // active the second breach is intentionally suppressed; that path is
+        // covered by AlertDedupAcceptanceTest.
+        val (engine, _, eventRepo) = createEngine(suppressionWindowSeconds = 0L)
         engine.addRule(varBreachRule())
 
         // First breach

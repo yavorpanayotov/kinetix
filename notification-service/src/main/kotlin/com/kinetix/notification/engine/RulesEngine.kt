@@ -11,9 +11,23 @@ import io.micrometer.core.instrument.MeterRegistry
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
-import java.time.Instant
+import java.time.Clock
 import java.util.UUID
 import kotlin.math.abs
+
+/**
+ * Default suppression window for per-(rule, book) deduplication of alert
+ * firings. Within this window the engine collapses repeat firings of the
+ * same `(ruleId, bookId)` into a single stored row — including the case
+ * where the prior alert was manually resolved or acknowledged before the
+ * window elapsed.
+ *
+ * Five minutes is the operational sweet spot identified during the trader
+ * review (§20): long enough to absorb the burst telemetry that follows a
+ * single underlying market move, short enough that genuinely new breaches
+ * still get visibility within one risk recalc cycle.
+ */
+const val DEFAULT_ALERT_SUPPRESSION_WINDOW_SECONDS: Long = 300L
 
 class RulesEngine(
     private val repository: AlertRuleRepository,
@@ -21,6 +35,17 @@ class RulesEngine(
     private val eventRepository: AlertEventRepository? = null,
     extractors: List<MetricExtractor> = DEFAULT_EXTRACTORS,
     private val suggestedActionGenerator: SuggestedActionGenerator = SuggestedActionGenerator(),
+    /**
+     * Sliding-window suppression for repeat firings of the same `(ruleId, bookId)`.
+     * Set to 0 to disable; the default matches [DEFAULT_ALERT_SUPPRESSION_WINDOW_SECONDS].
+     */
+    private val suppressionWindowSeconds: Long = DEFAULT_ALERT_SUPPRESSION_WINDOW_SECONDS,
+    /**
+     * Injectable clock so tests can pin wall-clock time and assert the
+     * window boundary deterministically. Production callers leave this at
+     * `Clock.systemUTC()`.
+     */
+    private val clock: Clock = Clock.systemUTC(),
 ) {
 
     private val extractorsByType: Map<AlertType, MetricExtractor> = extractors.associateBy { it.type }
@@ -56,7 +81,7 @@ class RulesEngine(
 
                 // Snooze: if there's any existing alert for this (rule, book) that is
                 // currently snoozed (snoozed_until > now), skip re-firing entirely.
-                val now = Instant.now()
+                val now = clock.instant()
                 val existingForRule = eventRepository?.findLatestByRuleAndBook(rule.id, event.bookId)
                 if (existingForRule != null && existingForRule.snoozedUntil != null && existingForRule.snoozedUntil.isAfter(now)) {
                     logger.debug(
@@ -74,6 +99,23 @@ class RulesEngine(
                         rule.name, event.bookId, existing.id,
                     )
                     return@mapNotNull null
+                }
+
+                // Sliding-window suppression: even if the prior alert is
+                // RESOLVED/ACKNOWLEDGED/ESCALATED, drop re-fires for the same
+                // (rule, book) that arrive within `suppressionWindowSeconds`
+                // of the most recent triggeredAt. Mirrors trader review §20 —
+                // a single underlying market move should not page the desk
+                // twice within minutes of triage.
+                if (suppressionWindowSeconds > 0 && existingForRule != null) {
+                    val ageSeconds = now.epochSecond - existingForRule.triggeredAt.epochSecond
+                    if (ageSeconds in 0..suppressionWindowSeconds) {
+                        logger.debug(
+                            "Suppressing rule={} book={} within {}s window (ageSeconds={})",
+                            rule.name, event.bookId, suppressionWindowSeconds, ageSeconds,
+                        )
+                        return@mapNotNull null
+                    }
                 }
 
                 meterRegistry?.counter(
@@ -99,7 +141,7 @@ class RulesEngine(
                     currentValue = currentValue,
                     threshold = rule.threshold,
                     bookId = event.bookId,
-                    triggeredAt = Instant.now(),
+                    triggeredAt = clock.instant(),
                     correlationId = event.correlationId,
                     contributors = serializeTopContributors(event.positionBreakdown),
                     suggestedAction = suggestion,
@@ -133,7 +175,7 @@ class RulesEngine(
                 eventRepository.updateStatus(
                     id = alert.id,
                     status = AlertStatus.RESOLVED,
-                    resolvedAt = Instant.now(),
+                    resolvedAt = clock.instant(),
                     resolvedReason = "AUTO_CLEARED",
                 )
                 logger.info("Auto-resolved alert={} for book={}", alert.id, alert.bookId)
