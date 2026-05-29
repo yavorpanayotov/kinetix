@@ -90,6 +90,32 @@ value ReconciliationBreak {
     status: ReconciliationBreakStatus = open
 }
 
+-- Pre-trade risk-impact preview for a candidate order shown in the UI's
+-- Place Order ticket before submission. Computed on form-blur; not
+-- persisted. The trader sees Δ VaR, Δ Delta, Δ Notional and (when the
+-- order carries a bilateral counterparty) Δ counterparty exposure so they
+-- can size or pull the order before it touches the wire.
+--
+-- The four deltas are *hypothetical minus base*: a positive Δ VaR means
+-- the order would *increase* portfolio VaR, a negative means it would
+-- offset existing risk. Δ Notional is signed by side (BUY = positive,
+-- SELL = negative).
+value PreTradeRiskPreview {
+    base_var: Decimal
+    hypothetical_var: Decimal
+    var_change: Decimal              -- hypothetical_var - base_var
+
+    base_delta: Decimal              -- portfolio total Δ across asset classes
+    hypothetical_delta: Decimal
+    delta_change: Decimal
+
+    notional_change: Decimal         -- side * |quantity * price|
+    counterparty_id: String?         -- echoed from request; null for cleared / venue-routed orders
+    counterparty_exposure_change: Decimal?  -- null when counterparty_id is null
+
+    calculated_at: Timestamp
+}
+
 ------------------------------------------------------------
 -- Entities and Variants
 ------------------------------------------------------------
@@ -489,6 +515,37 @@ rule PerformPreTradeRiskCheck {
         -- hypothetical what-if check that books no order) runs against the
         -- tighter config.read_only_check_timeout (100ms) — it is purely
         -- advisory, so a tighter budget trades completeness for latency.
+}
+
+-- Advisory pre-trade risk-impact preview. Triggered by the UI on
+-- Place Order form-blur (trader-review P2, ui-trader-review.md). Runs
+-- the candidate trade through the existing what-if valuation path and
+-- returns a focused four-delta summary. Books no order; persists nothing.
+rule ComputePreTradeRiskPreview {
+    when: PreTradeRiskPreviewRequested(book_id, instrument_id, side, quantity, price_amount, price_currency, counterparty_id)
+    requires: quantity > 0
+    requires: price_amount >= 0
+
+    ensures: PreTradeRiskPreview
+
+    @guidance
+        -- Exposed via POST /api/v1/risk/pretrade-preview on the gateway
+        -- (PreTradeRiskPreviewRoutes). The gateway reuses the existing
+        -- WhatIfAnalysisService path (risk.allium AnalyseWhatIf) — same
+        -- valuation, no parallel pricing flow — and projects the result
+        -- into the four-delta PreTradeRiskPreview shape:
+        --
+        --   var_change   = hypothetical_var - base_var (from what-if)
+        --   delta_change = sum(hypothetical_greeks.delta) - sum(base_greeks.delta)
+        --                  across asset classes
+        --   notional_change = (side == BUY ? +1 : -1) * quantity * price_amount
+        --   counterparty_exposure_change = signed notional applied to the
+        --                  bilateral counterparty_id when present; null for
+        --                  exchange-cleared / venue-routed orders.
+        --
+        -- Interactive and synchronous. Latency budget is the same as the
+        -- read-only pre-trade check (100ms target) since it runs on every
+        -- form-blur; the gateway should debounce on the UI side.
 }
 
 rule SendOrderToFIX {
