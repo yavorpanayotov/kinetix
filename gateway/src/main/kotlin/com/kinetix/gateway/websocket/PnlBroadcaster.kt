@@ -5,10 +5,12 @@ import io.ktor.server.websocket.*
 import io.ktor.websocket.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
 
 class PnlBroadcaster {
 
+    private val log = LoggerFactory.getLogger(PnlBroadcaster::class.java)
     private val json = Json { encodeDefaults = true }
     private val subscriptions = ConcurrentHashMap<String, MutableSet<WebSocketServerSession>>()
 
@@ -29,7 +31,8 @@ class PnlBroadcaster {
         for (session in sessions) {
             try {
                 session.send(Frame.Text(message))
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                log.debug("PnL WebSocket session send failed — pruning dead session", e)
                 dead.add(session)
             }
         }

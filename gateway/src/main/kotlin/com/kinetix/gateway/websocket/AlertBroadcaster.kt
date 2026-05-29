@@ -5,6 +5,7 @@ import io.ktor.websocket.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
 
 @Serializable
@@ -16,6 +17,7 @@ data class AlertWebSocketMessage(
 
 class AlertBroadcaster {
 
+    private val log = LoggerFactory.getLogger(AlertBroadcaster::class.java)
     private val json = Json { encodeDefaults = true }
     private val sessions = ConcurrentHashMap.newKeySet<WebSocketServerSession>()
 
@@ -33,7 +35,8 @@ class AlertBroadcaster {
         for (session in sessions) {
             try {
                 session.send(Frame.Text(text))
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                log.debug("Alert WebSocket session send failed — pruning dead session", e)
                 dead.add(session)
             }
         }

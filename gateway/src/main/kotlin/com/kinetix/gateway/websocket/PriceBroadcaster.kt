@@ -5,9 +5,12 @@ import io.ktor.server.websocket.*
 import io.ktor.websocket.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
 
 class PriceBroadcaster {
+
+    private val log = LoggerFactory.getLogger(PriceBroadcaster::class.java)
 
     private val json = Json { encodeDefaults = true }
     private val subscriptions = ConcurrentHashMap<String, MutableSet<WebSocketServerSession>>()
@@ -37,7 +40,8 @@ class PriceBroadcaster {
         for (session in sessions) {
             try {
                 session.send(Frame.Text(message))
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                log.debug("Price WebSocket session send failed — pruning dead session", e)
                 dead.add(session)
             }
         }
