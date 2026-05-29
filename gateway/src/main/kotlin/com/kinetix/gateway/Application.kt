@@ -49,6 +49,7 @@ import com.kinetix.gateway.routes.runComparisonRoutes
 import com.kinetix.gateway.routes.sodSnapshotRoutes
 import com.kinetix.gateway.routes.stressScenarioRoutes
 import com.kinetix.gateway.routes.stressTestRoutes
+import com.kinetix.gateway.routes.preTradeRiskPreviewRoutes
 import com.kinetix.gateway.routes.whatIfRoutes
 import com.kinetix.gateway.routes.positionRiskRoutes
 import com.kinetix.gateway.routes.requirePathParam
@@ -315,6 +316,7 @@ fun Application.module(riskClient: RiskServiceClient) {
         factorRiskRoutes(riskClient)
         stressTestRoutes(riskClient)
         whatIfRoutes(riskClient)
+        preTradeRiskPreviewRoutes(riskClient)
         positionRiskRoutes(riskClient)
         regulatoryRoutes(riskClient)
         dependenciesRoutes(riskClient)
@@ -357,6 +359,7 @@ fun Application.module(
         factorRiskRoutes(riskClient)
         stressTestRoutes(riskClient)
         whatIfRoutes(riskClient)
+        preTradeRiskPreviewRoutes(riskClient)
         positionRiskRoutes(riskClient)
         regulatoryRoutes(riskClient)
         dependenciesRoutes(riskClient)
@@ -408,6 +411,7 @@ fun Application.module(
         factorRiskRoutes(riskClient)
         stressTestRoutes(riskClient)
         whatIfRoutes(riskClient)
+        preTradeRiskPreviewRoutes(riskClient)
         positionRiskRoutes(riskClient)
         regulatoryRoutes(riskClient)
         dependenciesRoutes(riskClient)
@@ -655,6 +659,7 @@ fun Application.devModule() {
                     marginRoutes(riskClient)
                     factorRiskRoutes(riskClient)
                     whatIfRoutes(riskClient)
+                    preTradeRiskPreviewRoutes(riskClient)
                     positionRiskRoutes(riskClient)
                     dependenciesRoutes(riskClient)
                     sodSnapshotRoutes(riskClient)
@@ -859,6 +864,7 @@ fun Application.module(
                         varRoutes(riskClient)
                         marginRoutes(riskClient)
                         whatIfRoutes(riskClient)
+                        preTradeRiskPreviewRoutes(riskClient)
                         positionRiskRoutes(riskClient)
                         dependenciesRoutes(riskClient)
                         sodSnapshotRoutes(riskClient)
