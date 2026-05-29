@@ -1,5 +1,6 @@
 import type { BookVaRContributionDto } from '../types'
 import { formatMoney } from '../utils/format'
+import { formatDiversificationBenefit } from '../utils/diversificationFormatter'
 
 interface BookContributionTableProps {
   contributions: BookVaRContributionDto[]
@@ -38,7 +39,7 @@ export function BookContributionTable({ contributions, onBookClick }: BookContri
                 <td className="py-1.5 px-2 text-right tabular-nums">{Number(c.percentageOfTotal).toFixed(1)}%</td>
                 <td className="py-1.5 px-2 text-right tabular-nums text-slate-500">{formatMoney(c.standaloneVar, 'USD')}</td>
                 <td className="py-1.5 px-2 text-right tabular-nums text-green-600">
-                  -{formatMoney(c.diversificationBenefit, 'USD')}
+                  {formatDiversificationBenefit(Number(c.diversificationBenefit))}
                 </td>
                 <td className="py-1.5 px-2 text-right tabular-nums text-slate-500">
                   {Number(c.marginalVar).toFixed(4)}

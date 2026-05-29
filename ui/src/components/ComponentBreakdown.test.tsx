@@ -183,15 +183,27 @@ describe('ComponentBreakdown', () => {
       expect(screen.queryByTestId('diversification-benefit')).not.toBeInTheDocument()
     })
 
-    it('shows zero benefit when sum equals portfolio VaR', () => {
+    it('collapses a rounding-noise benefit to ~$0 when sum equals portfolio VaR', () => {
       const simple = [
         { assetClass: 'EQUITY', varContribution: '1000000.00', percentageOfTotal: '100.00' },
       ]
       render(<ComponentBreakdown breakdown={simple} bookVaR="1000000.00" />)
 
       const benefit = screen.getByTestId('diversification-benefit')
-      expect(benefit).toHaveTextContent('$0.00')
+      expect(benefit).toHaveTextContent('~$0')
+      expect(benefit).not.toHaveTextContent('$0.00')
       expect(benefit).toHaveTextContent('0.00%')
+    })
+
+    it('collapses a sub-cent benefit to ~$0 so the column does not draw the eye', () => {
+      // Sum of components is one cent above portfolio VaR — pure rounding noise.
+      const noisy = [
+        { assetClass: 'EQUITY', varContribution: '1000000.01', percentageOfTotal: '100.00' },
+      ]
+      render(<ComponentBreakdown breakdown={noisy} bookVaR="1000000.00" />)
+
+      const benefit = screen.getByTestId('diversification-benefit')
+      expect(benefit).toHaveTextContent('~$0')
     })
 
     it('applies green color to the benefit amount', () => {

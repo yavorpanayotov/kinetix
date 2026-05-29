@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import type { ComponentBreakdownDto } from '../types'
 import { formatAssetClassLabel } from '../utils/formatAssetClass'
 import { formatMoney } from '../utils/format'
+import { formatDiversificationBenefit } from '../utils/diversificationFormatter'
 import { formatInstrumentTypeLabel, INSTRUMENT_TYPE_SVG_COLORS } from '../utils/instrumentTypes'
 
 interface ComponentBreakdownProps {
@@ -153,7 +154,7 @@ export function ComponentBreakdown({ breakdown, bookVaR, instrumentTypeBreakdown
         <div data-testid="diversification-benefit" className="mt-3 text-xs">
           <span className="text-slate-500">Diversification </span>
           <span data-testid="diversification-amount" className="font-medium text-green-600 tabular-nums">
-            -{formatMoney(diversification.benefit.toFixed(2), 'USD')}
+            {formatDiversificationBenefit(diversification.benefit)}
           </span>
           <span className="text-slate-400 ml-1 tabular-nums">
             ({diversification.pct.toFixed(2)}%)
