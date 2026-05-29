@@ -12,7 +12,10 @@ dependencies {
     compileOnly(libs.logback.classic)
     compileOnly(libs.opentelemetry.sdk.autoconfigure)
     compileOnly(libs.opentelemetry.logback.appender)
-    // OTel foundation — compileOnly so services supply their own runtime versions
+    // OTel api exposed transitively: publisher constructors and the OtelHttpServerPlugin
+    // config reference OpenTelemetry in their public signatures, so consumers need it on
+    // their compile classpath. Sdk/exporter stay compileOnly — services supply runtime.
+    api(libs.opentelemetry.api)
     compileOnly(libs.opentelemetry.sdk)
     compileOnly(libs.opentelemetry.exporter.otlp)
     compileOnly(libs.opentelemetry.grpc)

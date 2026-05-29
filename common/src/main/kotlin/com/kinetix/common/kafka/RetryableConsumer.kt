@@ -1,6 +1,9 @@
 package com.kinetix.common.kafka
 
 import com.kinetix.common.observability.CorrelationIdContext
+import com.kinetix.common.observability.OtelKafkaTracing
+import io.opentelemetry.api.OpenTelemetry
+import io.opentelemetry.context.Context
 import kotlinx.coroutines.delay
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerRecord
@@ -16,6 +19,12 @@ class RetryableConsumer(
     private val baseDelayMs: Long = 1000,
     private val dlqProducer: KafkaProducer<String, String>? = null,
     private val livenessTracker: ConsumerLivenessTracker? = null,
+    /**
+     * When provided, trace context is extracted from each record's headers and
+     * the handler is executed inside that extracted [Context]. When absent or
+     * [OpenTelemetry.noop], trace propagation is skipped.
+     */
+    private val openTelemetry: OpenTelemetry = OpenTelemetry.noop(),
 ) {
     private val logger = LoggerFactory.getLogger(RetryableConsumer::class.java)
     private val dlqTopic = "$topic.dlq"
@@ -35,15 +44,28 @@ class RetryableConsumer(
             ?.value()
             ?.toString(Charsets.UTF_8)
 
+        // Extract W3C trace context from the record headers. When openTelemetry
+        // is the noop instance, extract returns the root context — a no-op.
+        val traceContext: Context = if (originalHeaders != null) {
+            OtelKafkaTracing.extract(originalHeaders, openTelemetry.propagators)
+        } else {
+            Context.root()
+        }
+
         val firstSeenTimestamp = Instant.now()
         var lastException: Exception? = null
 
         for (attempt in 0..maxRetries) {
             try {
-                val result = if (correlationId != null) {
-                    CorrelationIdContext.runWithCorrelationId(correlationId) { handler() }
-                } else {
-                    handler()
+                val scope = traceContext.makeCurrent()
+                val result = try {
+                    if (correlationId != null) {
+                        CorrelationIdContext.runWithCorrelationId(correlationId) { handler() }
+                    } else {
+                        handler()
+                    }
+                } finally {
+                    scope.close()
                 }
                 livenessTracker?.recordSuccess()
                 return result
