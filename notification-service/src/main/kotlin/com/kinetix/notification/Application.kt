@@ -4,6 +4,7 @@ import com.kinetix.common.health.ReadinessChecker
 import com.kinetix.common.kafka.ConsumerLivenessTracker
 import com.kinetix.common.kafka.RetryableConsumer
 import com.kinetix.notification.audit.KafkaGovernanceAuditPublisher
+import com.kinetix.notification.error.configureErrorHandling
 import com.kinetix.notification.delivery.DeliveryRouter
 import com.kinetix.notification.delivery.EmailDeliveryService
 import com.kinetix.notification.delivery.InAppDeliveryMetrics
@@ -98,20 +99,7 @@ fun Application.module() {
             description = "Manages alert rules and notification delivery"
         }
     }
-    install(StatusPages) {
-        exception<IllegalArgumentException> { call, cause ->
-            call.respond(
-                HttpStatusCode.BadRequest,
-                ErrorResponse(error = "Bad Request", message = cause.message ?: "Invalid request"),
-            )
-        }
-        exception<Throwable> { call, cause ->
-            call.respond(
-                HttpStatusCode.InternalServerError,
-                ErrorResponse(error = "Internal Server Error", message = cause.message ?: "Unexpected error"),
-            )
-        }
-    }
+    configureErrorHandling()
     routing {
         get("/health") {
             call.respondText("""{"status":"UP"}""", ContentType.Application.Json)
