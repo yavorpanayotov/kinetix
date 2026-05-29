@@ -138,7 +138,7 @@ Ordered top-to-bottom by dependency. P0 first because every P1 cross-tab inconsi
 
 ### P2 — Workflow gaps
 
-- [ ] **Risk-impact preview on Place Order.** Spec change first (Allium under `specs/`), then a gateway endpoint that runs the candidate trade through the existing valuation path and returns Δ VaR, Δ Delta, Δ Notional, Δ counterparty exposure. UI Vitest + Playwright asserting the preview panel populates on form-blur.
+- [x] **Risk-impact preview on Place Order.** Spec change first (Allium under `specs/`), then a gateway endpoint that runs the candidate trade through the existing valuation path and returns Δ VaR, Δ Delta, Δ Notional, Δ counterparty exposure. UI Vitest + Playwright asserting the preview panel populates on form-blur.
   Acceptance: `./gradlew :gateway:acceptanceTest --tests "*PreTradeRiskPreviewAcceptanceTest"` plus `cd ui && npx playwright test e2e/place-order-risk-preview.spec.ts` green.
   Approved 2026-05-29: user granted approval to add a new gateway route (`POST /api/v1/risk/pretrade-preview` or close equivalent) that runs the candidate trade through the existing valuation path and returns Δ VaR / Δ Delta / Δ Notional / Δ counterparty exposure. No new top-level service, no new dependency. Spec change in `specs/` first if the behaviour is spec-covered; otherwise straight to the gateway route + UI panel.
 
