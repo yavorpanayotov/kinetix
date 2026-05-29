@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({
   testDir: './e2e',
-  testIgnore: ['**/demo-mode.spec.ts'],
+  testIgnore: ['**/demo-mode.spec.ts', '**/demo-banner-dismiss.spec.ts'],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   // 1 local retry tames a small set of WebSocket-timing-sensitive tests

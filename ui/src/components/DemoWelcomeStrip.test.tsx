@@ -8,16 +8,17 @@ vi.mock('../auth/demoPersonas', () => ({
 
 describe('DemoWelcomeStrip', () => {
   beforeEach(() => {
+    sessionStorage.clear()
     localStorage.clear()
   })
 
-  it('renders when localStorage flag is absent', () => {
+  it('renders when sessionStorage flag is absent', () => {
     render(<DemoWelcomeStrip />)
     expect(screen.getByTestId('demo-welcome-strip')).toBeInTheDocument()
   })
 
-  it('does not render when localStorage flag is set', () => {
-    localStorage.setItem('kinetix_demo_strip_dismissed', 'true')
+  it('does not render when sessionStorage flag is set', () => {
+    sessionStorage.setItem('kinetix_demo_strip_dismissed', 'true')
     render(<DemoWelcomeStrip />)
     expect(screen.queryByTestId('demo-welcome-strip')).not.toBeInTheDocument()
   })
@@ -30,19 +31,35 @@ describe('DemoWelcomeStrip', () => {
     expect(screen.queryByTestId('demo-welcome-strip')).not.toBeInTheDocument()
   })
 
-  it('clicking dismiss writes persistence flag to localStorage', () => {
+  it('clicking dismiss writes persistence flag to sessionStorage', () => {
     render(<DemoWelcomeStrip />)
     fireEvent.click(screen.getByTestId('demo-strip-dismiss'))
-    expect(localStorage.getItem('kinetix_demo_strip_dismissed')).toBe('true')
+    expect(sessionStorage.getItem('kinetix_demo_strip_dismissed')).toBe('true')
   })
 
-  it('strip does not render after dismiss and re-mount', () => {
+  it('clicking dismiss does not write to localStorage (session-scoped only)', () => {
+    render(<DemoWelcomeStrip />)
+    fireEvent.click(screen.getByTestId('demo-strip-dismiss'))
+    expect(localStorage.getItem('kinetix_demo_strip_dismissed')).toBeNull()
+  })
+
+  it('strip does not render after dismiss and re-mount (persisted in session)', () => {
     const { unmount } = render(<DemoWelcomeStrip />)
     fireEvent.click(screen.getByTestId('demo-strip-dismiss'))
     unmount()
 
     render(<DemoWelcomeStrip />)
     expect(screen.queryByTestId('demo-welcome-strip')).not.toBeInTheDocument()
+  })
+
+  it('strip reappears after the session flag is cleared', () => {
+    const { unmount } = render(<DemoWelcomeStrip />)
+    fireEvent.click(screen.getByTestId('demo-strip-dismiss'))
+    unmount()
+
+    sessionStorage.clear()
+    render(<DemoWelcomeStrip />)
+    expect(screen.getByTestId('demo-welcome-strip')).toBeInTheDocument()
   })
 
   it('strip copy contains expected text', () => {

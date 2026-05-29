@@ -5,14 +5,17 @@ import { DEMO_MODE } from '../auth/demoPersonas'
 const STORAGE_KEY = 'kinetix_demo_strip_dismissed'
 
 export function DemoWelcomeStrip() {
+  // Session-scoped dismissal: the flag lives in sessionStorage so the strip
+  // stays dismissed across reloads within the same browser session, but
+  // reappears the next time the demo is opened in a fresh session.
   const [dismissed, setDismissed] = useState(
-    () => !DEMO_MODE || localStorage.getItem(STORAGE_KEY) === 'true',
+    () => !DEMO_MODE || sessionStorage.getItem(STORAGE_KEY) === 'true',
   )
 
   if (dismissed) return null
 
   const handleDismiss = () => {
-    localStorage.setItem(STORAGE_KEY, 'true')
+    sessionStorage.setItem(STORAGE_KEY, 'true')
     setDismissed(true)
   }
 

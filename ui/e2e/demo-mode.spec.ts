@@ -115,34 +115,34 @@ test.describe('Demo welcome strip', () => {
   })
 
   test('welcome strip is visible on first load', async ({ page }) => {
-    await page.addInitScript(() => localStorage.removeItem('kinetix_demo_strip_dismissed'))
+    await page.addInitScript(() => sessionStorage.removeItem('kinetix_demo_strip_dismissed'))
     await page.goto('/')
     await expect(page.getByTestId('demo-welcome-strip')).toBeVisible()
     await expect(page.getByTestId('demo-welcome-strip')).toContainText('Demo mode')
   })
 
   test('dismiss removes the strip from DOM', async ({ page }) => {
-    await page.addInitScript(() => localStorage.removeItem('kinetix_demo_strip_dismissed'))
+    await page.addInitScript(() => sessionStorage.removeItem('kinetix_demo_strip_dismissed'))
     await page.goto('/')
     await page.getByTestId('demo-strip-dismiss').click()
     await expect(page.getByTestId('demo-welcome-strip')).not.toBeAttached()
   })
 
   test('strip stays gone after page reload', async ({ page }) => {
-    // Simulate a previous dismiss by setting localStorage before load
+    // Simulate a previous dismiss by setting sessionStorage before load
     await page.goto('/')
-    await page.evaluate(() => localStorage.setItem('kinetix_demo_strip_dismissed', 'true'))
+    await page.evaluate(() => sessionStorage.setItem('kinetix_demo_strip_dismissed', 'true'))
     await page.reload()
     await expect(page.getByTestId('demo-welcome-strip')).not.toBeAttached()
   })
 
-  test('strip reappears after localStorage clear', async ({ page }) => {
-    await page.addInitScript(() => localStorage.removeItem('kinetix_demo_strip_dismissed'))
+  test('strip reappears after sessionStorage clear', async ({ page }) => {
+    await page.addInitScript(() => sessionStorage.removeItem('kinetix_demo_strip_dismissed'))
     await page.goto('/')
     await page.getByTestId('demo-strip-dismiss').click()
     await expect(page.getByTestId('demo-welcome-strip')).not.toBeAttached()
 
-    await page.evaluate(() => localStorage.removeItem('kinetix_demo_strip_dismissed'))
+    await page.evaluate(() => sessionStorage.removeItem('kinetix_demo_strip_dismissed'))
     await page.reload()
     await expect(page.getByTestId('demo-welcome-strip')).toBeVisible()
   })
