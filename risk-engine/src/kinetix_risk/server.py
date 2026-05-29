@@ -577,9 +577,16 @@ def serve(port: int = 50051, metrics_port: int = 9091, models_dir: str = "models
     prometheus_client.start_http_server(metrics_port)
     logger.info("Prometheus metrics server started on port %d", metrics_port)
 
+    # Thread pool sizing: defaults to max(10, cpu_count) so the pool covers at
+    # least one thread per core on any host. Override via GRPC_THREAD_POOL_SIZE.
+    # See risk-engine/THREAD_POOL_TUNING.md for the benchmark rationale.
+    _default_pool_size = max(10, os.cpu_count() or 10)
+    _pool_size = int(os.environ.get("GRPC_THREAD_POOL_SIZE", _default_pool_size))
+    logger.info("gRPC thread pool size: %d (GRPC_THREAD_POOL_SIZE=%s)", _pool_size, os.environ.get("GRPC_THREAD_POOL_SIZE", "unset"))
+
     max_message_size = 50 * 1024 * 1024  # 50 MB
     server = grpc.server(
-        futures.ThreadPoolExecutor(max_workers=10),
+        futures.ThreadPoolExecutor(max_workers=_pool_size),
         interceptors=build_grpc_server_interceptors(),
         options=[
             ("grpc.max_send_message_length", max_message_size),
