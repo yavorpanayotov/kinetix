@@ -60,16 +60,20 @@ test.describe('Trade Blotter - Core Display', () => {
     await expect(page.getByTestId('trade-notional-trade-3')).toHaveText('$3.9K')
   })
 
-  test('shows actual trade status in each status badge', async ({ page }) => {
+  test('projects lifecycle status into FIX-style fill state in the status badge', async ({ page }) => {
+    // Trader-review P2 §21: the blotter status column is the *fill* state
+    // (WORKING/FILLED/PARTIAL/CANCELLED/REJECTED), not the raw lifecycle
+    // status. Booked LIVE/AMENDED trades project to FILLED; CANCELLED stays.
+    // trade-1 is LIVE → FILLED, trade-2 is CANCELLED → CANCELLED,
+    // trade-3 is AMENDED → FILLED (from TEST_TRADES)
     await goToTradesTab(page)
 
-    // trade-1 is LIVE, trade-2 is CANCELLED, trade-3 is AMENDED (from TEST_TRADES)
-    await expect(page.getByTestId('trade-status-trade-1')).toHaveText('LIVE')
+    await expect(page.getByTestId('trade-status-trade-1')).toHaveText('FILLED')
     await expect(page.getByTestId('trade-status-trade-2')).toHaveText('CANCELLED')
-    await expect(page.getByTestId('trade-status-trade-3')).toHaveText('AMENDED')
+    await expect(page.getByTestId('trade-status-trade-3')).toHaveText('FILLED')
   })
 
-  test('falls back to LIVE when API response has no status field', async ({ page }) => {
+  test('falls back to FILLED when API response has no status field (defaults to LIVE)', async ({ page }) => {
     const tradeWithoutStatus: TradeFixture = {
       tradeId: 'trade-no-status',
       bookId: 'port-1',
@@ -87,7 +91,7 @@ test.describe('Trade Blotter - Core Display', () => {
     await page.getByTestId('tab-trades').click()
     await page.waitForSelector('[data-testid="trade-status-trade-no-status"]')
 
-    await expect(page.getByTestId('trade-status-trade-no-status')).toHaveText('LIVE')
+    await expect(page.getByTestId('trade-status-trade-no-status')).toHaveText('FILLED')
   })
 })
 
@@ -391,15 +395,16 @@ test.describe('Trade Blotter - CSV Data Accuracy', () => {
 
     for (const line of dataLines) {
       const cols = line.split(',')
-      // CSV format: Time,Instrument,Name,Type,Side,Qty,Price,Currency,Notional,Status
+      // CSV format (trader-review P2 §21): Time,Instrument,Name,Type,Side,
+      // Qty,QtyFilled,QtyOpen,Price,Currency,Notional,FillStatus,VenueOrderId.
       const qty = Number(cols[5])
-      const price = Number(cols[6])
-      const notional = Number(cols[8])
+      const price = Number(cols[8])
+      const notional = Number(cols[10])
       expect(notional).toBeCloseTo(qty * price, 2)
     }
   })
 
-  test('CSV status column reflects actual trade status, not hardcoded FILLED', async ({ page }) => {
+  test('CSV fillStatus column reflects projected FIX-style fill state', async ({ page }) => {
     await page.goto('/')
     await page.getByTestId('tab-trades').click()
     await page.waitForSelector('[data-testid="csv-export-button"]')
@@ -414,15 +419,19 @@ test.describe('Trade Blotter - CSV Data Accuracy', () => {
     const lines = content.trim().split('\n')
     const dataLines = lines.slice(1) // skip header
 
-    // CSV columns: Time,Instrument,Name,Type,Side,Qty,Price,Currency,Notional,Status,VenueOrderId
-    // Status is the 10th column (index 9).
-    const statuses = dataLines.map((line) => line.split(',')[9])
+    // Trader-review P2 §21 CSV layout:
+    // Time,Instrument,Name,Type,Side,Qty,QtyFilled,QtyOpen,Price,Currency,
+    // Notional,FillStatus,VenueOrderId. FillStatus sits at index 11.
+    const fillStatuses = dataLines.map((line) => line.split(',')[11])
 
-    // TEST_TRADES has LIVE, CANCELLED, AMENDED — none should be "FILLED"
-    expect(statuses).not.toContain('FILLED')
-    expect(statuses).toContain('LIVE')
-    expect(statuses).toContain('CANCELLED')
-    expect(statuses).toContain('AMENDED')
+    // TEST_TRADES has LIVE, CANCELLED, AMENDED — LIVE/AMENDED project to
+    // FILLED, CANCELLED stays.
+    expect(fillStatuses).toContain('FILLED')
+    expect(fillStatuses).toContain('CANCELLED')
+    // Raw lifecycle text must no longer appear — the column is the *fill*
+    // state, not the lifecycle.
+    expect(fillStatuses).not.toContain('LIVE')
+    expect(fillStatuses).not.toContain('AMENDED')
   })
 
   test('CSV rows are in descending time order (matching UI)', async ({ page }) => {

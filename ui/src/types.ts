@@ -71,6 +71,16 @@ export interface TradeHistoryDto {
    * tile on the Risk view.
    */
   counterpartyId?: string | null
+  /**
+   * Trader-review P2 §21: FIX-style fill state surfaced on the blotter.
+   * Booked LIVE/AMENDED trades default to FILLED with qtyFilled = quantity;
+   * CANCELLED rows show CANCELLED with both filled and open at zero. Trades
+   * reconciled from working orders carry an explicit WORKING / PARTIAL /
+   * REJECTED projection from the gateway.
+   */
+  fillStatus?: string
+  qtyFilled?: string
+  qtyOpen?: string
 }
 
 export type OrderTimeInForce = 'DAY' | 'GTC' | 'IOC' | 'FOK' | 'GTD'

@@ -8,9 +8,13 @@ import { mockAllApiRoutes, type TradeFixture } from './fixtures'
  * the legacy in-process FIX path. This regression test pins that contract:
  *  - a SENT order yields a freshly-booked trade row in the blotter
  *  - a follow-up fill arrival (simulated by re-navigating to refresh the
- *    blotter) advances the row's surfaced status from LIVE → FILLED
+ *    blotter) advances the row's surfaced fill state from WORKING → FILLED
  *  - none of this requires a full page reload — the user stays on the
  *    Trades tab the entire time
+ *
+ * Trader-review P2 §21 update: the blotter renders the FIX-style fill
+ * state (`fillStatus`) rather than the raw lifecycle `status`, so the
+ * fixtures here carry both fields to mirror the production wire shape.
  */
 
 const BOOK_ID = 'port-1'
@@ -25,11 +29,17 @@ const INITIAL_TRADE: TradeFixture = {
   price: { amount: '150.00', currency: 'USD' },
   tradedAt: '2026-05-07T10:00:00Z',
   status: 'LIVE',
+  fillStatus: 'WORKING',
+  qtyFilled: '0',
+  qtyOpen: '100',
 }
 
 const FILLED_TRADE: TradeFixture = {
   ...INITIAL_TRADE,
-  status: 'FILLED',
+  status: 'LIVE',
+  fillStatus: 'FILLED',
+  qtyFilled: '100',
+  qtyOpen: '0',
 }
 
 async function mockTradesEndpoint(page: Page, trades: TradeFixture[]): Promise<void> {
@@ -78,19 +88,19 @@ test.describe('OrderBlotter — fill arrival via execution.reports Kafka path', 
 
     const row = page.getByTestId(`trade-row-${INITIAL_TRADE.tradeId}`)
     await expect(row).toBeVisible()
-    await expect(page.getByTestId(`trade-status-${INITIAL_TRADE.tradeId}`)).toHaveText('LIVE')
+    await expect(page.getByTestId(`trade-status-${INITIAL_TRADE.tradeId}`)).toHaveText('WORKING')
     await expect(page.getByTestId(`trade-side-${INITIAL_TRADE.tradeId}`)).toHaveText('BUY')
   })
 
   test('fill arrival on the blotter surfaces FILLED status without a full page reload', async ({ page }) => {
-    // Initial state: the order has just been booked — row shows LIVE.
+    // Initial state: the order has just been booked — row shows WORKING.
     await mockTradesEndpoint(page, [INITIAL_TRADE])
     await navigateToTradeBlotter(page)
 
     const row = page.getByTestId(`trade-row-${INITIAL_TRADE.tradeId}`)
     const statusCell = page.getByTestId(`trade-status-${INITIAL_TRADE.tradeId}`)
     await expect(row).toBeVisible()
-    await expect(statusCell).toHaveText('LIVE')
+    await expect(statusCell).toHaveText('WORKING')
 
     // Simulate the fix-gateway → execution.reports → position-service flow:
     // a fill lands, position-service updates trade status, REST endpoint now
@@ -123,6 +133,9 @@ test.describe('OrderBlotter — fill arrival via execution.reports Kafka path', 
       price: { amount: '150.00', currency: 'USD' },
       tradedAt: '2026-05-07T10:01:00Z',
       status: 'LIVE',
+      fillStatus: 'FILLED',
+      qtyFilled: '40',
+      qtyOpen: '0',
     }
 
     await mockTradesEndpoint(page, [INITIAL_TRADE])
@@ -135,6 +148,6 @@ test.describe('OrderBlotter — fill arrival via execution.reports Kafka path', 
 
     await expect(page.getByTestId(`trade-row-${INITIAL_TRADE.tradeId}`)).toBeVisible()
     await expect(page.getByTestId(`trade-row-${partialFill.tradeId}`)).toBeVisible()
-    await expect(page.getByTestId(`trade-status-${partialFill.tradeId}`)).toHaveText('LIVE')
+    await expect(page.getByTestId(`trade-status-${partialFill.tradeId}`)).toHaveText('FILLED')
   })
 })

@@ -65,6 +65,12 @@ export interface TradeFixture {
   tradedAt: string
   status?: string
   counterpartyId?: string
+  // Trader-review P2 §21: FIX-style fill state forwarded verbatim by the
+  // gateway when the upstream carries it (e.g. trades reconciled from
+  // working orders with partial fills).
+  fillStatus?: string
+  qtyFilled?: string
+  qtyOpen?: string
 }
 
 export const TEST_TRADES: TradeFixture[] = [

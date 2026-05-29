@@ -253,16 +253,20 @@ describe('TradeBlotter', () => {
     })
   })
 
-  it('shows the actual trade status in the status cell, not a hardcoded FILLED', () => {
+  it('projects lifecycle status into the FIX-style fill state in the status cell', () => {
+    // Trader-review P2 §21: the blotter status column is the *fill* state
+    // (WORKING/FILLED/PARTIAL/CANCELLED/REJECTED), not the raw lifecycle
+    // status. Booked LIVE/AMENDED trades project to FILLED; CANCELLED
+    // remains CANCELLED.
     setupDefaults()
     render(<TradeBlotter bookId="book-1" />)
 
-    expect(screen.getByTestId('trade-status-t-1')).toHaveTextContent('LIVE')
+    expect(screen.getByTestId('trade-status-t-1')).toHaveTextContent('FILLED')
     expect(screen.getByTestId('trade-status-t-2')).toHaveTextContent('CANCELLED')
-    expect(screen.getByTestId('trade-status-t-3')).toHaveTextContent('AMENDED')
+    expect(screen.getByTestId('trade-status-t-3')).toHaveTextContent('FILLED')
   })
 
-  it('falls back to LIVE status when trade has no status field', () => {
+  it('falls back to FILLED when trade has no lifecycle status field (defaults to LIVE)', () => {
     const tradesWithoutStatus: TradeHistoryDto[] = [
       {
         tradeId: 'no-status',
@@ -278,7 +282,68 @@ describe('TradeBlotter', () => {
     mockUseTradeHistory.mockReturnValue(defaultMockReturn({ trades: tradesWithoutStatus }))
     render(<TradeBlotter bookId="book-1" />)
 
-    expect(screen.getByTestId('trade-status-no-status')).toHaveTextContent('LIVE')
+    expect(screen.getByTestId('trade-status-no-status')).toHaveTextContent('FILLED')
+  })
+
+  it('renders explicit upstream fillStatus verbatim (WORKING / PARTIAL / REJECTED)', () => {
+    const richFillTrades: TradeHistoryDto[] = [
+      {
+        tradeId: 'working-1',
+        bookId: 'book-1',
+        instrumentId: 'AAPL',
+        assetClass: 'EQUITY',
+        side: 'BUY',
+        quantity: '1000',
+        price: { amount: '150.00', currency: 'USD' },
+        tradedAt: '2025-01-15T10:00:00Z',
+        status: 'LIVE',
+        fillStatus: 'WORKING',
+        qtyFilled: '0',
+        qtyOpen: '1000',
+      },
+      {
+        tradeId: 'partial-1',
+        bookId: 'book-1',
+        instrumentId: 'MSFT',
+        assetClass: 'EQUITY',
+        side: 'BUY',
+        quantity: '1000',
+        price: { amount: '300.00', currency: 'USD' },
+        tradedAt: '2025-01-15T10:30:00Z',
+        status: 'LIVE',
+        fillStatus: 'PARTIAL',
+        qtyFilled: '600',
+        qtyOpen: '400',
+      },
+      {
+        tradeId: 'rejected-1',
+        bookId: 'book-1',
+        instrumentId: 'GOOGL',
+        assetClass: 'EQUITY',
+        side: 'SELL',
+        quantity: '500',
+        price: { amount: '2800.00', currency: 'USD' },
+        tradedAt: '2025-01-15T11:00:00Z',
+        status: 'LIVE',
+        fillStatus: 'REJECTED',
+        qtyFilled: '0',
+        qtyOpen: '0',
+      },
+    ]
+    mockUseTradeHistory.mockReturnValue(defaultMockReturn({ trades: richFillTrades }))
+    render(<TradeBlotter bookId="book-1" />)
+
+    expect(screen.getByTestId('trade-status-working-1')).toHaveTextContent('WORKING')
+    expect(screen.getByTestId('trade-qty-filled-working-1')).toHaveTextContent('0')
+    expect(screen.getByTestId('trade-qty-open-working-1')).toHaveTextContent('1,000')
+
+    expect(screen.getByTestId('trade-status-partial-1')).toHaveTextContent('PARTIAL')
+    expect(screen.getByTestId('trade-qty-filled-partial-1')).toHaveTextContent('600')
+    expect(screen.getByTestId('trade-qty-open-partial-1')).toHaveTextContent('400')
+
+    expect(screen.getByTestId('trade-status-rejected-1')).toHaveTextContent('REJECTED')
+    expect(screen.getByTestId('trade-qty-filled-rejected-1')).toHaveTextContent('0')
+    expect(screen.getByTestId('trade-qty-open-rejected-1')).toHaveTextContent('0')
   })
 
   it('displays notional value as quantity times price', () => {

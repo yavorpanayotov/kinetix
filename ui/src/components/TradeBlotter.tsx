@@ -13,6 +13,46 @@ import { OrderGhostFills } from './OrderGhostFills'
 
 const TERMINAL_STATUSES = new Set(['EXPIRED', 'CANCELLED', 'REJECTED'])
 
+/**
+ * Trader-review P2 §21: project the trade's fill state into the badge text.
+ * The gateway sends an explicit FIX-style `fillStatus`
+ * (WORKING / FILLED / PARTIAL / CANCELLED / REJECTED) on every booked row.
+ *
+ * When the upstream omits `fillStatus`, fall back to deriving from the
+ * trade-lifecycle `status`:
+ *   - LIVE / AMENDED (or missing) → FILLED  (booked records are filled)
+ *   - CANCELLED → CANCELLED
+ *   - Anything else (in-flight order states like PENDING / PENDING_FAILED /
+ *     SENT / EXPIRED — see ADR-0035 phase 4) is left as-is so the order
+ *     badges keep rendering their original status text.
+ */
+const BOOKED_LIFECYCLE = new Set(['LIVE', 'AMENDED'])
+
+function fillStatus(trade: TradeHistoryDto): string {
+  if (trade.fillStatus) return trade.fillStatus
+  const lifecycle = trade.status ?? 'LIVE'
+  if (lifecycle === 'CANCELLED') return 'CANCELLED'
+  if (BOOKED_LIFECYCLE.has(lifecycle)) return 'FILLED'
+  return lifecycle
+}
+
+function qtyFilledOf(trade: TradeHistoryDto): string {
+  if (trade.qtyFilled !== undefined) return trade.qtyFilled
+  const lifecycle = trade.status ?? 'LIVE'
+  if (lifecycle === 'CANCELLED') return '0'
+  if (BOOKED_LIFECYCLE.has(lifecycle)) return trade.quantity
+  return '0'
+}
+
+function qtyOpenOf(trade: TradeHistoryDto): string {
+  if (trade.qtyOpen !== undefined) return trade.qtyOpen
+  const lifecycle = trade.status ?? 'LIVE'
+  if (BOOKED_LIFECYCLE.has(lifecycle) || lifecycle === 'CANCELLED') return '0'
+  // In-flight order states default to "open = quantity" — the order
+  // hasn't filled yet.
+  return trade.quantity
+}
+
 interface TradeBlotterProps {
   bookId: string | null
   /**
@@ -27,10 +67,6 @@ function notional(trade: TradeHistoryDto): number {
   return Number(trade.quantity) * Number(trade.price.amount)
 }
 
-function tradeStatus(trade: TradeHistoryDto): string {
-  return trade.status || 'LIVE'
-}
-
 function statusBadgeClass(status: string): string {
   switch (status) {
     case 'CANCELLED':
@@ -38,9 +74,11 @@ function statusBadgeClass(status: string): string {
       return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
     case 'AMENDED':
     case 'PENDING_FAILED':
+    case 'PARTIAL':
       return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
     case 'PENDING':
     case 'EXPIRED':
+    case 'WORKING':
       return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
     default:
       return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
@@ -48,11 +86,11 @@ function statusBadgeClass(status: string): string {
 }
 
 function exportToCsv(trades: TradeHistoryDto[]) {
-  const header = 'Time,Instrument,Name,Type,Side,Qty,Price,Currency,Notional,Status,VenueOrderId'
+  const header = 'Time,Instrument,Name,Type,Side,Qty,QtyFilled,QtyOpen,Price,Currency,Notional,FillStatus,VenueOrderId'
   const rows = trades.map((t) => {
     const n = notional(t)
     const name = (t.displayName || t.instrumentId).replace(/,/g, ' ')
-    return `${t.tradedAt},${t.instrumentId},${name},${t.instrumentType || ''},${t.side},${t.quantity},${t.price.amount},${t.price.currency},${n.toFixed(2)},${tradeStatus(t)},${t.venueOrderId ?? ''}`
+    return `${t.tradedAt},${t.instrumentId},${name},${t.instrumentType || ''},${t.side},${t.quantity},${qtyFilledOf(t)},${qtyOpenOf(t)},${t.price.amount},${t.price.currency},${n.toFixed(2)},${fillStatus(t)},${t.venueOrderId ?? ''}`
   })
   const csv = [header, ...rows].join('\n')
   const blob = new Blob([csv], { type: 'text/csv' })
@@ -294,6 +332,8 @@ export function TradeBlotter({ bookId, initialCounterpartyFilter = '' }: TradeBl
                 <th className="px-4 py-2 text-left text-sm font-semibold text-slate-700 dark:text-slate-300">Type</th>
                 <th className="px-4 py-2 text-left text-sm font-semibold text-slate-700 dark:text-slate-300">Side</th>
                 <th className="px-4 py-2 text-right text-sm font-semibold text-slate-700 dark:text-slate-300">Qty</th>
+                <th className="px-4 py-2 text-right text-sm font-semibold text-slate-700 dark:text-slate-300">Filled</th>
+                <th className="px-4 py-2 text-right text-sm font-semibold text-slate-700 dark:text-slate-300">Open</th>
                 <th className="px-4 py-2 text-right text-sm font-semibold text-slate-700 dark:text-slate-300">Price</th>
                 <th className="px-4 py-2 text-right text-sm font-semibold text-slate-700 dark:text-slate-300">Notional</th>
                 <th className="px-4 py-2 text-left text-sm font-semibold text-slate-700 dark:text-slate-300">Status</th>
@@ -305,15 +345,15 @@ export function TradeBlotter({ bookId, initialCounterpartyFilter = '' }: TradeBl
             <tbody className="divide-y divide-slate-100 dark:divide-surface-700">
               {paginatedTrades.length === 0 && filtered.length === 0 && trades.length > 0 ? (
                 <tr>
-                  <td colSpan={(showVenueOrderId ? 10 : 9) + 1} className="px-4 py-8 text-center">
+                  <td colSpan={(showVenueOrderId ? 12 : 11) + 1} className="px-4 py-8 text-center">
                     <EmptyState title="No trades match your filters." />
                   </td>
                 </tr>
               ) : (
                 paginatedTrades.flatMap((trade) => {
-                  const expandable = TERMINAL_STATUSES.has(tradeStatus(trade))
+                  const expandable = TERMINAL_STATUSES.has(fillStatus(trade))
                   const expanded = expandedTradeId === trade.tradeId
-                  const colSpan = (showVenueOrderId ? 10 : 9) + 1
+                  const colSpan = (showVenueOrderId ? 12 : 11) + 1
                   const mainRow = (
                   <tr
                     key={trade.tradeId}
@@ -357,6 +397,18 @@ export function TradeBlotter({ bookId, initialCounterpartyFilter = '' }: TradeBl
                     </td>
                     <td className="px-4 py-2 text-sm text-right">{formatQuantity(trade.quantity)}</td>
                     <td
+                      data-testid={`trade-qty-filled-${trade.tradeId}`}
+                      className="px-4 py-2 text-sm text-right whitespace-nowrap text-slate-700 dark:text-slate-300"
+                    >
+                      {formatQuantity(qtyFilledOf(trade))}
+                    </td>
+                    <td
+                      data-testid={`trade-qty-open-${trade.tradeId}`}
+                      className="px-4 py-2 text-sm text-right whitespace-nowrap text-slate-700 dark:text-slate-300"
+                    >
+                      {formatQuantity(qtyOpenOf(trade))}
+                    </td>
+                    <td
                       data-testid={`trade-price-${trade.tradeId}`}
                       className="px-4 py-2 text-sm text-right whitespace-nowrap"
                     >
@@ -372,9 +424,9 @@ export function TradeBlotter({ bookId, initialCounterpartyFilter = '' }: TradeBl
                     <td className="px-4 py-2 text-sm">
                       <span
                         data-testid={`trade-status-${trade.tradeId}`}
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusBadgeClass(tradeStatus(trade))}`}
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusBadgeClass(fillStatus(trade))}`}
                       >
-                        {tradeStatus(trade)}
+                        {fillStatus(trade)}
                       </span>
                     </td>
                     {showVenueOrderId && (
