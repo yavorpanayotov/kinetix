@@ -1,5 +1,6 @@
 package com.kinetix.common.kafka
 
+import com.kinetix.common.observability.CorrelationIdContext
 import kotlinx.coroutines.delay
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerRecord
@@ -27,12 +28,23 @@ class RetryableConsumer(
         originalHeaders: Headers? = null,
         handler: suspend () -> T,
     ): T {
+        // Extract the correlation ID from the Kafka record header so every log
+        // line emitted by the handler carries the same ID that the producer set.
+        val correlationId = originalHeaders
+            ?.lastHeader(CorrelationIdContext.HEADER_NAME)
+            ?.value()
+            ?.toString(Charsets.UTF_8)
+
         val firstSeenTimestamp = Instant.now()
         var lastException: Exception? = null
 
         for (attempt in 0..maxRetries) {
             try {
-                val result = handler()
+                val result = if (correlationId != null) {
+                    CorrelationIdContext.runWithCorrelationId(correlationId) { handler() }
+                } else {
+                    handler()
+                }
                 livenessTracker?.recordSuccess()
                 return result
             } catch (e: Exception) {

@@ -17,6 +17,7 @@ dependencies {
     compileOnly(libs.opentelemetry.exporter.otlp)
     compileOnly(libs.opentelemetry.grpc)
     compileOnly(libs.ktor.client.core)
+    compileOnly(libs.ktor.server.core)
     compileOnly(libs.grpc.stub)
     compileOnly(libs.grpc.netty)
 
@@ -29,6 +30,8 @@ dependencies {
     testImplementation(libs.opentelemetry.grpc)
     testImplementation(libs.ktor.client.core)
     testImplementation(libs.ktor.client.mock)
+    testImplementation(libs.ktor.server.core)
+    testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.grpc.netty)
     testImplementation(libs.grpc.stub)
 }
