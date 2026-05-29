@@ -101,7 +101,7 @@ class UpstreamExceptionPathDiagnosticTest : FunSpec({
                 // reflects statusCode=500. The route handler never executes.
                 response.status shouldBe HttpStatusCode.InternalServerError
                 val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
-                body["error"]?.jsonPrimitive?.content shouldBe "upstream_error"
+                body["code"]?.jsonPrimitive?.content shouldBe "UPSTREAM_ERROR"
             }
         } finally {
             httpClient.close()
@@ -155,7 +155,7 @@ class UpstreamExceptionPathDiagnosticTest : FunSpec({
                 // caught at Application.kt:170, statusCode reflected.
                 response.status shouldBe HttpStatusCode.InternalServerError
                 val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
-                body["error"]?.jsonPrimitive?.content shouldBe "upstream_error"
+                body["code"]?.jsonPrimitive?.content shouldBe "UPSTREAM_ERROR"
             }
         } finally {
             httpClient.close()
@@ -208,7 +208,7 @@ class UpstreamExceptionPathDiagnosticTest : FunSpec({
                 // FINDING: UpstreamErrorException(500) thrown, caught, reflected.
                 response.status shouldBe HttpStatusCode.InternalServerError
                 val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
-                body["error"]?.jsonPrimitive?.content shouldBe "upstream_error"
+                body["code"]?.jsonPrimitive?.content shouldBe "UPSTREAM_ERROR"
             }
         } finally {
             httpClient.close()
@@ -247,7 +247,7 @@ class UpstreamExceptionPathDiagnosticTest : FunSpec({
                 // The "deserialization NPE hypothesis" in the issue is disproved.
                 response.status shouldBe HttpStatusCode.NotFound
                 val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
-                body["error"]?.jsonPrimitive?.content shouldBe "upstream_error"
+                body["code"]?.jsonPrimitive?.content shouldBe "UPSTREAM_ERROR"
             }
         } finally {
             httpClient.close()
@@ -277,7 +277,7 @@ class UpstreamExceptionPathDiagnosticTest : FunSpec({
                 // This is correct behaviour — upstream 500 surfaces as gateway 500.
                 response.status shouldBe HttpStatusCode.InternalServerError
                 val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
-                body["error"]?.jsonPrimitive?.content shouldBe "upstream_error"
+                body["code"]?.jsonPrimitive?.content shouldBe "UPSTREAM_ERROR"
             }
         } finally {
             httpClient.close()
@@ -330,7 +330,7 @@ class UpstreamExceptionPathDiagnosticTest : FunSpec({
                 // FINDING: UpstreamErrorException(500) thrown, caught, reflected.
                 response.status shouldBe HttpStatusCode.InternalServerError
                 val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
-                body["error"]?.jsonPrimitive?.content shouldBe "upstream_error"
+                body["code"]?.jsonPrimitive?.content shouldBe "UPSTREAM_ERROR"
             }
         } finally {
             httpClient.close()
@@ -366,7 +366,7 @@ class UpstreamExceptionPathDiagnosticTest : FunSpec({
                 val response = client.get("/api/v1/risk/krd/book-1")
                 response.status shouldBe HttpStatusCode.ServiceUnavailable
                 val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
-                body["error"]?.jsonPrimitive?.content shouldBe "upstream_unavailable"
+                body["code"]?.jsonPrimitive?.content shouldBe "UPSTREAM_UNAVAILABLE"
             }
         } finally {
             httpClient.close()
@@ -420,7 +420,7 @@ class UpstreamExceptionPathDiagnosticTest : FunSpec({
                 val response = client.get("/api/v1/risk/krd/book-1")
                 response.status shouldBe HttpStatusCode.GatewayTimeout
                 val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
-                body["error"]?.jsonPrimitive?.content shouldBe "upstream_timeout"
+                body["code"]?.jsonPrimitive?.content shouldBe "UPSTREAM_TIMEOUT"
             }
         } finally {
             httpClient.close()

@@ -18,7 +18,7 @@ import kotlinx.serialization.json.*
 
 class GatewayErrorResponseContractAcceptanceTest : FunSpec({
 
-    test("invalid trade body sent to gateway returns 400 with { error, message } shape") {
+    test("invalid trade body sent to gateway returns 400 with { code, message } shape") {
         val backend = BackendStubServer { }
         val httpClient = HttpClient(CIO) { install(ClientContentNegotiation) { json() } }
         try {
@@ -31,7 +31,7 @@ class GatewayErrorResponseContractAcceptanceTest : FunSpec({
                 }
                 response.status shouldBe HttpStatusCode.BadRequest
                 val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
-                body.containsKey("error") shouldBe true
+                body.containsKey("code") shouldBe true
                 body.containsKey("message") shouldBe true
 
                 // Validation should happen at the gateway, not the upstream.
@@ -43,7 +43,7 @@ class GatewayErrorResponseContractAcceptanceTest : FunSpec({
         }
     }
 
-    test("price service missing query params returns 400 with { error, message } shape") {
+    test("price service missing query params returns 400 with { code, message } shape") {
         val backend = BackendStubServer { }
         val httpClient = HttpClient(CIO) { install(ClientContentNegotiation) { json() } }
         try {
@@ -53,7 +53,7 @@ class GatewayErrorResponseContractAcceptanceTest : FunSpec({
                 val response = client.get("/api/v1/prices/AAPL/history")
                 response.status shouldBe HttpStatusCode.BadRequest
                 val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
-                body.containsKey("error") shouldBe true
+                body.containsKey("code") shouldBe true
                 body.containsKey("message") shouldBe true
 
                 backend.recordedRequests shouldBe emptyList()

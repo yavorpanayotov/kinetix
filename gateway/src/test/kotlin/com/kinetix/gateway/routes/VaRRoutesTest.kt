@@ -125,7 +125,7 @@ class VaRRoutesTest : FunSpec({
             }
             response.status shouldBe HttpStatusCode.BadRequest
             val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
-            body.containsKey("error") shouldBe true
+            body.containsKey("code") shouldBe true
             body.containsKey("message") shouldBe true
         }
     }

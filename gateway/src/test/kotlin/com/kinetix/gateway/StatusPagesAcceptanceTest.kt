@@ -55,7 +55,7 @@ class StatusPagesAcceptanceTest : FunSpec({
 
                 response.status shouldBe HttpStatusCode.BadRequest
                 val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
-                body["error"]?.jsonPrimitive?.content shouldBe "invalid_request_body"
+                body["code"]?.jsonPrimitive?.content shouldBe "INVALID_REQUEST_BODY"
                 val message = body["message"]?.jsonPrimitive?.content ?: ""
                 message shouldContain "confidenceLevel"
                 // The upstream backend must not have been called — gateway
@@ -83,7 +83,7 @@ class StatusPagesAcceptanceTest : FunSpec({
 
                 response.status shouldBe HttpStatusCode.BadRequest
                 val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
-                body["error"]?.jsonPrimitive?.content shouldBe "invalid_request_body"
+                body["code"]?.jsonPrimitive?.content shouldBe "INVALID_REQUEST_BODY"
                 val message = body["message"]?.jsonPrimitive?.content ?: ""
                 message shouldContain "portfolioGroupId"
                 backend.recordedRequests.isEmpty() shouldBe true
@@ -117,8 +117,8 @@ class StatusPagesAcceptanceTest : FunSpec({
                 // bad_request (Ktor BadRequestException) is acceptable — the
                 // contract is "a client error, with a descriptive message,
                 // and the upstream backend is not called."
-                val errorCode = body["error"]?.jsonPrimitive?.content ?: ""
-                (errorCode == "invalid_request_body" || errorCode == "bad_request") shouldBe true
+                val errorCode = body["code"]?.jsonPrimitive?.content ?: ""
+                (errorCode == "INVALID_REQUEST_BODY" || errorCode == "BAD_REQUEST") shouldBe true
                 backend.recordedRequests.isEmpty() shouldBe true
             }
         } finally {

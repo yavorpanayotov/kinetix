@@ -74,7 +74,7 @@ class GatewayRiskContractAcceptanceTest : FunSpec({
         }
     }
 
-    test("gateway routing to risk-orchestrator — POST /api/v1/risk/var/{bookId} with invalid calculationType — returns 400 with error shape") {
+    test("gateway routing to risk-orchestrator — POST /api/v1/risk/var/{bookId} with invalid calculationType — returns 400 with ApiError shape") {
         // Gateway-side validation rejects unknown calculationType before reaching the upstream.
         val backend = BackendStubServer { }
         val httpClient = HttpClient(CIO) { install(ClientContentNegotiation) { json() } }
@@ -89,7 +89,7 @@ class GatewayRiskContractAcceptanceTest : FunSpec({
                 }
                 response.status shouldBe HttpStatusCode.BadRequest
                 val body = response.bodyAsText()
-                body shouldContain "error"
+                body shouldContain "BAD_REQUEST"
 
                 backend.recordedRequests shouldBe emptyList()
             }

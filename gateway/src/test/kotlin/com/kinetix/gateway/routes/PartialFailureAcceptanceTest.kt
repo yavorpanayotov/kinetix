@@ -101,7 +101,7 @@ class PartialFailureAcceptanceTest : FunSpec({
                 response.status shouldBe HttpStatusCode.ServiceUnavailable
                 response.headers[HttpHeaders.RetryAfter] shouldBe "30"
                 val body = response.bodyAsText()
-                body shouldContain "service_unavailable"
+                body shouldContain "SERVICE_UNAVAILABLE"
             }
         } finally {
             httpClient.close()

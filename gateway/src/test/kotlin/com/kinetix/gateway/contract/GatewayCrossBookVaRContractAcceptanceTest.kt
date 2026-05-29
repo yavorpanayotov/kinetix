@@ -113,7 +113,7 @@ class GatewayCrossBookVaRContractAcceptanceTest : FunSpec({
                 }
                 response.status shouldBe HttpStatusCode.BadRequest
                 val body = response.bodyAsText()
-                body shouldContain "error"
+                body shouldContain "BAD_REQUEST"
 
                 backend.recordedRequests shouldBe emptyList()
             }
@@ -138,7 +138,7 @@ class GatewayCrossBookVaRContractAcceptanceTest : FunSpec({
                 }
                 response.status shouldBe HttpStatusCode.BadRequest
                 val body = response.bodyAsText()
-                body shouldContain "error"
+                body shouldContain "BAD_REQUEST"
 
                 backend.recordedRequests shouldBe emptyList()
             }

@@ -144,7 +144,7 @@ class ReportsGenerateAcceptanceTest : FunSpec({
         // Defensive: even with the executor hardening, the gateway must keep
         // honestly forwarding any *non-degraded* upstream failures so the
         // §4.3 toast wiring is meaningful. The body shape is the gateway's
-        // canonical `{error,message}` ErrorResponse.
+        // canonical `{code,message,correlationId}` ApiError.
         val backend = BackendStubServer {
             post("/api/v1/reports/generate") {
                 call.respond(
@@ -168,7 +168,7 @@ class ReportsGenerateAcceptanceTest : FunSpec({
 
                 response.status shouldBe HttpStatusCode.InternalServerError
                 val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
-                body["error"]?.jsonPrimitive?.content shouldBe "upstream_error"
+                body["code"]?.jsonPrimitive?.content shouldBe "UPSTREAM_ERROR"
                 // The upstream message MUST flow through so the UI toast in
                 // §4.3 can render it verbatim.
                 body["message"]?.jsonPrimitive?.content shouldBe "Report generation failed"
