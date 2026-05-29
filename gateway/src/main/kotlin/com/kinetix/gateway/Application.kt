@@ -73,6 +73,7 @@ import com.kinetix.gateway.routes.counterpartyRiskRoutes
 import com.kinetix.gateway.routes.keyRateDurationRoutes
 import com.kinetix.gateway.routes.saCcrRoutes
 import com.kinetix.gateway.audit.GovernanceAuditPublisher
+import com.kinetix.gateway.error.configureErrorHandling
 import com.kinetix.gateway.routes.reportProxyRoutes
 import com.kinetix.gateway.routes.CopilotInternalAuth
 import com.kinetix.gateway.routes.copilotInternalRoutes
@@ -106,7 +107,6 @@ import io.ktor.server.netty.*
 import io.ktor.server.plugins.calllogging.*
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.request.*
-import io.ktor.server.plugins.statuspages.*
 import org.slf4j.event.Level
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -154,115 +154,7 @@ fun Application.module() {
             description = "API gateway aggregating all Kinetix services"
         }
     }
-    install(StatusPages) {
-        exception<com.kinetix.gateway.client.ServiceUnavailableException> { call, cause ->
-            cause.retryAfterSeconds?.let { call.response.header(HttpHeaders.RetryAfter, it.toString()) }
-            call.respond(
-                HttpStatusCode.ServiceUnavailable,
-                ErrorResponse("service_unavailable", cause.message ?: "Service unavailable"),
-            )
-        }
-        exception<com.kinetix.gateway.client.GatewayTimeoutException> { call, cause ->
-            call.respond(
-                HttpStatusCode.GatewayTimeout,
-                ErrorResponse("gateway_timeout", cause.message ?: "Gateway timeout"),
-            )
-        }
-        exception<com.kinetix.gateway.client.UpstreamErrorException> { call, cause ->
-            call.respond(
-                HttpStatusCode.fromValue(cause.statusCode),
-                ErrorResponse("upstream_error", cause.message ?: "Upstream error"),
-            )
-        }
-        // Client supplied a JSON body whose shape doesn't match the route's
-        // DTO (wrong field type, missing required field, malformed JSON).
-        // Ktor's content-negotiation surfaces these as JsonConvertException,
-        // wrapping the underlying kotlinx.serialization throwable whose
-        // message names the offending field — pass that message through so
-        // caller engineers can diagnose without needing server logs. These
-        // are caller faults, not server faults: do NOT log at ERROR.
-        exception<io.ktor.serialization.JsonConvertException> { call, cause ->
-            call.respond(
-                HttpStatusCode.BadRequest,
-                ErrorResponse("invalid_request_body", cause.message ?: "Invalid JSON body"),
-            )
-        }
-        exception<kotlinx.serialization.SerializationException> { call, cause ->
-            call.respond(
-                HttpStatusCode.BadRequest,
-                ErrorResponse("invalid_request_body", cause.message ?: "Invalid JSON body"),
-            )
-        }
-        // call.receive<T>() wraps deserialisation failures in
-        // BadRequestException, so the wrapper is what actually propagates
-        // to StatusPages. Walk the cause chain to surface the underlying
-        // serialisation throwable's field-naming message and the richer
-        // `invalid_request_body` error code instead of an opaque
-        // `bad_request`.
-        exception<io.ktor.server.plugins.BadRequestException> { call, cause ->
-            val serializationCause = generateSequence<Throwable>(cause) { it.cause }
-                .firstOrNull {
-                    it is kotlinx.serialization.SerializationException ||
-                        it is io.ktor.serialization.JsonConvertException
-                }
-            if (serializationCause != null) {
-                call.respond(
-                    HttpStatusCode.BadRequest,
-                    ErrorResponse(
-                        "invalid_request_body",
-                        serializationCause.message ?: cause.message ?: "Invalid JSON body",
-                    ),
-                )
-            } else {
-                call.respond(
-                    HttpStatusCode.BadRequest,
-                    ErrorResponse("bad_request", cause.message ?: "Bad request"),
-                )
-            }
-        }
-        exception<IllegalArgumentException> { call, cause ->
-            call.respond(
-                HttpStatusCode.BadRequest,
-                ErrorResponse("bad_request", cause.message ?: "Invalid request"),
-            )
-        }
-        // Transport-level failures: upstream is unreachable (connection refused or
-        // connect timeout). Both java.net.ConnectException and Ktor's
-        // ConnectTimeoutException (which extends ConnectException) are caught here.
-        // We return 503 with a Retry-After hint so callers know to back off.
-        exception<java.net.ConnectException> { call, cause ->
-            call.response.header(HttpHeaders.RetryAfter, "5")
-            call.respond(
-                HttpStatusCode.ServiceUnavailable,
-                ErrorResponse("upstream_unavailable", cause.message ?: "Upstream connection refused"),
-            )
-        }
-        // Ktor's HttpTimeout plugin fires this when the total request time (including
-        // read) exceeds requestTimeoutMillis. Return 504 so callers can distinguish
-        // from a gateway internal error.
-        exception<io.ktor.client.plugins.HttpRequestTimeoutException> { call, cause ->
-            call.respond(
-                HttpStatusCode.GatewayTimeout,
-                ErrorResponse("upstream_timeout", cause.message ?: "Upstream request timed out"),
-            )
-        }
-        // Socket-level read/write timeout (java.net.SocketTimeoutException, also the
-        // concrete type behind io.ktor.client.network.sockets.SocketTimeoutException
-        // which is a JVM typealias). Map to 504 for the same reason as above.
-        exception<java.net.SocketTimeoutException> { call, cause ->
-            call.respond(
-                HttpStatusCode.GatewayTimeout,
-                ErrorResponse("upstream_timeout", cause.message ?: "Upstream socket timed out"),
-            )
-        }
-        exception<Throwable> { call, cause ->
-            call.application.log.error("Unhandled exception", cause)
-            call.respond(
-                HttpStatusCode.InternalServerError,
-                ErrorResponse("internal_error", "An unexpected error occurred"),
-            )
-        }
-    }
+    configureErrorHandling()
     routing {
         get("/health") {
             call.respondText("""{"status":"UP"}""", ContentType.Application.Json)
