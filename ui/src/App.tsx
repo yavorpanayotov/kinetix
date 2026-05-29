@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { Activity, BarChart3, ScrollText, TrendingUp, Shield, FlaskConical, Scale, Bell, Server, FlaskRound, Sun, Moon, CalendarDays, Users, FileText, History, LogOut } from 'lucide-react'
+import { Activity, BarChart3, ScrollText, TrendingUp, Shield, FlaskConical, Scale, Bell, Server, FlaskRound, Sun, Moon, CalendarDays, Users, FileText, History, LogOut, Github } from 'lucide-react'
 import { ErrorBoundary, SectionErrorCard } from './components/ErrorBoundary'
 import { SubTabBar } from './components/ui/SubTabBar'
 import { PositionGrid } from './components/PositionGrid'
@@ -644,6 +644,17 @@ function AppContent() {
               onRenameView={workspace.renameView}
             />
           )}
+          <a
+            data-testid="header-github-link"
+            href="https://github.com/panayotovk/kinetix"
+            target="_blank"
+            rel="noreferrer noopener"
+            className="p-1.5 rounded-md hover:bg-surface-800 transition-colors text-slate-300 hover:text-white"
+            aria-label="View source on GitHub"
+            title="View source on GitHub"
+          >
+            <Github className="h-4 w-4" />
+          </a>
           <button
             data-testid="dark-mode-toggle"
             onClick={toggleTheme}

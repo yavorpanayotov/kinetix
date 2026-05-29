@@ -288,6 +288,28 @@ describe('App', () => {
     expect(screen.getByTestId('hierarchy-selector')).toBeInTheDocument()
   })
 
+  describe('header GitHub link', () => {
+    it('renders a link to the repository that opens in a new tab', () => {
+      render(<App />)
+
+      const link = screen.getByTestId('header-github-link')
+      expect(link).toBeInTheDocument()
+      expect(link).toHaveAttribute('href', 'https://github.com/panayotovk/kinetix')
+      expect(link).toHaveAttribute('target', '_blank')
+      const rel = link.getAttribute('rel') ?? ''
+      expect(rel).toContain('noreferrer')
+      expect(rel).toContain('noopener')
+      expect(link).toHaveAccessibleName('View source on GitHub')
+    })
+
+    it('sits inside the header right cluster', () => {
+      render(<App />)
+
+      const cluster = screen.getByTestId('header-right-cluster')
+      expect(within(cluster).getByTestId('header-github-link')).toBeInTheDocument()
+    })
+  })
+
   describe('global risk ticker strip', () => {
     it('renders the strip below the tab bar on the default Positions tab', () => {
       render(<App />)
