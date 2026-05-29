@@ -1,10 +1,12 @@
 package com.kinetix.risk.kafka
 
 import com.kinetix.common.kafka.KafkaCorrelationIdHeaderWriter
+import com.kinetix.common.kafka.KafkaOtelHeaderWriter
 import com.kinetix.common.kafka.events.BookVaRContributionEvent
 import com.kinetix.common.kafka.events.ComponentBreakdownEvent
 import com.kinetix.common.kafka.events.CrossBookRiskResultEvent
 import com.kinetix.risk.model.CrossBookValuationResult
+import io.opentelemetry.api.OpenTelemetry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
@@ -16,6 +18,7 @@ import org.slf4j.LoggerFactory
 class KafkaCrossBookRiskResultPublisher(
     private val producer: KafkaProducer<String, String>,
     private val topic: String = "risk.cross-book-results",
+    private val openTelemetry: OpenTelemetry = OpenTelemetry.noop(),
 ) : CrossBookRiskResultPublisher {
 
     private val logger = LoggerFactory.getLogger(KafkaCrossBookRiskResultPublisher::class.java)
@@ -52,8 +55,11 @@ class KafkaCrossBookRiskResultPublisher(
             correlationId = correlationId,
         )
         val json = Json.encodeToString(event)
-        val record = KafkaCorrelationIdHeaderWriter.withCorrelationId(
-            ProducerRecord(topic, result.portfolioGroupId, json)
+        val record = KafkaOtelHeaderWriter.injectTraceContext(
+            KafkaCorrelationIdHeaderWriter.withCorrelationId(
+                ProducerRecord(topic, result.portfolioGroupId, json)
+            ),
+            openTelemetry,
         )
 
         try {

@@ -1,9 +1,11 @@
 package com.kinetix.risk.kafka
 
 import com.kinetix.common.kafka.KafkaCorrelationIdHeaderWriter
+import com.kinetix.common.kafka.KafkaOtelHeaderWriter
 import com.kinetix.common.kafka.events.ConcentrationItem
 import com.kinetix.common.kafka.events.RiskResultEvent
 import com.kinetix.risk.model.FactorDecompositionSnapshot
+import io.opentelemetry.api.OpenTelemetry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
@@ -25,6 +27,7 @@ import java.time.Instant
 class KafkaFactorConcentrationAlertPublisher(
     private val producer: KafkaProducer<String, String>,
     private val topic: String = "risk.results",
+    private val openTelemetry: OpenTelemetry = OpenTelemetry.noop(),
 ) : FactorConcentrationAlertPublisher {
 
     private val logger = LoggerFactory.getLogger(KafkaFactorConcentrationAlertPublisher::class.java)
@@ -44,8 +47,11 @@ class KafkaFactorConcentrationAlertPublisher(
             ),
         )
         val json = Json.encodeToString(event)
-        val record = KafkaCorrelationIdHeaderWriter.withCorrelationId(
-            ProducerRecord(topic, snapshot.bookId, json)
+        val record = KafkaOtelHeaderWriter.injectTraceContext(
+            KafkaCorrelationIdHeaderWriter.withCorrelationId(
+                ProducerRecord(topic, snapshot.bookId, json)
+            ),
+            openTelemetry,
         )
         try {
             withContext(Dispatchers.IO) {

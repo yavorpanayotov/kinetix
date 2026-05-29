@@ -160,6 +160,10 @@ import io.ktor.server.netty.*
 import com.kinetix.common.observability.CorrelationIdHttpClientPlugin
 import com.kinetix.common.observability.CorrelationIdGrpcClientInterceptor
 import com.kinetix.common.observability.CorrelationIdHttpServerPlugin
+import com.kinetix.common.observability.OtelGrpcClientInterceptor
+import com.kinetix.common.observability.OtelHttpClientInterceptor
+import com.kinetix.common.observability.OtelHttpServerPlugin
+import com.kinetix.common.observability.OtelInit
 import io.ktor.server.plugins.calllogging.*
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.request.*
@@ -180,6 +184,7 @@ import org.apache.kafka.common.serialization.StringSerializer
 import java.util.Properties
 
 private val MeterRegistryKey = io.ktor.util.AttributeKey<io.micrometer.core.instrument.MeterRegistry>("MeterRegistry")
+private val OtelKey = io.ktor.util.AttributeKey<io.opentelemetry.api.OpenTelemetry>("OpenTelemetry")
 
 fun main(args: Array<String>): Unit = EngineMain.main(args)
 
@@ -189,6 +194,9 @@ fun Application.module() {
     attributes.put(MeterRegistryKey, appMicrometerRegistry)
     install(MicrometerMetrics) { registry = appMicrometerRegistry }
     install(ContentNegotiation) { json() }
+    val otel = OtelInit.init(serviceName = "risk-orchestrator")
+    attributes.put(OtelKey, otel)
+    install(OtelHttpServerPlugin) { openTelemetry = otel }
     install(CorrelationIdHttpServerPlugin)
     install(CallLogging) {
         level = Level.INFO
@@ -239,6 +247,9 @@ fun Application.moduleWithRoutes() {
             .build()
     }
 
+    val meterRegistry = attributes.getOrNull(MeterRegistryKey) ?: io.micrometer.core.instrument.simple.SimpleMeterRegistry()
+    val otel = attributes.getOrNull(OtelKey) ?: io.opentelemetry.api.OpenTelemetry.noop()
+
     // Wrap the channel with the OpenTelemetry gRPC client interceptor so every
     // call to the risk-engine injects the active span context as a W3C
     // `traceparent` header — stitching risk-orchestrator → risk-engine traces.
@@ -246,11 +257,10 @@ fun Application.moduleWithRoutes() {
     // engine can include it in its own log output.
     val channel = io.grpc.ClientInterceptors.intercept(
         managedChannel,
+        OtelGrpcClientInterceptor.newInterceptor(otel),
         RiskEngineTracingInterceptor.create(),
         CorrelationIdGrpcClientInterceptor(),
     )
-
-    val meterRegistry = attributes.getOrNull(MeterRegistryKey) ?: io.micrometer.core.instrument.simple.SimpleMeterRegistry()
 
     val dependenciesStub = MarketDataDependenciesServiceGrpcKt.MarketDataDependenciesServiceCoroutineStub(channel)
     val grpcRiskEngineClient = GrpcRiskEngineClient(
@@ -274,6 +284,7 @@ fun Application.moduleWithRoutes() {
             connectTimeoutMillis = 2_000
         }
         install(CorrelationIdHttpClientPlugin)
+        install(OtelHttpClientInterceptor) { openTelemetry = otel }
     }
     val priceServiceClient = HttpPriceServiceClient(priceHttpClient, priceServiceBaseUrl)
     val ratesServiceBaseUrl = environment.config

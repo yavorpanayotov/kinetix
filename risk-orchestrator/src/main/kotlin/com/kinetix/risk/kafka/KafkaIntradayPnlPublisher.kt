@@ -1,10 +1,12 @@
 package com.kinetix.risk.kafka
 
 import com.kinetix.common.kafka.KafkaCorrelationIdHeaderWriter
+import com.kinetix.common.kafka.KafkaOtelHeaderWriter
 import com.kinetix.common.kafka.events.InstrumentPnlItem
 import com.kinetix.common.kafka.events.IntradayPnlEvent
 import com.kinetix.risk.model.IntradayPnlSnapshot
 import com.kinetix.risk.service.IntradayPnlPublisher
+import io.opentelemetry.api.OpenTelemetry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
@@ -16,6 +18,7 @@ import org.slf4j.LoggerFactory
 class KafkaIntradayPnlPublisher(
     private val producer: KafkaProducer<String, String>,
     private val topic: String = "risk.pnl.intraday",
+    private val openTelemetry: OpenTelemetry = OpenTelemetry.noop(),
 ) : IntradayPnlPublisher {
 
     private val logger = LoggerFactory.getLogger(KafkaIntradayPnlPublisher::class.java)
@@ -61,8 +64,11 @@ class KafkaIntradayPnlPublisher(
             missingFxRates = snapshot.missingFxRates,
         )
         val json = Json.encodeToString(event)
-        val record = KafkaCorrelationIdHeaderWriter.withCorrelationId(
-            ProducerRecord(topic, snapshot.bookId.value, json)
+        val record = KafkaOtelHeaderWriter.injectTraceContext(
+            KafkaCorrelationIdHeaderWriter.withCorrelationId(
+                ProducerRecord(topic, snapshot.bookId.value, json)
+            ),
+            openTelemetry,
         )
 
         try {

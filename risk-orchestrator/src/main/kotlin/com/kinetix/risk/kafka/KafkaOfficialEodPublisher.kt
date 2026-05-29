@@ -1,8 +1,10 @@
 package com.kinetix.risk.kafka
 
 import com.kinetix.common.kafka.KafkaCorrelationIdHeaderWriter
+import com.kinetix.common.kafka.KafkaOtelHeaderWriter
 import com.kinetix.risk.model.OfficialEodPromotedEvent
 import com.kinetix.risk.service.OfficialEodEventPublisher
+import io.opentelemetry.api.OpenTelemetry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
@@ -14,6 +16,7 @@ import org.slf4j.LoggerFactory
 class KafkaOfficialEodPublisher(
     private val producer: KafkaProducer<String, String>,
     private val topic: String = "risk.official-eod",
+    private val openTelemetry: OpenTelemetry = OpenTelemetry.noop(),
 ) : OfficialEodEventPublisher {
 
     private val logger = LoggerFactory.getLogger(KafkaOfficialEodPublisher::class.java)
@@ -21,8 +24,11 @@ class KafkaOfficialEodPublisher(
     override suspend fun publish(event: OfficialEodPromotedEvent) {
         val key = "${event.bookId}:${event.valuationDate}"
         val json = Json.encodeToString(event)
-        val record = KafkaCorrelationIdHeaderWriter.withCorrelationId(
-            ProducerRecord(topic, key, json)
+        val record = KafkaOtelHeaderWriter.injectTraceContext(
+            KafkaCorrelationIdHeaderWriter.withCorrelationId(
+                ProducerRecord(topic, key, json)
+            ),
+            openTelemetry,
         )
 
         try {
