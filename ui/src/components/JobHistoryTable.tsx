@@ -7,6 +7,7 @@ import { JobTimeline } from './JobTimeline'
 import { PhaseStepperMini } from './PhaseStepperMini'
 import { ReplayPanel } from './ReplayPanel'
 import { formatTimeOnly, formatDuration, formatMoney } from '../utils/format'
+import { dedupeValuationJobs } from '../utils/dedupeValuationJobs'
 import { useEodPromotion } from '../hooks/useEodPromotion'
 
 interface JobHistoryTableProps {
@@ -104,7 +105,7 @@ export function JobHistoryTable({ runs, expandedJobs, loadingJobIds, onSelectJob
           </tr>
         </thead>
         <tbody>
-          {runs.map((run) => {
+          {dedupeValuationJobs(runs).map(({ run, count }) => {
             const isExpanded = run.jobId in expandedJobs
             const isLoading = loadingJobIds.has(run.jobId)
             const detail = expandedJobs[run.jobId]
@@ -143,6 +144,15 @@ export function JobHistoryTable({ runs, expandedJobs, loadingJobIds, onSelectJob
                     className="py-2 pr-3 font-mono text-slate-500"
                   >
                     {run.jobId.slice(0, 8)}
+                    {count > 1 && (
+                      <span
+                        data-testid={`dedupe-count-${run.jobId}`}
+                        title={`${count} identical jobs collapsed into this row`}
+                        className="ml-1.5 inline-flex items-center rounded bg-slate-200 dark:bg-slate-700 px-1 text-[10px] font-semibold text-slate-600 dark:text-slate-300"
+                      >
+                        (x{count})
+                      </span>
+                    )}
                   </td>
                   <td className="py-2 pr-3 text-slate-600">{formatTimeOnly(run.startedAt)}</td>
                   <td className="py-2 pr-3">
