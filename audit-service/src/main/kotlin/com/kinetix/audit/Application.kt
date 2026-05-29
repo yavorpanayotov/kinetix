@@ -2,7 +2,7 @@ package com.kinetix.audit
 
 import com.kinetix.audit.dlq.DlqReplayService
 import com.kinetix.audit.dlq.KafkaDlqMessageSource
-import com.kinetix.audit.dtos.ErrorResponse
+import com.kinetix.audit.error.configureErrorHandling
 import com.kinetix.audit.kafka.AuditEventConsumer
 import com.kinetix.audit.metrics.AuditMetrics
 import com.kinetix.audit.persistence.AuditEventRepository
@@ -27,7 +27,6 @@ import io.ktor.server.metrics.micrometer.*
 import io.ktor.server.netty.*
 import io.ktor.server.plugins.calllogging.*
 import io.ktor.server.plugins.contentnegotiation.*
-import io.ktor.server.plugins.statuspages.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -88,21 +87,7 @@ fun Application.module() {
             description = "Records and queries audit events"
         }
     }
-    install(StatusPages) {
-        exception<IllegalArgumentException> { call, cause ->
-            call.respond(
-                HttpStatusCode.BadRequest,
-                ErrorResponse("bad_request", cause.message ?: "Invalid request"),
-            )
-        }
-        exception<Throwable> { call, cause ->
-            call.application.log.error("Unhandled exception", cause)
-            call.respond(
-                HttpStatusCode.InternalServerError,
-                ErrorResponse("internal_error", "An unexpected error occurred"),
-            )
-        }
-    }
+    configureErrorHandling()
     routing {
         get("/health") {
             call.respondText("""{"status":"UP"}""", ContentType.Application.Json)
