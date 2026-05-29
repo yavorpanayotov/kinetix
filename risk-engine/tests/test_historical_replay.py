@@ -4,11 +4,14 @@ import pytest
 from kinetix_risk.models import AssetClass, PositionRisk
 from kinetix_risk.historical_replay import (
     HistoricalReplayRequest,
-    HistoricalReplayResult,
+    HistoricalReplayRunResult,
     PositionReplayImpact,
     run_historical_replay,
     ASSET_CLASS_PROXY_RETURNS,
 )
+
+# Alias for test readability — run_historical_replay returns HistoricalReplayRunResult
+HistoricalReplayResult = HistoricalReplayRunResult
 
 
 # ---------------------------------------------------------------------------

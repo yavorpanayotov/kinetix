@@ -33,6 +33,7 @@ from kinetix_risk.converters import (
 from kinetix_risk.greeks import calculate_greeks
 from kinetix_risk.historical_replay import (
     HistoricalReplayRequest,
+    HistoricalReplayRunResult,
     run_historical_replay,
 )
 from kinetix_risk.metrics import (
@@ -41,6 +42,7 @@ from kinetix_risk.metrics import (
     stress_test_duration_seconds,
     stress_test_total,
 )
+from kinetix_risk.otel_init import get_tracer
 from kinetix_risk.reverse_stress import ReverseStressRequest, run_reverse_stress
 from kinetix_risk.stress.engine import run_stress_test
 from kinetix_risk.stress.scenarios import get_scenario, list_scenarios
@@ -51,53 +53,59 @@ class StressTestServicer(stress_testing_pb2_grpc.StressTestServiceServicer):
 
     def RunStressTest(self, request, context):
         scenario_name = request.scenario_name
+        book_id = request.book_id.value
         start = time.time()
-        logger.info(
-            "Starting stress test",
-            extra={
-                "book_id": request.book_id.value,
-                "correlation_id": None,
-                "calculation_type": "STRESS",
-            },
-        )
-        try:
-            # Try historical scenario first, fall back to hypothetical
-            if scenario_name and not request.vol_shocks and not request.price_shocks:
-                try:
-                    scenario = get_scenario(scenario_name)
-                except KeyError:
-                    context.set_code(grpc.StatusCode.NOT_FOUND)
-                    context.set_details(f"Unknown scenario: {scenario_name}")
-                    return stress_testing_pb2.StressTestResponse()
-            else:
-                scenario = proto_stress_request_to_scenario(request)
-
-            positions = proto_positions_to_domain(request.positions)
-            calc_type = proto_calculation_type_to_domain(request.calculation_type)
-            confidence = proto_confidence_to_domain(request.confidence_level)
-
-            result = run_stress_test(
-                positions=positions,
-                scenario=scenario,
-                calculation_type=calc_type,
-                confidence_level=confidence,
-                time_horizon_days=request.time_horizon_days or 1,
-            )
-
-            stress_test_total.labels(scenario_name=result.scenario_name).inc()
-            record_stress_test_loss(result, book_id=request.book_id.value)
+        tracer = get_tracer()
+        with tracer.start_as_current_span("RunStressTest") as span:
+            span.set_attribute("book_id", book_id)
+            span.set_attribute("scenario_name", scenario_name or "")
             logger.info(
-                "Completed stress test",
+                "Starting stress test",
                 extra={
-                    "book_id": request.book_id.value,
+                    "book_id": book_id,
                     "correlation_id": None,
                     "calculation_type": "STRESS",
                 },
             )
-            return stress_result_to_proto(result)
-        finally:
-            duration = time.time() - start
-            stress_test_duration_seconds.labels(scenario_name=scenario_name).observe(duration)
+            try:
+                # Try historical scenario first, fall back to hypothetical
+                if scenario_name and not request.vol_shocks and not request.price_shocks:
+                    try:
+                        scenario = get_scenario(scenario_name)
+                    except KeyError:
+                        context.set_code(grpc.StatusCode.NOT_FOUND)
+                        context.set_details(f"Unknown scenario: {scenario_name}")
+                        return stress_testing_pb2.StressTestResponse()
+                else:
+                    scenario = proto_stress_request_to_scenario(request)
+
+                positions = proto_positions_to_domain(request.positions)
+                calc_type = proto_calculation_type_to_domain(request.calculation_type)
+                confidence = proto_confidence_to_domain(request.confidence_level)
+
+                result = run_stress_test(
+                    positions=positions,
+                    scenario=scenario,
+                    calculation_type=calc_type,
+                    confidence_level=confidence,
+                    time_horizon_days=request.time_horizon_days or 1,
+                )
+
+                span.set_attribute("stressed_pnl", result.stressed_pnl if hasattr(result, "stressed_pnl") else 0.0)
+                stress_test_total.labels(scenario_name=result.scenario_name).inc()
+                record_stress_test_loss(result, book_id=book_id)
+                logger.info(
+                    "Completed stress test",
+                    extra={
+                        "book_id": book_id,
+                        "correlation_id": None,
+                        "calculation_type": "STRESS",
+                    },
+                )
+                return stress_result_to_proto(result)
+            finally:
+                duration = time.time() - start
+                stress_test_duration_seconds.labels(scenario_name=scenario_name).observe(duration)
 
     def ListScenarios(self, request, context):
         names = list_scenarios()

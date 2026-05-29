@@ -85,6 +85,7 @@ from kinetix_risk.metrics import (
     risk_var_expected_shortfall,
     risk_var_value,
 )
+from kinetix_risk.otel_init import get_tracer
 from kinetix_risk.ml.model_store import ModelStore
 from kinetix_risk.ml_server import MLPredictionServicer
 from kinetix_risk.cross_book_var import calculate_cross_book_var
@@ -104,6 +105,13 @@ from kinetix_risk.hedge_optimizer import HedgeOptimizerServicer
 class RiskCalculationServicer(risk_calculation_pb2_grpc.RiskCalculationServiceServicer):
 
     def CalculateVaR(self, request, context):
+        book_id = request.book_id.value
+        tracer = get_tracer()
+        with tracer.start_as_current_span("CalculateVaR") as span:
+            span.set_attribute("book_id", book_id)
+            return self._calculate_var_impl(request, context, span)
+
+    def _calculate_var_impl(self, request, context, span=None):
         try:
             positions = proto_positions_to_domain(request.positions)
             calc_type = proto_calculation_type_to_domain(request.calculation_type)
@@ -112,6 +120,8 @@ class RiskCalculationServicer(risk_calculation_pb2_grpc.RiskCalculationServiceSe
             calculation_type = (
                 calc_type.value if hasattr(calc_type, "value") else str(calc_type)
             )
+            if span is not None:
+                span.set_attribute("calculation_type", calculation_type)
             logger.info(
                 "Starting VaR calculation",
                 extra={
@@ -213,70 +223,77 @@ class RiskCalculationServicer(risk_calculation_pb2_grpc.RiskCalculationServiceSe
             context.abort(grpc.StatusCode.INTERNAL, str(e))
 
     def Valuate(self, request, context):
-        try:
-            positions = proto_positions_to_domain(request.positions)
-            calc_type = proto_calculation_type_to_domain(request.calculation_type)
-            confidence = proto_confidence_to_domain(request.confidence_level)
+        book_id = request.book_id.value
+        tracer = get_tracer()
+        with tracer.start_as_current_span("Valuate") as span:
+            span.set_attribute("book_id", book_id)
+            try:
+                positions = proto_positions_to_domain(request.positions)
+                calc_type = proto_calculation_type_to_domain(request.calculation_type)
+                confidence = proto_confidence_to_domain(request.confidence_level)
 
-            market_data_dicts = proto_market_data_to_domain(request.market_data)
-            bundle = consume_market_data(market_data_dicts)
+                market_data_dicts = proto_market_data_to_domain(request.market_data)
+                bundle = consume_market_data(market_data_dicts)
 
-            requested_outputs = proto_valuation_outputs_to_names(request.requested_outputs)
+                requested_outputs = proto_valuation_outputs_to_names(request.requested_outputs)
 
-            # A seed of 0 means unseeded (non-deterministic); >0 means deterministic
-            seed = request.monte_carlo_seed if request.monte_carlo_seed > 0 else None
+                # A seed of 0 means unseeded (non-deterministic); >0 means deterministic
+                seed = request.monte_carlo_seed if request.monte_carlo_seed > 0 else None
 
-            result = calculate_valuation(
-                positions=positions,
-                calculation_type=calc_type,
-                confidence_level=confidence,
-                time_horizon_days=request.time_horizon_days or 1,
-                num_simulations=request.num_simulations or 10_000,
-                volatility_provider=bundle.volatility_provider or VolatilityProvider.static(),
-                correlation_matrix=bundle.correlation_matrix,
-                requested_outputs=requested_outputs,
-                book_id=request.book_id.value,
-                seed=seed,
-                market_data_bundle=bundle,
-            )
+                ct = calc_type.value if hasattr(calc_type, "value") else str(calc_type)
+                span.set_attribute("calculation_type", ct)
+                span.set_attribute("num_simulations", request.num_simulations or 10_000)
 
-            book_id = request.book_id.value
-            ct = calc_type.value if hasattr(calc_type, "value") else str(calc_type)
-            cl = confidence.name
+                result = calculate_valuation(
+                    positions=positions,
+                    calculation_type=calc_type,
+                    confidence_level=confidence,
+                    time_horizon_days=request.time_horizon_days or 1,
+                    num_simulations=request.num_simulations or 10_000,
+                    volatility_provider=bundle.volatility_provider or VolatilityProvider.static(),
+                    correlation_matrix=bundle.correlation_matrix,
+                    requested_outputs=requested_outputs,
+                    book_id=book_id,
+                    seed=seed,
+                    market_data_bundle=bundle,
+                )
 
-            if result.var_result is not None:
-                risk_var_value.labels(book_id=book_id, calculation_type=ct, confidence_level=cl).set(result.var_result.var_value)
-                risk_var_expected_shortfall.labels(book_id=book_id, calculation_type=ct, confidence_level=cl).set(result.var_result.expected_shortfall)
-                for component in result.var_result.component_breakdown:
-                    risk_var_component_contribution.labels(
-                        book_id=book_id,
-                        asset_class=component.asset_class.value,
-                    ).set(component.var_contribution)
+                cl = confidence.name
 
-            if result.greeks_result is not None:
-                gr = result.greeks_result
-                for asset_class, val in gr.delta.items():
-                    greeks_delta.labels(book_id=book_id, asset_class=asset_class.value).set(val)
-                for asset_class, val in gr.gamma.items():
-                    greeks_gamma.labels(book_id=book_id, asset_class=asset_class.value).set(val)
-                for asset_class, val in gr.vega.items():
-                    greeks_vega.labels(book_id=book_id, asset_class=asset_class.value).set(val)
-                greeks_theta.labels(book_id=book_id).set(gr.theta)
-                greeks_rho.labels(book_id=book_id).set(gr.rho)
+                if result.var_result is not None:
+                    risk_var_value.labels(book_id=book_id, calculation_type=ct, confidence_level=cl).set(result.var_result.var_value)
+                    risk_var_expected_shortfall.labels(book_id=book_id, calculation_type=ct, confidence_level=cl).set(result.var_result.expected_shortfall)
+                    for component in result.var_result.component_breakdown:
+                        risk_var_component_contribution.labels(
+                            book_id=book_id,
+                            asset_class=component.asset_class.value,
+                        ).set(component.var_contribution)
+                    span.set_attribute("var_value", result.var_result.var_value)
 
-            return valuation_result_to_proto_response(
-                result,
-                book_id=request.book_id.value,
-                calculation_type=request.calculation_type,
-                confidence_level=request.confidence_level,
-                model_version=get_model_version(),
-                monte_carlo_seed=request.monte_carlo_seed,
-            )
-        except ValueError as e:
-            context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(e))
-        except Exception as e:
-            logger.exception("Valuate failed")
-            context.abort(grpc.StatusCode.INTERNAL, str(e))
+                if result.greeks_result is not None:
+                    gr = result.greeks_result
+                    for asset_class, val in gr.delta.items():
+                        greeks_delta.labels(book_id=book_id, asset_class=asset_class.value).set(val)
+                    for asset_class, val in gr.gamma.items():
+                        greeks_gamma.labels(book_id=book_id, asset_class=asset_class.value).set(val)
+                    for asset_class, val in gr.vega.items():
+                        greeks_vega.labels(book_id=book_id, asset_class=asset_class.value).set(val)
+                    greeks_theta.labels(book_id=book_id).set(gr.theta)
+                    greeks_rho.labels(book_id=book_id).set(gr.rho)
+
+                return valuation_result_to_proto_response(
+                    result,
+                    book_id=request.book_id.value,
+                    calculation_type=request.calculation_type,
+                    confidence_level=request.confidence_level,
+                    model_version=get_model_version(),
+                    monte_carlo_seed=request.monte_carlo_seed,
+                )
+            except ValueError as e:
+                context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(e))
+            except Exception as e:
+                logger.exception("Valuate failed")
+                context.abort(grpc.StatusCode.INTERNAL, str(e))
 
     def CalculateCrossBookVaR(self, request, context):
         try:
@@ -344,7 +361,11 @@ class RiskCalculationServicer(risk_calculation_pb2_grpc.RiskCalculationServiceSe
                 context.abort(grpc.StatusCode.INTERNAL, str(e))
 
     def DecomposeFactorRisk(self, request, context):
-        return FactorDecompositionServicer().DecomposeFactorRisk(request, context)
+        tracer = get_tracer()
+        with tracer.start_as_current_span("DecomposeFactorRisk") as span:
+            book_id = request.book_id.value if request.book_id else ""
+            span.set_attribute("book_id", book_id)
+            return FactorDecompositionServicer().DecomposeFactorRisk(request, context)
 
     def SuggestHedge(self, request, context):
         return HedgeOptimizerServicer().SuggestHedge(request, context)
@@ -525,6 +546,10 @@ def serve(port: int = 50051, metrics_port: int = 9091, models_dir: str = "models
     _json_handler = logging.StreamHandler()
     _json_handler.setFormatter(JsonLogFormatter())
     logging.basicConfig(level=logging.INFO, handlers=[_json_handler])
+
+    # Initialise OTel tracing SDK (no-op if endpoint not configured)
+    from kinetix_risk.otel_init import init_otel
+    init_otel()
 
     # Configure OTel logging if endpoint is set
     otel_endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
