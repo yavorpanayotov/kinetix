@@ -18,7 +18,7 @@ describe('TapeReplayIndicator', () => {
     render(<TapeReplayIndicator status="ACTIVE" loading={false} />)
     const indicator = screen.getByTestId('tape-replay-indicator')
     expect(indicator).toHaveAttribute('data-status', 'ACTIVE')
-    expect(indicator).toHaveAttribute('aria-label', 'Tape Replay Active')
+    expect(indicator).toHaveAttribute('aria-label', 'Tape replay active')
     expect(indicator).toHaveTextContent('Tape Replay Active')
   })
 
@@ -26,13 +26,17 @@ describe('TapeReplayIndicator', () => {
     render(<TapeReplayIndicator status="FROZEN" loading={false} />)
     const indicator = screen.getByTestId('tape-replay-indicator')
     expect(indicator).toHaveAttribute('data-status', 'FROZEN')
-    expect(indicator).toHaveAttribute('aria-label', 'Frozen')
+    // The pill answers "frozen what?" for assistive tech (plan P3 #31).
+    expect(indicator).toHaveAttribute(
+      'aria-label',
+      'Frozen market data — screen is static between resets',
+    )
   })
 
   it('renders the LIVE variant in production mode', () => {
     render(<TapeReplayIndicator status="LIVE" loading={false} />)
     const indicator = screen.getByTestId('tape-replay-indicator')
     expect(indicator).toHaveAttribute('data-status', 'LIVE')
-    expect(indicator).toHaveAttribute('aria-label', 'Live')
+    expect(indicator).toHaveAttribute('aria-label', 'Live market data')
   })
 })

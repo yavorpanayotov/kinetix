@@ -441,6 +441,7 @@ export function PositionGrid({ positions, connected, reconnecting, lastConnected
           data-testid="position-details-toggle"
           onClick={toggleDetails}
           aria-pressed={showPositionDetails}
+          aria-label={showPositionDetails ? 'Hide the quantity, cost, and price detail columns' : 'Show the quantity, cost, and price detail columns'}
           title={showPositionDetails ? 'Hide quantity, cost, and price columns' : 'Show quantity, cost, and price columns'}
           className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium border rounded-md transition-colors ${
             showPositionDetails
@@ -463,6 +464,8 @@ export function PositionGrid({ positions, connected, reconnecting, lastConnected
           <button
             data-testid="column-settings-button"
             onClick={() => setSettingsOpen((v) => !v)}
+            aria-label="Choose which columns are shown in the table"
+            title="Choose which columns are shown in the table"
             className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-surface-600 rounded-md hover:bg-slate-50 dark:hover:bg-surface-700 transition-colors"
           >
             <Settings className="h-4 w-4" />
