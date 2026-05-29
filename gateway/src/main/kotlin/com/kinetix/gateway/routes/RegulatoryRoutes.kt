@@ -3,6 +3,7 @@ package com.kinetix.gateway.routes
 import com.kinetix.gateway.client.RiskServiceClient
 import com.kinetix.gateway.dtos.GenerateReportRequest
 import com.kinetix.gateway.dtos.toResponse
+import io.github.smiley4.ktoropenapi.get
 import io.github.smiley4.ktoropenapi.post
 import io.ktor.http.*
 import io.ktor.server.request.*
@@ -34,6 +35,28 @@ fun Route.regulatoryRoutes(client: RiskServiceClient) {
                 "'$bookId' is a reserved path word, not a book id"
             }
             val result = client.calculateFrtb(bookId)
+            if (result != null) {
+                call.respond(result.toResponse())
+            } else {
+                call.respond(HttpStatusCode.NotFound)
+            }
+        }
+
+        // Read the most recent persisted FRTB calculation for a book without
+        // recalculating, so the Regulatory tab can render the last result by
+        // default instead of an empty "Click Calculate FRTB" state.
+        get("/latest", {
+            summary = "Get the latest FRTB calculation"
+            tags = listOf("Regulatory")
+            request {
+                pathParameter<String>("bookId") { description = "Book identifier" }
+            }
+        }) {
+            val bookId = call.requirePathParam("bookId")
+            require(bookId !in RESERVED_FRTB_PATH_WORDS) {
+                "'$bookId' is a reserved path word, not a book id"
+            }
+            val result = client.getLatestFrtb(bookId)
             if (result != null) {
                 call.respond(result.toResponse())
             } else {

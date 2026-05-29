@@ -151,6 +151,14 @@ class HttpRiskServiceClient(
         return dto.toDomain()
     }
 
+    override suspend fun getLatestFrtb(bookId: String): FrtbResultSummary? {
+        val response = httpClient.get("$baseUrl/api/v1/regulatory/frtb/$bookId/latest")
+        if (response.status == HttpStatusCode.NotFound) return null
+        if (!response.status.isSuccess()) handleErrorResponse(response)
+        val dto: FrtbResultDto = response.body()
+        return dto.toDomain()
+    }
+
     override suspend fun generateReport(bookId: String, format: String): ReportResult? {
         val response = httpClient.post("$baseUrl/api/v1/regulatory/report/$bookId") {
             contentType(ContentType.Application.Json)

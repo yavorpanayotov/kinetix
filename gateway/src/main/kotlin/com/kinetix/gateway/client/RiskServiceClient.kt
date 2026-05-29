@@ -525,6 +525,7 @@ interface RiskServiceClient {
     suspend fun listScenarios(): List<String>
     suspend fun calculateGreeks(params: VaRCalculationParams): GreeksResultSummary?
     suspend fun calculateFrtb(bookId: String): FrtbResultSummary?
+    suspend fun getLatestFrtb(bookId: String): FrtbResultSummary?
     suspend fun generateReport(bookId: String, format: String): ReportResult?
     suspend fun discoverDependencies(params: DependenciesParams): DataDependenciesSummary?
     suspend fun listValuationJobs(bookId: String, limit: Int = 20, offset: Int = 0, from: Instant? = null, to: Instant? = null, valuationDate: String? = null): Pair<List<ValuationJobSummaryItem>, Long>

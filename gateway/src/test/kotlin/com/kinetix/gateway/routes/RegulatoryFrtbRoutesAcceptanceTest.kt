@@ -8,6 +8,7 @@ import io.kotest.matchers.shouldBe
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
+import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
@@ -16,6 +17,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.response.respond
+import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.testing.testApplication
 import kotlinx.serialization.json.Json
@@ -78,6 +80,51 @@ class RegulatoryFrtbRoutesAcceptanceTest : FunSpec({
                 body["bookId"]?.jsonPrimitive?.content shouldBe "balanced-income"
                 body["totalCapitalCharge"]?.jsonPrimitive?.content shouldBe "87712.50"
                 body["totalSbmCharge"]?.jsonPrimitive?.content shouldBe "76612.50"
+            }
+        } finally {
+            httpClient.close()
+            backend.close()
+        }
+    }
+
+    test("GET /api/v1/regulatory/frtb/{bookId}/latest returns 200 with the most recent persisted FRTB calculation so the tab can show it by default") {
+        val backend = BackendStubServer {
+            get("/api/v1/regulatory/frtb/balanced-income/latest") {
+                call.respond(Json.parseToJsonElement(frtbResultJson).jsonObject)
+            }
+        }
+        val httpClient = HttpClient(CIO) { install(ClientContentNegotiation) { json() } }
+        try {
+            val riskClient = HttpRiskServiceClient(httpClient, backend.baseUrl)
+
+            testApplication {
+                application { module(riskClient) }
+                val response = client.get("/api/v1/regulatory/frtb/balanced-income/latest")
+                response.status shouldBe HttpStatusCode.OK
+                val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+                body["bookId"]?.jsonPrimitive?.content shouldBe "balanced-income"
+                body["totalCapitalCharge"]?.jsonPrimitive?.content shouldBe "87712.50"
+            }
+        } finally {
+            httpClient.close()
+            backend.close()
+        }
+    }
+
+    test("GET /api/v1/regulatory/frtb/{bookId}/latest returns 404 when the book has no calculation so the tab falls back to the empty state") {
+        val backend = BackendStubServer {
+            get("/api/v1/regulatory/frtb/never-calculated/latest") {
+                call.respond(HttpStatusCode.NotFound)
+            }
+        }
+        val httpClient = HttpClient(CIO) { install(ClientContentNegotiation) { json() } }
+        try {
+            val riskClient = HttpRiskServiceClient(httpClient, backend.baseUrl)
+
+            testApplication {
+                application { module(riskClient) }
+                val response = client.get("/api/v1/regulatory/frtb/never-calculated/latest")
+                response.status shouldBe HttpStatusCode.NotFound
             }
         } finally {
             httpClient.close()

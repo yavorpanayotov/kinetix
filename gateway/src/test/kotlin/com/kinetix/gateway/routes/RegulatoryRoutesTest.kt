@@ -81,6 +81,29 @@ class RegulatoryRoutesTest : FunSpec({
         }
     }
 
+    test("GET /api/v1/regulatory/frtb/{bookId}/latest returns the most recent calculation") {
+        coEvery { riskClient.getLatestFrtb("port-1") } returns sampleFrtbResult
+
+        testApplication {
+            application { module(riskClient) }
+            val response = client.get("/api/v1/regulatory/frtb/port-1/latest")
+            response.status shouldBe HttpStatusCode.OK
+            val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+            body["bookId"]?.jsonPrimitive?.content shouldBe "port-1"
+            body["totalCapitalCharge"]?.jsonPrimitive?.content shouldBe "87712.50"
+        }
+    }
+
+    test("GET /api/v1/regulatory/frtb/{bookId}/latest returns 404 when no calculation exists") {
+        coEvery { riskClient.getLatestFrtb("port-1") } returns null
+
+        testApplication {
+            application { module(riskClient) }
+            val response = client.get("/api/v1/regulatory/frtb/port-1/latest")
+            response.status shouldBe HttpStatusCode.NotFound
+        }
+    }
+
     test("POST /api/v1/regulatory/report/{bookId} CSV returns content") {
         coEvery { riskClient.generateReport(any(), any()) } returns sampleReportResult
 
