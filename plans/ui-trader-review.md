@@ -148,7 +148,7 @@ Ordered top-to-bottom by dependency. P0 first because every P1 cross-tab inconsi
 - [x] **Alert deduplication + batch acknowledge.** Suppression rules and a `Select all visible` / `Acknowledge selected` action. Failing acceptance tests on both the alerting service and UI.
   Acceptance: `./gradlew :notification-service:acceptanceTest --tests "*AlertDedupAcceptanceTest"` plus `cd ui && npx playwright test e2e/alerts-batch-ack.spec.ts` green.
 
-- [ ] **Trade blotter: real fill states + quantity-open column.** Map current `LIVE` to WORKING/FILLED/PARTIAL/CANCELLED/REJECTED with `qtyFilled/qtyOpen`. Failing acceptance test on the blotter endpoint, Playwright asserts mixed-status rows render correctly.
+- [x] **Trade blotter: real fill states + quantity-open column.** Map current `LIVE` to WORKING/FILLED/PARTIAL/CANCELLED/REJECTED with `qtyFilled/qtyOpen`. Failing acceptance test on the blotter endpoint, Playwright asserts mixed-status rows render correctly.
   Acceptance: `./gradlew :gateway:acceptanceTest --tests "*TradeBlotterFillStateAcceptanceTest"` plus `cd ui && npx playwright test e2e/trade-blotter-status.spec.ts` green.
 
 - [ ] **Add venue column to blotter (it's already in the filter).** Failing Playwright test asserts the column header is present after enabling the "Show Venue" filter.
