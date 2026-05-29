@@ -254,6 +254,13 @@ export function PositionGrid({ positions, connected, reconnecting, lastConnected
   const totalVar = hasRisk
     ? positionRisk.reduce((sum, r) => sum + Number(r.varContribution), 0)
     : null
+  // Column sum of VaR Contrib %. Because negative diversification contributors
+  // are netted out of the portfolio total, this sum can exceed 100% (plan P3
+  // #33). We surface it in a footer row so the discrepancy is explicit rather
+  // than leaving the reader to wonder why the per-row percentages don't tie out.
+  const totalVarPct = hasRisk
+    ? positionRisk.reduce((sum, r) => sum + Number(r.percentageOfTotal), 0)
+    : null
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -696,6 +703,25 @@ export function PositionGrid({ positions, connected, reconnecting, lastConnected
                 )
               })}
             </tbody>
+            {hasRisk && totalVarPct != null && (
+              <tfoot className="border-t-2 border-slate-200 dark:border-surface-700">
+                <tr className="bg-slate-50 dark:bg-surface-800 font-semibold">
+                  <td
+                    colSpan={positionColCount + 3}
+                    className="px-4 py-2 text-right text-sm text-slate-600 dark:text-slate-400"
+                  >
+                    Total
+                  </td>
+                  <td
+                    data-testid="var-pct-footer"
+                    className="px-4 py-2 text-right text-sm text-indigo-700 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-950/20"
+                  >
+                    {formatNum(totalVarPct)}%
+                  </td>
+                  {notesEnabled && <td className="px-2 py-2" />}
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </Card>
