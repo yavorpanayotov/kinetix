@@ -3,8 +3,9 @@
 --
 -- Scope: the conversational chat endpoint (request/response contract,
 --         SSE streaming), conversation-history persistence, the
---         post-generation safety nets (citation verification and the
---         banned-phrase policy guard), the in-process MCP read-tool
+--         safety nets (a pre-generation prompt-injection sanitiser plus
+--         the post-generation citation verification and banned-phrase
+--         policy guard), the in-process MCP read-tool
 --         registry, and the canned-vs-Claude chat-client switch.
 -- Excludes:
 --   - The VaR explainer / report commentary insight routes (one-shot,
@@ -450,6 +451,53 @@ rule ConversationExpires {
         -- TTL until the next store operation triggers a sweep.
 }
 
+-- Live-client safety nets (pre-generation)
+
+rule SanitiseInboundMessage {
+    when: ChatRequestReceived(request)
+    requires: request.message != ""
+
+    @guidance
+        -- Source: chat/sanitiser.py sanitise_message, applied in
+        -- claude_agent_chat_client.py before the prompt is assembled.
+        -- The live client redacts a closed set of prompt-injection
+        -- patterns from the inbound message — "ignore (all) previous
+        -- instructions/prompts", "disregard the above/previous", a
+        -- leading "system:" line prefix, a <system> tag, and a "### "
+        -- instruction separator — replacing each match with a single
+        -- "[redacted-injection]" marker. This is a FILTER, not a gate:
+        -- the chat continues with the redacted message. When any
+        -- pattern fires, the set of matched pattern labels is logged as
+        -- a structured "prompt_injection_redacted" WARNING (ids only,
+        -- never the matched span). The canned client runs no sanitiser.
+        -- This is the third safety layer alongside the post-generation
+        -- banned-phrase guard (BlockPolicyViolatingResponse) and the
+        -- citation verifier (BlockUncitedNumericResponse).
+}
+
+rule GroundNarrativeInPageContext {
+    when: ChatRequestReceived(request)
+    requires: request.message != ""
+
+    @guidance
+        -- Source: claude_agent_chat_client.py
+        -- _citations_from_page_context. The grounding bag the UI
+        -- attaches (correlation cells, asset-class labels, the route
+        -- name) is real provenance — it is what the user is looking at —
+        -- but it did not arrive from an MCP tool, so the citation
+        -- verifier would otherwise reject any narrative that quotes it
+        -- as citation_unverifiable. The live client walks page_context
+        -- and synthesises one Citation per leaf scalar (int / float /
+        -- str; null and bool leaves are skipped) with tool="page_context"
+        -- and data_source="page_context", then passes them to BOTH the
+        -- numeric and symbol verifiers as extra grounding. These
+        -- synthetic citations are verification-only: they are NOT
+        -- yielded to the client, so the user-facing citations list still
+        -- carries only tool-sourced provenance. An empty page_context
+        -- yields no synthetic citations. See BlockUncitedNumericResponse
+        -- and EmitVerifiedChatResponse.
+}
+
 -- Live-client safety nets (post-generation)
 
 rule BlockPolicyViolatingResponse {
@@ -499,7 +547,12 @@ rule BlockUncitedNumericResponse {
         --     params values, excluding a curated stopword set (VAR,
         --     USD, EUR, ...).
         -- Both checks run unconditionally so logs can attribute the
-        -- cause. See the CitationVerification invariant.
+        -- cause. The Citation set verified against includes the
+        -- tool-sourced citations AND the verification-only synthetic
+        -- citations derived from page_context scalars — see
+        -- GroundNarrativeInPageContext — so a value visible on the
+        -- user's screen counts as grounded. See the CitationVerification
+        -- invariant.
 }
 
 rule EmitVerifiedChatResponse {
@@ -617,7 +670,9 @@ rule SelectChatClient {
 -- The conversational chat endpoint is the single HTTP-origin trigger in
 -- this spec: ChatRequestReceived models the inbound POST to
 -- /api/v1/insights/chat, consumed by StampMissingConversationIds and
--- StreamChatResponse. The caller is the UI's copilot chat panel (or the
+-- StreamChatResponse — and, in the live client pipeline, by the
+-- pre-generation SanitiseInboundMessage and GroundNarrativeInPageContext
+-- steps. The caller is the UI's copilot chat panel (or the
 -- gateway proxy), modelled as an actor with a minimal identity rooted on
 -- ChatRequest. Declaring the surface lets ChatRequestReceived resolve
 -- in-spec: without it, single-spec analysis reports the request-handling
