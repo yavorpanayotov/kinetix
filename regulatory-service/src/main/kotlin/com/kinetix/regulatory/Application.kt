@@ -3,7 +3,7 @@ package com.kinetix.regulatory
 import com.kinetix.common.health.ReadinessChecker
 import com.kinetix.regulatory.audit.GovernanceAuditPublisher
 import com.kinetix.regulatory.client.RiskOrchestratorClient
-import com.kinetix.regulatory.dtos.ErrorResponse
+import com.kinetix.regulatory.error.configureErrorHandling
 import com.kinetix.regulatory.client.CorrelationServiceClient
 import com.kinetix.regulatory.client.PriceServiceClient
 import com.kinetix.regulatory.historical.HistoricalReplayService
@@ -43,7 +43,6 @@ import io.ktor.server.metrics.micrometer.*
 import io.ktor.server.netty.*
 import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.server.plugins.statuspages.*
 import io.ktor.server.request.header
 import org.slf4j.event.Level
 import io.ktor.server.response.*
@@ -84,32 +83,7 @@ fun Application.module() {
             description = "Manages FRTB calculations and regulatory compliance"
         }
     }
-    install(StatusPages) {
-        exception<IllegalArgumentException> { call, cause ->
-            call.respond(
-                HttpStatusCode.BadRequest,
-                ErrorResponse(error = "Bad Request", message = cause.message ?: "Invalid request"),
-            )
-        }
-        exception<IllegalStateException> { call, cause ->
-            call.respond(
-                HttpStatusCode.BadRequest,
-                ErrorResponse(error = "Bad Request", message = cause.message ?: "Invalid state transition"),
-            )
-        }
-        exception<NoSuchElementException> { call, cause ->
-            call.respond(
-                HttpStatusCode.NotFound,
-                ErrorResponse(error = "Not Found", message = cause.message ?: "Resource not found"),
-            )
-        }
-        exception<Throwable> { call, cause ->
-            call.respond(
-                HttpStatusCode.InternalServerError,
-                ErrorResponse(error = "Internal Server Error", message = cause.message ?: "Unexpected error"),
-            )
-        }
-    }
+    configureErrorHandling()
     routing {
         get("/health") {
             call.respondText("""{"status":"UP"}""", ContentType.Application.Json)
