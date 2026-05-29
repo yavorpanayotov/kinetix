@@ -46,6 +46,39 @@ function SortableHeader({ column, label, align, sortColumn, sortDirection, onSor
   )
 }
 
+// PFE methodology label (trader-review P2 #26). A bare "Peak PFE $7.2M" is
+// uninterpretable — a credit officer needs to know the method, the confidence
+// level and the horizon at which the peak occurs. Kinetix computes PFE with a
+// Cholesky-based Monte Carlo engine at the 95th percentile
+// (risk-engine/src/kinetix_risk/credit_exposure.py), so the method/confidence
+// are static facts of the model. The horizon is data-derived: it is the tenor
+// at which the 95th-percentile profile peaks. With no profile we fall back to
+// the shortest standard horizon ("1Y").
+const PFE_METHOD = 'Monte Carlo'
+const PFE_CONFIDENCE_PCT = 95
+
+interface PfeMethodology {
+  /** Compact machine token, e.g. "MC_95_1Y". */
+  token: string
+  /** Human-readable label, e.g. "Monte Carlo · 95% · 1Y". */
+  label: string
+  horizon: string
+}
+
+function pfeMethodology(profile: ExposureAtTenorDto[]): PfeMethodology {
+  const valid = profile.filter((p) => Number.isFinite(p.pfe95))
+  let horizon = '1Y'
+  if (valid.length > 0) {
+    const peak = valid.reduce((max, p) => (p.pfe95 > max.pfe95 ? p : max), valid[0])
+    if (peak.tenor) horizon = peak.tenor
+  }
+  return {
+    token: `MC_${PFE_CONFIDENCE_PCT}_${horizon}`,
+    label: `${PFE_METHOD} · ${PFE_CONFIDENCE_PCT}% · ${horizon}`,
+    horizon,
+  }
+}
+
 // Top-decile threshold: an exposure is flagged "high" if it is >= the 90th
 // percentile of the universe. Below 10 counterparties the sample is too small
 // to compute a meaningful percentile, so we fall back to disabling the flag.
@@ -350,7 +383,15 @@ function DetailPanel({ exposure, computing, onComputePFE, onComputeCVA }: Detail
           >
             {formatCurrency(exposure.peakPfe)}
           </div>
-          <div className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">95th percentile</div>
+          <div
+            data-testid="pfe-methodology"
+            title={`${pfeMethodology(exposure.pfeProfile).label} (potential future exposure)`}
+            className="text-xs text-slate-400 dark:text-slate-500 mt-0.5"
+          >
+            <span className="font-mono">{pfeMethodology(exposure.pfeProfile).token}</span>
+            {' · '}
+            {pfeMethodology(exposure.pfeProfile).label}
+          </div>
         </div>
         <div className="rounded-lg bg-white dark:bg-slate-800 p-3">
           <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">CVA</div>

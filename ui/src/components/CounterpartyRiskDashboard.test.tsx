@@ -293,6 +293,59 @@ describe('CounterpartyRiskDashboard', () => {
     expect(screen.getByTestId('detail-cva')).toBeInTheDocument()
   })
 
+  // Trader-review P2 #26: the Peak PFE tile must declare the methodology,
+  // confidence level and horizon so the figure is interpretable.
+  describe('Peak PFE methodology label', () => {
+    it('renders a methodology / confidence / horizon label on the Peak PFE tile', () => {
+      mockUseCounterpartyRisk.mockReturnValue({
+        ...defaultHook,
+        exposures: [SAMPLE_EXPOSURE],
+        selected: SAMPLE_EXPOSURE,
+      })
+
+      render(<CounterpartyRiskDashboard />)
+
+      const methodology = screen.getByTestId('pfe-methodology')
+      // SAMPLE_EXPOSURE peaks at the 1Y tenor (pfe95 1.8M > 1.5M at 2Y).
+      expect(methodology).toHaveTextContent('MC_95_1Y')
+      expect(methodology).toHaveTextContent('Monte Carlo')
+      expect(methodology).toHaveTextContent('95%')
+      expect(methodology).toHaveTextContent('1Y')
+    })
+
+    it('derives the horizon from the tenor at which the 95th-percentile profile peaks', () => {
+      const peakingAt3Y = {
+        ...SAMPLE_EXPOSURE,
+        pfeProfile: [
+          { tenor: '1Y', tenorYears: 1, expectedExposure: 1_000_000, pfe95: 1_200_000, pfe99: 1_400_000 },
+          { tenor: '3Y', tenorYears: 3, expectedExposure: 1_800_000, pfe95: 2_400_000, pfe99: 2_700_000 },
+        ],
+      }
+      mockUseCounterpartyRisk.mockReturnValue({
+        ...defaultHook,
+        exposures: [peakingAt3Y],
+        selected: peakingAt3Y,
+      })
+
+      render(<CounterpartyRiskDashboard />)
+
+      expect(screen.getByTestId('pfe-methodology')).toHaveTextContent('MC_95_3Y')
+    })
+
+    it('falls back to a 1Y horizon when there is no PFE profile', () => {
+      const noProfile = { ...SAMPLE_EXPOSURE, pfeProfile: [] }
+      mockUseCounterpartyRisk.mockReturnValue({
+        ...defaultHook,
+        exposures: [noProfile],
+        selected: noProfile,
+      })
+
+      render(<CounterpartyRiskDashboard />)
+
+      expect(screen.getByTestId('pfe-methodology')).toHaveTextContent('MC_95_1Y')
+    })
+  })
+
   it('shows PFE chart when profile is available', () => {
     mockUseCounterpartyRisk.mockReturnValue({
       ...defaultHook,
