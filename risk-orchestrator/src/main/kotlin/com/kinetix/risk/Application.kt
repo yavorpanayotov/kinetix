@@ -32,6 +32,7 @@ import com.kinetix.risk.client.HttpCorrelationServiceClient
 import com.kinetix.risk.client.HttpInstrumentServiceClient
 import com.kinetix.risk.client.HttpVolatilityServiceClient
 import com.kinetix.risk.client.PositionServicePositionProvider
+import com.kinetix.risk.client.CachedMarketDataDependenciesClient
 import com.kinetix.risk.client.ResilientRiskEngineClient
 import com.kinetix.risk.kafka.KafkaIntradayPnlPublisher
 import com.kinetix.risk.kafka.KafkaRiskResultPublisher
@@ -256,7 +257,9 @@ fun Application.moduleWithRoutes() {
         CircuitBreakerConfig(failureThreshold = 3, resetTimeoutMs = 15_000, halfOpenMaxCalls = 2, name = "risk-engine"),
         onStateChange = CircuitBreakerMetrics.onStateChange("risk-engine", meterRegistry),
     )
-    val riskEngineClient = ResilientRiskEngineClient(grpcRiskEngineClient, circuitBreaker)
+    val riskEngineClient = CachedMarketDataDependenciesClient(
+        ResilientRiskEngineClient(grpcRiskEngineClient, circuitBreaker)
+    )
 
     val priceServiceBaseUrl = environment.config
         .propertyOrNull("priceService.baseUrl")?.getString() ?: "http://localhost:8082"
