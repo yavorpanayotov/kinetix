@@ -157,33 +157,33 @@ Ordered top-to-bottom by dependency. P0 first because every P1 cross-tab inconsi
 - [x] **Reports tab: recent reports list with status.** New panel listing the last N generated reports with timestamp, user, status (RUNNING/COMPLETE/FAILED), download link. Failing acceptance test on the reports endpoint.
   Acceptance: `./gradlew :gateway:acceptanceTest --tests "*RecentReportsAcceptanceTest"` green plus Playwright.
 
-- [ ] **Regulatory tab default: show last calculation, not empty state.** Failing acceptance + Playwright.
+- [x] **Regulatory tab default: show last calculation, not empty state.** Failing acceptance + Playwright.
   Acceptance: `./gradlew :regulatory-service:acceptanceTest --tests "*FrtbLastCalculationAcceptanceTest"` plus `cd ui && npx playwright test e2e/regulatory-last-calc.spec.ts` green.
 
-- [ ] **Counterparty PFE shows methodology, horizon, confidence.** Failing Playwright test asserts the tile labels include method (`MC_95_1Y` or similar).
+- [x] **Counterparty PFE shows methodology, horizon, confidence.** Failing Playwright test asserts the tile labels include method (`MC_95_1Y` or similar).
   Acceptance: `cd ui && npx playwright test e2e/counterparty-pfe-methodology.spec.ts` green.
 
-- [ ] **CP-DB "Agreement Expired" CTA.** Add a "Block new trades / open ticket" action that hits an existing endpoint (or stub the click handler with a regulatory-service ticket creation). Failing Playwright test asserts the CTA is present on the expired row.
+- [x] **CP-DB "Agreement Expired" CTA.** Add a "Block new trades / open ticket" action that hits an existing endpoint (or stub the click handler with a regulatory-service ticket creation). Failing Playwright test asserts the CTA is present on the expired row.
   Acceptance: `cd ui && npx playwright test e2e/counterparty-expired-cta.spec.ts` green.
 
-- [ ] **Activity tab: include non-`TRADE_BOOKED` events.** Failing acceptance test pulls events of types LIMIT_BREACH, RUN_PROMOTED, RECONCILIATION_BREAK and asserts they reach the gateway projection.
+- [x] **Activity tab: include non-`TRADE_BOOKED` events.** Failing acceptance test pulls events of types LIMIT_BREACH, RUN_PROMOTED, RECONCILIATION_BREAK and asserts they reach the gateway projection.
   Acceptance: `./gradlew :gateway:acceptanceTest --tests "*ActivityFeedAllEventTypesAcceptanceTest"` green plus Playwright.
 
 ### P3 — Polish
 
-- [ ] **Tooltip on Helpers / Details / Frozen header chips.** Vitest unit asserts `title`/`aria-label` content.
+- [x] **Tooltip on Helpers / Details / Frozen header chips.** Vitest unit asserts `title`/`aria-label` content.
   Acceptance: `cd ui && npm run test -- HeaderChips` green.
 
-- [ ] **Session-dismiss the demo banner.** Vitest unit + Playwright that asserts the dismissed state persists across reloads within the session.
-  Acceptance: `cd ui && npx playwright test e2e/demo-banner-dismiss.spec.ts` green.
+- [x] **Session-dismiss the demo banner.** Vitest unit + Playwright that asserts the dismissed state persists across reloads within the session.
+  Acceptance: `cd ui && npx playwright test e2e/demo-banner-dismiss.spec.ts` green. (Banner renders only in demo mode; the spec runs under the demo config: `cd ui && VITE_DEMO_MODE=true npx playwright test --config playwright.demo.config.ts demo-banner-dismiss` — 4 passed.)
 
-- [ ] **Collapse rounding-noise rows (diversification ≈ $0).** Vitest unit on the formatter that returns `~$0` below a configurable epsilon.
+- [x] **Collapse rounding-noise rows (diversification ≈ $0).** Vitest unit on the formatter that returns `~$0` below a configurable epsilon.
   Acceptance: `cd ui && npm run test -- diversificationFormatter` green.
 
-- [ ] **VaR Contrib % footer row showing column sum.** Vitest on the component.
+- [x] **VaR Contrib % footer row showing column sum.** Vitest on the component.
   Acceptance: `cd ui && npm run test -- VarContribTable` green.
 
-- [ ] **Dedupe identical valuation jobs in the table.** Failing acceptance test asserts jobs with identical `{ts, varValue, esValue, pvValue}` collapse to one row with a `(x3)` badge.
+- [x] **Dedupe identical valuation jobs in the table.** Failing acceptance test asserts jobs with identical `{ts, varValue, esValue, pvValue}` collapse to one row with a `(x3)` badge.
   Acceptance: `cd ui && npm run test -- ValuationJobsTable` green.
 
 ---
