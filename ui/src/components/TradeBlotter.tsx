@@ -86,11 +86,11 @@ function statusBadgeClass(status: string): string {
 }
 
 function exportToCsv(trades: TradeHistoryDto[]) {
-  const header = 'Time,Instrument,Name,Type,Side,Qty,QtyFilled,QtyOpen,Price,Currency,Notional,FillStatus,VenueOrderId'
+  const header = 'Time,Instrument,Name,Type,Side,Qty,QtyFilled,QtyOpen,Price,Currency,Notional,FillStatus,Venue,VenueOrderId'
   const rows = trades.map((t) => {
     const n = notional(t)
     const name = (t.displayName || t.instrumentId).replace(/,/g, ' ')
-    return `${t.tradedAt},${t.instrumentId},${name},${t.instrumentType || ''},${t.side},${t.quantity},${qtyFilledOf(t)},${qtyOpenOf(t)},${t.price.amount},${t.price.currency},${n.toFixed(2)},${fillStatus(t)},${t.venueOrderId ?? ''}`
+    return `${t.tradedAt},${t.instrumentId},${name},${t.instrumentType || ''},${t.side},${t.quantity},${qtyFilledOf(t)},${qtyOpenOf(t)},${t.price.amount},${t.price.currency},${n.toFixed(2)},${fillStatus(t)},${t.venue ?? ''},${t.venueOrderId ?? ''}`
   })
   const csv = [header, ...rows].join('\n')
   const blob = new Blob([csv], { type: 'text/csv' })
@@ -135,6 +135,7 @@ export function TradeBlotter({ bookId, initialCounterpartyFilter = '' }: TradeBl
   const [instrumentTypeFilter, setInstrumentTypeFilter] = useState('')
   const [filterResetNotice, setFilterResetNotice] = useState<string | null>(null)
   const [showVenueOrderId, setShowVenueOrderId] = useState(false)
+  const [showVenue, setShowVenue] = useState(false)
   const [expandedTradeId, setExpandedTradeId] = useState<string | null>(null)
 
   const instrumentTypeOptions = useMemo(() => {
@@ -197,6 +198,11 @@ export function TradeBlotter({ bookId, initialCounterpartyFilter = '' }: TradeBl
   }, [trades, instrumentFilter, sideFilter, instrumentTypeFilter])
 
   const paginatedTrades = filtered
+
+  // Fixed columns: expand toggle + Time, Instrument, Name, Type, Side, Qty,
+  // Filled, Open, Price, Notional, Status = 12. The Venue and Venue Order ID
+  // columns are optional and gated behind their respective toggles.
+  const totalColumns = 12 + (showVenue ? 1 : 0) + (showVenueOrderId ? 1 : 0)
 
   const handleInstrumentFilter = (value: string) => {
     setInstrumentFilter(value)
@@ -303,6 +309,14 @@ export function TradeBlotter({ bookId, initialCounterpartyFilter = '' }: TradeBl
         )}
         <div className="flex-1" />
         <button
+          data-testid="toggle-venue-column"
+          aria-pressed={showVenue}
+          onClick={() => setShowVenue((v) => !v)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-surface-600 rounded-md hover:bg-slate-50 dark:hover:bg-surface-700 transition-colors"
+        >
+          {showVenue ? 'Hide' : 'Show'} Venue
+        </button>
+        <button
           data-testid="toggle-venue-order-id-column"
           aria-pressed={showVenueOrderId}
           onClick={() => setShowVenueOrderId((v) => !v)}
@@ -337,6 +351,9 @@ export function TradeBlotter({ bookId, initialCounterpartyFilter = '' }: TradeBl
                 <th className="px-4 py-2 text-right text-sm font-semibold text-slate-700 dark:text-slate-300">Price</th>
                 <th className="px-4 py-2 text-right text-sm font-semibold text-slate-700 dark:text-slate-300">Notional</th>
                 <th className="px-4 py-2 text-left text-sm font-semibold text-slate-700 dark:text-slate-300">Status</th>
+                {showVenue && (
+                  <th className="px-4 py-2 text-left text-sm font-semibold text-slate-700 dark:text-slate-300">Venue</th>
+                )}
                 {showVenueOrderId && (
                   <th className="px-4 py-2 text-right text-sm font-semibold text-slate-700 dark:text-slate-300">Venue Order ID</th>
                 )}
@@ -345,7 +362,7 @@ export function TradeBlotter({ bookId, initialCounterpartyFilter = '' }: TradeBl
             <tbody className="divide-y divide-slate-100 dark:divide-surface-700">
               {paginatedTrades.length === 0 && filtered.length === 0 && trades.length > 0 ? (
                 <tr>
-                  <td colSpan={(showVenueOrderId ? 12 : 11) + 1} className="px-4 py-8 text-center">
+                  <td colSpan={totalColumns} className="px-4 py-8 text-center">
                     <EmptyState title="No trades match your filters." />
                   </td>
                 </tr>
@@ -353,7 +370,7 @@ export function TradeBlotter({ bookId, initialCounterpartyFilter = '' }: TradeBl
                 paginatedTrades.flatMap((trade) => {
                   const expandable = TERMINAL_STATUSES.has(fillStatus(trade))
                   const expanded = expandedTradeId === trade.tradeId
-                  const colSpan = (showVenueOrderId ? 12 : 11) + 1
+                  const colSpan = totalColumns
                   const mainRow = (
                   <tr
                     key={trade.tradeId}
@@ -429,6 +446,14 @@ export function TradeBlotter({ bookId, initialCounterpartyFilter = '' }: TradeBl
                         {fillStatus(trade)}
                       </span>
                     </td>
+                    {showVenue && (
+                      <td
+                        data-testid={`trade-venue-${trade.tradeId}`}
+                        className="px-4 py-2 text-sm text-slate-700 dark:text-slate-300"
+                      >
+                        {trade.venue ?? '—'}
+                      </td>
+                    )}
                     {showVenueOrderId && (
                       <td className="px-4 py-2 text-sm">
                         <div className="flex items-center justify-end gap-1.5">

@@ -71,6 +71,9 @@ export interface TradeFixture {
   fillStatus?: string
   qtyFilled?: string
   qtyOpen?: string
+  // Trader-review P2 §22: trading venue / execution destination (e.g. NYSE,
+  // NASDAQ) surfaced by the optional Venue column on the blotter.
+  venue?: string
 }
 
 export const TEST_TRADES: TradeFixture[] = [

@@ -81,6 +81,14 @@ export interface TradeHistoryDto {
   fillStatus?: string
   qtyFilled?: string
   qtyOpen?: string
+  /**
+   * Trader-review P2 §22: the trading venue / execution destination
+   * (e.g. NYSE, NASDAQ, LSE) the trade was routed to. Surfaced by the
+   * optional Venue column on the blotter, gated behind the "Show Venue"
+   * toggle. Distinct from `venueOrderId`, which is the venue-assigned order
+   * identifier.
+   */
+  venue?: string
 }
 
 export type OrderTimeInForce = 'DAY' | 'GTC' | 'IOC' | 'FOK' | 'GTD'

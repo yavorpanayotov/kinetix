@@ -595,4 +595,58 @@ describe('TradeBlotter', () => {
       expect(copyBtn).toHaveAttribute('aria-label', 'Copy venue order ID')
     })
   })
+
+  describe('Venue column (trader-review P2 §22)', () => {
+    const venueTrades: TradeHistoryDto[] = [
+      {
+        tradeId: 'v-nyse',
+        bookId: 'book-1',
+        instrumentId: 'AAPL',
+        assetClass: 'EQUITY',
+        side: 'BUY',
+        quantity: '100',
+        price: { amount: '150.00', currency: 'USD' },
+        tradedAt: '2025-01-15T10:00:00Z',
+        status: 'LIVE',
+        venue: 'NYSE',
+      },
+      {
+        tradeId: 'v-novenue',
+        bookId: 'book-1',
+        instrumentId: 'GOOGL',
+        assetClass: 'EQUITY',
+        side: 'BUY',
+        quantity: '10',
+        price: { amount: '2800.00', currency: 'USD' },
+        tradedAt: '2025-01-15T10:02:00Z',
+        status: 'LIVE',
+        // No venue — should fall back to an em dash.
+      },
+    ]
+
+    function setupVenue() {
+      mockUseTradeHistory.mockReturnValue(defaultMockReturn({ trades: venueTrades }))
+    }
+
+    it('hides the Venue column until the Show Venue toggle is enabled', () => {
+      setupVenue()
+      render(<TradeBlotter bookId="book-1" />)
+
+      expect(screen.queryByRole('columnheader', { name: 'Venue' })).toBeNull()
+
+      fireEvent.click(screen.getByTestId('toggle-venue-column'))
+
+      expect(screen.getByRole('columnheader', { name: 'Venue' })).toBeInTheDocument()
+    })
+
+    it('renders the trading venue per row, falling back to an em dash when absent', () => {
+      setupVenue()
+      render(<TradeBlotter bookId="book-1" />)
+
+      fireEvent.click(screen.getByTestId('toggle-venue-column'))
+
+      expect(screen.getByTestId('trade-venue-v-nyse')).toHaveTextContent('NYSE')
+      expect(screen.getByTestId('trade-venue-v-novenue')).toHaveTextContent('—')
+    })
+  })
 })
