@@ -11,7 +11,7 @@ model's stated tolerance for tail losses.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
 import numpy as np
@@ -121,7 +121,7 @@ def run_historical_replay(request: HistoricalReplayRequest) -> HistoricalReplayR
     for pos in request.positions:
         returns = request.instrument_returns.get(pos.instrument_id)
         proxy_used = returns is None
-        if proxy_used:
+        if returns is None:
             returns = ASSET_CLASS_PROXY_RETURNS.get(
                 pos.asset_class,
                 ASSET_CLASS_PROXY_RETURNS[AssetClass.EQUITY],
