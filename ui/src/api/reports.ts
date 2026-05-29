@@ -24,6 +24,35 @@ export interface GenerateReportRequest {
   format?: string
 }
 
+/**
+ * A row in the "Recent Reports" panel (trader-review P2 #24). Surfaces the
+ * last N generated reports with who ran them, when, and whether they're
+ * still running / done / failed, plus a download link to the CSV.
+ */
+export interface RecentReport {
+  outputId: string
+  templateId: string
+  timestamp: string
+  user: string
+  status: 'RUNNING' | 'COMPLETE' | 'FAILED'
+  downloadUrl: string
+  rowCount: number
+}
+
+export async function fetchRecentReports(limit?: number): Promise<RecentReport[]> {
+  const path =
+    limit != null
+      ? `/api/v1/reports/recent?limit=${encodeURIComponent(limit)}`
+      : '/api/v1/reports/recent'
+  const response = await authFetch(path)
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch recent reports: ${response.status} ${response.statusText}`,
+    )
+  }
+  return response.json()
+}
+
 export async function fetchReportTemplates(): Promise<ReportTemplate[]> {
   const response = await authFetch('/api/v1/reports/templates')
   if (!response.ok) {

@@ -5,8 +5,10 @@ import {
   fetchReportTemplates,
   generateReport,
   downloadReportCsv,
+  fetchRecentReports,
   type ReportTemplate,
   type ReportOutput,
+  type RecentReport,
 } from '../api/reports'
 import { AIInsightPanel } from './AIInsightPanel'
 import { explainReport, type InsightResponse } from '../api/insights'
@@ -55,6 +57,14 @@ export function ReportsTab({ bookId, onJumpToRiskAtDate }: ReportsTabProps) {
   const [commentaryError, setCommentaryError] = useState<string | null>(null)
   const [commentary, setCommentary] = useState<InsightResponse | null>(null)
 
+  // Recent Reports panel (trader-review P2 #24): server-backed list of the
+  // last N generated reports with status (RUNNING / COMPLETE / FAILED),
+  // timestamp, user, and a download link — so the user can see what was
+  // generated, by whom, when, and whether it's still running.
+  const [recentReports, setRecentReports] = useState<RecentReport[]>([])
+  const [recentLoading, setRecentLoading] = useState(true)
+  const [recentError, setRecentError] = useState<string | null>(null)
+
   useEffect(() => {
     let cancelled = false
 
@@ -77,6 +87,31 @@ export function ReportsTab({ bookId, onJumpToRiskAtDate }: ReportsTabProps) {
     }
 
     load()
+    return () => { cancelled = true }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadRecent() {
+      try {
+        const result = await fetchRecentReports()
+        if (!cancelled) {
+          setRecentReports(result)
+          setRecentError(null)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setRecentError(err instanceof Error ? err.message : String(err))
+        }
+      } finally {
+        if (!cancelled) {
+          setRecentLoading(false)
+        }
+      }
+    }
+
+    loadRecent()
     return () => { cancelled = true }
   }, [])
 
@@ -376,7 +411,95 @@ export function ReportsTab({ bookId, onJumpToRiskAtDate }: ReportsTabProps) {
           </ul>
         </div>
       )}
+
+      <div
+        data-testid="recent-reports-panel"
+        className="bg-white dark:bg-surface-800 rounded-lg border border-slate-200 dark:border-surface-700 p-6"
+      >
+        <SectionHeading className="mb-3">Recent Reports</SectionHeading>
+
+        {recentLoading ? (
+          <div
+            data-testid="recent-reports-loading"
+            className="flex items-center gap-2 text-slate-500 text-sm"
+          >
+            <Spinner size="sm" />
+            Loading recent reports...
+          </div>
+        ) : recentError ? (
+          <div
+            data-testid="recent-reports-error"
+            className="text-sm text-red-600 dark:text-red-400"
+            role="alert"
+          >
+            {recentError}
+          </div>
+        ) : recentReports.length === 0 ? (
+          <p
+            data-testid="recent-reports-empty"
+            className="text-sm text-slate-500 dark:text-slate-400"
+          >
+            No reports have been generated yet.
+          </p>
+        ) : (
+          <ul className="divide-y divide-slate-100 dark:divide-surface-700" role="list">
+            {recentReports.map(report => (
+              <li
+                key={report.outputId}
+                data-testid={`recent-report-row-${report.outputId}`}
+                className="py-2 flex items-center justify-between gap-3 px-2"
+              >
+                <div className="min-w-0">
+                  <span className="text-sm text-slate-700 dark:text-slate-200 font-medium">
+                    {report.templateId}
+                  </span>
+                  <div className="text-xs text-slate-400 dark:text-slate-500">
+                    {report.user} &middot;{' '}
+                    {new Date(report.timestamp).toLocaleString()}
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <ReportStatusPill outputId={report.outputId} status={report.status} />
+                  {report.status === 'COMPLETE' && (
+                    <a
+                      data-testid={`recent-report-download-${report.outputId}`}
+                      href={report.downloadUrl}
+                      className="inline-flex items-center gap-1 text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      Download
+                    </a>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
+  )
+}
+
+const STATUS_PILL_CLASSES: Record<RecentReport['status'], string> = {
+  COMPLETE: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+  RUNNING: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+  FAILED: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+}
+
+function ReportStatusPill({
+  outputId,
+  status,
+}: {
+  outputId: string
+  status: RecentReport['status']
+}) {
+  return (
+    <span
+      data-testid={`recent-report-status-${outputId}`}
+      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_PILL_CLASSES[status]}`}
+    >
+      {status}
+    </span>
   )
 }
 

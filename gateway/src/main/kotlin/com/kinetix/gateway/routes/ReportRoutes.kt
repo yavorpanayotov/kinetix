@@ -31,6 +31,15 @@ fun Route.reportProxyRoutes(riskClient: RiskServiceClient) {
         call.respond(result)
     }
 
+    // Trader-review P2 #24 — recent reports list (last N generated reports with
+    // status). Registered before the `{outputId}` matcher so "recent" is not
+    // captured as a report identifier. Forwards an optional `limit` query param.
+    get("/api/v1/reports/recent") {
+        val limit = call.request.queryParameters["limit"]?.toIntOrNull()
+        val recent = riskClient.getRecentReports(limit)
+        call.respond(recent)
+    }
+
     get("/api/v1/reports/{outputId}") {
         val outputId = call.parameters["outputId"]
             ?: return@get call.respond(HttpStatusCode.BadRequest)

@@ -747,6 +747,16 @@ class HttpRiskServiceClient(
         return response.bodyAsText()
     }
 
+    override suspend fun getRecentReports(limit: Int?): kotlinx.serialization.json.JsonArray {
+        val response = httpClient.get("$baseUrl/api/v1/reports/recent") {
+            if (limit != null) {
+                url { parameters.append("limit", limit.toString()) }
+            }
+        }
+        if (!response.status.isSuccess()) handleErrorResponse(response)
+        return response.body()
+    }
+
     override suspend fun getIntradayVaRTimeline(bookId: String, from: String, to: String): kotlinx.serialization.json.JsonObject? {
         val response = httpClient.get("$baseUrl/api/v1/risk/var/$bookId/intraday") {
             url {

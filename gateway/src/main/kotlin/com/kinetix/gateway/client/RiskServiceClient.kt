@@ -583,6 +583,7 @@ interface RiskServiceClient {
     suspend fun generateReport(body: kotlinx.serialization.json.JsonObject): kotlinx.serialization.json.JsonObject
     suspend fun getReportOutput(outputId: String): kotlinx.serialization.json.JsonObject?
     suspend fun getReportOutputCsv(outputId: String): String?
+    suspend fun getRecentReports(limit: Int? = null): kotlinx.serialization.json.JsonArray
     suspend fun getBrinsonAttribution(bookId: String, benchmarkId: String, asOfDate: String?): kotlinx.serialization.json.JsonObject?
 
     // kx-wxy — canned stress-scenario tile (Risk overview). Proxies through to

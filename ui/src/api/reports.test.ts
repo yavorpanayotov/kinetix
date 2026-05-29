@@ -4,6 +4,7 @@ import {
   generateReport,
   fetchReportOutput,
   downloadReportCsv,
+  fetchRecentReports,
 } from './reports'
 
 describe('reports API', () => {
@@ -236,6 +237,55 @@ describe('reports API', () => {
 
       await expect(downloadReportCsv('out-abc')).rejects.toThrow(
         'Failed to download report CSV: 500 Internal Server Error',
+      )
+    })
+  })
+
+  describe('fetchRecentReports', () => {
+    const recent = {
+      outputId: 'out-3',
+      templateId: 'tpl-risk-summary',
+      timestamp: '2026-05-28T10:30:00Z',
+      user: 'trader1',
+      status: 'COMPLETE',
+      downloadUrl: '/api/v1/reports/out-3/csv',
+      rowCount: 42,
+    }
+
+    it('returns the list of recent reports', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve([recent]),
+      })
+
+      const result = await fetchRecentReports()
+
+      expect(result).toEqual([recent])
+      expect(mockFetch).toHaveBeenCalledWith('/api/v1/reports/recent')
+    })
+
+    it('forwards the limit query parameter when provided', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve([]),
+      })
+
+      await fetchRecentReports(5)
+
+      expect(mockFetch).toHaveBeenCalledWith('/api/v1/reports/recent?limit=5')
+    })
+
+    it('throws on 500', async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
+      })
+
+      await expect(fetchRecentReports()).rejects.toThrow(
+        'Failed to fetch recent reports: 500 Internal Server Error',
       )
     })
   })

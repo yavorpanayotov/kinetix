@@ -7,19 +7,57 @@ vi.mock('../api/reports', () => ({
   fetchReportTemplates: vi.fn(),
   generateReport: vi.fn(),
   downloadReportCsv: vi.fn(),
+  fetchRecentReports: vi.fn(),
 }))
 
 vi.mock('../api/insights', () => ({
   explainReport: vi.fn(),
 }))
 
-import { fetchReportTemplates, generateReport, downloadReportCsv } from '../api/reports'
+import {
+  fetchReportTemplates,
+  generateReport,
+  downloadReportCsv,
+  fetchRecentReports,
+  type RecentReport,
+} from '../api/reports'
 import { explainReport } from '../api/insights'
 
 const mockFetchTemplates = vi.mocked(fetchReportTemplates)
 const mockGenerate = vi.mocked(generateReport)
 const mockDownloadCsv = vi.mocked(downloadReportCsv)
+const mockFetchRecent = vi.mocked(fetchRecentReports)
 const mockExplainReport = vi.mocked(explainReport)
+
+const RECENT_REPORTS: RecentReport[] = [
+  {
+    outputId: 'out-3',
+    templateId: 'tpl-risk-summary',
+    timestamp: '2026-05-28T10:30:00Z',
+    user: 'trader1',
+    status: 'COMPLETE',
+    downloadUrl: '/api/v1/reports/out-3/csv',
+    rowCount: 42,
+  },
+  {
+    outputId: 'out-2',
+    templateId: 'tpl-stress-summary',
+    timestamp: '2026-05-28T09:15:00Z',
+    user: 'trader2',
+    status: 'RUNNING',
+    downloadUrl: '/api/v1/reports/out-2/csv',
+    rowCount: 0,
+  },
+  {
+    outputId: 'out-1',
+    templateId: 'tpl-pnl-attribution',
+    timestamp: '2026-05-27T17:00:00Z',
+    user: 'riskops',
+    status: 'FAILED',
+    downloadUrl: '/api/v1/reports/out-1/csv',
+    rowCount: 0,
+  },
+]
 
 const TEMPLATES = [
   {
@@ -61,6 +99,9 @@ describe('ReportsTab', () => {
     // Default: commentary resolves to a canned insight so existing
     // tests that don't care about commentary aren't disturbed.
     mockExplainReport.mockResolvedValue(CANNED_COMMENTARY)
+    // Default: recent reports resolves empty so tests that don't care
+    // about the Recent Reports panel aren't disturbed.
+    mockFetchRecent.mockResolvedValue([])
   })
 
   it('shows loading state while fetching templates', () => {
@@ -410,6 +451,98 @@ describe('ReportsTab', () => {
       await user.click(screen.getByTestId('open-in-risk-out-abc'))
 
       expect(onJumpToRiskAtDate).toHaveBeenCalledWith('BOOK-1', '2025-01-15')
+    })
+  })
+
+  describe('Recent Reports panel (trader-review P2 #24)', () => {
+    it('renders one row per recent report, newest-first', async () => {
+      mockFetchTemplates.mockResolvedValue(TEMPLATES)
+      mockFetchRecent.mockResolvedValue(RECENT_REPORTS)
+
+      render(<ReportsTab bookId="BOOK-1" />)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('recent-reports-panel')).toBeInTheDocument()
+      })
+
+      expect(screen.getByTestId('recent-report-row-out-3')).toBeInTheDocument()
+      expect(screen.getByTestId('recent-report-row-out-2')).toBeInTheDocument()
+      expect(screen.getByTestId('recent-report-row-out-1')).toBeInTheDocument()
+
+      const rows = screen.getAllByTestId(/^recent-report-row-/)
+      expect(rows[0]).toHaveAttribute('data-testid', 'recent-report-row-out-3')
+      expect(rows[2]).toHaveAttribute('data-testid', 'recent-report-row-out-1')
+    })
+
+    it('renders a status pill per row reflecting COMPLETE / RUNNING / FAILED', async () => {
+      mockFetchTemplates.mockResolvedValue(TEMPLATES)
+      mockFetchRecent.mockResolvedValue(RECENT_REPORTS)
+
+      render(<ReportsTab bookId="BOOK-1" />)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('recent-report-status-out-3')).toBeInTheDocument()
+      })
+
+      expect(screen.getByTestId('recent-report-status-out-3')).toHaveTextContent('COMPLETE')
+      expect(screen.getByTestId('recent-report-status-out-2')).toHaveTextContent('RUNNING')
+      expect(screen.getByTestId('recent-report-status-out-1')).toHaveTextContent('FAILED')
+    })
+
+    it('shows the requesting user and a formatted timestamp on each row', async () => {
+      mockFetchTemplates.mockResolvedValue(TEMPLATES)
+      mockFetchRecent.mockResolvedValue(RECENT_REPORTS)
+
+      render(<ReportsTab bookId="BOOK-1" />)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('recent-report-row-out-3')).toBeInTheDocument()
+      })
+
+      const row = screen.getByTestId('recent-report-row-out-3')
+      expect(row).toHaveTextContent('trader1')
+      expect(row).toHaveTextContent('2026')
+    })
+
+    it('exposes a download link to the CSV endpoint only for COMPLETE rows', async () => {
+      mockFetchTemplates.mockResolvedValue(TEMPLATES)
+      mockFetchRecent.mockResolvedValue(RECENT_REPORTS)
+
+      render(<ReportsTab bookId="BOOK-1" />)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('recent-report-row-out-3')).toBeInTheDocument()
+      })
+
+      const link = screen.getByTestId('recent-report-download-out-3')
+      expect(link).toHaveAttribute('href', '/api/v1/reports/out-3/csv')
+      // RUNNING and FAILED rows do not offer a download.
+      expect(screen.queryByTestId('recent-report-download-out-2')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('recent-report-download-out-1')).not.toBeInTheDocument()
+    })
+
+    it('shows an empty-state message when there are no recent reports', async () => {
+      mockFetchTemplates.mockResolvedValue(TEMPLATES)
+      mockFetchRecent.mockResolvedValue([])
+
+      render(<ReportsTab bookId="BOOK-1" />)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('recent-reports-empty')).toBeInTheDocument()
+      })
+    })
+
+    it('shows an error message when the recent-reports fetch fails', async () => {
+      mockFetchTemplates.mockResolvedValue(TEMPLATES)
+      mockFetchRecent.mockRejectedValue(new Error('Recent fetch failed'))
+
+      render(<ReportsTab bookId="BOOK-1" />)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('recent-reports-error')).toBeInTheDocument()
+      })
+
+      expect(screen.getByTestId('recent-reports-error')).toHaveTextContent('Recent fetch failed')
     })
   })
 
