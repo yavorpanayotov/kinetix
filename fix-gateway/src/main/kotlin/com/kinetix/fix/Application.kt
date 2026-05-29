@@ -1,6 +1,10 @@
 package com.kinetix.fix
 
 import com.kinetix.common.health.ReadinessResponse
+import com.kinetix.fix.canary.CanaryGate
+import com.kinetix.fix.canary.MicrometerSliReader
+import com.kinetix.fix.canary.PromotionDecision
+import com.kinetix.fix.canary.SliThresholds
 import com.kinetix.fix.grpc.FixGatewayServer
 import com.kinetix.fix.grpc.FixGatewayServiceImpl
 import com.kinetix.fix.health.FixGatewayReadiness
@@ -29,6 +33,9 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import io.micrometer.prometheusmetrics.PrometheusConfig
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import org.slf4j.event.Level
 import java.util.UUID
@@ -102,6 +109,33 @@ fun Application.moduleWithDependencies() {
 
     monitor.subscribe(io.ktor.server.application.ApplicationStopping) {
         grpcServer.stop()
+    }
+
+    // Canary gate — evaluates the three SLIs every minute and emits a structured log
+    // line so the canary operator can observe when all SLIs are healthy for the required
+    // consecutive window.  The gate does NOT flip FIX_GATEWAY_PLACE_ORDER itself;
+    // promotion requires a deliberate deployment action once the log consistently shows
+    // CanaryGate decision=Allowed.  This matches the ADR-0035 phase-4 single-flag model
+    // where the flag controls the canary cohort percentage in position-service.
+    val canaryGate = CanaryGate(
+        thresholds = SliThresholds(),
+        sliReader = MicrometerSliReader(appMicrometerRegistry),
+    )
+    launch {
+        while (isActive) {
+            delay(60_000L)
+            val decision = canaryGate.checkPromotion()
+            when (decision) {
+                PromotionDecision.Allowed -> log.info(
+                    "CanaryGate decision=Allowed: SLIs healthy for required window — " +
+                        "canary may be advanced by flipping FIX_GATEWAY_PLACE_ORDER",
+                )
+                is PromotionDecision.Blocked -> log.info(
+                    "CanaryGate decision=Blocked reason={} breachedSli={}",
+                    decision.reason, decision.breachedSli,
+                )
+            }
+        }
     }
 
     module(appMicrometerRegistry)
