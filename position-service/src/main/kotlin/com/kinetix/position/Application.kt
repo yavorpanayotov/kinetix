@@ -77,6 +77,9 @@ import io.ktor.server.metrics.micrometer.*
 import io.ktor.server.netty.*
 import io.ktor.server.plugins.calllogging.*
 import com.kinetix.common.observability.CorrelationIdHttpServerPlugin
+import com.kinetix.common.observability.OtelHttpClientInterceptor
+import com.kinetix.common.observability.OtelHttpServerPlugin
+import com.kinetix.common.observability.OtelInit
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.request.*
 import org.slf4j.event.Level
@@ -114,6 +117,8 @@ fun Application.module() {
     // longer reads — e.g. a legacy caller-supplied `arrivalPrice` on order
     // submission, which is now captured server-side from price-service.
     install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+    val otel = OtelInit.init(serviceName = "position-service")
+    install(OtelHttpServerPlugin) { openTelemetry = otel }
     install(CorrelationIdHttpServerPlugin)
     install(CallLogging) {
         level = Level.INFO
@@ -168,9 +173,12 @@ fun Application.moduleWithRoutes() {
     val kafkaProducer = KafkaProducer<String, String>(producerProps)
     val tradeEventPublisher = KafkaTradeEventPublisher(kafkaProducer)
 
+    val positionOtel = attributes.getOrNull(io.ktor.util.AttributeKey("OpenTelemetry"))
+        ?: OtelInit.init(serviceName = "position-service")
     val referenceDataBaseUrl = environment.config.config("referenceData").property("baseUrl").getString()
     val referenceDataHttpClient = HttpClient(CIO) {
         install(ClientContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+        install(OtelHttpClientInterceptor) { openTelemetry = positionOtel }
     }
     val referenceDataClient = HttpReferenceDataServiceClient(referenceDataHttpClient, referenceDataBaseUrl)
 
@@ -179,6 +187,7 @@ fun Application.moduleWithRoutes() {
     val priceServiceBaseUrl = environment.config.config("priceService").property("baseUrl").getString()
     val priceServiceHttpClient = HttpClient(CIO) {
         install(ClientContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+        install(OtelHttpClientInterceptor) { openTelemetry = positionOtel }
     }
     val priceLookupClient = com.kinetix.position.client.HttpPriceLookupClient(
         priceServiceHttpClient, priceServiceBaseUrl,
