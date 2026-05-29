@@ -94,6 +94,33 @@ describe('AuditLogPanel', () => {
     expect(screen.getByTestId('audit-event-badge-8')).toHaveTextContent('LIMIT_BREACHED')
   })
 
+  test('renders rows for the full event lifecycle, not just TRADE_BOOKED', async () => {
+    // Plan P2 #28: the Activity tab must surface governance / risk /
+    // reconciliation lifecycle events, not only trade bookings. Each event
+    // type the gateway projection forwards should render its own row with an
+    // event-type badge carrying that type's label.
+    mockFetchAuditEvents.mockResolvedValue([
+      buildEvent({ id: 1, eventType: 'TRADE_BOOKED', tradeId: 'TRD-1' }),
+      buildEvent({ id: 2, eventType: 'LIMIT_BREACH', tradeId: null, limitId: 'LIM-7' }),
+      buildEvent({ id: 3, eventType: 'RUN_PROMOTED', tradeId: null, modelName: 'VAR-EOD' }),
+      buildEvent({ id: 4, eventType: 'RECONCILIATION_BREAK', tradeId: null, bookId: 'BOOK-2' }),
+      buildEvent({ id: 5, eventType: 'TRADE_AMENDED', tradeId: 'TRD-2' }),
+      buildEvent({ id: 6, eventType: 'TRADE_CANCELLED', tradeId: 'TRD-3' }),
+    ])
+    render(<AuditLogPanel />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('audit-row-1')).toBeInTheDocument()
+    })
+
+    expect(screen.getByTestId('audit-event-badge-1')).toHaveTextContent('TRADE_BOOKED')
+    expect(screen.getByTestId('audit-event-badge-2')).toHaveTextContent('LIMIT_BREACH')
+    expect(screen.getByTestId('audit-event-badge-3')).toHaveTextContent('RUN_PROMOTED')
+    expect(screen.getByTestId('audit-event-badge-4')).toHaveTextContent('RECONCILIATION_BREAK')
+    expect(screen.getByTestId('audit-event-badge-5')).toHaveTextContent('TRADE_AMENDED')
+    expect(screen.getByTestId('audit-event-badge-6')).toHaveTextContent('TRADE_CANCELLED')
+  })
+
   test('renders gracefully when eventType is missing on the wire', async () => {
     // Audit-service uses kotlinx-serialization without ``encodeDefaults``,
     // so a field whose value equals its DTO default (e.g.

@@ -100,6 +100,46 @@ async function mockAuditVerify(
   })
 }
 
+/** Builds an audit event of the given type, overriding the trade-booked baseline. */
+function eventOfType(
+  id: number,
+  eventType: string,
+  overrides: Partial<AuditEventFixture> = {},
+): AuditEventFixture {
+  return { ...TRADE_BOOKED, id, eventType, recordHash: `hash-${id}`, ...overrides }
+}
+
+test.describe('Activity tab — full event lifecycle (P2 #28)', () => {
+  // The Activity feed must surface governance / risk / reconciliation lifecycle
+  // events forwarded by the gateway projection, not only TRADE_BOOKED. This
+  // guards against a regression where non-booking events were dropped.
+  const MIXED_EVENTS: AuditEventFixture[] = [
+    eventOfType(301, 'TRADE_BOOKED', { tradeId: 'trade-301' }),
+    eventOfType(302, 'LIMIT_BREACH', { tradeId: null, limitId: 'LIM-7' }),
+    eventOfType(303, 'RUN_PROMOTED', { tradeId: null, modelName: 'VAR-EOD' }),
+    eventOfType(304, 'RECONCILIATION_BREAK', { tradeId: null, bookId: 'port-2' }),
+  ]
+
+  test.beforeEach(async ({ page }) => {
+    await mockAllApiRoutes(page)
+    await mockAuditEvents(page, MIXED_EVENTS)
+    await mockAuditVerify(page, { valid: true, eventCount: MIXED_EVENTS.length })
+  })
+
+  test('renders a row and badge for each non-TRADE_BOOKED event type', async ({ page }) => {
+    await page.goto('/')
+    await page.getByTestId('tab-activity').click()
+
+    await expect(page.getByTestId('audit-log-panel')).toBeVisible()
+    await page.waitForSelector('[data-testid="audit-event-row"]', { state: 'visible' })
+
+    await expect(page.getByTestId('audit-event-badge-301')).toHaveText('TRADE_BOOKED')
+    await expect(page.getByTestId('audit-event-badge-302')).toHaveText('LIMIT_BREACH')
+    await expect(page.getByTestId('audit-event-badge-303')).toHaveText('RUN_PROMOTED')
+    await expect(page.getByTestId('audit-event-badge-304')).toHaveText('RECONCILIATION_BREAK')
+  })
+})
+
 test.describe('Activity tab — auth-readiness regression (kx-bly)', () => {
   test.beforeEach(async ({ page }) => {
     // mockAllApiRoutes wires up the same fixtures the rest of the e2e suite
