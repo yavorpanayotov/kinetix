@@ -267,6 +267,15 @@ export function NotificationCenter({
   const [explainAlertId, setExplainAlertId] = useState<string | null>(null)
   const [explainStream, setExplainStream] =
     useState<ReadableStream<ChatChunk> | null>(null)
+  // Batch-acknowledge state (trader review §20). Selection is keyed by
+  // alertId so an out-of-order list refresh can't break the mapping. Only
+  // TRIGGERED rows are selectable; non-TRIGGERED ids are filtered out before
+  // every batch fan-out so a stale selection can't ack an already-resolved
+  // alert.
+  const [selectedAlertIds, setSelectedAlertIds] = useState<Set<string>>(
+    () => new Set(),
+  )
+  const [batchAckSubmitting, setBatchAckSubmitting] = useState(false)
 
   /**
    * Count of alerts per status — drives the chip badges so the operator can
@@ -526,6 +535,86 @@ export function NotificationCenter({
     setExplainStream(null)
   }
 
+  /**
+   * Rows the operator can batch-select right now. Filtering on `visibleAlerts`
+   * — not the unfiltered list — means a TRIGGERED alert hidden by the status
+   * chips is never silently acknowledged by a `Select all visible` action.
+   * The name reflects exactly that constraint.
+   */
+  const triggeredVisibleAlerts = useMemo(
+    () => visibleAlerts.filter((a) => a.status === 'TRIGGERED'),
+    [visibleAlerts],
+  )
+
+  function toggleRowSelected(alertId: string) {
+    setSelectedAlertIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(alertId)) {
+        next.delete(alertId)
+      } else {
+        next.add(alertId)
+      }
+      return next
+    })
+  }
+
+  function selectAllVisibleTriggered() {
+    setSelectedAlertIds((prev) => {
+      const next = new Set(prev)
+      for (const a of triggeredVisibleAlerts) next.add(a.id)
+      return next
+    })
+  }
+
+  function clearSelection() {
+    setSelectedAlertIds(new Set())
+  }
+
+  /**
+   * Fan out one acknowledge POST per selected alert. The batch action is
+   * deliberately a client-side fan-out: no new backend route is added —
+   * existing `/alerts/{id}/acknowledge` is reused — so a partial failure
+   * surfaces per-row via the same error path as the inline Acknowledge form.
+   * After the fan-out completes the selection is cleared so the operator
+   * can't double-submit.
+   */
+  async function acknowledgeSelected() {
+    if (!onAcknowledge) return
+    // Re-check status at submit-time: a refresh between selection and submit
+    // could move an alert out of TRIGGERED; we must never ack non-TRIGGERED
+    // rows because the backend rejects that and it would surface as N error
+    // toasts.
+    const triggeredIds = triggeredVisibleAlerts
+      .filter((a) => selectedAlertIds.has(a.id))
+      .map((a) => a.id)
+    if (triggeredIds.length === 0) return
+    setBatchAckSubmitting(true)
+    try {
+      await Promise.all(
+        triggeredIds.map(async (id) => {
+          try {
+            await onAcknowledge(id)
+          } catch {
+            // Parent (useNotifications) surfaces individual failures via the
+            // shared error banner and rolls back the optimistic update for
+            // that row. We swallow per-id so one failure does not block the
+            // rest of the batch.
+          }
+        }),
+      )
+    } finally {
+      setBatchAckSubmitting(false)
+      clearSelection()
+    }
+  }
+
+  const selectionCount = selectedAlertIds.size
+  const canBatchAcknowledge =
+    onAcknowledge !== undefined &&
+    triggeredVisibleAlerts.length > 0 &&
+    selectionCount > 0 &&
+    !batchAckSubmitting
+
   function renderAlertRow(alert: AlertEventDto) {
     const SevIcon = severityIcon[alert.severity] ?? Info
     const canAcknowledge =
@@ -553,11 +642,29 @@ export function NotificationCenter({
       typeof alert.snoozedUntil === 'string' &&
       alert.snoozedUntil !== '' &&
       new Date(alert.snoozedUntil).getTime() > Date.now()
+    // Per-row batch-select checkbox: only rendered for TRIGGERED rows so the
+    // operator can't accidentally batch-action an alert that is already past
+    // the actionable state. We don't render a checkbox at all when there is
+    // no `onAcknowledge` callback wired — without an action it would just
+    // produce dead chrome.
+    const canBatchSelect =
+      onAcknowledge !== undefined && alert.status === 'TRIGGERED'
+    const isSelected = selectedAlertIds.has(alert.id)
     return (
       <div
         key={alert.id}
         className={`flex items-start gap-2 p-2 bg-slate-50 rounded text-sm border-l-4 ${severityBorderColor[alert.severity] ?? 'border-gray-300'}`}
       >
+        {canBatchSelect && (
+          <input
+            type="checkbox"
+            data-testid={`alerts-row-select-${alert.id}`}
+            aria-label={`Select alert ${alert.message}`}
+            checked={isSelected}
+            onChange={() => toggleRowSelected(alert.id)}
+            className="mt-1 shrink-0"
+          />
+        )}
         <SevIcon className="h-4 w-4 mt-0.5 shrink-0 text-slate-500" />
         <span
           data-testid={`severity-badge-${alert.id}`}
@@ -1150,6 +1257,61 @@ export function NotificationCenter({
           </button>
         )}
       </div>
+      {/*
+        Batch-acknowledge toolbar (trader review §20). Always rendered above
+        the queue so the "Select all visible" affordance has a stable home;
+        per-row checkboxes only appear for TRIGGERED rows. The action button
+        is disabled until at least one row is selected so an operator never
+        fires an empty batch.
+      */}
+      {onAcknowledge !== undefined && (
+        <div
+          data-testid="alerts-batch-toolbar"
+          className="mb-2 flex items-center gap-2 text-xs text-slate-600"
+        >
+          <label className="flex items-center gap-1.5">
+            <input
+              type="checkbox"
+              data-testid="alerts-select-all-visible"
+              aria-label="Select all visible triggered alerts"
+              checked={
+                triggeredVisibleAlerts.length > 0 &&
+                triggeredVisibleAlerts.every((a) => selectedAlertIds.has(a.id))
+              }
+              onChange={(e) => {
+                if (e.target.checked) {
+                  selectAllVisibleTriggered()
+                } else {
+                  clearSelection()
+                }
+              }}
+              disabled={triggeredVisibleAlerts.length === 0}
+            />
+            <span>Select all visible</span>
+          </label>
+          <span className="text-slate-500">
+            Selected:{' '}
+            <span
+              data-testid="alerts-selection-count"
+              className="font-mono font-medium text-slate-700"
+            >
+              {selectionCount}
+            </span>
+          </span>
+          <Button
+            data-testid="alerts-acknowledge-selected"
+            type="button"
+            variant="primary"
+            size="sm"
+            onClick={acknowledgeSelected}
+            disabled={!canBatchAcknowledge}
+            icon={<Check className="h-3 w-3" />}
+            className="ml-auto"
+          >
+            Acknowledge selected
+          </Button>
+        </div>
+      )}
       <div data-testid="alerts-list" className="space-y-2">
         {visibleAlerts.map((alert) => renderAlertRow(alert))}
         {olderResolved.length > 0 && (
