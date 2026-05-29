@@ -2,8 +2,8 @@ package com.kinetix.risk.routes
 
 import com.kinetix.common.model.AssetClass
 import com.kinetix.common.model.BookId
+import com.kinetix.common.dtos.ApiError
 import com.kinetix.common.resilience.CircuitBreakerOpenException
-import com.kinetix.risk.ErrorBody
 import com.kinetix.risk.cache.RedisTestSetup
 import com.kinetix.risk.cache.RedisVaRCache
 import com.kinetix.risk.cache.VaRCache
@@ -76,7 +76,7 @@ class StaleCacheVaRFallbackAcceptanceTest : FunSpec({
                     call.response.header("Retry-After", "30")
                     call.respond(
                         HttpStatusCode.ServiceUnavailable,
-                        ErrorBody("service_unavailable", "Risk engine temporarily unavailable"),
+                        ApiError(code = "SERVICE_UNAVAILABLE", message = "Risk engine temporarily unavailable"),
                     )
                 }
             }

@@ -1,5 +1,6 @@
 package com.kinetix.risk.routes
 
+import com.kinetix.common.dtos.ApiError
 import com.kinetix.common.model.AssetClass
 import com.kinetix.common.model.BookId
 import com.kinetix.risk.routes.dtos.*
@@ -105,7 +106,7 @@ fun Route.riskRoutes(
                     call.response.header("Retry-After", "30")
                     call.respond(
                         HttpStatusCode.ServiceUnavailable,
-                        com.kinetix.risk.ErrorBody("service_unavailable", "Risk engine temporarily unavailable"),
+                        ApiError(code = "SERVICE_UNAVAILABLE", message = "Risk engine temporarily unavailable"),
                     )
                 }
                 return@post

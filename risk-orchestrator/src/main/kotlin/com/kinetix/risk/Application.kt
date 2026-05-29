@@ -116,6 +116,7 @@ import com.kinetix.risk.persistence.ExposedHedgeRecommendationRepository
 import com.kinetix.risk.persistence.ExposedCounterpartyExposureRepository
 import com.kinetix.risk.client.GrpcCounterpartyRiskClient
 import com.kinetix.risk.client.GrpcSaCcrClient
+import com.kinetix.risk.error.configureErrorHandling
 import com.kinetix.proto.risk.CounterpartyRiskServiceGrpcKt
 import com.kinetix.proto.risk.SaCcrServiceGrpcKt
 import com.kinetix.proto.risk.AttributionServiceGrpcKt
@@ -158,7 +159,6 @@ import io.ktor.server.metrics.micrometer.*
 import io.ktor.server.netty.*
 import io.ktor.server.plugins.calllogging.*
 import io.ktor.server.plugins.contentnegotiation.*
-import io.ktor.server.plugins.statuspages.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -166,7 +166,6 @@ import org.slf4j.event.Level
 import io.micrometer.prometheusmetrics.PrometheusConfig
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.util.concurrent.atomic.AtomicBoolean
 import org.apache.kafka.clients.consumer.ConsumerConfig
@@ -193,6 +192,7 @@ fun Application.module() {
             it.request.header("X-Correlation-ID") ?: java.util.UUID.randomUUID().toString()
         }
     }
+    configureErrorHandling()
     install(OpenApi) {
         info {
             title = "Risk Orchestrator API"
@@ -211,9 +211,6 @@ fun Application.module() {
         route("swagger") { swaggerUI("/openapi.json") }
     }
 }
-
-@Serializable
-internal data class ErrorBody(val error: String, val message: String)
 
 fun Application.moduleWithRoutes() {
     val grpcConfig = environment.config.config("grpc")
@@ -630,58 +627,6 @@ fun Application.moduleWithRoutes() {
     val regulatoryStub = RegulatoryReportingServiceGrpcKt.RegulatoryReportingServiceCoroutineStub(channel)
 
     module()
-
-    install(StatusPages) {
-        exception<IllegalArgumentException> { call, cause ->
-            call.respond(
-                HttpStatusCode.BadRequest,
-                ErrorBody("bad_request", cause.message ?: "Invalid request"),
-            )
-        }
-        exception<CircuitBreakerOpenException> { call, _ ->
-            call.response.header("Retry-After", "30")
-            call.respond(
-                HttpStatusCode.ServiceUnavailable,
-                ErrorBody("service_unavailable", "Risk engine temporarily unavailable"),
-            )
-        }
-        exception<io.grpc.StatusRuntimeException> { call, cause ->
-            when (cause.status.code) {
-                io.grpc.Status.Code.DEADLINE_EXCEEDED -> {
-                    call.respond(
-                        HttpStatusCode.GatewayTimeout,
-                        ErrorBody("gateway_timeout", "Risk calculation timed out"),
-                    )
-                }
-                io.grpc.Status.Code.INVALID_ARGUMENT -> {
-                    call.respond(
-                        HttpStatusCode.BadRequest,
-                        ErrorBody("bad_request", cause.status.description ?: "Invalid argument"),
-                    )
-                }
-                io.grpc.Status.Code.UNAVAILABLE, io.grpc.Status.Code.RESOURCE_EXHAUSTED -> {
-                    call.response.header("Retry-After", "5")
-                    call.respond(
-                        HttpStatusCode.ServiceUnavailable,
-                        ErrorBody("service_unavailable", cause.status.description ?: "Service unavailable"),
-                    )
-                }
-                else -> {
-                    call.respond(
-                        HttpStatusCode.BadGateway,
-                        ErrorBody("bad_gateway", cause.status.description ?: "Risk engine error"),
-                    )
-                }
-            }
-        }
-        exception<Throwable> { call, cause ->
-            call.application.log.error("Unhandled exception", cause)
-            call.respond(
-                HttpStatusCode.InternalServerError,
-                ErrorBody("internal_error", "An unexpected error occurred"),
-            )
-        }
-    }
 
     val snapshotDiffer = SnapshotDiffer()
     val inputChangeDiffer = InputChangeDiffer()
