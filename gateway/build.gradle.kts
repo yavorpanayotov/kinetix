@@ -18,4 +18,5 @@ dependencies {
     implementation(libs.kafka.clients)
 
     testImplementation(libs.ktor.client.mock)
+    testImplementation(libs.opentelemetry.sdk.testing)
 }
