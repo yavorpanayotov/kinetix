@@ -1,0 +1,185 @@
+{
+  "startedAt": "2026-05-29T17:00:02.591Z",
+  "base": "https://kinetixrisk.ai",
+  "tabs": {
+    "positions": {
+      "clicked": true,
+      "tabVisible": true,
+      "signals": [],
+      "textSample": "Kinetix\nDEMO\nFirm\nMulti-Asset\nAsk Kinetix\n⌘K\nFrozen\nNORMAL\nRISK MANAGER\nrisk_manager1\nPositions\nTrades\nP&L\nRisk\nEOD History\nScenarios\nCounterparty Risk\nRegulatory\nReports\nActivity\nAlerts\n50\nSystem\nDemo mode — explore freely. All data is synthetic. Switch personas above to see the platform from different roles.\n7 critical\n28 warning\n15 info\n50 unread\nLive\nNAV\n$5,549,683,546.32\nUNREALISED P&L\n+$5,861,296.55\n(0.11%)\nINTRADAY P&L\n—\nVAR 1D 95%\n$227,397.76\n(22.7% of limit)\nNET DELTA\n-20,178,661.01\nNET VEGA\n-18,331,463.90\nLAST CALC\n19:30:02\nCRITICAL: VaR breached $1,000,000 limit — current: $1,651,035 (derivatives-book)\n30 min ago\nCRITICAL: VaR breached $1,000,000 limit — current: $29,677,870 (macro-hedge)\n30 min ago\nCRITICAL: VaR breached $1,000,000 limit — current: $26,480,636 (emerging-markets)\n30 min ago\nNeed a hedge?\nTrader\nAll traders\nAkira Sato\nAlice Cohen\nAna Soares\nCarlos Mendes\nConnor Ainsworth\nDaniel Okafor\nElena Rossi\nEva Novak\nFelix Brandt\nHenrik Lindqvist\nHideo Yamamoto\nIsabel Fernandez\nJames Whitfield\nJordan Reyes\nLina Aoki\nLukas Bauer\nMarcus Webb\nMargaret Holloway\nMaya Patel\nNadia Hassan\nOlivia Kerr\nPriya Krishnan\nRachel Goldberg\nRyan Tanaka\nSarah Chen\nSophie Laurent\nTom O",
+      "scoped": {
+        "console": [],
+        "network": []
+      }
+    },
+    "trades": {
+      "clicked": true,
+      "tabVisible": true,
+      "signals": [],
+      "textSample": "Kinetix\nDEMO\nFirm\nMulti-Asset\nAsk Kinetix\n⌘K\nFrozen\nNORMAL\nRISK MANAGER\nrisk_manager1\nPositions\nTrades\nP&L\nRisk\nEOD History\nScenarios\nCounterparty Risk\nRegulatory\nReports\nActivity\nAlerts\n50\nSystem\nDemo mode — explore freely. All data is synthetic. Switch personas above to see the platform from different roles.\n7 critical\n28 warning\n15 info\n50 unread\nLive\nNAV\n$5,549,683,546.32\nUNREALISED P&L\n+$5,861,296.55\n(0.11%)\nINTRADAY P&L\n—\nVAR 1D 95%\n$227,397.76\n(22.7% of limit)\nNET DELTA\n-20,178,661.01\nNET VEGA\n-18,331,463.90\nLAST CALC\n19:30:02\nTrade Blotter\nPlace Order\nExecution Cost\nReconciliation\nVenue routing\nAll Sides\nBUY\nSELL\nAll Types\nCash Equity (47)\nGovernment Bond (3)\nShow Venue\nShow Venue Order ID\nExport CSV\n\tTime\tInstrument\tName\tType\tSide\tQty\tFilled\tOpen\tPrice\tNotional\tStatus\n\t2026-05-29 19:02:23\tUST-10Y\tUST-10Y\tGovernment Bond\tBUY\t2,508\t2,508\t0\t$98.308\t$246.6K\tFILLED\n\t2026-05-29 18:56:22\tJNJ\tJohnson & Johnson\tCash Equity\tBUY\t1,911\t1,911\t0\t$154.96\t$296.1K\tFILLED\n\t2026-05-29 18:56:22\tPG\tPG\tCash Equity\tSELL\t2,741\t2,741\t0\t$164.11\t$449.8K\tFILLED\n\t2026-05-29 18:39:49\tPG\tPG\tCash Equity\tSELL\t2,138\t2,138\t0\t$164.93\t$352.6K\tFILLED\n\t2026-05-29 18:36:49\tUST-5Y\tUST-5Y\tGovernment Bond\tBUY\t1,283",
+      "scoped": {
+        "console": [],
+        "network": []
+      }
+    },
+    "pnl": {
+      "clicked": true,
+      "tabVisible": true,
+      "signals": [],
+      "textSample": "Kinetix\nDEMO\nFirm\nMulti-Asset\nAsk Kinetix\n⌘K\nFrozen\nNORMAL\nRISK MANAGER\nrisk_manager1\nPositions\nTrades\nP&L\nRisk\nEOD History\nScenarios\nCounterparty Risk\nRegulatory\nReports\nActivity\nAlerts\n50\nSystem\nDemo mode — explore freely. All data is synthetic. Switch personas above to see the platform from different roles.\n7 critical\n28 warning\n15 info\n50 unread\nLive\nNAV\n$5,549,683,546.32\nUNREALISED P&L\n+$5,861,296.55\n(0.11%)\nINTRADAY P&L\n—\nVAR 1D 95%\n$227,397.76\n(22.7% of limit)\nNET DELTA\n-20,178,661.01\nNET VEGA\n-18,331,463.90\nLAST CALC\n19:30:02\nCRITICAL: VaR breached $1,000,000 limit — current: $1,651,035 (derivatives-book)\n30 min ago\nCRITICAL: VaR breached $1,000,000 limit — current: $29,677,870 (macro-hedge)\n30 min ago\nCRITICAL: VaR breached $1,000,000 limit — current: $26,480,636 (emerging-markets)\n30 min ago\nNeed a hedge?\nTrader\nAll traders\nAkira Sato\nAlice Cohen\nAna Soares\nCarlos Mendes\nConnor Ainsworth\nDaniel Okafor\nElena Rossi\nEva Novak\nFelix Brandt\nHenrik Lindqvist\nHideo Yamamoto\nIsabel Fernandez\nJames Whitfield\nJordan Reyes\nLina Aoki\nLukas Bauer\nMarcus Webb\nMargaret Holloway\nMaya Patel\nNadia Hassan\nOlivia Kerr\nPriya Krishnan\nRachel Goldberg\nRyan Tanaka\nSarah Chen\nSophie Laurent\nTom O",
+      "scoped": {
+        "console": [
+          {
+            "type": "warning",
+            "text": "[DemoBootstrapGate] bootstrap-status unreachable — gate disabled"
+          }
+        ],
+        "network": []
+      }
+    },
+    "risk": {
+      "clicked": true,
+      "tabVisible": true,
+      "signals": [
+        "no data"
+      ],
+      "textSample": "Kinetix\nDEMO\nFirm\nMulti-Asset\nAsk Kinetix\n⌘K\nFrozen\nNORMAL\nRISK MANAGER\nrisk_manager1\nPositions\nTrades\nP&L\nRisk\nEOD History\nScenarios\nCounterparty Risk\nRegulatory\nReports\nActivity\nAlerts\n50\nSystem\nDemo mode — explore freely. All data is synthetic. Switch personas above to see the platform from different roles.\n7 critical\n28 warning\n15 info\n50 unread\nLive\nNAV\n$5,549,683,546.32\nUNREALISED P&L\n+$5,861,296.55\n(0.11%)\nINTRADAY P&L\n—\nVAR 1D 95%\n$227,397.76\n(22.7% of limit)\nNET DELTA\n-20,178,661.01\nNET VEGA\n-18,331,463.90\nLAST CALC\n19:30:02\nCRITICAL: VaR breached $1,000,000 limit — current: $1,651,035 (derivatives-book)\n30 min ago\nCRITICAL: VaR breached $1,000,000 limit — current: $29,677,870 (macro-hedge)\n30 min ago\nCRITICAL: VaR breached $1,000,000 limit — current: $26,480,636 (emerging-markets)\n30 min ago\nNeed a hedge?\nTrader\nAll traders\nAkira Sato\nAlice Cohen\nAna Soares\nCarlos Mendes\nConnor Ainsworth\nDaniel Okafor\nElena Rossi\nEva Novak\nFelix Brandt\nHenrik Lindqvist\nHideo Yamamoto\nIsabel Fernandez\nJames Whitfield\nJordan Reyes\nLina Aoki\nLukas Bauer\nMarcus Webb\nMargaret Holloway\nMaya Patel\nNadia Hassan\nOlivia Kerr\nPriya Krishnan\nRachel Goldberg\nRyan Tanaka\nSarah Chen\nSophie Laurent\nTom O",
+      "scoped": {
+        "console": [
+          {
+            "type": "warning",
+            "text": "[DemoBootstrapGate] bootstrap-status unreachable — gate disabled"
+          }
+        ],
+        "network": []
+      }
+    },
+    "eod": {
+      "clicked": true,
+      "tabVisible": true,
+      "signals": [],
+      "textSample": "Kinetix\nDEMO\nFirm\nMulti-Asset\nAsk Kinetix\n⌘K\nFrozen\nNORMAL\nRISK MANAGER\nrisk_manager1\nPositions\nTrades\nP&L\nRisk\nEOD History\nScenarios\nCounterparty Risk\nRegulatory\nReports\nActivity\nAlerts\n50\nSystem\nDemo mode — explore freely. All data is synthetic. Switch personas above to see the platform from different roles.\n7 critical\n28 warning\n15 info\n50 unread\nLive\nNAV\n$5,549,683,546.32\nUNREALISED P&L\n+$5,861,296.55\n(0.11%)\nINTRADAY P&L\n—\nVAR 1D 95%\n$227,397.76\n(22.7% of limit)\nNET DELTA\n-20,178,661.01\nNET VEGA\n-18,331,463.90\nLAST CALC\n19:30:02\n1W\n1M\n3M\nYTD\nCustom\n2026-04-17 — 2026-05-29\nVaR / ES Trend\n$2,162,163.54\n$2,653,564.35\nVaR\nES\n$2.2M\n$2.4M\n$2.6M\n$2.8M\n04-29\n05-05\n05-11\n05-18\n05-22\n05-28\nColumns\n\tDate\tVaR\tVaR DoD\tES\tES DoD\tPV\tPromoted By\tStatus\n\t2026-05-28\t$2,162,163.54\t▲ +$16,251.87\t$2,653,564.35\t▲ +$19,945.48\t$65,772,981.26\tSEED\tPromoted\n\t2026-05-27\t$2,145,911.67\t▲ +$5,675.34\t$2,633,618.87\t▲ +$6,965.19\t$65,675,470.03\tSEED\tPromoted\n\t2026-05-26\t$2,140,236.34\t▲ +$22,445.39\t$2,626,653.69\t▲ +$27,546.61\t$65,641,418.02\tSEED\tPromoted\n\t2026-05-25\t$2,117,790.95\t▼ -$94,440.93\t$2,599,107.07\t▼ -$115,904.78\t$65,506,745.69\tSEED\tPromoted\n\t2026-05-22\t$2,212,231.88\t▼ -$33,131.90\t$2,715,011.85\t▼ -$40,",
+      "scoped": {
+        "console": [],
+        "network": []
+      }
+    },
+    "scenarios": {
+      "clicked": true,
+      "tabVisible": true,
+      "signals": [],
+      "textSample": "Kinetix\nDEMO\nFirm\nMulti-Asset\nAsk Kinetix\n⌘K\nFrozen\nNORMAL\nRISK MANAGER\nrisk_manager1\nPositions\nTrades\nP&L\nRisk\nEOD History\nScenarios\nCounterparty Risk\nRegulatory\nReports\nActivity\nAlerts\n50\nSystem\nDemo mode — explore freely. All data is synthetic. Switch personas above to see the platform from different roles.\n7 critical\n28 warning\n15 info\n50 unread\nLive\nNAV\n$5,549,683,546.32\nUNREALISED P&L\n+$5,861,296.55\n(0.11%)\nINTRADAY P&L\n—\nVAR 1D 95%\n$227,397.76\n(22.7% of limit)\nNET DELTA\n-20,178,661.01\nNET VEGA\n-18,331,463.90\nLAST CALC\n19:30:02\nStress Testing\nRun All Scenarios\n95% CL\n97.5% CL\n99% CL\n1 Day\n5 Days\n10 Days\n+ Custom Scenario\nReverse Stress\nManage Scenarios\n\nNo stress test results yet. Click \"Run All Scenarios\" to see the comparison.\n\nHistorical Scenario Replay\nGFC 2008\nCOVID 2020\nTAPER TANTRUM 2013\nEURO CRISIS 2011\nBLACK MONDAY 1987\nLTCM RUSSIAN 1998\nDOTCOM 2000\nSEPT 11 2001\nCHF DEPEG 2015\nBREXIT 2016\nVOLMAGEDDON 2018\nOIL NEGATIVE 2020\nSVB BANKING 2023\nRATES SHOCK 2022\nEM CONTAGION\nRun Replay\nWhat-If Analysis\nScenario\nRebalancing\nTrade 1\nInstrument\nInstrument Type\nCash Equity\nEquity Option\nEquity Future\nGovernment Bond\nCorporate Bond\nFX Spot\nFX Forward\nFX Option\nInterest Rate Swa",
+      "scoped": {
+        "console": [],
+        "network": []
+      }
+    },
+    "counterparty-risk": {
+      "clicked": true,
+      "tabVisible": true,
+      "signals": [],
+      "textSample": "Kinetix\nDEMO\nFirm\nMulti-Asset\nAsk Kinetix\n⌘K\nFrozen\nNORMAL\nRISK MANAGER\nrisk_manager1\nPositions\nTrades\nP&L\nRisk\nEOD History\nScenarios\nCounterparty Risk\nRegulatory\nReports\nActivity\nAlerts\n50\nSystem\nDemo mode — explore freely. All data is synthetic. Switch personas above to see the platform from different roles.\n7 critical\n28 warning\n15 info\n50 unread\nLive\nNAV\n$5,549,683,546.32\nUNREALISED P&L\n+$5,861,296.55\n(0.11%)\nINTRADAY P&L\n—\nVAR 1D 95%\n$227,397.76\n(22.7% of limit)\nNET DELTA\n-20,178,661.01\nNET VEGA\n-18,331,463.90\nLAST CALC\n19:30:02\nCounterparty Risk\n30 counterparties\nRefresh\nCOUNTERPARTY\tNET EXPOSURE\n\tPEAK PFE\tCVA\tWWR\n\nCP-JPM\n\t$6,500,000.00\t$7,200,000.00\t$45,000.00\t\nHigh\nTrades\n\n\nCP-CITI\n\t$5,300,000.00\t$5,900,000.00\t$36,000.00\t\nHigh\nTrades\n\n\nCP-UBS\n\t$4,100,000.00\t$4,600,000.00\t$28,000.00\t\nHigh\nTrades\n\n\nCP-BARC\n\t$3,200,000.00\t$3,800,000.00\t$22,000.00\t\nNormal\nTrades\n\n\nCP-GS\n\t$2,000,000.00\t$1,800,000.00\t$12,500.00\t\nNormal\nTrades\n\n\nCP-DB\nAGREEMENT EXPIRED\nBLOCK NEW TRADES\n\t$1,800,000.00\t$2,100,000.00\t$9,800.00\t\nNormal\nTrades\n\n\nCP-AAPL\n\t$0.00\t$0.00\t—\t\nNormal\nTrades\n\n\nCP-BA\n\t$0.00\t$0.00\t—\t\nNormal\nTrades\n\n\nCP-BBVA\n\t$0.00\t$0.00\t—\t\nNormal\nTrades\n\n\nCP-BLK\n\t$0.00\t$0.00\t—\t\nNormal\nTrades\n\n\nCP",
+      "scoped": {
+        "console": [],
+        "network": []
+      }
+    },
+    "regulatory": {
+      "clicked": true,
+      "tabVisible": true,
+      "signals": [],
+      "textSample": "Kinetix\nDEMO\nFirm\nMulti-Asset\nAsk Kinetix\n⌘K\nFrozen\nNORMAL\nRISK MANAGER\nrisk_manager1\nPositions\nTrades\nP&L\nRisk\nEOD History\nScenarios\nCounterparty Risk\nRegulatory\nReports\nActivity\nAlerts\n50\nSystem\nDemo mode — explore freely. All data is synthetic. Switch personas above to see the platform from different roles.\n7 critical\n28 warning\n15 info\n50 unread\nLive\nNAV\n$5,549,683,546.32\nUNREALISED P&L\n+$5,861,296.55\n(0.11%)\nINTRADAY P&L\n—\nVAR 1D 95%\n$227,397.76\n(22.7% of limit)\nNET DELTA\n-20,178,661.01\nNET VEGA\n-18,331,463.90\nLAST CALC\n19:30:02\nRegulatory Reporting — FRTB\nCalculate FRTB\nDownload CSV\nDownload XBRL\nClick Calculate FRTB to compute risk charges.\nWhat-If Analysis\nScenario\nRebalancing\nTrade 1\nInstrument\nInstrument Type\nCash Equity\nEquity Option\nEquity Future\nGovernment Bond\nCorporate Bond\nFX Spot\nFX Forward\nFX Option\nInterest Rate Swap\nCommodity Future\nCommodity Option\nCredit Default Swap\nConvertible Bond\nDirection\nBuy\nSell\nQuantity\nPrice\nAdd another trade\nRun Analysis",
+      "scoped": {
+        "console": [
+          {
+            "type": "warning",
+            "text": "[DemoBootstrapGate] bootstrap-status unreachable — gate disabled"
+          },
+          {
+            "type": "error",
+            "text": "Failed to load resource: the server responded with a status of 404 ()"
+          }
+        ],
+        "network": [
+          {
+            "url": "https://kinetixrisk.ai/api/v1/regulatory/frtb/balanced-income/latest",
+            "method": "GET",
+            "status": 404
+          },
+          {
+            "url": "https://kinetixrisk.ai/api/v1/regulatory/frtb/balanced-income/latest",
+            "method": "GET",
+            "failure": "net::ERR_ABORTED"
+          }
+        ]
+      }
+    },
+    "reports": {
+      "clicked": true,
+      "tabVisible": true,
+      "signals": [],
+      "textSample": "Kinetix\nDEMO\nFirm\nMulti-Asset\nAsk Kinetix\n⌘K\nFrozen\nNORMAL\nRISK MANAGER\nrisk_manager1\nPositions\nTrades\nP&L\nRisk\nEOD History\nScenarios\nCounterparty Risk\nRegulatory\nReports\nActivity\nAlerts\n50\nSystem\nDemo mode — explore freely. All data is synthetic. Switch personas above to see the platform from different roles.\n7 critical\n28 warning\n15 info\n50 unread\nLive\nNAV\n$5,549,683,546.32\nUNREALISED P&L\n+$5,861,296.55\n(0.11%)\nINTRADAY P&L\n—\nVAR 1D 95%\n$227,397.76\n(22.7% of limit)\nNET DELTA\n-20,178,661.01\nNET VEGA\n-18,331,463.90\nLAST CALC\n19:30:02\nGenerate Report\nTemplate\nSelect a template...\nRisk Summary\nStress Test Summary\nP&L Attribution\nBook ID\nDate (optional)\nGenerate\nRecent Reports\nFailed to fetch recent reports: 404\nWhat-If Analysis\nScenario\nRebalancing\nTrade 1\nInstrument\nInstrument Type\nCash Equity\nEquity Option\nEquity Future\nGovernment Bond\nCorporate Bond\nFX Spot\nFX Forward\nFX Option\nInterest Rate Swap\nCommodity Future\nCommodity Option\nCredit Default Swap\nConvertible Bond\nDirection\nBuy\nSell\nQuantity\nPrice\nAdd another trade\nRun Analysis",
+      "scoped": {
+        "console": [
+          {
+            "type": "error",
+            "text": "Failed to load resource: the server responded with a status of 404 ()"
+          }
+        ],
+        "network": [
+          {
+            "url": "https://kinetixrisk.ai/api/v1/reports/recent",
+            "method": "GET",
+            "status": 404
+          }
+        ]
+      }
+    },
+    "activity": {
+      "clicked": true,
+      "tabVisible": true,
+      "signals": [],
+      "textSample": "Kinetix\nDEMO\nFirm\nMulti-Asset\nAsk Kinetix\n⌘K\nFrozen\nNORMAL\nRISK MANAGER\nrisk_manager1\nPositions\nTrades\nP&L\nRisk\nEOD History\nScenarios\nCounterparty Risk\nRegulatory\nReports\nActivity\nAlerts\n50\nSystem\nDemo mode — explore freely. All data is synthetic. Switch personas above to see the platform from different roles.\n7 critical\n28 warning\n15 info\n50 unread\nLive\nNAV\n$5,549,683,546.32\nUNREALISED P&L\n+$5,861,296.55\n(0.11%)\nINTRADAY P&L\n—\nVAR 1D 95%\n$227,397.76\n(22.7% of limit)\nNET DELTA\n-20,178,661.01\nNET VEGA\n-18,331,463.90\nLAST CALC\n19:30:02\nActivity & Audit Trail\nChain verified · 3481 events\nBook\nTrade\nEvent type\nFrom\nTo\nTime\tEvent\tSubject\tBook\tUser\n2026-02-21 16:00:01\tTRADE_BOOKED\tseed-eq-aapl-001\tequity-growth\ttrader1\n2026-02-21 16:00:01\tTRADE_BOOKED\tseed-eq-googl-001\tequity-growth\ttrader1\n2026-02-21 16:00:01\tTRADE_BOOKED\tseed-eq-msft-001\tequity-growth\ttrader1\n2026-02-21 16:00:01\tTRADE_BOOKED\tseed-eq-amzn-001\tequity-growth\ttrader1\n2026-02-21 16:00:01\tTRADE_BOOKED\tseed-eq-tsla-001\tequity-growth\ttrader1\n2026-02-21 16:00:01\tTRADE_BOOKED\tseed-ma-aapl-001\tmulti-asset\ttrader1\n2026-02-21 16:00:01\tTRADE_BOOKED\tseed-ma-eurusd-001\tmulti-asset\ttrader1\n2026-02-21 16:00:01\tTRADE_BOOKED\tseed-ma-us10y",
+      "scoped": {
+        "console": [],
+        "network": []
+      }
+    },
+    "alerts": {
+      "clicked": true,
+      "tabVisible": true,
+      "signals": [],
+      "textSample": "Kinetix\nDEMO\nFirm\nMulti-Asset\nAsk Kinetix\n⌘K\nFrozen\nNORMAL\nRISK MANAGER\nrisk_manager1\nPositions\nTrades\nP&L\nRisk\nEOD History\nScenarios\nCounterparty Risk\nRegulatory\nReports\nActivity\nAlerts\n50\nSystem\nDemo mode — explore freely. All data is synthetic. Switch personas above to see the platform from different roles.\n7 critical\n28 warning\n15 info\n50 unread\nLive\nNAV\n$5,549,683,546.32\nUNREALISED P&L\n+$5,861,296.55\n(0.11%)\nINTRADAY P&L\n—\nVAR 1D 95%\n$227,397.76\n(22.7% of limit)\nNET DELTA\n-20,178,661.01\nNET VEGA\n-18,331,463.90\nLAST CALC\n19:30:02\nNotification Center\nCreate Alert Rule\nVaR Breach\nP&L Threshold\nRisk Limit\nDelta Breach\nVega Breach\nConcentration\nMargin Breach\nAbove\nBelow\nCRITICAL\nWARNING\nINFO\nChannels:\nIN_APP\nEMAIL\nWEBHOOK\nCreate Rule\nAlert Rules\nName\tType\tThreshold\tSeverity\tEnabled\t\nVaR Breach Alert\tVAR_BREACH\t1,000,000\tCRITICAL\tYes\t\n\nPnL Threshold Alert\tPNL_THRESHOLD\t500,000\tWARNING\tYes\t\n\nRisk Limit Alert\tRISK_LIMIT\t2,000,000\tINFO\tYes\t\n\nConcentration Risk Alert\tRISK_LIMIT\t1,500,000\tWARNING\tYes\t\n\nDaily PnL Alert\tPNL_THRESHOLD\t250,000\tINFO\tYes\t\n\nVaR Early Warning\tVAR_BREACH\t750,000\tWARNING\tYes\t\nRecent Alerts\nTriggered50\nAcknowledged0\nEscalated0\nResolved0\nExport CSV\nSelect all visibl",
+      "scoped": {
+        "console": [],
+        "network": []
+      }
+    },
+    "system": {
+      "clicked": true,
+      "tabVisible": true,
+      "signals": [],
+      "textSample": "Kinetix\nDEMO\nFirm\nMulti-Asset\nAsk Kinetix\n⌘K\nFrozen\nNORMAL\nRISK MANAGER\nrisk_manager1\nPositions\nTrades\nP&L\nRisk\nEOD History\nScenarios\nCounterparty Risk\nRegulatory\nReports\nActivity\nAlerts\n50\nSystem\nDemo mode — explore freely. All data is synthetic. Switch personas above to see the platform from different roles.\n7 critical\n28 warning\n15 info\n50 unread\nLive\nNAV\n$5,549,683,546.32\nUNREALISED P&L\n+$5,861,296.55\n(0.11%)\nINTRADAY P&L\n—\nVAR 1D 95%\n$227,397.76\n(22.7% of limit)\nNET DELTA\n-20,178,661.01\nNET VEGA\n-18,331,463.90\nLAST CALC\n19:30:02\nAll Systems Operational\nRefresh\nService Health\nGateway\n\nREADY\n\nPosition Service\n\nREADY\n\nPrices\n\nREADY\n\nRisk Orchestrator\n\nREADY\n\nNotifications\n\nREADY\n\nRates\n\nREADY\n\nReference Data\n\nREADY\n\nVolatility\n\nREADY\n\nCorrelations\n\nREADY\n\nregulatory-service\n\nREADY\n\naudit-service\n\nREADY\n\nObservability\nSystem Health\n\nRequest rate, error rate, latency, JVM, Kafka lag\n\nService Overview\n\nPer-service request rate, errors, latency\n\nRisk Overview\n\nVaR gauge, ES, component breakdown\n\nTrade Flow\n\nTrade lifecycle, booking rate, amends & cancels\n\nDatabase Health\n\nConnection pools, query latency, table sizes\n\nKafka Health\n\nConsumer lag, partition health, throughput\n\nService L",
+      "scoped": {
+        "console": [],
+        "network": []
+      }
+    }
+  },
+  "globalConsole": [],
+  "globalNetwork": [],
+  "links": {
+    "github": "https://github.com/panayotovk/kinetix",
+    "demoBadge": true
+  },
+  "landingText": "Kinetix\nDEMO\nFirm\nMulti-Asset\nAsk Kinetix\n⌘K\nFrozen\nNORMAL\nRISK MANAGER\nrisk_manager1\nPositions\nTrades\nP&L\nRisk\nEOD History\nScenarios\nCounterparty Risk\nRegulatory\nReports\nActivity\nAlerts\n50\nSystem\nDemo mode — explore freely. All data is synthetic. Switch personas above to see the platform from different roles.\n7 critical\n28 warning\n15 info\n50 unread\nLive\nNAV\n$5,549,683,546.32\nUNREALISED P&L\n+$5,861,296.55\n(0.11%)\nINTRADAY P&L\n—\nVAR 1D 95%\n$227,397.76\n(22.7% of limit)\nNET DELTA\n-20,178,661.01\nNET VEGA\n-18,331,463.90\nLAST CALC\n19:30:02\nCRITICAL: VaR breached $1,000,000 limit — current: $1,651,035 (derivatives-book)\n30 min ago\nCRITICAL: VaR breached $1,000,000 limit — current: $29,677,870 (macro-hedge)\n30 min ago\nCRITICAL: VaR breached $1,000,000 limit — current: $26,480,636 (emerging-markets)\n30 min ago\nNeed a hedge?\nTrader\nAll traders\nAkira Sato\nAlice Cohen\nAna Soares\nCarlos Mendes\nConnor Ainsworth\nDaniel Okafor\nElena Rossi\nEva Novak\nFelix Brandt\nHenrik Lindqvist\nHideo Yamamoto\nIsabel Fernandez\nJames Whitfield\nJordan Reyes\nLina Aoki\nLukas Bauer\nMarcus Webb\nMargaret Holloway\nMaya Patel\nNadia Hassan\nOlivia Kerr\nPriya Krishnan\nRachel Goldberg\nRyan Tanaka\nSarah Chen\nSophie Laurent\nTom O'Brien\nVikram Iyer\nVincent Park\nWei Zhang\nYusuf El-Sayed\nWhat-If\nFirm Summary\nUSD\nEUR\nGBP\nJPY\nTotal NAV\n$5,549,683,546.32\nUnrealized P&L\n+$5,861,296.55\nCurrency Breakdown\nCurrency\tLocal Value\tBase Value\tFX Rate\nUSD\t$5,541,575,567.42\t$5,541,575,567.42\t1\nEUR\t€7,402,518.86\t$8,107,978.90\t1.0953\nLive\nPos",
+  "initialLoad": {
+    "console": [
+      {
+        "type": "warning",
+        "text": "[DemoBootstrapGate] bootstrap-status unreachable — gate disabled"
+      }
+    ],
+    "network": []
+  }
+}
