@@ -67,9 +67,11 @@ class DevDataSeederTest : FunSpec({
         val seeder = DevDataSeeder(recorder, exposureRepo)
         seeder.seed()
 
-        exposureRepo.snapshots shouldHaveAtLeastSize 6
+        // Every reference-data counterparty (across all tiers) carries an
+        // exposure snapshot so the Counterparty Risk tab isn't padded with
+        // zero-exposure rows (kx-8kqk).
         val counterpartyIds = exposureRepo.snapshots.map { it.counterpartyId }.toSet()
-        counterpartyIds shouldBe setOf("CP-GS", "CP-JPM", "CP-BARC", "CP-DB", "CP-UBS", "CP-CITI")
+        counterpartyIds shouldBe com.kinetix.common.demo.CounterpartyTiers.ALL_IDS.toSet()
 
         exposureRepo.snapshots.forEach { snapshot ->
             snapshot.currentNetExposure shouldBeGreaterThan 0.0
@@ -92,11 +94,10 @@ class DevDataSeederTest : FunSpec({
         exposureRepo.snapshots.size shouldBe 1
     }
 
-    test("DEMO_COUNTERPARTIES exposes the 6 demo counterparties with id, name and creditRating (kx-i72)") {
+    test("DEMO_COUNTERPARTIES exposes every demo counterparty with id, name and creditRating (kx-i72, kx-8kqk)") {
         val demo = DevDataSeeder.DEMO_COUNTERPARTIES
 
-        demo.size shouldBe 6
-        demo.map { it.id }.toSet() shouldBe setOf("CP-GS", "CP-JPM", "CP-BARC", "CP-DB", "CP-UBS", "CP-CITI")
+        demo.map { it.id }.toSet() shouldBe com.kinetix.common.demo.CounterpartyTiers.ALL_IDS.toSet()
 
         // Each counterparty has a non-empty, human-readable name (i.e. not just the raw id).
         demo.forEach { cp ->

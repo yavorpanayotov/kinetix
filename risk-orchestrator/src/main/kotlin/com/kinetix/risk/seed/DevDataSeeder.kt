@@ -187,18 +187,54 @@ class DevDataSeeder(
             val agreementType: String,
         )
 
-        // The 6 G-SIB counterparties already curated in
-        // `common.demo.CounterpartyTiers.G_SIB_IDS`. We do NOT introduce new
-        // ids here — the demo / acceptance suite asserts a fixed list. The
-        // friendly name + S&P-style rating are added for kx-i72 so the UI
-        // tile can show "Goldman Sachs · A+" rather than the raw "CP-GS".
+        // Exposure profiles for every demo counterparty in
+        // `common.demo.CounterpartyTiers.ALL_IDS`. Originally only the 6 G-SIBs
+        // carried exposure, leaving the other 24 reference-data counterparties
+        // (mid-tier banks, CCPs, buy-side, corporates) showing $0.00 in the
+        // Counterparty Risk tab (kx-8kqk). Each tier gets size-appropriate,
+        // deliberately non-uniform numbers:
+        //   - G-SIBs            largest gross exposure, ISDA/CSA
+        //   - mid-tier banks    moderate, CSA-collateralised
+        //   - CCPs              cleared → heavily margined, negligible CVA (null)
+        //   - buy-side funds    moderate, CSA-collateralised
+        //   - corporates        smaller, often uncollateralised (higher CVA/exposure ratio)
+        // The friendly name + S&P-style rating drive the UI tile (kx-i72).
         private val COUNTERPARTY_PROFILES = listOf(
+            // G-SIBs
             CounterpartyProfile("CP-GS", "Goldman Sachs", "A+", 2_000_000.0, 1_800_000.0, 12_500.0, 500_000.0, 150_000.0, "NS-GS-001", "ISDA"),
             CounterpartyProfile("CP-JPM", "JPMorgan Chase", "AA-", 6_500_000.0, 7_200_000.0, 45_000.0, 1_200_000.0, 300_000.0, "NS-JPM-001", "ISDA"),
             CounterpartyProfile("CP-BARC", "Barclays", "A", 3_200_000.0, 3_800_000.0, 22_000.0, 800_000.0, 200_000.0, "NS-BARC-001", "ISDA"),
             CounterpartyProfile("CP-DB", "Deutsche Bank", "BBB+", 1_800_000.0, 2_100_000.0, 9_800.0, 400_000.0, 100_000.0, "NS-DB-001", "ISDA"),
             CounterpartyProfile("CP-UBS", "UBS", "A+", 4_100_000.0, 4_600_000.0, 28_000.0, 950_000.0, 250_000.0, "NS-UBS-001", "CSA"),
             CounterpartyProfile("CP-CITI", "Citigroup", "A", 5_300_000.0, 5_900_000.0, 36_000.0, 1_100_000.0, 280_000.0, "NS-CITI-001", "CSA"),
+            // Mid-tier banks
+            CounterpartyProfile("CP-WFC", "Wells Fargo", "A+", 2_400_000.0, 2_650_000.0, 16_400.0, 620_000.0, 170_000.0, "NS-WFC-001", "CSA"),
+            CounterpartyProfile("CP-BNP", "BNP Paribas", "A+", 2_900_000.0, 3_150_000.0, 18_700.0, 710_000.0, 190_000.0, "NS-BNP-001", "CSA"),
+            CounterpartyProfile("CP-SOCG", "Société Générale", "A", 1_650_000.0, 1_900_000.0, 13_200.0, 430_000.0, 110_000.0, "NS-SOCG-001", "CSA"),
+            CounterpartyProfile("CP-MIZ", "Mizuho", "A-", 1_200_000.0, 1_420_000.0, 11_900.0, 320_000.0, 80_000.0, "NS-MIZ-001", "CSA"),
+            CounterpartyProfile("CP-NMR", "Nomura", "A-", 980_000.0, 1_180_000.0, 12_600.0, 260_000.0, 70_000.0, "NS-NMR-001", "CSA"),
+            CounterpartyProfile("CP-RBC", "Royal Bank of Canada", "AA-", 2_150_000.0, 2_350_000.0, 9_400.0, 580_000.0, 160_000.0, "NS-RBC-001", "CSA"),
+            CounterpartyProfile("CP-ING", "ING Group", "A+", 1_480_000.0, 1_690_000.0, 11_100.0, 390_000.0, 100_000.0, "NS-ING-001", "CSA"),
+            CounterpartyProfile("CP-SAN", "Santander", "A", 1_320_000.0, 1_560_000.0, 12_900.0, 350_000.0, 90_000.0, "NS-SAN-001", "CSA"),
+            CounterpartyProfile("CP-HAND", "Handelsbanken", "AA-", 870_000.0, 1_020_000.0, 6_300.0, 240_000.0, 60_000.0, "NS-HAND-001", "CSA"),
+            CounterpartyProfile("CP-BBVA", "BBVA", "A", 1_110_000.0, 1_330_000.0, 11_700.0, 300_000.0, 80_000.0, "NS-BBVA-001", "CSA"),
+            // CCPs — centrally cleared, heavily margined, negligible counterparty CVA
+            CounterpartyProfile("CP-LCH", "LCH Clearnet", "AA-", 740_000.0, 920_000.0, null, 1_400_000.0, 1_350_000.0, "NS-LCH-001", "CSA"),
+            CounterpartyProfile("CP-CME", "CME Clearing", "AA", 1_050_000.0, 1_280_000.0, null, 1_800_000.0, 1_720_000.0, "NS-CME-001", "CSA"),
+            CounterpartyProfile("CP-EUREX", "Eurex Clearing", "AA", 690_000.0, 850_000.0, null, 1_250_000.0, 1_210_000.0, "NS-EUREX-001", "CSA"),
+            CounterpartyProfile("CP-ICE", "ICE Clear", "AA-", 820_000.0, 990_000.0, null, 1_450_000.0, 1_400_000.0, "NS-ICE-001", "CSA"),
+            // Buy-side funds
+            CounterpartyProfile("CP-BLK", "BlackRock", "AA-", 1_240_000.0, 1_460_000.0, 14_200.0, 330_000.0, 90_000.0, "NS-BLK-001", "CSA"),
+            CounterpartyProfile("CP-BRDG", "Bridgewater Associates", "A", 760_000.0, 910_000.0, 12_800.0, 200_000.0, 50_000.0, "NS-BRDG-001", "CSA"),
+            CounterpartyProfile("CP-CITDL", "Citadel", "A-", 1_080_000.0, 1_290_000.0, 17_500.0, 280_000.0, 70_000.0, "NS-CITDL-001", "CSA"),
+            CounterpartyProfile("CP-MIL", "Millennium", "A-", 640_000.0, 780_000.0, 13_900.0, 170_000.0, 40_000.0, "NS-MIL-001", "CSA"),
+            // Corporates — typically uncollateralised, higher CVA per unit exposure
+            CounterpartyProfile("CP-AAPL", "Apple Inc.", "AA+", 540_000.0, 690_000.0, 8_900.0, 0.0, 0.0, "NS-AAPL-001", "ISDA"),
+            CounterpartyProfile("CP-SHEL", "Shell plc", "A+", 720_000.0, 880_000.0, 15_300.0, 80_000.0, 0.0, "NS-SHEL-001", "ISDA"),
+            CounterpartyProfile("CP-TM", "Toyota Motor", "A+", 610_000.0, 760_000.0, 12_100.0, 60_000.0, 0.0, "NS-TM-001", "ISDA"),
+            CounterpartyProfile("CP-NESN", "Nestlé", "AA-", 470_000.0, 590_000.0, 7_200.0, 0.0, 0.0, "NS-NESN-001", "ISDA"),
+            CounterpartyProfile("CP-MSFT", "Microsoft", "AAA", 580_000.0, 720_000.0, 5_400.0, 0.0, 0.0, "NS-MSFT-001", "ISDA"),
+            CounterpartyProfile("CP-BA", "Boeing", "BBB-", 890_000.0, 1_080_000.0, 31_600.0, 120_000.0, 0.0, "NS-BA-001", "ISDA"),
         )
 
         /**
