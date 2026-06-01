@@ -66,6 +66,35 @@ class ReportServiceTest : FunSpec({
         result shouldBe templates
     }
 
+    test("listRecentReports delegates to the repository with the default limit when none given") {
+        val outputs = listOf(
+            ReportOutput("o2", "tpl-risk-summary", Instant.parse("2025-01-16T00:00:00Z"), ReportFormat.JSON, 3, null),
+            ReportOutput("o1", "tpl-pnl-attribution", Instant.parse("2025-01-15T00:00:00Z"), ReportFormat.JSON, 1, null),
+        )
+        coEvery { repository.listRecentOutputs(20) } returns outputs
+
+        val result = service.listRecentReports(null)
+
+        result shouldBe outputs
+        coVerify { repository.listRecentOutputs(20) }
+    }
+
+    test("listRecentReports clamps the requested limit to a sane maximum") {
+        coEvery { repository.listRecentOutputs(100) } returns emptyList()
+
+        service.listRecentReports(10_000)
+
+        coVerify { repository.listRecentOutputs(100) }
+    }
+
+    test("listRecentReports floors a non-positive limit to the default") {
+        coEvery { repository.listRecentOutputs(20) } returns emptyList()
+
+        service.listRecentReports(0)
+
+        coVerify { repository.listRecentOutputs(20) }
+    }
+
     test("generateReport saves output and returns it when rows are within limit") {
         val rows = buildJsonArray {
             add(buildJsonObject {

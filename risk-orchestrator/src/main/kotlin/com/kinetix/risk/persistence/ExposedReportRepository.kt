@@ -7,6 +7,7 @@ import com.kinetix.risk.model.report.ReportTemplate
 import com.kinetix.risk.model.report.ReportTemplateType
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
@@ -50,6 +51,15 @@ class ExposedReportRepository(private val db: Database? = null) : ReportReposito
                 .where { ReportOutputsTable.outputId eq outputId }
                 .firstOrNull()
                 ?.toOutput()
+        }
+
+    override suspend fun listRecentOutputs(limit: Int): List<ReportOutput> =
+        newSuspendedTransaction(db = db) {
+            ReportOutputsTable
+                .selectAll()
+                .orderBy(ReportOutputsTable.generatedAt, SortOrder.DESC)
+                .limit(limit)
+                .map { it.toOutput() }
         }
 
     private fun ResultRow.toTemplate() = ReportTemplate(

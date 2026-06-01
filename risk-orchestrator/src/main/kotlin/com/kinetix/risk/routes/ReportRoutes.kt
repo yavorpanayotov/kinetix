@@ -6,6 +6,7 @@ import com.kinetix.risk.model.report.ReportOutput
 import com.kinetix.risk.model.report.ReportRowLimitExceededException
 import com.kinetix.risk.model.report.ReportTemplate
 import com.kinetix.risk.model.report.ReportTemplateNotFoundException
+import com.kinetix.risk.routes.dtos.RecentReportResponse
 import com.kinetix.risk.routes.dtos.ReportGenerateRequestBody
 import com.kinetix.risk.routes.dtos.ReportOutputResponse
 import com.kinetix.risk.routes.dtos.ReportTemplateResponse
@@ -71,6 +72,15 @@ fun Route.reportRoutes(reportService: ReportService) {
         }
     }
 
+    // Registered before the `{outputId}` matcher so "recent" is served here
+    // rather than being captured as a report identifier (the bug behind the
+    // Reports tab's "Failed to fetch recent reports: 404").
+    get("/api/v1/reports/recent") {
+        val limit = call.request.queryParameters["limit"]?.toIntOrNull()
+        val recent = reportService.listRecentReports(limit).map { it.toRecentResponse() }
+        call.respond(recent)
+    }
+
     get("/api/v1/reports/{outputId}") {
         val outputId = call.parameters["outputId"] ?: return@get call.respond(HttpStatusCode.BadRequest)
         val output = reportService.getOutput(outputId)
@@ -103,6 +113,18 @@ private fun ReportTemplate.toResponse() = ReportTemplateResponse(
     columns = definition.columns,
     createdAt = createdAt.toString(),
     updatedAt = updatedAt.toString(),
+)
+
+private fun ReportOutput.toRecentResponse() = RecentReportResponse(
+    outputId = outputId,
+    templateId = templateId,
+    timestamp = generatedAt.toString(),
+    // Outputs aren't tagged with a principal yet; scheduled/system origin.
+    user = "SYSTEM",
+    // Generation is synchronous, so a persisted output is always complete.
+    status = "COMPLETE",
+    downloadUrl = "/api/v1/reports/$outputId/csv",
+    rowCount = rowCount,
 )
 
 private fun ReportOutput.toResponse() = ReportOutputResponse(

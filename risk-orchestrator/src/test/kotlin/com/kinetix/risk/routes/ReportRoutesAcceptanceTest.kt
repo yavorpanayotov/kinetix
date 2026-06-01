@@ -21,11 +21,15 @@ import io.ktor.server.routing.*
 import io.ktor.server.testing.*
 import io.mockk.clearMocks
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import java.time.Instant
 
@@ -218,6 +222,83 @@ class ReportRoutesAcceptanceTest : FunSpec({
 
             val response = client.get("/api/v1/reports/missing/csv")
             response.status shouldBe HttpStatusCode.NotFound
+        }
+    }
+
+    test("GET /api/v1/reports/recent returns reverse-chronological rows with the UI contract fields") {
+        val newer = SAMPLE_OUTPUT.copy(
+            outputId = "out-new",
+            generatedAt = Instant.parse("2025-01-16T12:00:00Z"),
+            rowCount = 42,
+        )
+        val older = SAMPLE_OUTPUT.copy(
+            outputId = "out-old",
+            templateId = "tpl-pnl-attribution",
+            generatedAt = Instant.parse("2025-01-15T09:00:00Z"),
+            rowCount = 7,
+        )
+        // Service returns rows already ordered newest-first (repository ORDER BY).
+        coEvery { reportService.listRecentReports(null) } returns listOf(newer, older)
+
+        testApplication {
+            install(ContentNegotiation) { json() }
+            routing { reportRoutes(reportService) }
+
+            val response = client.get("/api/v1/reports/recent")
+            response.status shouldBe HttpStatusCode.OK
+
+            val body = Json.parseToJsonElement(response.bodyAsText()).jsonArray
+            body.size shouldBe 2
+            body[0].jsonObject["outputId"]?.jsonPrimitive?.content shouldBe "out-new"
+            body[1].jsonObject["outputId"]?.jsonPrimitive?.content shouldBe "out-old"
+
+            val first = body[0].jsonObject
+            first["templateId"]?.jsonPrimitive?.content shouldBe "tpl-risk-summary"
+            first["timestamp"]?.jsonPrimitive?.content shouldBe "2025-01-16T12:00:00Z"
+            first["user"]?.jsonPrimitive?.content shouldBe "SYSTEM"
+            first["status"]?.jsonPrimitive?.content shouldBe "COMPLETE"
+            first["downloadUrl"]?.jsonPrimitive?.content shouldBe "/api/v1/reports/out-new/csv"
+            first["rowCount"]?.jsonPrimitive?.content shouldBe "42"
+        }
+    }
+
+    test("GET /api/v1/reports/recent returns an empty array when no reports have been generated") {
+        coEvery { reportService.listRecentReports(null) } returns emptyList()
+
+        testApplication {
+            install(ContentNegotiation) { json() }
+            routing { reportRoutes(reportService) }
+
+            val response = client.get("/api/v1/reports/recent")
+            response.status shouldBe HttpStatusCode.OK
+            response.bodyAsText() shouldBe "[]"
+        }
+    }
+
+    test("GET /api/v1/reports/recent forwards the limit query parameter to the service") {
+        coEvery { reportService.listRecentReports(5) } returns emptyList()
+
+        testApplication {
+            install(ContentNegotiation) { json() }
+            routing { reportRoutes(reportService) }
+
+            val response = client.get("/api/v1/reports/recent?limit=5")
+            response.status shouldBe HttpStatusCode.OK
+            coVerify { reportService.listRecentReports(5) }
+        }
+    }
+
+    test("GET /api/v1/reports/recent is matched before the {outputId} route, not treated as an outputId") {
+        coEvery { reportService.listRecentReports(null) } returns emptyList()
+
+        testApplication {
+            install(ContentNegotiation) { json() }
+            routing { reportRoutes(reportService) }
+
+            val response = client.get("/api/v1/reports/recent")
+            response.status shouldBe HttpStatusCode.OK
+            // The {outputId} handler must never see "recent" as an id.
+            coVerify(exactly = 0) { reportService.getOutput("recent") }
         }
     }
 
