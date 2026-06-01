@@ -205,6 +205,50 @@ class StressTestRoutesTest : FunSpec({
         }
     }
 
+    test("GET /api/v1/risk/stress/{bookId}/batch returns the stored batch result") {
+        coEvery { riskClient.getLatestStressBatch("port-1") } returns BatchStressRunSummary(
+            results = listOf(
+                BatchScenarioResultItem(
+                    scenarioName = "GFC_2008",
+                    baseVar = "50000.00",
+                    stressedVar = "80000.00",
+                    pnlImpact = "-400000.00",
+                ),
+                BatchScenarioResultItem(
+                    scenarioName = "COVID_2020",
+                    baseVar = "50000.00",
+                    stressedVar = "70000.00",
+                    pnlImpact = "-150000.00",
+                ),
+            ),
+            failedScenarios = emptyList(),
+            worstScenarioName = "GFC_2008",
+            worstPnlImpact = "-400000.00",
+        )
+
+        testApplication {
+            application { module(riskClient) }
+            val response = client.get("/api/v1/risk/stress/port-1/batch")
+
+            response.status shouldBe HttpStatusCode.OK
+            val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+            val results = body["results"]!!.jsonArray
+            results.size shouldBe 2
+            results[0].jsonObject["scenarioName"]!!.jsonPrimitive.content shouldBe "GFC_2008"
+            body["worstScenarioName"]!!.jsonPrimitive.content shouldBe "GFC_2008"
+        }
+    }
+
+    test("GET /api/v1/risk/stress/{bookId}/batch returns 404 when no batch has been stored") {
+        coEvery { riskClient.getLatestStressBatch("empty-book") } returns null
+
+        testApplication {
+            application { module(riskClient) }
+            val response = client.get("/api/v1/risk/stress/empty-book/batch")
+            response.status shouldBe HttpStatusCode.NotFound
+        }
+    }
+
     test("POST /api/v1/risk/stress/{bookId}/canned/{scenarioName} returns the canned tile payload") {
         coEvery {
             riskClient.runCannedStressScenario("port-rates", "+100BPS_PARALLEL")

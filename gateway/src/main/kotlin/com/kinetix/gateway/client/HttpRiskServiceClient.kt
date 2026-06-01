@@ -832,4 +832,13 @@ class HttpRiskServiceClient(
         if (!response.status.isSuccess()) handleErrorResponse(response)
         return response.body()
     }
+
+    // kx-kjse — most recent persisted batch stress result for a book.
+    override suspend fun getLatestStressBatch(bookId: String): BatchStressRunSummary? {
+        val response = httpClient.get("$baseUrl/api/v1/risk/stress/$bookId/batch")
+        if (response.status == HttpStatusCode.NotFound) return null
+        if (!response.status.isSuccess()) handleErrorResponse(response)
+        val dto: BatchStressRunResultClientDto = response.body()
+        return dto.toDomain()
+    }
 }

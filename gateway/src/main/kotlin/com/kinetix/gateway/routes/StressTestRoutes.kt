@@ -51,6 +51,24 @@ fun Route.stressTestRoutes(client: RiskServiceClient) {
         call.respond(result.toResponse())
     }
 
+    // kx-kjse — most recent persisted batch stress result for a book. Lets the
+    // Scenarios tab populate on cold open without a fresh "Run All" click.
+    get("/api/v1/risk/stress/{bookId}/batch", {
+        summary = "Most recent persisted batch stress result"
+        tags = listOf("Stress Tests")
+        request {
+            pathParameter<String>("bookId") { description = "Book identifier" }
+        }
+    }) {
+        val bookId = call.requirePathParam("bookId")
+        val result = client.getLatestStressBatch(bookId)
+        if (result != null) {
+            call.respond(result.toResponse())
+        } else {
+            call.respond(HttpStatusCode.NotFound)
+        }
+    }
+
     get("/api/v1/risk/stress/scenarios", {
         summary = "List stress test scenarios"
         tags = listOf("Stress Tests")

@@ -592,4 +592,8 @@ interface RiskServiceClient {
     // {bookId, scenario, deltaPv, asOf} JSON payload.
     suspend fun runCannedStressScenario(bookId: String, scenarioName: String): kotlinx.serialization.json.JsonObject?
     suspend fun getCannedStressScenario(bookId: String): kotlinx.serialization.json.JsonObject?
+
+    // kx-kjse — most recent persisted batch stress result for a book. Lets the
+    // Scenarios tab populate on cold open. Returns null when none is stored.
+    suspend fun getLatestStressBatch(bookId: String): BatchStressRunSummary?
 }
