@@ -1,5 +1,6 @@
 package com.kinetix.demo.schedule
 
+import com.kinetix.common.demo.CounterpartyTiers
 import com.kinetix.demo.client.PositionServiceClient
 import com.kinetix.demo.client.dtos.StrategyTradeRequest
 import com.kinetix.demo.profile.DemoBookProfile
@@ -358,7 +359,7 @@ class SimulatedTraderJobTest : FunSpec({
         coVerify(exactly = 0) { client.uploadPrimeBrokerStatement(any(), any()) }
     }
 
-    test("rotates trades across all 6 demo counterparties over a few hundred ticks (kx-i72)") {
+    test("rotates cash-equity trades across all eligible banks over a few hundred ticks (kx-6o89)") {
         val client = mockk<PositionServiceClient>()
         val captured = mutableListOf<String?>()
         coEvery { client.bookTrade(any(), any(), any()) } answers {
@@ -387,16 +388,16 @@ class SimulatedTraderJobTest : FunSpec({
         )
 
         runTest {
-            // 200 ticks × ~1-3 trades each = plenty to exercise the 6-cp rotation.
+            // 200 ticks × ~1-3 trades each = plenty to exercise the rotation.
             repeat(200) { job.runTick() }
         }
 
         captured.size shouldBeGreaterThan 0
         val distinctCps = captured.filterNotNull().toSet()
-        // The simulator rotates through the 6 canonical demo counterparties —
-        // not the issue's literal {GS, JPM, MS, CS, BoA, Citi} (the codebase
-        // standardises on the existing G-SIB ids in CounterpartyTiers).
-        distinctCps shouldBe setOf("CP-GS", "CP-JPM", "CP-BARC", "CP-DB", "CP-UBS", "CP-CITI")
+        // AAPL is a cash equity, so the eligibility filter (kx-6o89) restricts
+        // the counterparties to the universal banks (G-SIBs + mid-tier) — no
+        // CCPs, buy-side, or corporates on a listed cash equity.
+        distinctCps shouldBe CounterpartyTiers.UNIVERSAL_BANK_IDS.toSet()
     }
 
     test("counterparty rotation is round-robin per book — first 6 trades of a book hit all 6 distinct CPs") {

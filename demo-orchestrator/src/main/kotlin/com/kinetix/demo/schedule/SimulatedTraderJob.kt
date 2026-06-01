@@ -297,7 +297,10 @@ class SimulatedTraderJob(
             instrumentType = instrumentType,
             userId = "demo-orchestrator",
             userRole = "DEMO",
-            counterpartyId = counterpartyRotation.next(profile.bookId),
+            // Eligibility-aware so the counterparty is plausible for the traded
+            // instrument type (kx-6o89) — and so exposure spreads across the
+            // full 30-counterparty universe, not just the 6 G-SIBs.
+            counterpartyId = counterpartyRotation.next(profile.bookId, instrumentType),
         )
     }
 
