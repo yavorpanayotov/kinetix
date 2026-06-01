@@ -15,6 +15,8 @@ const allUpHealth: SystemHealthResponse = {
     'reference-data-service': { status: 'READY' },
     'volatility-service': { status: 'READY' },
     'correlation-service': { status: 'READY' },
+    'regulatory-service': { status: 'READY' },
+    'audit-service': { status: 'READY' },
   },
 }
 
@@ -382,6 +384,43 @@ describe('SystemDashboard', () => {
 
     screen.getByTestId('system-refresh-btn').click()
     expect(onRefresh).toHaveBeenCalledTimes(1)
+  })
+
+  it('renders friendly labels for regulatory-service and audit-service', () => {
+    render(
+      <SystemDashboard
+        health={allUpHealth}
+        loading={false}
+        error={null}
+        onRefresh={() => {}}
+      />,
+    )
+
+    expect(screen.getByText('Regulatory Service')).toBeInTheDocument()
+    expect(screen.getByText('Audit Service')).toBeInTheDocument()
+    // Must NOT render raw kebab-case keys
+    expect(screen.queryByText('regulatory-service')).not.toBeInTheDocument()
+    expect(screen.queryByText('audit-service')).not.toBeInTheDocument()
+  })
+
+  it('title-cases any unknown future service name instead of showing the raw key', () => {
+    const healthWithUnknown: SystemHealthResponse = {
+      status: 'UP',
+      services: {
+        'some-new-service': { status: 'READY' },
+      },
+    }
+    render(
+      <SystemDashboard
+        health={healthWithUnknown}
+        loading={false}
+        error={null}
+        onRefresh={() => {}}
+      />,
+    )
+
+    expect(screen.getByText('Some New Service')).toBeInTheDocument()
+    expect(screen.queryByText('some-new-service')).not.toBeInTheDocument()
   })
 
   it('renders section headings via the canonical SectionHeading primitive', () => {

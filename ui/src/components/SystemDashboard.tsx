@@ -39,6 +39,20 @@ const SERVICE_LABELS: Record<string, string> = {
   'reference-data-service': 'Reference Data',
   'volatility-service': 'Volatility',
   'correlation-service': 'Correlations',
+  'regulatory-service': 'Regulatory Service',
+  'audit-service': 'Audit Service',
+}
+
+/**
+ * Converts a kebab-case service key to a title-cased display label.
+ * Used as a fallback when a service name is not in SERVICE_LABELS so that
+ * any future service is displayed nicely rather than as raw kebab-case text.
+ */
+function toTitleCase(key: string): string {
+  return key
+    .split('-')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
 }
 
 const SERVICE_ICONS: Record<string, LucideIcon> = {
@@ -178,7 +192,7 @@ export function SystemDashboard({ health, loading, error, onRefresh }: Props) {
                     />
                     {Icon && <Icon className="h-4 w-4 text-slate-400" />}
                     <span className="font-medium">
-                      {SERVICE_LABELS[key] ?? key}
+                      {SERVICE_LABELS[key] ?? toTitleCase(key)}
                     </span>
                     {dashboardUrl && (
                       <a
