@@ -828,6 +828,7 @@ describe('RiskTab', () => {
         tradeAnnotations: [],
         loading: false,
         error: null,
+        sessionDate: null,
       })
 
       render(<RiskTab bookId="book-1" {...defaultStressProps} />)
