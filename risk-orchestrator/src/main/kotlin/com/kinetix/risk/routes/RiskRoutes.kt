@@ -14,6 +14,7 @@ import com.kinetix.risk.model.CalculationType
 import com.kinetix.risk.model.ConfidenceLevel
 import com.kinetix.risk.model.ValuationOutput
 import com.kinetix.risk.model.VaRCalculationRequest
+import com.kinetix.risk.persistence.LatestStressBatchRepository
 import com.kinetix.risk.persistence.PnlAttributionRepository
 import com.kinetix.risk.service.BatchStressTestService
 import com.kinetix.risk.service.NoSodBaselineException
@@ -70,6 +71,7 @@ fun Route.riskRoutes(
     stressLimitCheckService: StressLimitCheckService? = null,
     jobRecorder: ValuationJobRecorder? = null,
     batchStressTestService: BatchStressTestService? = null,
+    latestStressBatchRepository: LatestStressBatchRepository? = null,
 ) {
     // VaR routes
     route("/api/v1/risk/var/{bookId}") {
@@ -460,26 +462,32 @@ fun Route.riskRoutes(
                 confidenceLevel = body.confidenceLevel ?: "CL_95",
                 timeHorizonDays = body.timeHorizonDays?.toInt() ?: 1,
             )
-            call.respond(
-                BatchStressRunResultResponse(
-                    results = batchResult.results.map { r ->
-                        BatchScenarioResultDto(
-                            scenarioName = r.scenarioName,
-                            baseVar = r.baseVar,
-                            stressedVar = r.stressedVar,
-                            pnlImpact = r.pnlImpact,
-                        )
-                    },
-                    failedScenarios = batchResult.failedScenarios.map { f ->
-                        BatchScenarioFailureDto(
-                            scenarioName = f.scenarioName,
-                            errorMessage = f.errorMessage,
-                        )
-                    },
-                    worstScenarioName = batchResult.worstScenarioName,
-                    worstPnlImpact = batchResult.worstPnlImpact,
-                )
+            val responseDto = BatchStressRunResultResponse(
+                results = batchResult.results.map { r ->
+                    BatchScenarioResultDto(
+                        scenarioName = r.scenarioName,
+                        baseVar = r.baseVar,
+                        stressedVar = r.stressedVar,
+                        pnlImpact = r.pnlImpact,
+                    )
+                },
+                failedScenarios = batchResult.failedScenarios.map { f ->
+                    BatchScenarioFailureDto(
+                        scenarioName = f.scenarioName,
+                        errorMessage = f.errorMessage,
+                    )
+                },
+                worstScenarioName = batchResult.worstScenarioName,
+                worstPnlImpact = batchResult.worstPnlImpact,
             )
+            // Persist the latest batch per book so the Scenarios tab can populate
+            // on cold open without a fresh "Run All Scenarios" click (kx-kjse).
+            // Only store non-empty sweeps — an empty result would clobber a
+            // previously useful one with nothing.
+            if (responseDto.results.isNotEmpty()) {
+                latestStressBatchRepository?.save(BookId(bookId), responseDto)
+            }
+            call.respond(responseDto)
         } else {
             // Legacy path: inline parallel execution without ranking or failure tolerance.
             val positions = positionProvider.getPositions(BookId(bookId))
@@ -514,6 +522,25 @@ fun Route.riskRoutes(
             }
 
             call.respond(results)
+        }
+    }
+
+    // Most recent persisted batch stress result for the book (kx-kjse).
+    // Lets the Scenarios tab render the comparison grid on cold open; returns
+    // 404 when no batch has been run/seeded for the book yet.
+    get("/api/v1/risk/stress/{bookId}/batch", {
+        summary = "Most recent persisted batch stress result for a portfolio"
+        tags = listOf("Stress Tests")
+        request {
+            pathParameter<String>("bookId") { description = "Portfolio identifier" }
+        }
+    }) {
+        val bookId = call.requirePathParam("bookId")
+        val stored = latestStressBatchRepository?.findLatestByBookId(BookId(bookId))
+        if (stored != null) {
+            call.respond(stored)
+        } else {
+            call.respond(HttpStatusCode.NotFound)
         }
     }
 
