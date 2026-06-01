@@ -58,6 +58,7 @@ import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import com.kinetix.referencedata.error.configureErrorHandling
 import io.ktor.server.request.header
+import io.ktor.server.request.path
 import org.slf4j.event.Level
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
@@ -86,6 +87,7 @@ fun Application.module() {
     install(CorrelationIdHttpServerPlugin)
     install(CallLogging) {
         level = Level.INFO
+        mdc("endpoint") { it.request.path() }
         mdc("correlationId") {
             it.request.header("X-Correlation-ID") ?: java.util.UUID.randomUUID().toString()
         }

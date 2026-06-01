@@ -71,6 +71,7 @@ fun Application.module() {
     install(CorrelationIdHttpServerPlugin)
     install(CallLogging) {
         level = Level.INFO
+        mdc("endpoint") { it.request.path() }
         mdc("correlationId") { it.request.header("X-Correlation-ID") ?: java.util.UUID.randomUUID().toString() }
         mdc("userId") { it.authentication.principal<com.kinetix.gateway.auth.JwtUserPrincipal>()?.user?.userId ?: "anonymous" }
     }
