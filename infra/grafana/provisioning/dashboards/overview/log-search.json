@@ -1,7 +1,7 @@
 {
-  "uid": "kinetix-service-logs",
-  "title": "Service Logs",
-  "tags": ["kinetix", "logs", "overview"],
+  "uid": "kinetix-log-search",
+  "title": "Log Search",
+  "tags": ["kinetix", "logs", "overview", "search"],
   "timezone": "browser",
   "refresh": "30s",
   "time": {
@@ -9,16 +9,9 @@
     "to": "now"
   },
   "links": [
-    { "title": "Log Search", "type": "link", "url": "/d/kinetix-log-search", "icon": "doc" },
+    { "title": "Service Logs", "type": "link", "url": "/d/kinetix-service-logs", "icon": "dashboard" },
     { "title": "System Health", "type": "link", "url": "/d/kinetix-system-health", "icon": "dashboard" },
-    { "title": "Service Overview", "type": "link", "url": "/d/kinetix-service-overview", "icon": "dashboard" },
-    { "title": "Trade Flow", "type": "link", "url": "/d/kinetix-trade-flow", "icon": "dashboard" },
-    { "title": "Risk Overview", "type": "link", "url": "/d/kinetix-risk-overview", "icon": "dashboard" },
-    { "title": "Risk Engine", "type": "link", "url": "/d/kinetix-risk-engine", "icon": "dashboard" },
-    { "title": "Risk Orchestrator", "type": "link", "url": "/d/kinetix-risk-orchestrator", "icon": "dashboard" },
-    { "title": "Price", "type": "link", "url": "/d/kinetix-prices", "icon": "dashboard" },
-    { "title": "Kafka Health", "type": "link", "url": "/d/kinetix-kafka-health", "icon": "dashboard" },
-    { "title": "Database Health", "type": "link", "url": "/d/kinetix-database-health", "icon": "dashboard" }
+    { "title": "Service Overview", "type": "link", "url": "/d/kinetix-service-overview", "icon": "dashboard" }
   ],
   "templating": {
     "list": [
@@ -47,20 +40,67 @@
         "multi": true,
         "refresh": 2,
         "sort": 1
+      },
+      {
+        "name": "level",
+        "type": "custom",
+        "label": "Level",
+        "query": "ERROR,WARN,INFO,DEBUG,TRACE",
+        "includeAll": true,
+        "allValue": ".+",
+        "current": { "text": "All", "value": "$__all" },
+        "multi": true,
+        "hide": 0
+      },
+      {
+        "name": "search",
+        "type": "textbox",
+        "label": "Free text",
+        "description": "Substring match against the log line (LogQL |= filter). Leave empty to match all.",
+        "query": "",
+        "current": { "text": "", "value": "" },
+        "hide": 0
+      },
+      {
+        "name": "correlationId",
+        "type": "textbox",
+        "label": "Correlation ID",
+        "description": "Filter by the correlationId structured-metadata field. Leave as .* to match all.",
+        "query": ".*",
+        "current": { "text": ".*", "value": ".*" },
+        "hide": 0
+      },
+      {
+        "name": "userId",
+        "type": "textbox",
+        "label": "User ID",
+        "description": "Filter by the userId structured-metadata field. Leave as .* to match all.",
+        "query": ".*",
+        "current": { "text": ".*", "value": ".*" },
+        "hide": 0
+      },
+      {
+        "name": "endpoint",
+        "type": "textbox",
+        "label": "Endpoint",
+        "description": "Filter by the HTTP endpoint (request path) structured-metadata field. Leave as .* to match all.",
+        "query": ".*",
+        "current": { "text": ".*", "value": ".*" },
+        "hide": 0
       }
     ]
   },
   "panels": [
     {
       "id": 1,
-      "title": "Log Volume",
+      "title": "Log Volume by Level",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 16, "x": 0, "y": 0 },
+      "gridPos": { "h": 7, "w": 18, "x": 0, "y": 0 },
       "datasource": { "type": "loki", "uid": "${datasource}" },
       "targets": [
         {
-          "expr": "sum by (service_name) (count_over_time({service_name=~\"$service\"} [$__auto]))",
-          "legendFormat": "{{service_name}}",
+          "expr": "sum by (detected_level) (count_over_time({service_name=~\"$service\"} | correlationId=~\"$correlationId\" | userId=~\"$userId\" | endpoint=~\"$endpoint\" |= \"$search\" [$__auto]))",
+          "legendFormat": "{{detected_level}}",
           "refId": "A"
         }
       ],
@@ -80,13 +120,13 @@
     },
     {
       "id": 2,
-      "title": "Error Count",
+      "title": "Errors",
       "type": "stat",
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
+      "gridPos": { "h": 7, "w": 3, "x": 18, "y": 0 },
       "datasource": { "type": "loki", "uid": "${datasource}" },
       "targets": [
         {
-          "expr": "sum(count_over_time({service_name=~\"$service\"} | detected_level=`ERROR` [$__range]))",
+          "expr": "sum(count_over_time({service_name=~\"$service\"} | detected_level=`ERROR` | correlationId=~\"$correlationId\" | userId=~\"$userId\" | endpoint=~\"$endpoint\" |= \"$search\" [$__range]))",
           "legendFormat": "Errors",
           "refId": "A"
         }
@@ -94,7 +134,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "noValue": "No data",
+          "noValue": "0",
           "thresholds": {
             "steps": [
               { "color": "green", "value": null },
@@ -107,41 +147,13 @@
     },
     {
       "id": 3,
-      "title": "Error Volume",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 16, "x": 0, "y": 8 },
-      "datasource": { "type": "loki", "uid": "${datasource}" },
-      "targets": [
-        {
-          "expr": "sum by (service_name) (count_over_time({service_name=~\"$service\"} | detected_level=`ERROR` [$__auto]))",
-          "legendFormat": "{{service_name}}",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "drawStyle": "bars",
-            "stacking": { "mode": "normal" },
-            "fillOpacity": 80
-          },
-          "color": { "mode": "fixed", "fixedColor": "red" },
-          "unit": "short"
-        }
-      },
-      "options": {
-        "tooltip": { "mode": "multi" }
-      }
-    },
-    {
-      "id": 4,
-      "title": "Warn Count",
+      "title": "Warnings",
       "type": "stat",
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 },
+      "gridPos": { "h": 7, "w": 3, "x": 21, "y": 0 },
       "datasource": { "type": "loki", "uid": "${datasource}" },
       "targets": [
         {
-          "expr": "sum(count_over_time({service_name=~\"$service\"} | detected_level=`WARN` [$__range]))",
+          "expr": "sum(count_over_time({service_name=~\"$service\"} | detected_level=`WARN` | correlationId=~\"$correlationId\" | userId=~\"$userId\" | endpoint=~\"$endpoint\" |= \"$search\" [$__range]))",
           "legendFormat": "Warnings",
           "refId": "A"
         }
@@ -149,7 +161,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "noValue": "No data",
+          "noValue": "0",
           "thresholds": {
             "steps": [
               { "color": "green", "value": null },
@@ -161,14 +173,14 @@
       }
     },
     {
-      "id": 5,
+      "id": 4,
       "title": "Log Lines",
       "type": "logs",
-      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 16 },
+      "gridPos": { "h": 20, "w": 24, "x": 0, "y": 7 },
       "datasource": { "type": "loki", "uid": "${datasource}" },
       "targets": [
         {
-          "expr": "{service_name=~\"$service\"}",
+          "expr": "{service_name=~\"$service\"} | detected_level=~\"$level\" | correlationId=~\"$correlationId\" | userId=~\"$userId\" | endpoint=~\"$endpoint\" |= \"$search\"",
           "refId": "A"
         }
       ],
