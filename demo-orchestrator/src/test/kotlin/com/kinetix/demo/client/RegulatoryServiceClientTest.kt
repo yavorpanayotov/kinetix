@@ -117,6 +117,47 @@ class RegulatoryServiceClientTest : FunSpec({
         }
     }
 
+    test("calculateFrtb POSTs to the frtb calculate endpoint for the book (kx-kzbs)") {
+        var capturedUrl: String? = null
+        var capturedMethod: HttpMethod? = null
+        val client = RegulatoryServiceHttpClient(
+            httpClient = mockHttpClient { request ->
+                capturedUrl = request.url.toString()
+                capturedMethod = request.method
+                respond(
+                    content = """{"id":"frtb-1","bookId":"macro-hedge","sbmCharges":[],"totalSbmCharge":"0.00","grossJtd":"0.00","hedgeBenefit":"0.00","netDrc":"0.00","exoticNotional":"0.00","otherNotional":"0.00","totalRrao":"0.00","totalCapitalCharge":"0.00","calculatedAt":"2026-05-18T06:05:00Z","storedAt":"2026-05-18T06:05:01Z"}""",
+                    status = HttpStatusCode.Created,
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+            },
+            baseUrl = "http://regulatory",
+        )
+
+        runTest {
+            client.calculateFrtb("macro-hedge")
+        }
+
+        capturedMethod shouldBe HttpMethod.Post
+        capturedUrl shouldBe "http://regulatory/api/v1/regulatory/frtb/macro-hedge/calculate"
+    }
+
+    test("calculateFrtb throws IllegalStateException on 5xx (kx-kzbs)") {
+        val client = RegulatoryServiceHttpClient(
+            httpClient = mockHttpClient {
+                respond(content = "boom", status = HttpStatusCode.InternalServerError)
+            },
+            baseUrl = "http://regulatory",
+        )
+
+        runTest {
+            val thrown = shouldThrow<IllegalStateException> {
+                client.calculateFrtb("macro-hedge")
+            }
+            thrown.message!! shouldContain "500"
+            thrown.message!! shouldContain "POST"
+        }
+    }
+
     test("createSubmission posts to the expected URL with JSON body and returns the parsed ref") {
         var capturedUrl: String? = null
         var capturedMethod: HttpMethod? = null

@@ -26,4 +26,16 @@ interface RegulatoryServiceClient {
      * Creates a regulatory submission draft via `POST /api/v1/submissions`.
      */
     suspend fun createSubmission(request: CreateSubmissionRequest): SubmissionRef
+
+    /**
+     * Triggers an FRTB capital-charge calculation for [bookId] via
+     * `POST /api/v1/regulatory/frtb/{bookId}/calculate`.
+     *
+     * regulatory-service computes the charge (delegating to risk-orchestrator)
+     * and persists the result as the new "latest" record for the book, so
+     * `GET /api/v1/regulatory/frtb/{bookId}/latest` returns 200 instead of 404
+     * on a fresh demo (issue kx-kzbs). The response body is discarded — the
+     * demo orchestrator only needs the calculation to have been stored.
+     */
+    suspend fun calculateFrtb(bookId: String)
 }

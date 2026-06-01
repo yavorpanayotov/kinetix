@@ -12,6 +12,7 @@ import com.kinetix.demo.schedule.DefaultStrategyIdResolver
 import com.kinetix.demo.schedule.DemoVaRBootstrapJob
 import com.kinetix.demo.schedule.EodCycleObserverJob
 import com.kinetix.demo.schedule.EodPromotionJob
+import com.kinetix.demo.schedule.FrtbSeedJob
 import com.kinetix.demo.schedule.LimitSeedJob
 import com.kinetix.demo.schedule.OptionPriceSeeder
 import com.kinetix.demo.schedule.RiskOrchestratorBacktestInputProvider
@@ -53,6 +54,9 @@ private const val DEFAULT_PORT = 8094
 private val LIMIT_SEED_TARGET_UTC: LocalTime = LocalTime.of(6, 5)
 // kx-wxy — canned stress-scenario seed runs daily at the simulated SOD (09:00 UTC).
 private val STRESS_SEED_TARGET_UTC: LocalTime = LocalTime.of(9, 0)
+// kx-kzbs — FRTB seed runs just after the stress seed so the regulatory FRTB
+// "latest" endpoint is populated for every demo book on a fresh bootstrap.
+private val FRTB_SEED_TARGET_UTC: LocalTime = LocalTime.of(9, 5)
 
 fun main(args: Array<String>) {
     val port = System.getenv("PORT")?.toIntOrNull() ?: DEFAULT_PORT
@@ -163,6 +167,18 @@ private fun Application.wireDemoSchedulers(
     }
 
     val regulatoryClient = RegulatoryServiceHttpClient(httpClient, config.regulatoryServiceUrl)
+
+    // kx-kzbs — FRTB seed: compute and persist a "latest" FRTB result for every
+    // demo book so GET /api/v1/regulatory/frtb/{book}/latest returns 200 instead
+    // of 404 on a fresh demo. Fires on startup and daily at 09:05 UTC.
+    val frtbSeedJob = FrtbSeedJob(client = regulatoryClient)
+    launch {
+        runFrtbSeedSafely(frtbSeedJob, reason = "startup")
+    }
+    launch {
+        scheduleDailyFrtbSeed(frtbSeedJob)
+    }
+
     val eodObserverJob = EodCycleObserverJob(
         regulatoryClient = regulatoryClient,
         backtestInputProvider = RiskOrchestratorBacktestInputProvider(client = riskClient),
@@ -401,5 +417,36 @@ private suspend fun Application.runStressSeedSafely(job: StressScenarioSeedJob, 
         throw cancellation
     } catch (failure: Exception) {
         log.warn("StressScenarioSeedJob run ({}) failed — continuing", reason, failure)
+    }
+}
+
+// kx-kzbs — FrtbSeedJob wiring. Startup firing is launched directly; this helper
+// drives the daily 09:05-UTC schedule.
+private suspend fun Application.scheduleDailyFrtbSeed(job: FrtbSeedJob) {
+    while (true) {
+        val wait = SchedulingHelpers.durationUntilNext(FRTB_SEED_TARGET_UTC)
+        log.info(
+            "Next FrtbSeedJob run scheduled in {}s (target {} UTC)",
+            wait.seconds,
+            FRTB_SEED_TARGET_UTC,
+        )
+        try {
+            delay(wait.toMillis())
+        } catch (cancellation: CancellationException) {
+            log.info("FrtbSeedJob scheduling loop cancelled — exiting")
+            throw cancellation
+        }
+        runFrtbSeedSafely(job, reason = "$FRTB_SEED_TARGET_UTC UTC schedule")
+    }
+}
+
+private suspend fun Application.runFrtbSeedSafely(job: FrtbSeedJob, reason: String) {
+    try {
+        log.info("Running FrtbSeedJob ({})", reason)
+        job.runOnce()
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (failure: Exception) {
+        log.warn("FrtbSeedJob run ({}) failed — continuing", reason, failure)
     }
 }

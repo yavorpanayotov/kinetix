@@ -104,6 +104,19 @@ class RegulatoryServiceHttpClient(
         )
     }
 
+    override suspend fun calculateFrtb(bookId: String) {
+        val url = "$baseUrl/api/v1/regulatory/frtb/$bookId/calculate"
+        logger.debug("Triggering FRTB calculation bookId={}", bookId)
+        val response = httpClient.post(url) {
+            contentType(ContentType.Application.Json)
+        }
+        if (!response.status.isSuccess()) {
+            failLoudly("POST", url, response)
+        }
+        // Result body discarded — regulatory-service has persisted the record as
+        // the new "latest" for the book, which is all the demo needs.
+    }
+
     private suspend fun failLoudly(method: String, url: String, response: HttpResponse): Nothing {
         val excerpt = try {
             response.bodyAsText().take(BODY_EXCERPT_LIMIT)
