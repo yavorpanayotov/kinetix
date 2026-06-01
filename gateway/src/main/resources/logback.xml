@@ -9,6 +9,7 @@
     <appender name="OTEL" class="com.kinetix.common.observability.AutoConfigOpenTelemetryAppender">
         <captureExperimentalAttributes>true</captureExperimentalAttributes>
         <captureCodeAttributes>true</captureCodeAttributes>
+        <captureMdcAttributes>*</captureMdcAttributes>
     </appender>
 
     <logger name="org.apache.kafka" level="WARN"/>
