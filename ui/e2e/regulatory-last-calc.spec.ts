@@ -68,4 +68,41 @@ test.describe('Regulatory tab — default shows last calculation', () => {
     await expect(page.getByTestId('frtb-empty-state')).toBeVisible()
     await expect(page.getByTestId('regulatory-results')).toHaveCount(0)
   })
+
+  test('404 from /latest does not produce an error state — only the empty CTA is shown', async ({
+    page,
+  }) => {
+    // Tracks any console errors that appear while the Regulatory tab is open.
+    const consoleErrors: string[] = []
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') {
+        consoleErrors.push(msg.text())
+      }
+    })
+
+    await mockAllApiRoutes(page)
+
+    // mockAllApiRoutes now intercepts /latest with a 404 by default; this
+    // override is explicit to document the contract under test.
+    await page.route('**/api/v1/regulatory/frtb/*/latest', (route: Route) => {
+      route.fulfill({ status: 404, contentType: 'application/json', body: '{}' })
+    })
+
+    await page.goto('/')
+    await page.getByTestId('tab-regulatory').click()
+
+    // Empty CTA must be visible.
+    await expect(page.getByTestId('frtb-empty-state')).toBeVisible()
+    await expect(page.getByTestId('frtb-empty-state')).toContainText('Calculate FRTB')
+
+    // No error card or error text must be rendered in the dashboard.
+    await expect(page.getByTestId('regulatory-error')).toHaveCount(0)
+    await expect(page.getByTestId('regulatory-results')).toHaveCount(0)
+
+    // No JS-level console.error calls from the hook.
+    const regulatoryErrors = consoleErrors.filter(
+      (e) => e.toLowerCase().includes('frtb') || e.toLowerCase().includes('regulatory'),
+    )
+    expect(regulatoryErrors).toHaveLength(0)
+  })
 })

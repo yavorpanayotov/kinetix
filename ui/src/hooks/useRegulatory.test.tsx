@@ -56,6 +56,46 @@ describe('useRegulatory', () => {
     expect(result.current.result).toBeNull()
   })
 
+  it('treats a 404 from /latest as absent (null result, no error state)', async () => {
+    // fetchFrtbLatest resolves to null when the API returns 404, meaning
+    // "no calculation exists yet". This must NOT set the error state —
+    // the Regulatory tab should show the empty CTA, not an error message.
+    mockFetchFrtbLatest.mockResolvedValue(null)
+
+    const { result } = renderHook(() => useRegulatory('book-1'))
+
+    await waitFor(() => {
+      expect(mockFetchFrtbLatest).toHaveBeenCalledWith('book-1')
+    })
+
+    expect(result.current.result).toBeNull()
+    expect(result.current.error).toBeNull()
+    expect(result.current.loading).toBe(false)
+  })
+
+  it('does NOT set error state when /latest rejects (background load failure treated as absent)', async () => {
+    // Even if fetchFrtbLatest rejects (e.g. a transient network hiccup on
+    // the background pre-load), the tab should remain usable with an empty
+    // state rather than showing a red error card. Only explicit Calculate
+    // actions should propagate errors to the error state.
+    mockFetchFrtbLatest.mockRejectedValue(new Error('404 Not Found'))
+
+    const { result } = renderHook(() => useRegulatory('book-1'))
+
+    // Wait long enough for the rejected promise to settle and any
+    // setState calls to flush through React.
+    await act(async () => {
+      await vi.waitFor(() => expect(mockFetchFrtbLatest).toHaveBeenCalledWith('book-1'))
+    })
+
+    // Give the microtask queue time to flush the rejection handler.
+    await act(async () => {})
+
+    expect(result.current.result).toBeNull()
+    expect(result.current.error).toBeNull()
+    expect(result.current.loading).toBe(false)
+  })
+
   it('loads the most recent calculation by default when one exists', async () => {
     mockFetchFrtbLatest.mockResolvedValue(frtbResult)
 

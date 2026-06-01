@@ -631,6 +631,25 @@ export async function mockBackendApiRoutes(page: Page): Promise<void> {
     })
   })
 
+  // Regulatory FRTB latest endpoint — return 404 by default (no calculation
+  // exists yet). Tests that need a pre-existing result must override after
+  // calling mockAllApiRoutes. The 404 is intentional and must not appear as
+  // an unintercepted network request that logs a browser console error.
+  await page.route('**/api/v1/regulatory/frtb/*/latest', (route: Route) => {
+    route.fulfill({ status: 404, contentType: 'application/json', body: '{}' })
+  })
+
+  // Regulatory FRTB calculation endpoint (POST) — return 404 by default.
+  // Tests that need FRTB results override this route after calling mockAllApiRoutes.
+  await page.route('**/api/v1/regulatory/frtb/*', (route: Route) => {
+    route.fulfill({ status: 404, contentType: 'application/json', body: '{}' })
+  })
+
+  // Regulatory report endpoint — return 404 by default.
+  await page.route('**/api/v1/regulatory/report/*', (route: Route) => {
+    route.fulfill({ status: 404, contentType: 'application/json', body: '{}' })
+  })
+
   // Note: Playwright's page.route() does NOT intercept WebSocket connections.
   // To mock WebSocket behaviour, tests must use page.addInitScript() to replace
   // the browser's WebSocket constructor before the page loads.

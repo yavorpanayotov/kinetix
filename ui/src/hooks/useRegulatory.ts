@@ -32,10 +32,12 @@ export function useRegulatory(bookId: string | null): UseRegulatoryResult {
           setResult(latest)
         }
       })
-      .catch((err) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : String(err))
-        }
+      .catch(() => {
+        // Background pre-load: silently treat any failure (including 404-derived
+        // errors from the network layer) as "no result yet". Only explicit
+        // Calculate actions propagate errors to the error state. This prevents
+        // a console error message from appearing on the Regulatory tab when no
+        // FRTB calculation has been run yet.
       })
 
     return () => {
