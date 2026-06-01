@@ -5,6 +5,7 @@ import com.kinetix.referencedata.model.BenchmarkConstituent
 import com.kinetix.referencedata.model.BenchmarkDailyReturn
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.lessEq
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
@@ -95,11 +96,27 @@ class ExposedBenchmarkRepository(
     ): List<BenchmarkConstituent> =
         newSuspendedTransaction(db = db) {
             val kxDate = asOfDate.toKotlinxDate()
+            // Constituents are point-in-time snapshots. Resolve the most recent
+            // snapshot on or before the requested date rather than requiring an
+            // exact match, so callers that default asOfDate to "today" still get
+            // the latest known composition.
+            val snapshotDate = BenchmarkConstituentsTable
+                .selectAll()
+                .where {
+                    (BenchmarkConstituentsTable.benchmarkId eq benchmarkId) and
+                        (BenchmarkConstituentsTable.asOfDate lessEq kxDate)
+                }
+                .orderBy(BenchmarkConstituentsTable.asOfDate, SortOrder.DESC)
+                .limit(1)
+                .singleOrNull()
+                ?.get(BenchmarkConstituentsTable.asOfDate)
+                ?: return@newSuspendedTransaction emptyList()
+
             BenchmarkConstituentsTable
                 .selectAll()
                 .where {
                     (BenchmarkConstituentsTable.benchmarkId eq benchmarkId) and
-                        (BenchmarkConstituentsTable.asOfDate eq kxDate)
+                        (BenchmarkConstituentsTable.asOfDate eq snapshotDate)
                 }
                 .orderBy(BenchmarkConstituentsTable.instrumentId, SortOrder.ASC)
                 .map { row ->

@@ -17,11 +17,14 @@ import com.kinetix.common.model.SwapDirection
 import com.kinetix.common.model.Trader
 import com.kinetix.common.model.TraderId
 import com.kinetix.common.model.instrument.*
+import com.kinetix.referencedata.model.Benchmark
+import com.kinetix.referencedata.model.BenchmarkConstituent
 import com.kinetix.referencedata.model.Counterparty
 import com.kinetix.referencedata.model.Instrument
 import com.kinetix.referencedata.model.InstrumentLiquidity
 import com.kinetix.referencedata.model.NettingAgreement
 import com.kinetix.referencedata.service.InstrumentLiquidityService
+import com.kinetix.referencedata.persistence.BenchmarkRepository
 import com.kinetix.referencedata.persistence.CounterpartyRepository
 import com.kinetix.referencedata.persistence.CreditSpreadRepository
 import com.kinetix.referencedata.persistence.DeskRepository
@@ -34,6 +37,7 @@ import com.kinetix.referencedata.persistence.TraderRepository
 import org.slf4j.LoggerFactory
 import java.math.BigDecimal
 import java.time.Instant
+import java.time.LocalDate
 
 class DevDataSeeder(
     private val dividendYieldRepository: DividendYieldRepository,
@@ -45,6 +49,7 @@ class DevDataSeeder(
     private val counterpartyRepository: CounterpartyRepository? = null,
     private val nettingAgreementRepository: NettingAgreementRepository? = null,
     private val traderRepository: TraderRepository? = null,
+    private val benchmarkRepository: BenchmarkRepository? = null,
 ) {
     private val log = LoggerFactory.getLogger(DevDataSeeder::class.java)
 
@@ -58,6 +63,11 @@ class DevDataSeeder(
     }
 
     suspend fun seed() {
+        // Benchmarks are independent reference data and seeded idempotently on every
+        // startup (save is a no-op when present, constituents are replaced), so the
+        // demo benchmark exists even on databases that pre-date this seed step.
+        seedBenchmarks()
+
         val existing = dividendYieldRepository.findLatest(InstrumentId("AAPL"))
         if (existing != null) {
             log.info("Reference data already present, skipping seed")
@@ -77,6 +87,37 @@ class DevDataSeeder(
         seedNettingAgreements()
 
         log.info("Reference data seeding complete")
+    }
+
+    /**
+     * Seeds the demo SP500 benchmark and its constituents. Constituent instruments
+     * overlap the equity demo books (equity-growth, tech-momentum, balanced-income,
+     * multi-asset) so Brinson attribution produces meaningful active weights. The
+     * snapshot is dated in the past so an as-of query for "today" resolves it.
+     */
+    private suspend fun seedBenchmarks() {
+        val repo = benchmarkRepository ?: return
+
+        repo.save(
+            Benchmark(
+                benchmarkId = SP500_ID,
+                name = "S&P 500",
+                description = "Large-cap US equity index",
+                createdAt = AS_OF,
+            ),
+        )
+        repo.replaceConstituents(
+            SP500_ID,
+            SP500_CONSTITUENTS.map { (instrumentId, weight) ->
+                BenchmarkConstituent(
+                    benchmarkId = SP500_ID,
+                    instrumentId = instrumentId,
+                    weight = BigDecimal(weight),
+                    asOfDate = BENCHMARK_SNAPSHOT_DATE,
+                )
+            },
+        )
+        log.info("Seeded benchmark {} with {} constituents", SP500_ID, SP500_CONSTITUENTS.size)
     }
 
     private suspend fun seedDividendYields() {
@@ -239,6 +280,42 @@ class DevDataSeeder(
 
     companion object {
         val AS_OF: Instant = Instant.parse("2026-02-22T10:00:00Z")
+
+        private const val SP500_ID = "SP500"
+
+        // Constituent snapshot date — fixed in the past so an as-of query for the
+        // current date always resolves this snapshot (see ExposedBenchmarkRepository).
+        val BENCHMARK_SNAPSHOT_DATE: LocalDate = LocalDate.of(2026, 2, 22)
+
+        // Approximate S&P 500 index weights for large-caps held across the demo
+        // equity books. Weights are partial (the index has ~500 names); they need
+        // not sum to 1 for Brinson attribution.
+        val SP500_CONSTITUENTS: List<Pair<String, String>> = listOf(
+            "AAPL" to "0.0700",
+            "MSFT" to "0.0650",
+            "NVDA" to "0.0600",
+            "AMZN" to "0.0350",
+            "META" to "0.0250",
+            "GOOGL" to "0.0200",
+            "TSLA" to "0.0150",
+            "JPM" to "0.0130",
+            "UNH" to "0.0120",
+            "XOM" to "0.0110",
+            "JNJ" to "0.0100",
+            "BAC" to "0.0090",
+            "PG" to "0.0085",
+            "ORCL" to "0.0080",
+            "KO" to "0.0070",
+            "CRM" to "0.0065",
+            "ADBE" to "0.0060",
+            "WMT" to "0.0058",
+            "CVX" to "0.0055",
+            "PFE" to "0.0040",
+            "DIS" to "0.0038",
+            "AMD" to "0.0035",
+            "INTC" to "0.0030",
+            "GS" to "0.0028",
+        )
 
         val INSTRUMENT_IDS: Set<String> get() = INSTRUMENTS.keys
         val DESK_IDS: Set<String> get() = DESKS.keys

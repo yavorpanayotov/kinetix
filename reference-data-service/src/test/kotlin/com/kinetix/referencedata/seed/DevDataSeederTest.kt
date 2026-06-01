@@ -12,6 +12,9 @@ import com.kinetix.common.model.instrument.EquityFuture
 import com.kinetix.common.model.instrument.EquityOption
 import com.kinetix.referencedata.model.Instrument
 import com.kinetix.referencedata.model.InstrumentLiquidity
+import com.kinetix.referencedata.model.Benchmark
+import com.kinetix.referencedata.model.BenchmarkConstituent
+import com.kinetix.referencedata.persistence.BenchmarkRepository
 import com.kinetix.referencedata.persistence.CreditSpreadRepository
 import com.kinetix.referencedata.persistence.DeskRepository
 import com.kinetix.referencedata.persistence.DivisionRepository
@@ -19,6 +22,7 @@ import com.kinetix.referencedata.persistence.DividendYieldRepository
 import com.kinetix.referencedata.persistence.InstrumentLiquidityRepository
 import com.kinetix.referencedata.persistence.InstrumentRepository
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldContainAll
 import io.kotest.matchers.shouldBe
 import io.mockk.clearMocks
 import io.mockk.coEvery
@@ -26,6 +30,7 @@ import io.mockk.coVerify
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
+import io.mockk.slot
 
 class DevDataSeederTest : FunSpec({
 
@@ -37,6 +42,32 @@ class DevDataSeederTest : FunSpec({
 
     beforeEach {
         clearMocks(dividendYieldRepository, creditSpreadRepository, divisionRepository, deskRepository)
+    }
+
+    test("seeds the SP500 benchmark and its constituents") {
+        val benchmarkRepository = mockk<BenchmarkRepository>()
+        val savedBenchmark = slot<Benchmark>()
+        val savedConstituents = mutableListOf<List<BenchmarkConstituent>>()
+        coEvery { benchmarkRepository.save(capture(savedBenchmark)) } just runs
+        coEvery { benchmarkRepository.replaceConstituents(any(), capture(savedConstituents)) } just runs
+        // Short-circuit the rest of the seed so this test stays focused on benchmarks.
+        coEvery { dividendYieldRepository.findLatest(InstrumentId("AAPL")) } returns mockk<DividendYield>()
+
+        DevDataSeeder(
+            dividendYieldRepository,
+            creditSpreadRepository,
+            benchmarkRepository = benchmarkRepository,
+        ).seed()
+
+        coVerify { benchmarkRepository.save(any()) }
+        savedBenchmark.captured.benchmarkId shouldBe "SP500"
+        savedBenchmark.captured.name shouldBe "S&P 500"
+
+        coVerify { benchmarkRepository.replaceConstituents("SP500", any()) }
+        val constituents = savedConstituents.last()
+        constituents.map { it.instrumentId } shouldContainAll listOf("AAPL", "MSFT", "NVDA")
+        constituents.all { it.benchmarkId == "SP500" } shouldBe true
+        constituents.all { it.weight.signum() > 0 } shouldBe true
     }
 
     test("seeds dividend yields and credit spreads when database is empty") {

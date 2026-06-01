@@ -176,6 +176,26 @@ class BenchmarkRoutesAcceptanceTest : FunSpec({
         }
     }
 
+    test("GET /api/v1/benchmarks/{id} returns the most recent constituents on or before asOfDate") {
+        // Constituents are a point-in-time snapshot; a query for a later date must
+        // resolve the latest snapshot on or before it (not require an exact match).
+        // This is what lets attribution work when callers default asOfDate to today.
+        benchmarkRepo.save(sampleBenchmark())
+        benchmarkRepo.replaceConstituents("SP500", sampleConstituents()) // dated 2026-03-25
+
+        testApplication {
+            application { module(dividendYieldRepo, creditSpreadRepo, ingestionService, benchmarkService = benchmarkService) }
+
+            val response = client.get("/api/v1/benchmarks/SP500?asOfDate=2026-05-01")
+            response.status shouldBe HttpStatusCode.OK
+
+            val body: JsonObject = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+            val constituents = body["constituents"]?.jsonArray ?: error("missing constituents")
+            constituents.size shouldBe 3
+            constituents[0].jsonObject["instrumentId"]?.jsonPrimitive?.content shouldBe "AAPL"
+        }
+    }
+
     test("PUT /api/v1/benchmarks/{id}/constituents replaces constituent weights") {
         benchmarkRepo.save(sampleBenchmark())
 
