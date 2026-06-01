@@ -15,6 +15,7 @@ import com.kinetix.risk.client.dtos.BenchmarkDetailDto
 import com.kinetix.risk.model.BrinsonAttributionResult
 import com.kinetix.risk.model.BrinsonSectorAttribution
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.doubles.plusOrMinus
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.mockk.clearMocks
@@ -152,7 +153,44 @@ class BenchmarkAttributionServiceTest : FunSpec({
             val sectors = capturedSectors.first()
             val msftSector = sectors.find { it.sectorLabel == "MSFT" }
             msftSector shouldNotBe null
-            msftSector!!.benchmarkWeight shouldBe 0.065
+            // Weights are normalised over the book's benchmark overlap (AAPL+MSFT+NVDA
+            // = 0.07+0.065+0.06 = 0.195), so MSFT = 0.065 / 0.195.
+            msftSector!!.benchmarkWeight shouldBe (0.065 / 0.195 plusOrMinus 1e-9)
+        }
+
+        test("benchmark weights are normalised to sum to 1.0 over the book's benchmark overlap") {
+            coEvery { positionProvider.getPositions(BOOK_ID) } returns POSITIONS
+            coEvery {
+                benchmarkServiceClient.getBenchmarkDetail("SP500", TODAY)
+            } returns ClientResponse.Success(BENCHMARK_DETAIL)
+
+            val capturedSectors = mutableListOf<List<com.kinetix.risk.client.SectorInput>>()
+            coEvery { attributionEngineClient.calculateBrinsonAttribution(any()) } answers {
+                capturedSectors.add(firstArg())
+                ATTRIBUTION_RESULT
+            }
+
+            service.calculateAttribution(BOOK_ID, "SP500", TODAY)
+
+            // The risk-engine Brinson endpoint requires the benchmark weight vector to
+            // be a distribution summing to 1.0; otherwise it rejects with INVALID_ARGUMENT.
+            val sectors = capturedSectors.first()
+            sectors.sumOf { it.benchmarkWeight } shouldBe (1.0 plusOrMinus 1e-9)
+        }
+
+        test("throws when the book holds none of the benchmark constituents") {
+            val offBenchmark = listOf(position("OTHER", 100_000.0))
+            coEvery { positionProvider.getPositions(BOOK_ID) } returns offBenchmark
+            coEvery {
+                benchmarkServiceClient.getBenchmarkDetail("SP500", TODAY)
+            } returns ClientResponse.Success(BENCHMARK_DETAIL)
+
+            try {
+                service.calculateAttribution(BOOK_ID, "SP500", TODAY)
+                throw AssertionError("Expected exception was not thrown")
+            } catch (e: IllegalArgumentException) {
+                e.message shouldNotBe null
+            }
         }
 
         test("instruments in portfolio but not in benchmark have zero benchmark weight") {

@@ -52,12 +52,23 @@ class BenchmarkAttributionService(
             "Total market value is zero for book ${bookId.value}; cannot compute portfolio weights"
         }
 
+        // Brinson requires the benchmark weight vector to be a distribution summing to
+        // 1.0 over the sectors presented (one sector per held instrument). Published
+        // index weights are partial — they cover ~500 names and the book holds only a
+        // subset — so we normalise the mapped weights over the book's benchmark overlap.
+        // This frames the attribution as portfolio vs. the benchmark restricted to the
+        // names the book actually holds.
+        val totalBenchmarkWeight = positions.sumOf { benchmarkWeightByInstrument[it.instrumentId.value] ?: 0.0 }
+        require(totalBenchmarkWeight > 0.0) {
+            "Book ${bookId.value} holds none of benchmark $benchmarkId's constituents; cannot compute attribution"
+        }
+
         val sectors = positions.map { position ->
             val instrumentId = position.instrumentId.value
             val portfolioWeight = position.marketValue.amount
                 .divide(totalMarketValue, 10, java.math.RoundingMode.HALF_UP)
                 .toDouble()
-            val benchmarkWeight = benchmarkWeightByInstrument[instrumentId] ?: 0.0
+            val benchmarkWeight = (benchmarkWeightByInstrument[instrumentId] ?: 0.0) / totalBenchmarkWeight
 
             // Portfolio return: unrealized P&L / cost basis (market value - unrealized P&L)
             val pnl = position.unrealizedPnl.amount
