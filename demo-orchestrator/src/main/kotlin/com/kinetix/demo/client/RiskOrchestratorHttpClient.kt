@@ -333,6 +333,17 @@ class RiskOrchestratorHttpClient(
         // have happened.
     }
 
+    override suspend fun triggerKrdSnapshot(bookId: String) {
+        val url = "$baseUrl/api/v1/risk/krd/$bookId"
+        logger.debug("Triggering KRD computation bookId={}", bookId)
+        val response = httpClient.get(url)
+        if (!response.status.isSuccess()) {
+            failLoudly("GET", url, response)
+        }
+        // Body discarded — risk-orchestrator has computed KRD from the book's
+        // live fixed-income positions, which is what the UI's KRD view reads.
+    }
+
     override suspend fun seedLimit(bookId: String, limitType: LimitType, threshold: BigDecimal) {
         val url = "$baseUrl/api/v1/risk/budgets"
         val request = CreateRiskBudgetRequest(

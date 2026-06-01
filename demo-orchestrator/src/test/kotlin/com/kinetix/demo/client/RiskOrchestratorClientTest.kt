@@ -231,6 +231,47 @@ class RiskOrchestratorClientTest : FunSpec({
         }
     }
 
+    test("triggerKrdSnapshot GETs the KRD endpoint for the book so it is computed and stored (kx-l8s7)") {
+        var capturedUrl: String? = null
+        var capturedMethod: HttpMethod? = null
+        val client = RiskOrchestratorHttpClient(
+            httpClient = mockHttpClient { request ->
+                capturedUrl = request.url.toString()
+                capturedMethod = request.method
+                respond(
+                    content = """{"bookId":"fixed-income","instruments":[],"aggregated":[]}""",
+                    status = HttpStatusCode.OK,
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+            },
+            baseUrl = "http://orchestrator",
+        )
+
+        runTest {
+            client.triggerKrdSnapshot("fixed-income")
+        }
+
+        capturedMethod shouldBe HttpMethod.Get
+        capturedUrl shouldBe "http://orchestrator/api/v1/risk/krd/fixed-income"
+    }
+
+    test("triggerKrdSnapshot fails loudly on a 5xx response (kx-l8s7)") {
+        val client = RiskOrchestratorHttpClient(
+            httpClient = mockHttpClient {
+                respond(content = "boom", status = HttpStatusCode.InternalServerError)
+            },
+            baseUrl = "http://orchestrator",
+        )
+
+        runTest {
+            val thrown = shouldThrow<IllegalStateException> {
+                client.triggerKrdSnapshot("fixed-income")
+            }
+            thrown.message!! shouldContain "500"
+            thrown.message!! shouldContain "GET"
+        }
+    }
+
     test("seedLimit(DELTA_ABS) maps to budgetType=DELTA_ABS") {
         var capturedBody: String? = null
         val client = RiskOrchestratorHttpClient(

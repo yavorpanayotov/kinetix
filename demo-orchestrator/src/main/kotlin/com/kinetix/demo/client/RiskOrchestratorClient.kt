@@ -178,4 +178,17 @@ interface RiskOrchestratorClient {
      * and at SOD.
      */
     suspend fun runAllStressScenarios(bookId: String)
+
+    /**
+     * Triggers a Key Rate Duration computation for [bookId] via
+     * `GET /api/v1/risk/krd/{bookId}` so the KRD endpoint returns populated
+     * `instruments`/`aggregated` for the book on the demo (issue kx-l8s7).
+     *
+     * risk-orchestrator computes KRD on demand from the book's fixed-income
+     * (bond) positions; firing this at bootstrap warms the computation for the
+     * rate-oriented demo books so the UI's KRD view is non-empty on first load.
+     * The response body is discarded — the demo orchestrator only needs the
+     * computation to have run against live positions.
+     */
+    suspend fun triggerKrdSnapshot(bookId: String)
 }

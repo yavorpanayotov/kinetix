@@ -13,6 +13,7 @@ import com.kinetix.demo.schedule.DemoVaRBootstrapJob
 import com.kinetix.demo.schedule.EodCycleObserverJob
 import com.kinetix.demo.schedule.EodPromotionJob
 import com.kinetix.demo.schedule.FrtbSeedJob
+import com.kinetix.demo.schedule.KrdSnapshotSeedJob
 import com.kinetix.demo.schedule.LimitSeedJob
 import com.kinetix.demo.schedule.OptionPriceSeeder
 import com.kinetix.demo.schedule.RiskOrchestratorBacktestInputProvider
@@ -57,6 +58,9 @@ private val STRESS_SEED_TARGET_UTC: LocalTime = LocalTime.of(9, 0)
 // kx-kzbs — FRTB seed runs just after the stress seed so the regulatory FRTB
 // "latest" endpoint is populated for every demo book on a fresh bootstrap.
 private val FRTB_SEED_TARGET_UTC: LocalTime = LocalTime.of(9, 5)
+// kx-l8s7 — KRD snapshot seed warms the on-demand KRD computation for the
+// rate-oriented demo books so GET /api/v1/risk/krd/{book} is non-empty.
+private val KRD_SEED_TARGET_UTC: LocalTime = LocalTime.of(9, 10)
 
 fun main(args: Array<String>) {
     val port = System.getenv("PORT")?.toIntOrNull() ?: DEFAULT_PORT
@@ -146,6 +150,17 @@ private fun Application.wireDemoSchedulers(
     }
     launch {
         scheduleDailyStressSeed(stressSeedJob)
+    }
+
+    // kx-l8s7 — KRD snapshot seed: warm the on-demand KRD computation for the
+    // rate-oriented demo books so GET /api/v1/risk/krd/{book} returns populated
+    // instruments/aggregated. Fires on startup and daily at 09:10 UTC.
+    val krdSeedJob = KrdSnapshotSeedJob(client = riskClient)
+    launch {
+        runKrdSeedSafely(krdSeedJob, reason = "startup")
+    }
+    launch {
+        scheduleDailyKrdSeed(krdSeedJob)
     }
 
     val positionClient = PositionServiceHttpClient(httpClient, config.positionServiceUrl)
@@ -448,5 +463,36 @@ private suspend fun Application.runFrtbSeedSafely(job: FrtbSeedJob, reason: Stri
         throw cancellation
     } catch (failure: Exception) {
         log.warn("FrtbSeedJob run ({}) failed — continuing", reason, failure)
+    }
+}
+
+// kx-l8s7 — KrdSnapshotSeedJob wiring. Startup firing is launched directly;
+// this helper drives the daily 09:10-UTC schedule.
+private suspend fun Application.scheduleDailyKrdSeed(job: KrdSnapshotSeedJob) {
+    while (true) {
+        val wait = SchedulingHelpers.durationUntilNext(KRD_SEED_TARGET_UTC)
+        log.info(
+            "Next KrdSnapshotSeedJob run scheduled in {}s (target {} UTC)",
+            wait.seconds,
+            KRD_SEED_TARGET_UTC,
+        )
+        try {
+            delay(wait.toMillis())
+        } catch (cancellation: CancellationException) {
+            log.info("KrdSnapshotSeedJob scheduling loop cancelled — exiting")
+            throw cancellation
+        }
+        runKrdSeedSafely(job, reason = "$KRD_SEED_TARGET_UTC UTC schedule")
+    }
+}
+
+private suspend fun Application.runKrdSeedSafely(job: KrdSnapshotSeedJob, reason: String) {
+    try {
+        log.info("Running KrdSnapshotSeedJob ({})", reason)
+        job.runOnce()
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (failure: Exception) {
+        log.warn("KrdSnapshotSeedJob run ({}) failed — continuing", reason, failure)
     }
 }

@@ -72,6 +72,25 @@ class DemoBookProfilesTest : FunSpec({
         }
     }
 
+    test("rate-oriented books carry bond instruments so KRD has fixed-income positions to compute (kx-l8s7)") {
+        // KRD is only computed for FIXED_INCOME (bond) positions. The
+        // rate-oriented demo books must therefore trade at least one instrument
+        // that the taxonomy classifies as a government bond, otherwise
+        // GET /api/v1/risk/krd/{book} returns empty instruments/aggregated.
+        val rateBooks = listOf("fixed-income", "macro-hedge")
+        rateBooks.forEach { bookId ->
+            val profile = DemoBookProfiles.forBook(bookId)
+            profile.shouldNotBeNull()
+            val bondInstruments = profile.instrumentIds.filter { id ->
+                com.kinetix.demo.schedule.DemoInstrumentTaxonomy.classify(id)
+                    ?.instrumentType == "GOVERNMENT_BOND"
+            }
+            withClue("$bookId must trade at least one government bond for KRD") {
+                bondInstruments.isNotEmpty() shouldBe true
+            }
+        }
+    }
+
     test("forBook returns the matching profile for a known book") {
         val profile = DemoBookProfiles.forBook("tech-momentum")
         profile.shouldNotBeNull()
