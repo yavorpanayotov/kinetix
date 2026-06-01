@@ -26,6 +26,7 @@ class StressScenarioSeedJobTest : FunSpec({
     test("fires +100BPS_PARALLEL canned scenario for every demo book") {
         val client = mockk<RiskOrchestratorClient>()
         coEvery { client.runCannedStressScenario(any(), any()) } just Runs
+        coEvery { client.runAllStressScenarios(any()) } just Runs
 
         runTest {
             StressScenarioSeedJob(client = client).runOnce()
@@ -36,6 +37,43 @@ class StressScenarioSeedJobTest : FunSpec({
         }
     }
 
+    test("requests a full stored stress sweep for every demo book so the Scenarios grid is populated on cold open (kx-kjse)") {
+        val sweptBooks = mutableListOf<String>()
+        val client = mockk<RiskOrchestratorClient>()
+        coEvery { client.runCannedStressScenario(any(), any()) } just Runs
+        coEvery { client.runAllStressScenarios(any()) } answers {
+            sweptBooks += firstArg<String>()
+        }
+
+        runTest {
+            StressScenarioSeedJob(client = client).runOnce()
+        }
+
+        coVerify(exactly = allBooks.size) { client.runAllStressScenarios(any()) }
+        sweptBooks shouldContainExactlyInAnyOrder allBooks.map { it.bookId }
+    }
+
+    test("a failing full sweep for one book does not abort the canned seed or other books (kx-kjse)") {
+        val failingBook = allBooks.first().bookId
+        val client = mockk<RiskOrchestratorClient>()
+        coEvery { client.runCannedStressScenario(any(), any()) } just Runs
+        coEvery { client.runAllStressScenarios(failingBook) } throws
+            RuntimeException("batch sweep down for $failingBook")
+        allBooks.drop(1).forEach { profile ->
+            coEvery { client.runAllStressScenarios(profile.bookId) } just Runs
+        }
+
+        runTest {
+            StressScenarioSeedJob(client = client).runOnce()
+        }
+
+        // Every book still gets its canned seed despite the one failing sweep.
+        coVerify(exactly = allBooks.size) {
+            client.runCannedStressScenario(any(), "+100BPS_PARALLEL")
+        }
+        coVerify(exactly = allBooks.size) { client.runAllStressScenarios(any()) }
+    }
+
     test("sweeps every book in DemoBookProfiles.all()") {
         val seededBooks = mutableListOf<String>()
         val client = mockk<RiskOrchestratorClient>()
@@ -44,6 +82,7 @@ class StressScenarioSeedJobTest : FunSpec({
         } answers {
             seededBooks += firstArg<String>()
         }
+        coEvery { client.runAllStressScenarios(any()) } just Runs
 
         runTest {
             StressScenarioSeedJob(client = client).runOnce()
@@ -63,6 +102,7 @@ class StressScenarioSeedJobTest : FunSpec({
                 client.runCannedStressScenario(profile.bookId, any())
             } just Runs
         }
+        coEvery { client.runAllStressScenarios(any()) } just Runs
 
         runTest {
             StressScenarioSeedJob(client = client).runOnce()
@@ -83,6 +123,7 @@ class StressScenarioSeedJobTest : FunSpec({
     test("custom scenarioName overrides the default") {
         val client = mockk<RiskOrchestratorClient>()
         coEvery { client.runCannedStressScenario(any(), any()) } just Runs
+        coEvery { client.runAllStressScenarios(any()) } just Runs
 
         runTest {
             StressScenarioSeedJob(

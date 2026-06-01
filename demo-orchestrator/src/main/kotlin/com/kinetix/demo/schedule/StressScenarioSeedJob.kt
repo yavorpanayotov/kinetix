@@ -64,6 +64,7 @@ class StressScenarioSeedJob(
 
     private suspend fun seedForBook(profile: DemoBookProfile) {
         val bookId = profile.bookId
+        // 1. Canned single-scenario seed for the Risk overview tile (kx-wxy).
         try {
             client.runCannedStressScenario(bookId, scenarioName)
             logger.debug("Seeded canned stress scenario {} for book {}", scenarioName, bookId)
@@ -71,6 +72,18 @@ class StressScenarioSeedJob(
             logger.warn(
                 "Failed to seed canned stress scenario {} for book {} — continuing",
                 scenarioName, bookId, failure,
+            )
+        }
+        // 2. Full multi-scenario sweep so the Scenarios tab comparison grid has
+        //    a "latest run" to render on cold open (kx-kjse). Isolated from the
+        //    canned seed so either failing never blocks the other.
+        try {
+            client.runAllStressScenarios(bookId)
+            logger.debug("Seeded full stress sweep for book {}", bookId)
+        } catch (failure: Exception) {
+            logger.warn(
+                "Failed to seed full stress sweep for book {} — continuing",
+                bookId, failure,
             )
         }
     }

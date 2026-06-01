@@ -155,6 +155,82 @@ class RiskOrchestratorClientTest : FunSpec({
         }
     }
 
+    test("runAllStressScenarios lists scenarios then POSTs the full batch (kx-kjse)") {
+        val requests = mutableListOf<Pair<HttpMethod, String>>()
+        var batchBody: String? = null
+        val client = RiskOrchestratorHttpClient(
+            httpClient = mockHttpClient { request ->
+                requests += request.method to request.url.toString()
+                if (request.url.encodedPath.endsWith("/stress/scenarios")) {
+                    respond(
+                        content = """["+100BPS_PARALLEL","EQUITY_CRASH_20PCT","CREDIT_SPREAD_WIDENING"]""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
+                } else {
+                    batchBody = String(request.body.toByteArray())
+                    respond(
+                        content = """{"results":[],"failedScenarios":[],"worstScenarioName":null,"worstPnlImpact":null}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
+                }
+            },
+            baseUrl = "http://orchestrator",
+        )
+
+        runTest {
+            client.runAllStressScenarios("BOOK-RATES-01")
+        }
+
+        // First lists the registered scenarios, then fires the batch run.
+        requests[0] shouldBe (HttpMethod.Get to "http://orchestrator/api/v1/risk/stress/scenarios")
+        requests[1] shouldBe (HttpMethod.Post to "http://orchestrator/api/v1/risk/stress/BOOK-RATES-01/batch")
+        // The batch body carries every listed scenario name so the stored
+        // "latest run" covers the whole scenario set.
+        batchBody!! shouldContain "+100BPS_PARALLEL"
+        batchBody!! shouldContain "EQUITY_CRASH_20PCT"
+        batchBody!! shouldContain "CREDIT_SPREAD_WIDENING"
+    }
+
+    test("runAllStressScenarios skips the batch when no scenarios are registered (kx-kjse)") {
+        val requests = mutableListOf<Pair<HttpMethod, String>>()
+        val client = RiskOrchestratorHttpClient(
+            httpClient = mockHttpClient { request ->
+                requests += request.method to request.url.toString()
+                respond(
+                    content = "[]",
+                    status = HttpStatusCode.OK,
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+            },
+            baseUrl = "http://orchestrator",
+        )
+
+        runTest {
+            client.runAllStressScenarios("BOOK-RATES-01")
+        }
+
+        // Only the scenario list call — no batch POST when the set is empty.
+        requests.map { it.first } shouldBe listOf(HttpMethod.Get)
+    }
+
+    test("runAllStressScenarios fails loudly on a 5xx from the scenarios list (kx-kjse)") {
+        val client = RiskOrchestratorHttpClient(
+            httpClient = mockHttpClient {
+                respond(content = "boom", status = HttpStatusCode.InternalServerError)
+            },
+            baseUrl = "http://orchestrator",
+        )
+
+        runTest {
+            val thrown = shouldThrow<IllegalStateException> {
+                client.runAllStressScenarios("BOOK-RATES-01")
+            }
+            thrown.message!! shouldContain "500"
+        }
+    }
+
     test("seedLimit(DELTA_ABS) maps to budgetType=DELTA_ABS") {
         var capturedBody: String? = null
         val client = RiskOrchestratorHttpClient(

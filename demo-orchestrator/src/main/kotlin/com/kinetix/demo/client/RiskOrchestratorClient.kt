@@ -161,4 +161,21 @@ interface RiskOrchestratorClient {
      * kx-wxy) on bootstrap and at SOD.
      */
     suspend fun runCannedStressScenario(bookId: String, scenarioName: String)
+
+    /**
+     * Fires a full multi-scenario stress sweep for [bookId] so the Scenarios
+     * tab's comparison grid has a "latest run" to render on cold open
+     * (issue kx-kjse).
+     *
+     * The implementation first lists the registered scenarios via
+     * `GET /api/v1/risk/stress/scenarios`, then `POST`s them all to
+     * `POST /api/v1/risk/stress/{bookId}/batch` — exactly what the UI's
+     * "Run All Scenarios" button does. If no scenarios are registered the
+     * batch is skipped (there is nothing to run). The response body is
+     * discarded; the demo orchestrator only needs the sweep to have happened.
+     *
+     * Used by [com.kinetix.demo.schedule.StressScenarioSeedJob] on bootstrap
+     * and at SOD.
+     */
+    suspend fun runAllStressScenarios(bookId: String)
 }

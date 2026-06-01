@@ -9,6 +9,7 @@ import com.kinetix.demo.client.dtos.PaginatedJobsResponseDto
 import com.kinetix.demo.client.dtos.PromoteEodRequest
 import com.kinetix.demo.client.dtos.SodBaselineStatusDto
 import com.kinetix.demo.client.dtos.CrossBookVaRRequestBody
+import com.kinetix.demo.client.dtos.StressTestBatchRequestBody
 import com.kinetix.demo.client.dtos.VaRCalculationRequestBody
 import com.kinetix.demo.client.dtos.ValuationJobSummary
 import io.ktor.client.HttpClient
@@ -22,6 +23,8 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
 import java.math.BigDecimal
@@ -285,6 +288,49 @@ class RiskOrchestratorHttpClient(
         }
         // Result body discarded — the canned result is cached server-side and
         // read by the UI via the matching GET endpoint.
+    }
+
+    override suspend fun runAllStressScenarios(bookId: String) {
+        // 1. List the registered scenarios — same source the UI's scenario
+        //    picker reads. An empty set means there is nothing to sweep.
+        val scenariosUrl = "$baseUrl/api/v1/risk/stress/scenarios"
+        val scenariosResponse = httpClient.get(scenariosUrl)
+        if (!scenariosResponse.status.isSuccess()) {
+            failLoudly("GET", scenariosUrl, scenariosResponse)
+        }
+        val scenariosBody = scenariosResponse.bodyAsText()
+        val scenarioNames = try {
+            json.decodeFromString(ListSerializer(String.serializer()), scenariosBody)
+        } catch (e: Exception) {
+            throw IllegalStateException(
+                "Failed to decode scenario list from $scenariosUrl: body=${scenariosBody.take(BODY_EXCERPT_LIMIT)}",
+                e,
+            )
+        }
+        if (scenarioNames.isEmpty()) {
+            logger.warn("No stress scenarios registered — skipping batch sweep for book {}", bookId)
+            return
+        }
+
+        // 2. Fire the full batch — exactly what "Run All Scenarios" does — so the
+        //    Scenarios tab has a latest run to render (kx-kjse).
+        val batchUrl = "$baseUrl/api/v1/risk/stress/$bookId/batch"
+        val request = StressTestBatchRequestBody(
+            scenarioNames = scenarioNames,
+            calculationType = "PARAMETRIC",
+            confidenceLevel = "CL_95",
+            timeHorizonDays = "1",
+        )
+        val batchBody = json.encodeToString(StressTestBatchRequestBody.serializer(), request)
+        val batchResponse = httpClient.post(batchUrl) {
+            contentType(ContentType.Application.Json)
+            setBody(batchBody)
+        }
+        if (!batchResponse.status.isSuccess()) {
+            failLoudly("POST", batchUrl, batchResponse)
+        }
+        // Result body discarded — the demo orchestrator only needs the sweep to
+        // have happened.
     }
 
     override suspend fun seedLimit(bookId: String, limitType: LimitType, threshold: BigDecimal) {
