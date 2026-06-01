@@ -42,14 +42,20 @@ services:
 
   # ── Python AI insights service (FastAPI + Claude Agent SDK) ────────────────
   # Routes LLM calls through the host user's Claude Code subscription via the
-  # bind-mounted ~/.claude credentials directory. Set DEMO_MODE=true to bypass
-  # the SDK and return canned responses (used in CI / Playwright).
+  # bind-mounted ~/.claude credentials directory.
+  #
+  # This is the demo/showcase compose (note the UI's VITE_DEMO_MODE=true and the
+  # demo-orchestrator's DEMO_MODE=true below), so the Copilot defaults to the
+  # grounded in-process CannedInsightClient — the live SDK path requires
+  # Kinetix risk-data tools that are not provisioned in the public demo, and
+  # without them it answers "I don't have access to your data" (kx-0uvb).
+  # Set DEMO_MODE=false in a local .env to exercise the real Claude Agent SDK.
   ai-insights-service:
     build:
       context: ../ai-insights-service
       dockerfile: Dockerfile
     environment:
-      DEMO_MODE: "${DEMO_MODE:-false}"
+      DEMO_MODE: "${DEMO_MODE:-true}"
       PYTHONPATH: /app/src
     expose:
       - "8095"
