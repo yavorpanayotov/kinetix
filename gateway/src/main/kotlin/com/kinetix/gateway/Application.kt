@@ -38,6 +38,7 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
+import io.micrometer.core.instrument.distribution.DistributionStatisticConfig
 import io.micrometer.prometheusmetrics.PrometheusConfig
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry
 import kotlinx.serialization.json.Json
@@ -52,7 +53,16 @@ fun main(args: Array<String>): Unit = EngineMain.main(args)
 fun Application.module() {
     log.info("Starting gateway")
     val appMicrometerRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
-    install(MicrometerMetrics) { registry = appMicrometerRegistry }
+    install(MicrometerMetrics) {
+        registry = appMicrometerRegistry
+        // Publish `ktor_http_server_requests_seconds_bucket` series so the API
+        // Gateway dashboard's histogram_quantile P95 latency panels resolve
+        // (kx-cygh). Without a percentile histogram the timer only emits
+        // _count/_sum/_max and the route-level P95 panels read "No data".
+        distributionStatisticConfig = DistributionStatisticConfig.Builder()
+            .percentilesHistogram(true)
+            .build()
+    }
     install(ContentNegotiation) {
         json(Json { ignoreUnknownKeys = true; encodeDefaults = true })
     }
