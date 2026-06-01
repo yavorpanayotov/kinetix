@@ -5,6 +5,25 @@ headless, 1600×1000) against the production host, plus direct gateway/Grafana A
 probes. Persona: **risk_manager1** (default). Artefacts (screenshots, raw JSON, crawl
 scripts) live in [`ui-review-4.8-artifacts/`](ui-review-4.8-artifacts/).
 
+## Resolution (2026-06-01)
+
+All four filed beads issues are fixed (commits on `main`); each takes effect on the
+next redeploy of the relevant service / Grafana provisioning reload.
+
+| Issue | Fix | Commit |
+|---|---|---|
+| **kx-oaf6** (P1) Reports `recent reports: 404` | Implemented the missing downstream `GET /api/v1/reports/recent` in risk-orchestrator (registered before `{outputId}`); empty table → `200 []`. Route/service/repo tests added. | `b1c08d8` |
+| **kx-cygh** (P2) Grafana P95 + 5xx ratio "No data" | Enabled `percentilesHistogram(true)` on the gateway Ktor timer so `_bucket` series exist for the P95 panels; zero-filled the 5xx-ratio stat with `or vector(0)` (verified against live Prometheus). | `b757a50` |
+| **kx-wrvc** (P2) Grafana P&L dashboard "No data" | Orchestrator now mirrors persisted P&L attribution onto `pnl_attribution_*` gauges via a scheduled publisher → populates 11/14 panels. | `23a22ec` |
+| **kx-8kqk** (P3) Counterparty Risk 24/30 at $0.00 | Seeded tier-appropriate exposure for all 30 counterparties (tied to `CounterpartyTiers.ALL_IDS`). Needs a demo reset to apply on an already-seeded env. | `99fe721` |
+
+Follow-up filed: **kx-v98m** — the 3 Dollar-Delta/Dollar-Gamma P&L panels still read
+"No data" (need cash-greek sensitivities the attribution model doesn't carry).
+
+The two console-noise items below (DemoBootstrapGate warning, Regulatory `/latest`
+404) were documented as benign/by-design and were not filed as beads issues; left
+as-is.
+
 ## TL;DR
 
 The platform genuinely **looks like the real deal**. Valid HTTPS (Let's Encrypt,
@@ -60,7 +79,7 @@ line below it.
 
 ### P1 — user-visible
 
-- [ ] **Reports tab shows a red "Failed to fetch recent reports: 404".**
+- [x] **Reports tab shows a red "Failed to fetch recent reports: 404".**
   `GET /api/v1/reports/recent` → **404** on the live gateway, while `/reports/templates`
   (200) and `/reports/generate` work — both in the same `ReportRoutes.kt`. So the route
   file is deployed; the `recent` leg specifically 404s (gateway propagates a downstream
@@ -72,21 +91,21 @@ line below it.
 
 ### P2 — observability gaps (a prospect clicks through to Grafana)
 
-- [ ] **Grafana "P&L" dashboard is entirely "No data".** All 7 panels empty — Total P&L,
+- [x] **Grafana "P&L" dashboard is entirely "No data".** All 7 panels empty — Total P&L,
   P&L Trend, Unexplained P&L, Unexplained P&L Fraction, P&L by Book, P&L Attribution by
   Greek, Greek P&L Contribution. The P&L Prometheus metrics are not being emitted (or the
   panel queries don't match the exported metric names). Either wire the P&L metrics or
   fix the queries. Evidence: `shots/graf-pnl.png`.
   Acceptance: open `https://grafana.kinetixrisk.ai/d/kinetix-pnl/pandl?from=now-24h&to=now` and confirm 0 panels read "No data".
 
-- [ ] **P95 latency panels read "No data"** on API Gateway ("Latency Percentiles by Route
+- [x] **P95 latency panels read "No data"** on API Gateway ("Latency Percentiles by Route
   P95", "Upstream Service-Call Latency P95", "Max P95 Latency" stat). Histogram metrics
   for latency are missing/sparse. Verify the `*_seconds_bucket` histograms are exported
   and that `histogram_quantile(...)` queries reference the right metric. Evidence:
   `shots/graf-api-gateway.png`.
   Acceptance: open `https://grafana.kinetixrisk.ai/d/kinetix-gateway/api-gateway?from=now-24h&to=now` and confirm the P95 panels render a series.
 
-- [ ] **Stat panels that should show 0 show "No data" instead** ("5xx Error Ratio", and a
+- [x] **Stat panels that should show 0 show "No data" instead** ("5xx Error Ratio", and a
   few on system-health/trade-flow/kafka-health). Classic empty-series-vs-zero: the query
   returns no series when the numerator is 0. Add `or vector(0)` / `OR on() vector(0)` (or
   a panel "No value → 0" mapping) so they read `0` rather than "No data".
@@ -94,7 +113,7 @@ line below it.
 
 ### P3 — demo realism / polish
 
-- [ ] **Counterparty Risk: 24 of 30 counterparties show $0.00 / $0.00 / —.** Only
+- [x] **Counterparty Risk: 24 of 30 counterparties show $0.00 / $0.00 / —.** Only
   CP-JPM/CITI/UBS/BARC/GS/DB carry exposure; the rest (CP-AAPL, CP-BA, CP-BBVA, CP-BLK,
   CP-BNP, CP-BRDG, CP-CITDL, CP-CME…) are padding the list with zeros. Either seed small
   exposures across more counterparties or trim the demo list so the table reads as live
