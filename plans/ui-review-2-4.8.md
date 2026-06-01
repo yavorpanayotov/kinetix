@@ -30,7 +30,7 @@ green) and are deploy-gated. **To make the live demo reflect these: run `/deploy
 | **kx-v4j3** P1 Intraday charts empty | UI: P&L + VaR charts fall back to most-recent session w/ "Last session" badge when today is empty | Vitest+Playwright ✓ | **on redeploy** — fixes the symptom even with stale seed data |
 | **kx-6o89** P2 Counterparty $0 | `CounterpartyRotation` spreads exposure across all 30 w/ instrument-type eligibility | unit ✓ | after reseed (trade tape) |
 | **kx-l8s7** P2 KRD empty | `KrdSnapshotSeedJob` warms on-demand KRD for bond-holding books at bootstrap | unit ✓ | after reseed. **Note:** `daily_krd_snapshots` (V51) is dead code — KRD route is on-demand only |
-| **kx-kjse** P2 Scenarios cold-open | **PARTIAL** — bootstrap now fires a full stress sweep per book, but the grid still won't populate on cold open without orchestrator *persistence* of a latest batch + a GET endpoint + UI fetch-on-mount (**new API contract → needs approval**) | unit ✓ (sweep fires) | **still empty on cold open** until the contract work lands |
+| **kx-kjse** P2 Scenarios cold-open | ✅ **DONE** (approved persist+fetch) — orchestrator V72 `latest_stress_batches` + repo, POST `.../batch` persists, new GET `.../batch`; gateway proxy; UI fetches on mount and renders the grid without Run All | orchestrator+gateway unit ✓, UI tsc/lint/Vitest 12 ✓, Playwright cold-open 10 ✓ (repo IntegrationTest deploy-gated) | populates **after reseed** (bootstrap sweep now persists a latest batch) |
 
 **Verification run on `main`:** `:demo-orchestrator:test` (192) green · UI `tsc` clean · `npm run
 lint` 0 errors · affected Vitest 120/120 · affected Playwright 22/22.
