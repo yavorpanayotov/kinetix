@@ -4,11 +4,13 @@ interface BrinsonAttributionTableProps {
   data: BrinsonAttributionDto
 }
 
-function pct(value: number): string {
+function pct(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return '—'
   return `${(value * 100).toFixed(2)}%`
 }
 
-function effectClass(value: number): string {
+function effectClass(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return 'text-slate-500'
   if (value > 0) return 'text-green-600'
   if (value < 0) return 'text-red-600'
   return 'text-slate-500'

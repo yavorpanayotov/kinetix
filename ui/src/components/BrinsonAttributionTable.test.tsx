@@ -115,4 +115,24 @@ describe('BrinsonAttributionTable', () => {
 
     expect(screen.getByTestId('brinson-empty')).toBeInTheDocument()
   })
+
+  it('renders a placeholder instead of crashing when a numeric field is missing or non-finite', () => {
+    const dataWithGaps: BrinsonAttributionDto = {
+      ...sampleData,
+      sectors: [
+        {
+          ...sampleData.sectors[0],
+          benchmarkReturn: undefined as unknown as number,
+          allocationEffect: NaN,
+        },
+      ],
+      totalActiveReturn: undefined as unknown as number,
+    }
+
+    // Must not throw "Cannot read properties of undefined (reading 'toFixed')".
+    render(<BrinsonAttributionTable data={dataWithGaps} />)
+
+    expect(screen.getByTestId('brinson-row-AAPL')).toHaveTextContent('—')
+    expect(screen.getByTestId('brinson-totals-row')).toHaveTextContent('—')
+  })
 })
