@@ -1,20 +1,41 @@
 {
   "id": "pnl-vs-yesterday-default",
+  "topic": "pnl",
   "deltas": [
-    {"text": "Book fx-main is showing a current-day P&L of "},
-    {"text": "+$1.84M, "},
-    {"text": "compared to yesterday's closing P&L of +$0.61M — "},
-    {"text": "a positive move of $1.23M (+202%). "},
-    {"text": "The largest contributors to today's gain are: "},
-    {"text": "EUR/USD spot ($0.82M, driven by a 45bp USD weakening), "},
-    {"text": "USD/JPY options gamma ($0.51M), "},
-    {"text": "and GBP/USD forward book ($0.29M). "},
-    {"text": "Rates carry added a further $0.22M offset by a small FX vol drag of -$0.10M."}
+    {
+      "text": "Book fx-main is showing a current-day P&L of "
+    },
+    {
+      "text": "+$1.84M, "
+    },
+    {
+      "text": "compared to yesterday's closing P&L of +$0.61M \u2014 "
+    },
+    {
+      "text": "a positive move of $1.23M (+202%). "
+    },
+    {
+      "text": "The largest contributors to today's gain are: "
+    },
+    {
+      "text": "EUR/USD spot ($0.82M, driven by a 45bp USD weakening), "
+    },
+    {
+      "text": "USD/JPY options gamma ($0.51M), "
+    },
+    {
+      "text": "and GBP/USD forward book ($0.29M). "
+    },
+    {
+      "text": "Rates carry added a further $0.22M offset by a small FX vol drag of -$0.10M."
+    }
   ],
   "citations": [
     {
       "tool": "get_pnl_attribution",
-      "params": {"book_id": "fx-main"},
+      "params": {
+        "book_id": "fx-main"
+      },
       "result_field": "total_pnl_today",
       "result_value": 1840000.0,
       "result_currency": "USD",
@@ -25,7 +46,9 @@
     },
     {
       "tool": "get_pnl_attribution",
-      "params": {"book_id": "fx-main"},
+      "params": {
+        "book_id": "fx-main"
+      },
       "result_field": "prior_close_pnl",
       "result_value": 610000.0,
       "result_currency": "USD",
@@ -36,7 +59,9 @@
     },
     {
       "tool": "get_positions",
-      "params": {"book_id": "fx-main"},
+      "params": {
+        "book_id": "fx-main"
+      },
       "result_field": "top_contributors[0].pnl",
       "result_value": 820000.0,
       "result_currency": "USD",
@@ -49,21 +74,32 @@
   "tool_calls": [
     {
       "name": "get_pnl_attribution",
-      "params": {"book_id": "fx-main"},
+      "params": {
+        "book_id": "fx-main"
+      },
       "status": "ok",
       "started_at": "2026-05-19T10:05:00Z",
       "completed_at": "2026-05-19T10:05:00.230000Z"
     },
     {
       "name": "get_positions",
-      "params": {"book_id": "fx-main"},
+      "params": {
+        "book_id": "fx-main"
+      },
       "status": "ok",
       "started_at": "2026-05-19T10:05:00.230000Z",
       "completed_at": "2026-05-19T10:05:00.460000Z"
     },
     {
       "name": "get_market_data_snapshot",
-      "params": {"book_id": "fx-main", "instruments": ["EURUSD", "USDJPY", "GBPUSD"]},
+      "params": {
+        "book_id": "fx-main",
+        "instruments": [
+          "EURUSD",
+          "USDJPY",
+          "GBPUSD"
+        ]
+      },
       "status": "ok",
       "started_at": "2026-05-19T10:05:00.460000Z",
       "completed_at": "2026-05-19T10:05:00.680000Z"

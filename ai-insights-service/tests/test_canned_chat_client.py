@@ -4,8 +4,10 @@ These tests pin the protocol contract and the behaviour the chat
 route handler will rely on:
 
 * eager fixture load with fail-fast semantics
-* deterministic transcript selection by SHA-256 of
-  ``(message + "::" + page_context.page)``
+* deterministic transcript selection by intent routing over the
+  user message and ``page_context.page`` (see
+  :mod:`kinetix_insights.chat.intent_router`), with an ``UNMATCHED``
+  fallback for off-script questions
 * one ``ChatChunk`` per delta with the configured artificial delay,
   followed by exactly one terminal frame carrying ``done=True``,
   ``model``, ``mode``, and the parsed ``Citation`` list
@@ -26,7 +28,6 @@ from typing import Any
 
 import pytest
 
-from kinetix_insights.chat import canned as canned_module
 from kinetix_insights.chat.canned import (
     CannedCopilotChatClient,
     CopilotChatClient,
@@ -72,8 +73,14 @@ def _write_transcript(
     deltas: list[str],
     citations: list[dict[str, Any]] | None = None,
     tool_calls: list[dict[str, Any]] | None = None,
+    topic: str | None = None,
 ) -> Path:
-    """Write a single transcript JSON file and return its path."""
+    """Write a single transcript JSON file and return its path.
+
+    When ``topic`` is supplied it is written into the fixture so the
+    intent router can route to it; untagged fixtures default to the
+    ``UNMATCHED`` fallback topic in the client.
+    """
 
     path = directory / f"{transcript_id}.json"
     payload: dict[str, Any] = {
@@ -81,6 +88,8 @@ def _write_transcript(
         "deltas": [{"text": text} for text in deltas],
         "citations": citations if citations is not None else [_DEFAULT_CITATION],
     }
+    if topic is not None:
+        payload["topic"] = topic
     if tool_calls is not None:
         payload["tool_calls"] = tool_calls
     path.write_text(json.dumps(payload))
@@ -224,78 +233,101 @@ async def test_transcript_selection_is_deterministic_for_same_message_and_page(
 
 
 @pytest.mark.asyncio
-async def test_transcript_selection_varies_with_message(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Different messages can route to different transcripts.
-
-    We force the bucketing helper to read straight off the message so
-    the variance is independent of SHA-256 collisions at small N.
-    """
-
-    _two_transcripts(tmp_path)
-    client = CannedCopilotChatClient(fixtures_dir=tmp_path, delay_seconds=0.0)
-
-    def _by_message(message: str, _page: str, _modulus: int) -> int:
-        return 0 if message.startswith("alpha") else 1
-
-    monkeypatch.setattr(canned_module, "_select_transcript_index", _by_message)
-
-    a_chunks = [
-        chunk
-        async for chunk in client.chat(
-            ChatRequest(message="alpha please", page_context={"page": "p"})
-        )
-    ]
-    b_chunks = [
-        chunk
-        async for chunk in client.chat(
-            ChatRequest(message="beta please", page_context={"page": "p"})
-        )
-    ]
-
-    a_deltas = [c.delta for c in a_chunks if c.delta is not None]
-    b_deltas = [c.delta for c in b_chunks if c.delta is not None]
-    assert a_deltas != b_deltas
-
-
-@pytest.mark.asyncio
-async def test_transcript_selection_varies_with_page_context_page(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Different ``page_context.page`` values can route to different transcripts."""
-
-    _two_transcripts(tmp_path)
-    client = CannedCopilotChatClient(fixtures_dir=tmp_path, delay_seconds=0.0)
-
-    def _by_page(_message: str, page: str, _modulus: int) -> int:
-        return 0 if page == "dashboard" else 1
-
-    monkeypatch.setattr(canned_module, "_select_transcript_index", _by_page)
-
-    dash = [
-        chunk
-        async for chunk in client.chat(
-            ChatRequest(message="same", page_context={"page": "dashboard"})
-        )
-    ]
-    book = [
-        chunk
-        async for chunk in client.chat(
-            ChatRequest(message="same", page_context={"page": "book-detail"})
-        )
-    ]
-
-    dash_deltas = [c.delta for c in dash if c.delta is not None]
-    book_deltas = [c.delta for c in book if c.delta is not None]
-    assert dash_deltas != book_deltas
-
-
-@pytest.mark.asyncio
-async def test_missing_page_context_page_treated_as_empty_string(
+async def test_transcript_selection_routes_by_message_intent(
     tmp_path: Path,
 ) -> None:
-    """A request with no ``page`` key in ``page_context`` is well-formed."""
+    """A message's topic decides the transcript via intent routing.
+
+    A VaR question streams the VaR transcript; a P&L question streams
+    the P&L transcript — no longer a hash roulette over the corpus.
+    """
+
+    _write_transcript(tmp_path, "var", ["VaR answer."], topic="var")
+    _write_transcript(tmp_path, "pnl", ["P&L answer."], topic="pnl")
+    client = CannedCopilotChatClient(fixtures_dir=tmp_path, delay_seconds=0.0)
+
+    var_deltas = [
+        c.delta
+        async for c in client.chat(
+            ChatRequest(message="what's my VaR?", page_context={"page": "p"})
+        )
+        if c.delta is not None
+    ]
+    pnl_deltas = [
+        c.delta
+        async for c in client.chat(
+            ChatRequest(message="how's my P&L today?", page_context={"page": "p"})
+        )
+        if c.delta is not None
+    ]
+
+    assert var_deltas == ["VaR answer."]
+    assert pnl_deltas == ["P&L answer."]
+
+
+@pytest.mark.asyncio
+async def test_transcript_selection_falls_back_to_page_when_message_is_generic(
+    tmp_path: Path,
+) -> None:
+    """A topic-less message routes via the ``page_context.page`` hint."""
+
+    _write_transcript(tmp_path, "var", ["VaR answer."], topic="var")
+    _write_transcript(tmp_path, "pnl", ["P&L answer."], topic="pnl")
+    client = CannedCopilotChatClient(fixtures_dir=tmp_path, delay_seconds=0.0)
+
+    dash_deltas = [
+        c.delta
+        async for c in client.chat(
+            ChatRequest(message="explain this", page_context={"page": "var-dashboard"})
+        )
+        if c.delta is not None
+    ]
+    pnl_deltas = [
+        c.delta
+        async for c in client.chat(
+            ChatRequest(
+                message="explain this", page_context={"page": "pnl-attribution"}
+            )
+        )
+        if c.delta is not None
+    ]
+
+    assert dash_deltas == ["VaR answer."]
+    assert pnl_deltas == ["P&L answer."]
+
+
+@pytest.mark.asyncio
+async def test_off_script_question_routes_to_unmatched_transcript(
+    tmp_path: Path,
+) -> None:
+    """A question no topic covers streams the ``UNMATCHED`` fallback."""
+
+    _write_transcript(tmp_path, "var", ["VaR answer."], topic="var")
+    _write_transcript(
+        tmp_path,
+        "fallback",
+        ["I can help with VaR, P&L, vol, limits, and positions."],
+        citations=[],
+        topic="unmatched",
+    )
+    client = CannedCopilotChatClient(fixtures_dir=tmp_path, delay_seconds=0.0)
+
+    deltas = [
+        c.delta
+        async for c in client.chat(
+            ChatRequest(message="tell me a joke", page_context={"page": "p"})
+        )
+        if c.delta is not None
+    ]
+
+    assert deltas == ["I can help with VaR, P&L, vol, limits, and positions."]
+
+
+@pytest.mark.asyncio
+async def test_missing_page_context_page_is_well_formed(
+    tmp_path: Path,
+) -> None:
+    """A request with no ``page`` key in ``page_context`` still resolves."""
 
     _two_transcripts(tmp_path)
     client = CannedCopilotChatClient(fixtures_dir=tmp_path, delay_seconds=0.0)

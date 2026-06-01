@@ -1,20 +1,42 @@
 {
   "id": "vol-dislocations-default",
+  "topic": "vol",
   "deltas": [
-    {"text": "Three instruments on book fx-main show notable implied-volatility dislocations: "},
-    {"text": "USD/JPY 1-month ATM vol has moved from 7.2% to 8.9% — "},
-    {"text": "a +1.7 vol-point move that puts it 2.4 standard deviations above its 20-day range. "},
-    {"text": "EUR/USD 3-month skew has steepened 1.1 vol points on the put side "},
-    {"text": "(25-delta put vol now 9.8% vs 8.7% a week ago), "},
-    {"text": "consistent with demand for EUR downside protection. "},
-    {"text": "GBP/USD 1-week vol spiked 2.3 vol points on Monday "},
-    {"text": "following UK CPI data; it has since partially retraced but remains 0.9 vol points elevated "},
-    {"text": "relative to the 10-day trailing average."}
+    {
+      "text": "Three instruments on book fx-main show notable implied-volatility dislocations: "
+    },
+    {
+      "text": "USD/JPY 1-month ATM vol has moved from 7.2% to 8.9% \u2014 "
+    },
+    {
+      "text": "a +1.7 vol-point move that puts it 2.4 standard deviations above its 20-day range. "
+    },
+    {
+      "text": "EUR/USD 3-month skew has steepened 1.1 vol points on the put side "
+    },
+    {
+      "text": "(25-delta put vol now 9.8% vs 8.7% a week ago), "
+    },
+    {
+      "text": "consistent with demand for EUR downside protection. "
+    },
+    {
+      "text": "GBP/USD 1-week vol spiked 2.3 vol points on Monday "
+    },
+    {
+      "text": "following UK CPI data; it has since partially retraced but remains 0.9 vol points elevated "
+    },
+    {
+      "text": "relative to the 10-day trailing average."
+    }
   ],
   "citations": [
     {
       "tool": "get_vol_surface",
-      "params": {"book_id": "fx-main", "instrument": "USDJPY"},
+      "params": {
+        "book_id": "fx-main",
+        "instrument": "USDJPY"
+      },
       "result_field": "atm_vol_1m",
       "result_value": 8.9,
       "result_currency": null,
@@ -25,7 +47,10 @@
     },
     {
       "tool": "get_vol_surface",
-      "params": {"book_id": "fx-main", "instrument": "EURUSD"},
+      "params": {
+        "book_id": "fx-main",
+        "instrument": "EURUSD"
+      },
       "result_field": "skew_25d_put_3m",
       "result_value": 9.8,
       "result_currency": null,
@@ -36,7 +61,9 @@
     },
     {
       "tool": "get_positions",
-      "params": {"book_id": "fx-main"},
+      "params": {
+        "book_id": "fx-main"
+      },
       "result_field": "instruments",
       "result_value": "USDJPY,EURUSD,GBPUSD",
       "result_currency": null,
@@ -49,28 +76,39 @@
   "tool_calls": [
     {
       "name": "get_positions",
-      "params": {"book_id": "fx-main"},
+      "params": {
+        "book_id": "fx-main"
+      },
       "status": "ok",
       "started_at": "2026-05-19T10:05:00Z",
       "completed_at": "2026-05-19T10:05:00.180000Z"
     },
     {
       "name": "get_vol_surface",
-      "params": {"book_id": "fx-main", "instrument": "USDJPY"},
+      "params": {
+        "book_id": "fx-main",
+        "instrument": "USDJPY"
+      },
       "status": "ok",
       "started_at": "2026-05-19T10:05:00.180000Z",
       "completed_at": "2026-05-19T10:05:00.390000Z"
     },
     {
       "name": "get_vol_surface",
-      "params": {"book_id": "fx-main", "instrument": "EURUSD"},
+      "params": {
+        "book_id": "fx-main",
+        "instrument": "EURUSD"
+      },
       "status": "ok",
       "started_at": "2026-05-19T10:05:00.390000Z",
       "completed_at": "2026-05-19T10:05:00.600000Z"
     },
     {
       "name": "get_vol_surface",
-      "params": {"book_id": "fx-main", "instrument": "GBPUSD"},
+      "params": {
+        "book_id": "fx-main",
+        "instrument": "GBPUSD"
+      },
       "status": "ok",
       "started_at": "2026-05-19T10:05:00.600000Z",
       "completed_at": "2026-05-19T10:05:00.800000Z"

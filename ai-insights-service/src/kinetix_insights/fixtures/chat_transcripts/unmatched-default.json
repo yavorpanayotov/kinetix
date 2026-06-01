@@ -1,0 +1,15 @@
+{
+  "id": "unmatched-default",
+  "topic": "unmatched",
+  "deltas": [
+    {"text": "I can't answer that one from this book's data. "},
+    {"text": "I can help with VaR, "},
+    {"text": "P&L versus the prior session, "},
+    {"text": "implied-volatility dislocations, "},
+    {"text": "limit breaches, "},
+    {"text": "and your top positions by risk contribution — "},
+    {"text": "ask me about any of those and I'll pull the figures."}
+  ],
+  "citations": [],
+  "tool_calls": null
+}

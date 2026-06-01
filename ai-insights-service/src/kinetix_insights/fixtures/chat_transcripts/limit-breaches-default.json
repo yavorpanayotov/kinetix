@@ -1,20 +1,41 @@
 {
   "id": "limit-breaches-default",
+  "topic": "limits",
   "deltas": [
-    {"text": "Book fx-main currently has "},
-    {"text": "two active limit breaches. "},
-    {"text": "The notional delta limit is breached at 112% utilisation — "},
-    {"text": "$112M against a $100M threshold, "},
-    {"text": "first recorded at 09:14 UTC. "},
-    {"text": "The intraday VaR limit is at 108% — "},
-    {"text": "$5.4M against a $5.0M intraday ceiling, "},
-    {"text": "first breached at 10:02 UTC. "},
-    {"text": "All other limits (Greeks, concentration, counterparty) remain within bounds."}
+    {
+      "text": "Book fx-main currently has "
+    },
+    {
+      "text": "two active limit breaches. "
+    },
+    {
+      "text": "The notional delta limit is breached at 112% utilisation \u2014 "
+    },
+    {
+      "text": "$112M against a $100M threshold, "
+    },
+    {
+      "text": "first recorded at 09:14 UTC. "
+    },
+    {
+      "text": "The intraday VaR limit is at 108% \u2014 "
+    },
+    {
+      "text": "$5.4M against a $5.0M intraday ceiling, "
+    },
+    {
+      "text": "first breached at 10:02 UTC. "
+    },
+    {
+      "text": "All other limits (Greeks, concentration, counterparty) remain within bounds."
+    }
   ],
   "citations": [
     {
       "tool": "get_recent_breaches",
-      "params": {"book_id": "fx-main"},
+      "params": {
+        "book_id": "fx-main"
+      },
       "result_field": "breaches[0].utilisation_pct",
       "result_value": 112.0,
       "result_currency": null,
@@ -25,7 +46,9 @@
     },
     {
       "tool": "get_limit_utilisation",
-      "params": {"book_id": "fx-main"},
+      "params": {
+        "book_id": "fx-main"
+      },
       "result_field": "limits[1].utilisation_pct",
       "result_value": 108.0,
       "result_currency": null,
@@ -38,14 +61,18 @@
   "tool_calls": [
     {
       "name": "get_recent_breaches",
-      "params": {"book_id": "fx-main"},
+      "params": {
+        "book_id": "fx-main"
+      },
       "status": "ok",
       "started_at": "2026-05-19T10:05:00Z",
       "completed_at": "2026-05-19T10:05:00.210000Z"
     },
     {
       "name": "get_limit_utilisation",
-      "params": {"book_id": "fx-main"},
+      "params": {
+        "book_id": "fx-main"
+      },
       "status": "ok",
       "started_at": "2026-05-19T10:05:00.210000Z",
       "completed_at": "2026-05-19T10:05:00.440000Z"

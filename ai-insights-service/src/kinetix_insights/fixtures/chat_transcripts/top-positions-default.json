@@ -1,19 +1,38 @@
 {
   "id": "top-positions-default",
+  "topic": "positions",
   "deltas": [
-    {"text": "The top five positions on book fx-main "},
-    {"text": "by risk contribution are: "},
-    {"text": "1. EUR/USD Spot — $48.2M notional, contributing 24.1% of total VaR ($1.25M). "},
-    {"text": "2. USD/JPY 1-month vanilla options — $31.5M notional, contributing 18.7% ($0.97M). "},
-    {"text": "3. GBP/USD 3-month forward — $22.0M notional, contributing 12.3% ($0.64M). "},
-    {"text": "4. EUR rates swap 5Y — $18.3M notional, contributing 9.8% ($0.51M). "},
-    {"text": "5. AUD/USD spot — $14.7M notional, contributing 7.4% ($0.38M). "},
-    {"text": "Together these five positions account for 72.3% of total book VaR."}
+    {
+      "text": "The top five positions on book fx-main "
+    },
+    {
+      "text": "by risk contribution are: "
+    },
+    {
+      "text": "1. EUR/USD Spot \u2014 $48.2M notional, contributing 24.1% of total VaR ($1.25M). "
+    },
+    {
+      "text": "2. USD/JPY 1-month vanilla options \u2014 $31.5M notional, contributing 18.7% ($0.97M). "
+    },
+    {
+      "text": "3. GBP/USD 3-month forward \u2014 $22.0M notional, contributing 12.3% ($0.64M). "
+    },
+    {
+      "text": "4. EUR rates swap 5Y \u2014 $18.3M notional, contributing 9.8% ($0.51M). "
+    },
+    {
+      "text": "5. AUD/USD spot \u2014 $14.7M notional, contributing 7.4% ($0.38M). "
+    },
+    {
+      "text": "Together these five positions account for 72.3% of total book VaR."
+    }
   ],
   "citations": [
     {
       "tool": "get_positions",
-      "params": {"book_id": "fx-main"},
+      "params": {
+        "book_id": "fx-main"
+      },
       "result_field": "positions[0].risk_contribution_pct",
       "result_value": 24.1,
       "result_currency": null,
@@ -24,7 +43,10 @@
     },
     {
       "tool": "get_book_var",
-      "params": {"book_id": "fx-main", "horizon_days": 1},
+      "params": {
+        "book_id": "fx-main",
+        "horizon_days": 1
+      },
       "result_field": "total_var",
       "result_value": 5200000.0,
       "result_currency": "USD",
@@ -37,21 +59,29 @@
   "tool_calls": [
     {
       "name": "get_positions",
-      "params": {"book_id": "fx-main", "top_n": 5},
+      "params": {
+        "book_id": "fx-main",
+        "top_n": 5
+      },
       "status": "ok",
       "started_at": "2026-05-19T10:05:00Z",
       "completed_at": "2026-05-19T10:05:00.220000Z"
     },
     {
       "name": "get_book_var",
-      "params": {"book_id": "fx-main", "horizon_days": 1},
+      "params": {
+        "book_id": "fx-main",
+        "horizon_days": 1
+      },
       "status": "ok",
       "started_at": "2026-05-19T10:05:00.220000Z",
       "completed_at": "2026-05-19T10:05:00.440000Z"
     },
     {
       "name": "get_greeks_summary",
-      "params": {"book_id": "fx-main"},
+      "params": {
+        "book_id": "fx-main"
+      },
       "status": "ok",
       "started_at": "2026-05-19T10:05:00.440000Z",
       "completed_at": "2026-05-19T10:05:00.650000Z"

@@ -36,13 +36,13 @@ Design notes:
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 from kinetix_insights.chat.conversation_store import ConversationTurn
+from kinetix_insights.chat.intent_router import UNMATCHED, route_intent
 from kinetix_insights.chat.models import ChatChunk, ChatRequest, ToolCall
 from kinetix_insights.citations.models import Citation
 
@@ -75,21 +75,6 @@ class CopilotChatClient(Protocol):
         ...  # pragma: no cover - structural only
 
 
-def _select_transcript_index(message: str, page: str, modulus: int) -> int:
-    """Pick a transcript bucket from a stable hash of ``(message, page)``.
-
-    The composition uses an explicit ``"::"`` separator so the encoding
-    is injective — two distinct ``(message, page)`` pairs cannot
-    collapse to the same input string by accidentally sharing a
-    boundary. The digest is interpreted as an integer modulo
-    ``len(transcripts)``; with a small number of fixtures collisions
-    are common and expected. Module-level so tests can swap it.
-    """
-
-    digest = hashlib.sha256(f"{message}::{page}".encode("utf-8")).hexdigest()
-    return int(digest, 16) % modulus
-
-
 class _Transcript:
     """In-memory representation of one fixture file.
 
@@ -100,33 +85,44 @@ class _Transcript:
     as immutable.
     """
 
-    __slots__ = ("id", "deltas", "citations", "tool_calls")
+    __slots__ = ("id", "topic", "deltas", "citations", "tool_calls")
 
     def __init__(
         self,
         transcript_id: str,
+        topic: str,
         deltas: list[str],
         citations: list[Citation],
         tool_calls: list[ToolCall] | None,
     ) -> None:
         self.id = transcript_id
+        self.topic = topic
         self.deltas = deltas
         self.citations = citations
         self.tool_calls = tool_calls
 
 
 def _parse_transcript(path: Path) -> _Transcript:
-    """Load one JSON transcript file. Raises on malformed input."""
+    """Load one JSON transcript file. Raises on malformed input.
+
+    A transcript may declare a ``topic`` (one of the
+    :mod:`kinetix_insights.chat.intent_router` constants) so the client
+    can route a routed intent to it. Untagged transcripts default to
+    :data:`~kinetix_insights.chat.intent_router.UNMATCHED`, which keeps
+    legacy single-fixture corpora (and tests) working — an untagged
+    fixture simply becomes the graceful fallback.
+    """
 
     raw: dict[str, Any] = json.loads(path.read_text())
     transcript_id = str(raw["id"])
+    topic = str(raw.get("topic", UNMATCHED))
     deltas = [str(entry["text"]) for entry in raw["deltas"]]
     citations = [Citation.model_validate(entry) for entry in raw.get("citations", [])]
     raw_tool_calls = raw.get("tool_calls", None)
     tool_calls: list[ToolCall] | None = None
     if raw_tool_calls:
         tool_calls = [ToolCall.model_validate(entry) for entry in raw_tool_calls]
-    return _Transcript(transcript_id, deltas, citations, tool_calls)
+    return _Transcript(transcript_id, topic, deltas, citations, tool_calls)
 
 
 def _load_transcripts(fixtures_dir: Path) -> list[_Transcript]:
@@ -142,8 +138,14 @@ class CannedCopilotChatClient:
     """Fixture-driven :class:`CopilotChatClient`.
 
     Loads all transcripts under ``fixtures_dir`` eagerly. Selects one
-    per ``chat`` call by hashing the user message together with the
-    ``page_context.page`` value, then streams its deltas as
+    per ``chat`` call by **intent routing**: the user message (informed
+    by ``page_context.page``) is routed to a topic by
+    :func:`~kinetix_insights.chat.intent_router.route_intent`, and the
+    transcript tagged with that topic answers it. A question no topic
+    covers falls back to the ``UNMATCHED`` transcript; if the corpus
+    has neither the routed topic nor an ``UNMATCHED`` transcript, the
+    first transcript (by sorted id) is used so a single-fixture corpus
+    always resolves. The chosen transcript's deltas stream as
     :class:`ChatChunk` frames with ``done=False``, each separated by
     ``delay_seconds`` of artificial latency. A final frame closes the
     stream with ``done=True``, the parsed citations, and the
@@ -168,7 +170,30 @@ class CannedCopilotChatClient:
                 "canned chat client requires at least one fixture"
             )
         self._transcripts = transcripts
+        # First transcript wins on a topic collision; ``transcripts`` is
+        # already sorted by id so the winner is deterministic.
+        by_topic: dict[str, _Transcript] = {}
+        for transcript in transcripts:
+            by_topic.setdefault(transcript.topic, transcript)
+        self._by_topic = by_topic
         self._delay_seconds = delay_seconds
+
+    def _select(self, request: ChatRequest) -> _Transcript:
+        """Route ``request`` to the transcript that should answer it.
+
+        Resolution order: routed topic → ``UNMATCHED`` transcript →
+        first transcript. The final fallback guarantees a single-fixture
+        corpus (and legacy untagged fixtures) always resolve.
+        """
+
+        page = str(request.page_context.get("page", "") or "") or None
+        topic = route_intent(request.message, page)
+        transcript = self._by_topic.get(topic)
+        if transcript is None:
+            transcript = self._by_topic.get(UNMATCHED)
+        if transcript is None:
+            transcript = self._transcripts[0]
+        return transcript
 
     def chat(
         self,
@@ -185,11 +210,7 @@ class CannedCopilotChatClient:
         """
 
         del history  # unused on the canned path; documented on the protocol
-        page = str(request.page_context.get("page", "") or "")
-        index = _select_transcript_index(
-            request.message, page, len(self._transcripts)
-        )
-        transcript = self._transcripts[index]
+        transcript = self._select(request)
         return self._stream(transcript)
 
     async def _stream(self, transcript: _Transcript) -> AsyncIterator[ChatChunk]:

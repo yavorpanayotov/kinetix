@@ -1,21 +1,45 @@
 {
   "id": "var-week-drivers-default",
+  "topic": "var_drivers",
   "deltas": [
-    {"text": "Book fx-main's 95% one-day VaR stands at "},
-    {"text": "$5.2M today, "},
-    {"text": "up from $3.9M at the start of the week — "},
-    {"text": "an increase of $1.3M (+33%) over five sessions. "},
-    {"text": "The primary driver of the rise is EUR/USD spot exposure: "},
-    {"text": "a 180bp EUR rally since Monday lifted the delta sensitivity, "},
-    {"text": "contributing $0.74M of the move. "},
-    {"text": "USD/JPY vega expanded as 1-month implied vol moved from 7.2% to 8.9%, "},
-    {"text": "adding $0.38M. "},
-    {"text": "The remaining $0.18M is attributable to rates carry on the EUR 5Y swap book."}
+    {
+      "text": "Book fx-main's 95% one-day VaR stands at "
+    },
+    {
+      "text": "$5.2M today, "
+    },
+    {
+      "text": "up from $3.9M at the start of the week \u2014 "
+    },
+    {
+      "text": "an increase of $1.3M (+33%) over five sessions. "
+    },
+    {
+      "text": "The primary driver of the rise is EUR/USD spot exposure: "
+    },
+    {
+      "text": "a 180bp EUR rally since Monday lifted the delta sensitivity, "
+    },
+    {
+      "text": "contributing $0.74M of the move. "
+    },
+    {
+      "text": "USD/JPY vega expanded as 1-month implied vol moved from 7.2% to 8.9%, "
+    },
+    {
+      "text": "adding $0.38M. "
+    },
+    {
+      "text": "The remaining $0.18M is attributable to rates carry on the EUR 5Y swap book."
+    }
   ],
   "citations": [
     {
       "tool": "get_book_var",
-      "params": {"book_id": "fx-main", "horizon_days": 1},
+      "params": {
+        "book_id": "fx-main",
+        "horizon_days": 1
+      },
       "result_field": "total_var",
       "result_value": 5200000.0,
       "result_currency": "USD",
@@ -26,7 +50,11 @@
     },
     {
       "tool": "get_book_var",
-      "params": {"book_id": "fx-main", "horizon_days": 1, "as_of": "2026-05-12"},
+      "params": {
+        "book_id": "fx-main",
+        "horizon_days": 1,
+        "as_of": "2026-05-12"
+      },
       "result_field": "total_var",
       "result_value": 3900000.0,
       "result_currency": "USD",
@@ -37,7 +65,10 @@
     },
     {
       "tool": "get_vol_surface",
-      "params": {"book_id": "fx-main", "instrument": "USDJPY"},
+      "params": {
+        "book_id": "fx-main",
+        "instrument": "USDJPY"
+      },
       "result_field": "atm_vol_1m",
       "result_value": 8.9,
       "result_currency": null,
@@ -50,21 +81,29 @@
   "tool_calls": [
     {
       "name": "get_book_var",
-      "params": {"book_id": "fx-main", "horizon_days": 1},
+      "params": {
+        "book_id": "fx-main",
+        "horizon_days": 1
+      },
       "status": "ok",
       "started_at": "2026-05-19T10:05:00Z",
       "completed_at": "2026-05-19T10:05:00.240000Z"
     },
     {
       "name": "get_pnl_attribution",
-      "params": {"book_id": "fx-main"},
+      "params": {
+        "book_id": "fx-main"
+      },
       "status": "ok",
       "started_at": "2026-05-19T10:05:00.240000Z",
       "completed_at": "2026-05-19T10:05:00.470000Z"
     },
     {
       "name": "get_vol_surface",
-      "params": {"book_id": "fx-main", "instrument": "USDJPY"},
+      "params": {
+        "book_id": "fx-main",
+        "instrument": "USDJPY"
+      },
       "status": "ok",
       "started_at": "2026-05-19T10:05:00.470000Z",
       "completed_at": "2026-05-19T10:05:00.690000Z"
