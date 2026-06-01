@@ -68,7 +68,7 @@ services:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
       GF_AUTH_ANONYMOUS_ENABLED: "true"
-      GF_AUTH_ANONYMOUS_ORG_ROLE: "Viewer"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Editor"
       GF_AUTH_DISABLE_LOGIN_FORM: "true"
       # Set GRAFANA_ROOT_URL=https://grafana.kinetixrisk.ai on the prod host so
       # Grafana emits correct absolute asset URLs through the Caddy reverse
