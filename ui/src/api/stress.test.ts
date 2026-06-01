@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fetchScenarios, runStressTest } from './stress'
+import { fetchScenarios, getLatestStressBatch, runStressTest } from './stress'
 
 describe('stress API', () => {
   const mockFetch = vi.fn()
@@ -90,6 +90,55 @@ describe('stress API', () => {
 
       await expect(runStressTest('book-1', 'GFC_2008')).rejects.toThrow(
         'Failed to run stress test: 500 Internal Server Error',
+      )
+    })
+  })
+
+  describe('getLatestStressBatch', () => {
+    const batch = {
+      results: [
+        { scenarioName: 'GFC_2008', baseVar: '50000.00', stressedVar: '80000.00', pnlImpact: '-400000.00' },
+        { scenarioName: 'COVID_2020', baseVar: '50000.00', stressedVar: '70000.00', pnlImpact: '-150000.00' },
+      ],
+      failedScenarios: [],
+      worstScenarioName: 'GFC_2008',
+      worstPnlImpact: '-400000.00',
+    }
+
+    it('GETs the stored batch and returns it', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(batch),
+      })
+
+      const result = await getLatestStressBatch('book-1')
+
+      expect(result).toEqual(batch)
+      expect(mockFetch).toHaveBeenCalledWith('/api/v1/risk/stress/book-1/batch')
+    })
+
+    it('returns null on 404 (no batch stored yet)', async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 404,
+        statusText: 'Not Found',
+      })
+
+      const result = await getLatestStressBatch('empty-book')
+
+      expect(result).toBeNull()
+    })
+
+    it('throws on 500', async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
+      })
+
+      await expect(getLatestStressBatch('book-1')).rejects.toThrow(
+        'Failed to fetch latest stress batch: 500 Internal Server Error',
       )
     })
   })

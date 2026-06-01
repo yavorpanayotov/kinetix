@@ -73,6 +73,31 @@ export async function runAllStressTests(
 }
 
 /**
+ * Fetch the most recent persisted batch stress result for [bookId]
+ * (issue kx-kjse). Returns `null` when no batch has been run or seeded for the
+ * book yet (HTTP 404) — the caller treats that as "no result yet" and shows
+ * the empty CTA rather than logging an error, mirroring the regulatory
+ * `/latest` fix. The demo-orchestrator's stress sweep populates this on
+ * startup, so a reseed lets the Scenarios tab render on cold open.
+ */
+export async function getLatestStressBatch(
+  bookId: string,
+): Promise<BatchStressRunResult | null> {
+  const response = await authFetch(
+    `/api/v1/risk/stress/${encodeURIComponent(bookId)}/batch`,
+  )
+  if (response.status === 404) {
+    return null
+  }
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch latest stress batch: ${response.status} ${response.statusText}`,
+    )
+  }
+  return response.json()
+}
+
+/**
  * Fetch the canned stress-scenario tile result for [bookId] (issue kx-wxy).
  * Returns `null` when no canned scenario has been seeded for the book yet —
  * the demo-orchestrator's `StressScenarioSeedJob` populates this on startup

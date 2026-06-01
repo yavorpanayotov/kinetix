@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { fetchScenarios, runAllStressTests } from '../api/stress'
+import { fetchScenarios, getLatestStressBatch, runAllStressTests } from '../api/stress'
 import type { StressTestResultDto } from '../types'
 
 export interface UseRunAllScenariosResult {
@@ -47,10 +47,33 @@ export function useRunAllScenarios(bookId: string | null): UseRunAllScenariosRes
     return () => { cancelled = true }
   }, [])
 
+  // On book change, clear the prior book's state and fetch the latest persisted
+  // batch so the Scenarios tab populates on cold open WITHOUT a fresh
+  // "Run All Scenarios" click (issue kx-kjse). A stored batch renders the
+  // comparison grid immediately; "Run All" still recomputes and refreshes.
+  // We do NOT auto-recompute here — only read what was already persisted.
   useEffect(() => {
     setResults([])
     setSelectedScenario(null)
     setError(null)
+    if (!bookId) return
+    let cancelled = false
+    async function loadStored() {
+      try {
+        const batch = await getLatestStressBatch(bookId!)
+        if (cancelled || !batch) return
+        const sorted = [...batch.results].sort(
+          (a, b) => Math.abs(Number(b.pnlImpact)) - Math.abs(Number(a.pnlImpact)),
+        )
+        setResults(sorted)
+      } catch {
+        // A failed fetch of the stored batch is non-fatal — the user can still
+        // click "Run All Scenarios". Swallow rather than surfacing an error
+        // that would mask the empty-state CTA. 404 already resolves to null.
+      }
+    }
+    loadStored()
+    return () => { cancelled = true }
   }, [bookId])
 
   const runAll = useCallback(async () => {

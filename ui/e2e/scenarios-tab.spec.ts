@@ -113,6 +113,10 @@ async function mockScenariosRoutes(
     batchResults?: object[]
     singleResult?: object | null
     governanceScenarios?: object[]
+    // kx-kjse — when set, GET .../batch returns this persisted batch so the
+    // Scenarios tab renders the comparison grid on cold open. When omitted,
+    // GET .../batch returns 404 (no stored batch) and the empty CTA shows.
+    storedBatch?: object | null
   } = {},
 ): Promise<void> {
   // Unroute defaults set by mockAllApiRoutes
@@ -163,7 +167,12 @@ async function mockScenariosRoutes(
         }),
       })
     } else {
-      route.fallback()
+      // GET .../batch — the persist-and-fetch cold-open path (kx-kjse).
+      if (opts.storedBatch) {
+        route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(opts.storedBatch) })
+      } else {
+        route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify(null) })
+      }
     }
   })
 
@@ -282,6 +291,53 @@ test.describe('Scenarios Tab - Empty State', () => {
     await page.waitForSelector('[data-testid="scenario-control-bar"]')
 
     await expect(page.getByTestId('export-csv-btn')).not.toBeVisible()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Cold Open — persist-and-fetch (kx-kjse)
+// ---------------------------------------------------------------------------
+
+test.describe('Scenarios Tab - Cold Open', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockAllApiRoutes(page)
+  })
+
+  const STORED_BATCH = {
+    results: [STRESS_RESULT_EQUITY_CRASH, STRESS_RESULT_RATES_SHOCK],
+    failedScenarios: [],
+    worstScenarioName: 'EQUITY_CRASH',
+    worstPnlImpact: '-250000',
+  }
+
+  test('renders the comparison grid on load from the persisted batch without clicking Run All', async ({ page }) => {
+    await mockScenariosRoutes(page, {
+      stressScenarios: ['EQUITY_CRASH', 'RATES_SHOCK'],
+      storedBatch: STORED_BATCH,
+    })
+
+    await goToScenariosTab(page)
+
+    // Grid populates from the stored batch fetched on mount — no Run All click.
+    await page.waitForSelector('[data-testid="scenario-comparison-table"]')
+    const rows = page.getByTestId('scenario-row')
+    await expect(rows).toHaveCount(2)
+    // Worst scenario ranked first.
+    await expect(rows.first()).toContainText('EQUITY CRASH')
+  })
+
+  test('shows the empty CTA with no error when no batch has been persisted (404)', async ({ page }) => {
+    await mockScenariosRoutes(page, {
+      stressScenarios: ['EQUITY_CRASH'],
+      // storedBatch omitted -> GET .../batch returns 404
+    })
+
+    await goToScenariosTab(page)
+    await page.waitForSelector('[data-testid="scenarios-tab"]')
+
+    await expect(page.getByTestId('no-results')).toContainText('No stress test results yet')
+    // A 404 on the cold-open fetch must not surface as an error banner.
+    await expect(page.getByTestId('stress-error')).not.toBeVisible()
   })
 })
 
