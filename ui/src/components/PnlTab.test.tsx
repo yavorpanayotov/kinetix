@@ -6,8 +6,11 @@ vi.mock('../hooks/useSodBaseline')
 vi.mock('../hooks/useIntradayPnlStream', () => ({
   useIntradayPnlStream: () => ({ snapshots: [], latest: null, connected: false }),
 }))
-vi.mock('../hooks/useIntradayPnlSeries', () => ({
-  useIntradayPnlSeries: () => ({ snapshots: [], loading: false, error: null }),
+vi.mock('../hooks/useIntradayPnlSeriesWithFallback', () => ({
+  useIntradayPnlSeriesWithFallback: () => ({ snapshots: [], loading: false, error: null, sessionDate: null }),
+}))
+vi.mock('../hooks/useIntradayVaRTimelineWithFallback', () => ({
+  useIntradayVaRTimelineWithFallback: () => ({ varPoints: [], tradeAnnotations: [], loading: false, error: null, sessionDate: null }),
 }))
 
 import { PnlTab } from './PnlTab'

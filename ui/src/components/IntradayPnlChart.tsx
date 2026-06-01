@@ -7,6 +7,13 @@ import { clampTooltipLeft } from '../utils/clampTooltipLeft'
 interface IntradayPnlChartProps {
   snapshots: IntradayPnlSnapshotDto[]
   tradeAnnotations?: TradeAnnotationDto[]
+  /**
+   * When provided, the chart is displaying data from a past session rather
+   * than today. The value is an ISO date string (e.g. "2026-05-30"). The
+   * chart renders a subtle accessible indicator so the user knows the data
+   * is not from the current trading day.
+   */
+  sessionDate?: string | null
 }
 
 const PADDING = { top: 28, right: 16, bottom: 28, left: 56 }
@@ -23,7 +30,7 @@ function buildPath(points: Array<{ x: number; y: number } | null>): string {
   return path
 }
 
-export function IntradayPnlChart({ snapshots, tradeAnnotations = [] }: IntradayPnlChartProps) {
+export function IntradayPnlChart({ snapshots, tradeAnnotations = [], sessionDate }: IntradayPnlChartProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
   const [containerWidth, setContainerWidth] = useState(DEFAULT_WIDTH)
@@ -226,6 +233,16 @@ export function IntradayPnlChart({ snapshots, tradeAnnotations = [] }: IntradayP
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-3">
           <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Intraday P&L</h3>
+          {sessionDate && (
+            <span
+              data-testid="intraday-pnl-last-session"
+              role="status"
+              aria-label={`Showing last available session: ${sessionDate}`}
+              className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded px-1.5 py-0.5"
+            >
+              Last session: {sessionDate}
+            </span>
+          )}
           <div className="flex items-center gap-2 text-xs text-slate-500">
             <span className="flex items-center gap-1">
               <span className="inline-block w-3 h-0.5 bg-indigo-500 rounded" />

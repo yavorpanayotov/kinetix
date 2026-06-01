@@ -12,7 +12,7 @@ vi.mock('../hooks/useSodBaseline')
 vi.mock('../hooks/usePnlAttribution')
 vi.mock('../hooks/useHierarchyNodeRisk')
 vi.mock('../hooks/useWorkspace')
-vi.mock('../hooks/useIntradayVaRTimeline')
+vi.mock('../hooks/useIntradayVaRTimelineWithFallback')
 
 import { RiskTab } from './RiskTab'
 import { useVaR } from '../hooks/useVaR'
@@ -24,7 +24,7 @@ import { useSodBaseline } from '../hooks/useSodBaseline'
 import { usePnlAttribution } from '../hooks/usePnlAttribution'
 import { useHierarchyNodeRisk } from '../hooks/useHierarchyNodeRisk'
 import { useWorkspace, DEFAULT_PREFERENCES } from '../hooks/useWorkspace'
-import { useIntradayVaRTimeline } from '../hooks/useIntradayVaRTimeline'
+import { useIntradayVaRTimelineWithFallback } from '../hooks/useIntradayVaRTimelineWithFallback'
 
 const mockUseVaR = vi.mocked(useVaR)
 const mockUseJobHistory = vi.mocked(useJobHistory)
@@ -35,7 +35,7 @@ const mockUseSodBaseline = vi.mocked(useSodBaseline)
 const mockUsePnlAttribution = vi.mocked(usePnlAttribution)
 const mockUseHierarchyNodeRisk = vi.mocked(useHierarchyNodeRisk)
 const mockUseWorkspace = vi.mocked(useWorkspace)
-const mockUseIntradayVaRTimeline = vi.mocked(useIntradayVaRTimeline)
+const mockUseIntradayVaRTimeline = vi.mocked(useIntradayVaRTimelineWithFallback)
 
 const stressResult: StressTestResultDto = {
   scenarioName: 'MARKET_CRASH',
@@ -159,6 +159,7 @@ describe('RiskTab', () => {
       tradeAnnotations: [],
       loading: false,
       error: null,
+      sessionDate: null,
     })
   })
 
@@ -797,6 +798,7 @@ describe('RiskTab', () => {
         tradeAnnotations: [],
         loading: false,
         error: null,
+        sessionDate: null,
       })
 
       render(<RiskTab bookId="book-1" {...defaultStressProps} />)

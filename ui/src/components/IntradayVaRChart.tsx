@@ -9,6 +9,13 @@ import { useBrushSelection } from '../hooks/useBrushSelection'
 interface IntradayVaRChartProps {
   varPoints: IntradayVaRPointDto[]
   tradeAnnotations: TradeAnnotationDto[]
+  /**
+   * When provided, the chart is displaying data from a past session rather
+   * than today. The value is an ISO date string (e.g. "2026-05-30"). The
+   * chart renders a subtle accessible indicator so the user knows the data
+   * is not from the current trading day.
+   */
+  sessionDate?: string | null
 }
 
 const PADDING = { top: 32, right: 60, bottom: 28, left: 56 }
@@ -45,7 +52,7 @@ function computeNiceGridLines(min: number, max: number, count: number): number[]
   return lines
 }
 
-export function IntradayVaRChart({ varPoints, tradeAnnotations }: IntradayVaRChartProps) {
+export function IntradayVaRChart({ varPoints, tradeAnnotations, sessionDate }: IntradayVaRChartProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
   const [containerWidth, setContainerWidth] = useState(DEFAULT_WIDTH)
@@ -310,6 +317,16 @@ export function IntradayVaRChart({ varPoints, tradeAnnotations }: IntradayVaRCha
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-3">
           <h3 className="text-sm font-semibold text-slate-300">Intraday VaR</h3>
+          {sessionDate && (
+            <span
+              data-testid="intraday-var-last-session"
+              role="status"
+              aria-label={`Showing last available session: ${sessionDate}`}
+              className="text-xs text-amber-400 bg-amber-900/30 border border-amber-700 rounded px-1.5 py-0.5"
+            >
+              Last session: {sessionDate}
+            </span>
+          )}
           <div className="flex items-center gap-2 text-xs text-slate-400">
             <span className="flex items-center gap-1">
               <span className="inline-block w-3 h-0.5 bg-indigo-500 rounded" />

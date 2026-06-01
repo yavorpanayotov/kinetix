@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { test, expect } from '@playwright/test'
+import { test, expect, type Route } from '@playwright/test'
 import {
   mockAllApiRoutes,
   mockIntradayPnlRoutes,
@@ -344,5 +344,101 @@ test.describe('Intraday P&L tab', () => {
 
     // Latest total should be 600.00
     await expect(page.getByTestId('intraday-chart-latest-total')).toContainText('600.00')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Fallback tests: when today has no snapshots, the chart shows the most
+// recent day's data and displays a "Last session" indicator.
+// ---------------------------------------------------------------------------
+
+const PAST_SESSION_DATE = '2026-03-22'
+const PAST_SESSION_SNAPSHOTS = [
+  {
+    snapshotAt: `${PAST_SESSION_DATE}T09:30:00Z`,
+    baseCurrency: 'USD',
+    trigger: 'price_update',
+    totalPnl: '1200.00',
+    realisedPnl: '300.00',
+    unrealisedPnl: '900.00',
+    deltaPnl: '1000.00',
+    gammaPnl: '60.00',
+    vegaPnl: '35.00',
+    thetaPnl: '-12.00',
+    rhoPnl: '6.00',
+    unexplainedPnl: '111.00',
+    highWaterMark: '1400.00',
+  },
+  {
+    snapshotAt: `${PAST_SESSION_DATE}T10:30:00Z`,
+    baseCurrency: 'USD',
+    trigger: 'price_update',
+    totalPnl: '1800.00',
+    realisedPnl: '400.00',
+    unrealisedPnl: '1400.00',
+    deltaPnl: '1600.00',
+    gammaPnl: '75.00',
+    vegaPnl: '40.00',
+    thetaPnl: '-15.00',
+    rhoPnl: '8.00',
+    unexplainedPnl: '91.00',
+    highWaterMark: '1800.00',
+  },
+]
+
+test.describe('Intraday P&L chart — last-session fallback', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockAllApiRoutes(page)
+  })
+
+  test('renders past session data and shows "Last session" indicator when today has no snapshots', async ({
+    page,
+  }) => {
+    // Route the intraday P&L endpoint so:
+    //   - today's window (single-day) returns empty
+    //   - the 7-day lookback window returns the past session's snapshots
+    await page.unroute('**/api/v1/risk/pnl/intraday/**')
+    await page.route('**/api/v1/risk/pnl/intraday/**', (route: Route) => {
+      const url = new URL(route.request().url())
+      const from = url.searchParams.get('from') ?? ''
+      const to = url.searchParams.get('to') ?? ''
+      // A single-day window: from and to share the same date
+      const fromDate = from.slice(0, 10)
+      const toDate = to.slice(0, 10)
+      const isSingleDay = fromDate === toDate
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          bookId: 'port-1',
+          snapshots: isSingleDay ? [] : PAST_SESSION_SNAPSHOTS,
+        }),
+      })
+    })
+
+    await goToPnlTab(page)
+
+    // Chart should render (SVG present) because past session data was loaded.
+    const chart = page.getByTestId('intraday-pnl-chart')
+    await expect(chart.locator('svg')).toBeVisible({ timeout: 5000 })
+
+    // "Last session" indicator must be visible with the past session date.
+    const indicator = page.getByTestId('intraday-pnl-last-session')
+    await expect(indicator).toBeVisible()
+    await expect(indicator).toContainText(PAST_SESSION_DATE)
+  })
+
+  test('does NOT show "Last session" indicator when today has snapshots', async ({
+    page,
+  }) => {
+    // Today has data → no fallback should trigger.
+    await mockIntradayPnlRoutes(page, 'port-1', TEST_INTRADAY_PNL_SNAPSHOTS)
+
+    await goToPnlTab(page)
+
+    const chart = page.getByTestId('intraday-pnl-chart')
+    await expect(chart.locator('svg')).toBeVisible({ timeout: 5000 })
+
+    await expect(page.getByTestId('intraday-pnl-last-session')).toHaveCount(0)
   })
 })

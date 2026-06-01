@@ -36,7 +36,7 @@ import { RunComparisonContainer } from './RunComparisonContainer'
 import { CorrelationHeatmap } from './CorrelationHeatmap'
 import { HedgeRecommendationPanel } from './HedgeRecommendationPanel'
 import { useHedgeRecommendation } from '../hooks/useHedgeRecommendation'
-import { useIntradayVaRTimeline } from '../hooks/useIntradayVaRTimeline'
+import { useIntradayVaRTimelineWithFallback } from '../hooks/useIntradayVaRTimelineWithFallback'
 import { useKrd } from '../hooks/useKrd'
 import { useTradeHistory } from '../hooks/useTradeHistory'
 import { CounterpartyExposureTile } from './CounterpartyExposureTile'
@@ -143,22 +143,27 @@ export function RiskTab({
   // larger page so the tile reflects the bulk of the book's activity.
   const { trades: cpExposureTrades } = useTradeHistory(bookId, { pageSize: 200 })
 
-  // Intraday VaR: default to today's trading window (07:00 UTC to now)
-  const todayFrom = useMemo(() => {
+  // Intraday VaR: default to today's calendar date. The fallback hook
+  // widens the window if today has no data.
+  const todayDateStr = useMemo(() => {
     const d = new Date()
-    d.setUTCHours(7, 0, 0, 0)
-    return d.toISOString()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
   }, [])
-  const todayTo = useMemo(() => new Date().toISOString(), [])
   // Trade annotations are reused on the dashboard's VaR trend chart (§8.4),
   // so we load the timeline whenever the dashboard or intraday subtab is
   // active. The hook polls server-side; gating to the relevant tabs keeps
   // background work proportional to user attention.
   const intradayActive = subTab === 'intraday' || subTab === 'dashboard'
-  const { varPoints: intradayVarPoints, tradeAnnotations: intradayTradeAnnotations, loading: intradayVarLoading, error: intradayVarError } = useIntradayVaRTimeline(
+  const {
+    varPoints: intradayVarPoints,
+    tradeAnnotations: intradayTradeAnnotations,
+    loading: intradayVarLoading,
+    error: intradayVarError,
+    sessionDate: intradayVarSessionDate,
+  } = useIntradayVaRTimelineWithFallback(
     intradayActive ? bookId : null,
-    todayFrom,
-    todayTo,
+    todayDateStr,
   )
 
   // Plan §8.6 — derive the snapshot value by walking the existing intraday
@@ -551,7 +556,11 @@ export function RiskTab({
           {intradayVarLoading && <Spinner size="sm" />}
           {intradayVarError && <ErrorCard message={intradayVarError} />}
           {!intradayVarLoading && !intradayVarError && (
-            <IntradayVaRChart varPoints={intradayVarPoints} tradeAnnotations={intradayTradeAnnotations} />
+            <IntradayVaRChart
+              varPoints={intradayVarPoints}
+              tradeAnnotations={intradayTradeAnnotations}
+              sessionDate={intradayVarSessionDate}
+            />
           )}
         </div>
       )}

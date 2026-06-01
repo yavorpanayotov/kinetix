@@ -3,8 +3,8 @@ import { TrendingUp, Download } from 'lucide-react'
 import { usePnlAttribution } from '../hooks/usePnlAttribution'
 import { useSodBaseline } from '../hooks/useSodBaseline'
 import { useIntradayPnlStream } from '../hooks/useIntradayPnlStream'
-import { useIntradayPnlSeries } from '../hooks/useIntradayPnlSeries'
-import { useIntradayVaRTimeline } from '../hooks/useIntradayVaRTimeline'
+import { useIntradayPnlSeriesWithFallback } from '../hooks/useIntradayPnlSeriesWithFallback'
+import { useIntradayVaRTimelineWithFallback } from '../hooks/useIntradayVaRTimelineWithFallback'
 import { IntradayPnlChart } from './IntradayPnlChart'
 import { PnlWaterfallChart } from './PnlWaterfallChart'
 import { PnlAttributionTable } from './PnlAttributionTable'
@@ -32,28 +32,29 @@ export function PnlTab({ bookId }: PnlTabProps) {
   const [showJobPicker, setShowJobPicker] = useState(false)
   const [computedData, setComputedData] = useState<PnlAttributionDto | null>(null)
 
-  const { from: intradayFrom, to: intradayTo } = useMemo(() => {
+  const todayDateStr = useMemo(() => {
     const today = new Date()
     const pad = (n: number) => String(n).padStart(2, '0')
-    const dateStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`
-    return {
-      from: `${dateStr}T00:00:00Z`,
-      to: `${dateStr}T23:59:59Z`,
-    }
+    return `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`
   }, [])
 
-  const { snapshots: historicalSnapshots } = useIntradayPnlSeries(bookId, intradayFrom, intradayTo)
+  const {
+    snapshots: historicalSnapshots,
+    sessionDate: pnlSessionDate,
+  } = useIntradayPnlSeriesWithFallback(bookId, todayDateStr)
   const { snapshots: liveSnapshots } = useIntradayPnlStream(bookId)
   // Plan §8.4 — trade markers on the intraday P&L chart. We reuse the
   // intraday VaR timeline as the trade source so a user can answer
   // "why did P&L move at 2:47pm?" inline with the chart.
-  const { tradeAnnotations: intradayTradeAnnotations } = useIntradayVaRTimeline(
+  const { tradeAnnotations: intradayTradeAnnotations } = useIntradayVaRTimelineWithFallback(
     bookId,
-    intradayFrom,
-    intradayTo,
+    todayDateStr,
   )
 
+  // When live (WebSocket) snapshots are available, they take precedence and
+  // the "last session" fallback indicator does not apply.
   const intradaySnapshots = liveSnapshots.length > 0 ? liveSnapshots : historicalSnapshots
+  const effectivePnlSessionDate = liveSnapshots.length > 0 ? null : pnlSessionDate
 
   const data = computedData ?? pnlData
 
@@ -86,7 +87,11 @@ export function PnlTab({ bookId }: PnlTabProps) {
   return (
     <div className="space-y-4">
       <Card header="Intraday P&L" data-testid="intraday-pnl-card">
-        <IntradayPnlChart snapshots={intradaySnapshots} tradeAnnotations={intradayTradeAnnotations} />
+        <IntradayPnlChart
+          snapshots={intradaySnapshots}
+          tradeAnnotations={intradayTradeAnnotations}
+          sessionDate={effectivePnlSessionDate}
+        />
       </Card>
 
       <SodBaselineIndicator

@@ -147,4 +147,28 @@ describe('IntradayPnlChart', () => {
     const markers = container.querySelectorAll('[data-testid="trade-marker"]')
     expect(markers.length).toBe(0)
   })
+
+  it('does not show a last-session indicator when sessionDate is not provided', () => {
+    render(<IntradayPnlChart snapshots={twoSnapshots} />)
+
+    expect(screen.queryByTestId('intraday-pnl-last-session')).not.toBeInTheDocument()
+  })
+
+  it('shows a last-session indicator with the date when sessionDate is provided', () => {
+    render(<IntradayPnlChart snapshots={twoSnapshots} sessionDate="2026-05-30" />)
+
+    const indicator = screen.getByTestId('intraday-pnl-last-session')
+    expect(indicator).toBeInTheDocument()
+    expect(indicator).toHaveTextContent('2026-05-30')
+  })
+
+  it('last-session indicator is accessible via aria-label when sessionDate is provided', () => {
+    render(<IntradayPnlChart snapshots={twoSnapshots} sessionDate="2026-05-30" />)
+
+    const indicator = screen.getByTestId('intraday-pnl-last-session')
+    // Must have role or aria attribute so screen readers announce it
+    expect(
+      indicator.getAttribute('aria-label') || indicator.getAttribute('role'),
+    ).toBeTruthy()
+  })
 })

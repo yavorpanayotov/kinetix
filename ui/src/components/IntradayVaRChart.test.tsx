@@ -83,4 +83,27 @@ describe('IntradayVaRChart', () => {
 
     expect(screen.getByTestId('intraday-var-chart')).toBeInTheDocument()
   })
+
+  it('does not show a last-session indicator when sessionDate is not provided', () => {
+    render(<IntradayVaRChart varPoints={twoPoints} tradeAnnotations={[]} />)
+
+    expect(screen.queryByTestId('intraday-var-last-session')).not.toBeInTheDocument()
+  })
+
+  it('shows a last-session indicator with the date when sessionDate is provided', () => {
+    render(<IntradayVaRChart varPoints={twoPoints} tradeAnnotations={[]} sessionDate="2026-05-30" />)
+
+    const indicator = screen.getByTestId('intraday-var-last-session')
+    expect(indicator).toBeInTheDocument()
+    expect(indicator).toHaveTextContent('2026-05-30')
+  })
+
+  it('last-session indicator is accessible via aria attribute when sessionDate is provided', () => {
+    render(<IntradayVaRChart varPoints={twoPoints} tradeAnnotations={[]} sessionDate="2026-05-30" />)
+
+    const indicator = screen.getByTestId('intraday-var-last-session')
+    expect(
+      indicator.getAttribute('aria-label') || indicator.getAttribute('role'),
+    ).toBeTruthy()
+  })
 })
