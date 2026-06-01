@@ -92,6 +92,7 @@ import com.kinetix.risk.schedule.ScheduledCrossBookVaRCalculator
 import com.kinetix.risk.schedule.ScheduledHedgeExpiryJob
 import com.kinetix.risk.schedule.ScheduledManifestRetentionJob
 import com.kinetix.risk.schedule.ScheduledSodSnapshotJob
+import com.kinetix.risk.schedule.ScheduledPnlAttributionMetricsPublisher
 import com.kinetix.risk.schedule.ScheduledVaRCalculator
 import com.kinetix.risk.service.DefaultRunManifestCapture
 import com.kinetix.risk.service.DependenciesDiscoverer
@@ -864,6 +865,20 @@ fun Application.moduleWithRoutes() {
     launch {
         ScheduledHedgeExpiryJob(
             repository = hedgeRecommendationRepository,
+            lock = distributedLock,
+        ).start()
+    }
+    launch {
+        // Mirror persisted P&L attribution onto Prometheus gauges so the
+        // Grafana "P&L" dashboard resolves (kx-wrvc). Reuses the same book-list
+        // provider as the VaR scheduler.
+        ScheduledPnlAttributionMetricsPublisher(
+            repository = pnlAttributionRepository,
+            metrics = com.kinetix.risk.orchestrator.metrics.PnlAttributionMetrics(meterRegistry),
+            bookIds = { when (val r = positionServiceClient.getDistinctBookIds()) {
+                is com.kinetix.risk.client.ClientResponse.Success -> r.value
+                else -> emptyList()
+            } },
             lock = distributedLock,
         ).start()
     }
