@@ -51,10 +51,13 @@ datasources:
     url: http://loki:3100
     editable: false
     jsonData:
-      # Extract the traceId from structured log lines and link to Tempo.
+      # Logs arrive over OTLP, so the trace id is structured metadata on each
+      # log line (field `trace_id`), not text in the body. Match on that field
+      # and link straight to the trace in Tempo.
       derivedFields:
         - name: TraceID
-          matcherType: regex
-          matcherRegex: '"traceId":"([a-f0-9]+)"'
+          matcherType: label
+          matcherRegex: trace_id
           url: "$${__value.raw}"
+          urlDisplayLabel: "View trace"
           datasourceUid: tempo
