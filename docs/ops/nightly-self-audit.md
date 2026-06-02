@@ -92,13 +92,19 @@ measures; the engineer decides. That division is the whole point.
 
 ## Registration
 
-Register the routine to run nightly (example — adjust the time to taste):
+Register the routine as a **local** cron entry with the idempotent
+installer:
 
 ```bash
-# Via the /schedule skill (local routine), pointing at this runbook:
-/schedule "0 6 * * *" run the nightly self-audit in docs/ops/nightly-self-audit.md
+scripts/self-audit/install-cron.sh install     # add/refresh (06:00 daily)
+scripts/self-audit/install-cron.sh status      # show the current entry
+scripts/self-audit/install-cron.sh uninstall   # remove it
 ```
 
-Confirm it is registered with the scheduler's list command (e.g.
-`crontab -l` or the `/schedule` list view). The routine is local and
-durable; it survives restarts and needs no CI secret.
+Override the time with `SELF_AUDIT_SCHEDULE` and the CLI path with
+`CLAUDE_BIN` if needed. The entry runs Claude Code headlessly against this
+runbook and logs to `docs/ops/.self-audit-cron.log`. Confirm registration
+with `crontab -l` (the entry is tagged `# kinetix-self-audit`). The
+routine is local and durable — it survives restarts and needs no CI
+secret. Code fixes are still filed as issues for the engineer, never
+auto-merged.
