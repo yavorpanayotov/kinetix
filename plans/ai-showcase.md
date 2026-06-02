@@ -79,9 +79,9 @@ Flagship: counterparty-risk (`specs/counterparty-risk.allium`, commits `kx-qfqn`
 
 Draws on `docs/HOW_IT_WAS_BUILT.md`, `docs/evolution-report.md`, `docs/ai-impact-report.md`, and the three talk outlines. Reframes the README front door away from "Built with AI" toward engineer-directed delivery.
 
-- [ ] Regenerate `docs/ai-impact-report.md` fresh (living metrics, not a one-shot) via the `/ai-impact-report` skill, "all time".
+- [x] Regenerate `docs/ai-impact-report.md` fresh (living metrics, not a one-shot) via the `/ai-impact-report` skill, "all time".
   Acceptance: `test -f docs/ai-impact-report.md && grep -qiE "prompt|commit|spec" docs/ai-impact-report.md`
-- [ ] Write `docs/THE_JOURNEY.md`: engineer-as-protagonist narrative — who Yavor is, the method he designed (specs-as-source-of-truth, agent personas he directed, the self-auditing loop), the timeline with metrics, and a prominent "what stayed human" section. Link the case studies, the eval scorecard, the self-audit trend, and the talks.
+- [x] Write `docs/THE_JOURNEY.md`: engineer-as-protagonist narrative — who Yavor is, the method he designed (specs-as-source-of-truth, agent personas he directed, the self-auditing loop), the timeline with metrics, and a prominent "what stayed human" section. Link the case studies, the eval scorecard, the self-audit trend, and the talks.
   Acceptance: `grep -qi "stayed human\|judgement\|judgment\|directed" docs/THE_JOURNEY.md && grep -q "case-studies" docs/THE_JOURNEY.md`
 - [ ] README front-door section "How I Built Kinetix" (reframed, engineer-first) linking `THE_JOURNEY.md`, `HOW_IT_WAS_BUILT.md`, the case-study hub, the governance scorecard, and the talks; update the README documentation map.
   Acceptance: `grep -qi "How I Built Kinetix" README.md && grep -q "THE_JOURNEY.md" README.md && grep -q "case-studies" README.md`

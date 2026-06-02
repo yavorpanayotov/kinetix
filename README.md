@@ -14,6 +14,7 @@ On top of that risk surface sits the **Kinetix Copilot** — citation-enforced, 
 - [Services in depth](#services-in-depth) — what each service owns and the interesting parts.
 - [Architectural decision records](docs/adr/README.md) — every architectural choice, indexed.
 - [Allium specifications](specs/README.md) — the behavioural specs that drive code and tests.
+- [How I built Kinetix](#how-i-built-kinetix) — the engineer-directed, AI-assisted process behind it.
 
 ## At a glance
 
@@ -31,6 +32,33 @@ On top of that risk surface sits the **Kinetix Copilot** — citation-enforced, 
 | **Tests** | 915 — 561 Kotlin (Kotest) · 79 Python (pytest) · 191 Vitest · 84 Playwright |
 | **Observability** | Prometheus, Grafana, Loki, Tempo, OpenTelemetry |
 | **Quality gates** | Coverage ratchet, mutation testing (Stryker, mutmut), property-based tests (Hypothesis), Gatling load tests |
+
+## How I built Kinetix
+
+Kinetix was built by **one senior engineer directing AI** — and the emphasis
+is on *directing*. The headline is not "AI wrote a risk platform"; it is that
+a senior engineer used AI to deliver at a scale and quality that demonstrates
+the skill, not replaces it. The AI supplied breadth and speed; the
+architecture, the quantitative correctness, the regulatory judgement, and the
+acceptance criteria stayed human throughout.
+
+The process is the real artefact:
+
+- **[The Journey](docs/THE_JOURNEY.md)** — the narrative: what the numbers
+  are and are not, the method, and where the judgement lived.
+- **[How it was built](docs/HOW_IT_WAS_BUILT.md)** — the mechanics:
+  specs-as-source-of-truth, the `/distill`→`/weed`→`/propagate` loop, agent
+  personas, autonomous plan execution.
+- **[Case studies](docs/case-studies/README.md)** — the loop applied feature
+  by feature (counterparty risk, limits, audit), each with an explicit
+  "what stayed human" account.
+- **[Copilot eval scorecard](docs/governance/copilot-eval-scorecard.md)** —
+  the AI feature is itself governed and measured (citation accuracy,
+  hallucination, policy) the way everything else is tested.
+- **[Self-audit trend](docs/ops/self-audit-trend.md)** — the codebase audits
+  its own spec-code alignment nightly.
+- **[AI impact report](docs/ai-impact-report.md)** — the metrics, defensibly
+  sourced — and the [talks](docs/talks/) ("Specs Are the New Source Code").
 
 ## Architecture
 
@@ -578,6 +606,14 @@ Recommended reading order for new contributors:
 4. **[`specs/`](specs/)** — Allium behavioural contracts. Start with `core.allium`, `trading.allium`, `risk.allium`.
 5. **[`docs/runbooks/`](docs/runbooks/)** — operational procedures (zero-downtime deploy, etc.).
 6. **`*/README.md`** — service-level READMEs where they exist (`ui/README.md`, `risk-engine/README.md`).
+
+How the platform was built (engineer-directed, AI-assisted):
+
+- **[`docs/THE_JOURNEY.md`](docs/THE_JOURNEY.md)** — the build narrative, engineer as protagonist.
+- **[`docs/HOW_IT_WAS_BUILT.md`](docs/HOW_IT_WAS_BUILT.md)** — the spec-driven loop and agent system.
+- **[`docs/case-studies/`](docs/case-studies/)** — the loop applied feature by feature.
+- **[`docs/governance/copilot-eval-scorecard.md`](docs/governance/copilot-eval-scorecard.md)** — how the AI feature is governed and measured.
+- **[`docs/ops/nightly-self-audit.md`](docs/ops/nightly-self-audit.md)** — the self-auditing routine and its [trend](docs/ops/self-audit-trend.md).
 
 For contributors:
 
