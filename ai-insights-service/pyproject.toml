@@ -28,6 +28,8 @@ markers = [
     "unit: Pure logic tests — no I/O, no external services",
     "integration: Tests that exercise external services or transports",
     "performance: Load and latency tests",
+    "eval: Offline copilot eval suite — golden Q&A through the real guards, deterministic, no API key",
+    "eval_live: Live copilot eval — real Claude via the Agent SDK, skips without ANTHROPIC_API_KEY",
 ]
 
 [build-system]
