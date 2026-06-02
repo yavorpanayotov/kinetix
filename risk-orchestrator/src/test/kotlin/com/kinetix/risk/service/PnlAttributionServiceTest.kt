@@ -185,6 +185,33 @@ class PnlAttributionServiceTest : FunSpec({
             result.totalPnl.setScale(10, RoundingMode.HALF_UP)
     }
 
+    test("gamma input is treated as a per-unit pricing gamma against absolute priceChange^2") {
+        // kx-gla6 contract: gammaPnl = 0.5 * gamma * priceChange^2 where priceChange is an
+        // ABSOLUTE dollar move. The gamma supplied here MUST be a per-unit pricing gamma — never
+        // a VaR-bump sensitivity (per fractional bump). With a per-unit gamma of 0.1 and a $5
+        // absolute move, gammaPnl is a sensible 0.5*0.1*25 = 1.25, not a billions-scale number.
+        val input = PositionPnlInput(
+            instrumentId = InstrumentId("AAPL"),
+            assetClass = AssetClass.EQUITY,
+            totalPnl = bd("500.0"),
+            delta = bd("0.85"),
+            gamma = bd("0.1"),
+            vega = BigDecimal.ZERO,
+            theta = BigDecimal.ZERO,
+            rho = BigDecimal.ZERO,
+            priceChange = bd("5.0"),
+            volChange = BigDecimal.ZERO,
+            rateChange = BigDecimal.ZERO,
+        )
+
+        val result = service.attribute(BookId("port-1"), listOf(input))
+        val pos = result.positionAttributions[0]
+
+        // 0.5 * 0.1 * 5^2 = 1.25 — bounded and sensible for a per-unit pricing gamma.
+        pos.gammaPnl.setScale(6, RoundingMode.HALF_UP) shouldBe bd("1.250000")
+        (pos.gammaPnl.abs() <= pos.totalPnl.abs()) shouldBe true
+    }
+
     test("with zero greeks all P&L goes to unexplained") {
         val input = PositionPnlInput(
             instrumentId = InstrumentId("SPY"),

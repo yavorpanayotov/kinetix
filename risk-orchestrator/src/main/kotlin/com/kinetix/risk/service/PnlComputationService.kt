@@ -75,7 +75,13 @@ class PnlComputationService(
                 assetClass = snapshot.assetClass,
                 totalPnl = totalPnl,
                 delta = greekOrFallback(pricingGreek?.delta, snapshot.delta),
-                gamma = greekOrFallback(pricingGreek?.gamma, snapshot.gamma),
+                // kx-gla6: gamma drives the second-order Taylor term 0.5 * gamma * priceChange^2,
+                // where priceChange is an ABSOLUTE dollar move. The DailyRiskSnapshot.gamma is a
+                // VaR-bump sensitivity (per fractional bump, ~ -1e9), not a per-unit pricing gamma —
+                // substituting it produces billions-scale artefacts mirrored by unexplainedPnl.
+                // Only a true closed-form pricing gamma is valid here; otherwise fall back to 0 so
+                // unexplained absorbs convexity honestly rather than fabricating a gamma term.
+                gamma = pricingGammaOrZero(pricingGreek?.gamma),
                 vega = greekOrFallback(pricingGreek?.vega, snapshot.vega),
                 theta = greekOrFallback(pricingGreek?.theta, snapshot.theta),
                 rho = greekOrFallback(pricingGreek?.rho, snapshot.rho),
@@ -118,6 +124,18 @@ class PnlComputationService(
     /** Returns pricing Greek value when available; falls back to VaR Greek value; returns zero if neither exists. */
     private fun greekOrFallback(pricingGreek: Double?, varGreek: Double?): BigDecimal =
         BigDecimal.valueOf(pricingGreek ?: varGreek ?: 0.0)
+
+    /**
+     * Returns the closed-form pricing gamma when available, otherwise zero.
+     *
+     * Unlike [greekOrFallback], this never falls back to the VaR-bump [DailyRiskSnapshot.gamma]:
+     * that value is a VaR sensitivity per fractional bump (~ -1e9), and the Taylor gamma term
+     * multiplies it by an absolute dollar priceChange^2, yielding a billions-scale artefact (kx-gla6).
+     * A per-unit pricing gamma is the only valid input here; when absent, gamma_pnl must be 0 so the
+     * unexplained residual honestly absorbs the true convexity rather than fabricating a gamma term.
+     */
+    private fun pricingGammaOrZero(pricingGamma: Double?): BigDecimal =
+        BigDecimal.valueOf(pricingGamma ?: 0.0)
 
     private suspend fun fetchCurrentVols(instrumentIds: List<InstrumentId>): Map<InstrumentId, Double> {
         val client = volatilityServiceClient ?: return emptyMap()
