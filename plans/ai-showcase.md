@@ -38,13 +38,13 @@ Offline suite lives in `ai-insights-service/tests/eval/`; reuses real guards: `s
 
 - [x] Register `eval` and `eval_live` pytest markers in `ai-insights-service/pyproject.toml` (the project uses `--strict-markers`).
   Acceptance: `cd ai-insights-service && uv run pytest --markers | grep -E "eval|eval_live"`
-- [ ] Build the golden Q&A dataset at `ai-insights-service/tests/eval/golden/` — JSON cases: prompt, scripted model narrative (incl. adversarial: uncited number, banned phrase, hallucinated ticker, prompt-injection), known injected backend facts, and expected verdict (`ok` / `policy_blocked` / `citation_blocked`). Add a loader + schema-validation test.
+- [x] Build the golden Q&A dataset at `ai-insights-service/tests/eval/golden/` — JSON cases: prompt, scripted model narrative (incl. adversarial: uncited number, banned phrase, hallucinated ticker, prompt-injection), known injected backend facts, and expected verdict (`ok` / `policy_blocked` / `citation_blocked`). Add a loader + schema-validation test.
   Acceptance: `cd ai-insights-service && uv run pytest tests/eval/test_golden_dataset.py`
-- [ ] Offline eval suite (`@pytest.mark.eval`): drive each golden case through sanitiser + `check_narrative` + `find_uncited_tokens`/`find_uncited_symbols`, assert the verdict matches expected, and accumulate a scorecard (citation accuracy, banned-phrase catch-rate, refusal correctness, precision/recall of the guards).
+- [x] Offline eval suite (`@pytest.mark.eval`): drive each golden case through sanitiser + `check_narrative` + `find_uncited_tokens`/`find_uncited_symbols`, assert the verdict matches expected, and accumulate a scorecard (citation accuracy, banned-phrase catch-rate, refusal correctness, precision/recall of the guards).
   Acceptance: `cd ai-insights-service && uv run pytest -m eval`
-- [ ] Governance scorecard reporter: a script that runs the offline suite and emits `docs/governance/copilot-eval-scorecard.md` (metrics table + per-category pass/fail), framed against SR 11-7 model-governance language.
+- [x] Governance scorecard reporter: a script that runs the offline suite and emits `docs/governance/copilot-eval-scorecard.md` (metrics table + per-category pass/fail), framed against SR 11-7 model-governance language.
   Acceptance: `cd ai-insights-service && uv run python -m kinetix_insights.eval.scorecard --out ../docs/governance/copilot-eval-scorecard.md && test -f ../docs/governance/copilot-eval-scorecard.md`
-- [ ] Live LLM-as-judge harness (`@pytest.mark.eval_live`): instantiate `ClaudeAgentCopilotChatClient` with `FakeKinetixHttpClient` injecting known data, run the golden prompts against real Claude, and judge citation accuracy / hallucination / refusal correctness. Must `pytest.skip` cleanly when `ANTHROPIC_API_KEY` is unset.
+- [x] Live LLM-as-judge harness (`@pytest.mark.eval_live`): instantiate `ClaudeAgentCopilotChatClient` with `FakeKinetixHttpClient` injecting known data, run the golden prompts against real Claude, and judge citation accuracy / hallucination / refusal correctness. Must `pytest.skip` cleanly when `ANTHROPIC_API_KEY` is unset.
   Acceptance: `cd ai-insights-service && uv run pytest -m eval_live` (passes by skipping without a key; runs for real when the key is present)
 
 ## Workstream B — Autonomous agentic ops (local nightly self-audit)
