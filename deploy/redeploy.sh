@@ -91,6 +91,33 @@ elif [ "${up_rc:-0}" -ne 0 ]; then
   echo "WARNING: 'docker compose up --wait' reported errors (rc=${up_rc}); review 'docker compose ps'." >&2
 fi
 
+# ── Optional: reset + reseed demo data (opt-in) ─────────────────────────────
+# A code change can alter how seed data *should* look (e.g. the instrument
+# taxonomy fix that retyped Treasuries), but `down` keeps the Postgres volumes,
+# so the running data stays stale-relative-to-code until the nightly cron
+# (deploy/cron/kinetix-demo-reset.sh, 02:00) fires. Set DEMO_RESET_ON_DEPLOY=true
+# to wipe + reseed as part of this deploy. Off by default so local dev keeps its
+# working data across redeploys; turn it on for the demo cluster.
+if [ "${DEMO_RESET_ON_DEPLOY:-false}" = "true" ]; then
+  echo "==> DEMO_RESET_ON_DEPLOY=true — resetting + reseeding demo data..."
+  reset_url="${GATEWAY_URL:-http://localhost:8080}"
+  # `up --wait` already gates on the gateway healthcheck, but poll /health once
+  # more so a slow-to-settle gateway doesn't make the reset fan-out fail.
+  ready=
+  for _ in $(seq 1 30); do
+    if curl -sf -o /dev/null "${reset_url}/health"; then ready=1; break; fi
+    sleep 2
+  done
+  if [ -z "$ready" ]; then
+    echo "WARNING: gateway ${reset_url}/health not ready after ~60s; skipping demo reset." >&2
+  else
+    GATEWAY_URL="$reset_url" \
+    DEMO_ADMIN_KEY="${DEMO_ADMIN_KEY:-kinetix-demo-admin-dev}" \
+      "$ROOT_DIR/deploy/cron/kinetix-demo-reset.sh" \
+      || echo "WARNING: demo reset failed; see output above. Stack is up regardless." >&2
+  fi
+fi
+
 # ── Summary ─────────────────────────────────────────────────────────────────
 echo ""
 echo "=============================================="
