@@ -34,49 +34,82 @@ On top of that risk surface sits the **Kinetix Copilot** — citation-enforced, 
 
 ## Architecture
 
+```mermaid
+graph TB
+    subgraph client["Client zone"]
+        ui["UI<br/>React 19 + TypeScript + Vite"]
+    end
+
+    subgraph edge["Edge / trust boundary"]
+        gateway["Gateway<br/>Kotlin/Ktor — JWT, rate-limit, WS fan-out, SSE proxy"]
+        keycloak["Keycloak<br/>OIDC / RBAC"]
+    end
+
+    subgraph core["Core services — Kotlin/Ktor"]
+        position["Position Service<br/>trades, P&amp;L, limits"]
+        orchestrator["Risk Orchestrator<br/>5-phase VaR pipeline"]
+        regulatory["Regulatory Service<br/>governance, backtests, FRTB"]
+        notification["Notification Service<br/>WebSocket push"]
+        audit["Audit Service<br/>hash-chained trail"]
+        fixgw["FIX Gateway<br/>FIX 4.4 sessions"]
+    end
+
+    subgraph marketdata["Market-data services — Kotlin/Ktor"]
+        price["Price Service"]
+        rates["Rates Service"]
+        vol["Volatility Service"]
+        corr["Correlation Service"]
+        refdata["Reference Data Service"]
+    end
+
+    subgraph aiz["AI zone — Python"]
+        aiinsights["AI Insights Service<br/>FastAPI + Claude SDK + in-proc MCP"]
+        riskengine["Risk Engine<br/>Python/gRPC — NumPy/SciPy/PyTorch"]
+    end
+
+    subgraph infra["Infrastructure"]
+        postgres["PostgreSQL / TimescaleDB"]
+        redis["Redis"]
+        kafka["Apache Kafka"]
+    end
+
+    ui -->|"REST / WebSocket"| gateway
+    gateway -->|"OIDC"| keycloak
+    gateway -->|"HTTP"| position
+    gateway -->|"HTTP"| orchestrator
+    gateway -->|"HTTP / SSE / WS"| aiinsights
+    gateway -->|"HTTP"| regulatory
+
+    position -->|"Kafka"| kafka
+    fixgw -->|"Kafka"| kafka
+    price --> kafka
+    rates --> kafka
+    vol --> kafka
+    corr --> kafka
+
+    orchestrator -->|"HTTP point-in-time"| price
+    orchestrator -->|"HTTP"| rates
+    orchestrator -->|"HTTP"| vol
+    orchestrator -->|"HTTP"| corr
+    orchestrator -->|"HTTP"| refdata
+    orchestrator -->|"HTTP"| position
+    orchestrator -->|"gRPC Discover + Valuate"| riskengine
+    orchestrator -->|"Kafka risk.results"| kafka
+
+    kafka --> notification
+    kafka --> audit
+    kafka --> aiinsights
+    notification -->|"WS push"| gateway
+
+    aiinsights -->|"MCP tool HTTP (X-User-Id)"| position
+    aiinsights -->|"MCP tool HTTP"| orchestrator
+
+    position --> postgres
+    audit --> postgres
+    position --> redis
 ```
-                                +-------------+
-                                |     UI      |  React 19 + TypeScript
-                                +------+------+
-                                       | REST / WebSocket
-                                +------+------+
-                                |   Gateway   |  Keycloak JWT, rate limit, WS fan-out
-                                +------+------+
-                                       |
-        +-------------+-------------+---+------------+-------------+--------------+--------------+
-        |             |             |                |             |              |              |
-   +----+-----+  +----+-----+  +---+--------+  +-----+------+  +---+------+  +----+-----+  +----+-----------+
-   | Position |  |  Price   |  |    Risk    |  |   Rates    |  |Reference |  |   Fix    |  | AI Insights    |
-   | Service  |  | Service  |  |Orchestrator|  | Volatility |  |   Data   |  | Gateway  |  | (FastAPI +     |
-   +----+-----+  +----+-----+  +----+--+----+  | Correlation|  +----+-----+  +----+-----+  | Claude Agent   |
-        |             |             |  |       +------------+       |             |        | SDK + MCP)     |
-        |        +----+----+        |  |  gRPC                       |        FIX 4.4      +-------+--------+
-        |        |  Redis  |        |  +------+                      |   (venue / prime broker)    |
-        |        +---------+        |         |                      |                             |
-        |                           |    +----+------+               |              host ~/.claude credential
-        |                           |    |   Risk    |  Python       |
-        |                           |    |  Engine   |  NumPy/SciPy  |
-        |                           |    +-----------+  PyTorch      |
-        |                           |                                |
-        +--------+------------------+----------------+---------------+
-                 |                                   |
-        +--------+-----------------------------------+---------------+
-        |                       Apache Kafka                         |
-        |  trades.lifecycle · execution.reports · price.updates      |
-        |  risk.results · risk.cross-book-results · risk.pnl.intraday|
-        |  risk.regime.changes · risk.anomalies · risk.official-eod  |
-        |  limits.breaches · governance.audit · kinetix.audit.chain  |
-        +----+------------------+-----------------+------------------+
-             |                  |                 |
-       +-----+-----+    +-------+------+    +-----+--------+
-       |   Audit   |    |  Regulatory  |    | Notification |
-       |  Service  |    |   Service    |    |   Service    |
-       +-----+-----+    +--------------+    +--------------+
-             |
-         PostgreSQL / TimescaleDB
-         (hash-chained, immutable,
-          7-year retention)
-```
+
+> Rendered from [`docs/diagrams/c4-container.md`](docs/diagrams/c4-container.md). The full diagram set — context, Kafka topology, risk-flow sequence, data flows, AI copilot, auth, deployment — lives under [`docs/diagrams/`](docs/diagrams/README.md).
 
 Each Kotlin service owns its own PostgreSQL schema (ADR-0011), communicates with peers via Kafka (ADR-0004) or HTTP through the gateway (ADR-0012), and crosses the language boundary to the Python risk engine via a unified valuation gRPC contract (ADR-0024, ADR-0029). The risk engine is a **pure calculator**: the orchestrator owns all market-data discovery and fetching, so risk runs are deterministic, replayable, and free of hidden I/O (ADR-0029, ADR-0018).
 

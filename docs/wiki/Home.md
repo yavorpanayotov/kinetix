@@ -9,6 +9,7 @@ This wiki is a living reference for engineers, quants, risk managers, and operat
 ## Wiki contents
 
 - **[Architecture](Architecture)** — service topology, data flows, communication patterns
+- **[Kafka Topology](Kafka-Topology)** — producers → topics → consumers, DLQs, partition keys
 - **[Services](Services)** — per-service responsibilities, ownership boundaries, tech inside each box
 - **[Risk Methodology](Risk-Methodology)** — quant methods deep dive: VaR/ES, Greeks, factor model, stress, regime detection
 - **[FRTB Capital](FRTB-Capital)** — Standardised Approach: SBM, DRC, RRAO; bucket correlations; reporting

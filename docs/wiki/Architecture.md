@@ -4,42 +4,79 @@ Kinetix is a polyglot microservices monorepo. The system is split into 12 Kotlin
 
 ## Topology
 
-```
-                                +-------------+
-                                |     UI      |  React 19 + TypeScript
-                                +------+------+
-                                       | REST / WebSocket
-                                +------+------+
-                                |   Gateway   |  Keycloak JWT, rate limit, WS fan-out
-                                +------+------+
-                                       |
-        +-------------+-------------+---+------------+-------------+--------------+
-        |             |             |                |             |              |
-   +----+-----+  +----+-----+  +---+--------+  +-----+------+  +---+------+  +----+-----+
-   | Position |  |  Price   |  |    Risk    |  |   Rates    |  |Reference |  |   Fix    |
-   | Service  |  | Service  |  |Orchestrator|  | Volatility |  |   Data   |  | Gateway  |
-   +----+-----+  +----+-----+  +----+--+----+  | Correlation|  +----+-----+  +----+-----+
-        |             |             |  |       +------------+       |             |
-        |        +----+----+        |  |  gRPC                       |        FIX 4.4
-        |        |  Redis  |        |  +------+                      |   (venue / prime broker)
-        |        +---------+        |         |                      |
-        |                           |    +----+------+               |
-        |                           |    |   Risk    |  Python       |
-        |                           |    |  Engine   |  NumPy/SciPy  |
-        |                           |    +-----------+  PyTorch      |
-        |                           |                                |
-        +--------+------------------+----------------+---------------+
-                 |                                   |
-        +--------+-----------------------------------+---------------+
-        |                       Apache Kafka                         |
-        +----+------------------+-----------------+------------------+
-             |                  |                 |
-       +-----+-----+    +-------+------+    +-----+--------+
-       |   Audit   |    |  Regulatory  |    | Notification |
-       |  Service  |    |   Service    |    |   Service    |
-       +-----+-----+    +--------------+    +--------------+
-             |
-         PostgreSQL / TimescaleDB
+```mermaid
+graph TB
+    subgraph client["Client zone"]
+        ui["UI<br/>React 19 + TypeScript + Vite"]
+    end
+
+    subgraph edge["Edge / trust boundary"]
+        gateway["Gateway<br/>Kotlin/Ktor — JWT, rate-limit, WS fan-out, SSE proxy"]
+        keycloak["Keycloak<br/>OIDC / RBAC"]
+    end
+
+    subgraph core["Core services — Kotlin/Ktor"]
+        position["Position Service<br/>trades, P&amp;L, limits"]
+        orchestrator["Risk Orchestrator<br/>5-phase VaR pipeline"]
+        regulatory["Regulatory Service<br/>governance, backtests, FRTB"]
+        notification["Notification Service<br/>WebSocket push"]
+        audit["Audit Service<br/>hash-chained trail"]
+        fixgw["FIX Gateway<br/>FIX 4.4 sessions"]
+    end
+
+    subgraph marketdata["Market-data services — Kotlin/Ktor"]
+        price["Price Service"]
+        rates["Rates Service"]
+        vol["Volatility Service"]
+        corr["Correlation Service"]
+        refdata["Reference Data Service"]
+    end
+
+    subgraph aiz["AI zone — Python"]
+        aiinsights["AI Insights Service<br/>FastAPI + Claude SDK + in-proc MCP"]
+        riskengine["Risk Engine<br/>Python/gRPC — NumPy/SciPy/PyTorch"]
+    end
+
+    subgraph infra["Infrastructure"]
+        postgres["PostgreSQL / TimescaleDB"]
+        redis["Redis"]
+        kafka["Apache Kafka"]
+    end
+
+    ui -->|"REST / WebSocket"| gateway
+    gateway -->|"OIDC"| keycloak
+    gateway -->|"HTTP"| position
+    gateway -->|"HTTP"| orchestrator
+    gateway -->|"HTTP / SSE / WS"| aiinsights
+    gateway -->|"HTTP"| regulatory
+
+    position -->|"Kafka"| kafka
+    fixgw -->|"Kafka"| kafka
+    price --> kafka
+    rates --> kafka
+    vol --> kafka
+    corr --> kafka
+
+    orchestrator -->|"HTTP point-in-time"| price
+    orchestrator -->|"HTTP"| rates
+    orchestrator -->|"HTTP"| vol
+    orchestrator -->|"HTTP"| corr
+    orchestrator -->|"HTTP"| refdata
+    orchestrator -->|"HTTP"| position
+    orchestrator -->|"gRPC Discover + Valuate"| riskengine
+    orchestrator -->|"Kafka risk.results"| kafka
+
+    kafka --> notification
+    kafka --> audit
+    kafka --> aiinsights
+    notification -->|"WS push"| gateway
+
+    aiinsights -->|"MCP tool HTTP (X-User-Id)"| position
+    aiinsights -->|"MCP tool HTTP"| orchestrator
+
+    position --> postgres
+    audit --> postgres
+    position --> redis
 ```
 
 ## Communication patterns
@@ -85,27 +122,34 @@ Every topic has a `.dlq` counterpart. Consumers wrap in a `RetryableConsumer` ([
 
 ### Trade booking → risk update
 
+```mermaid
+flowchart TD
+    ui["UI — Place trade"]
+    gw["Gateway — Keycloak JWT"]
+    pos["Position Service<br/>pre-trade limit checks (6 levels)<br/>persist trade"]
+    k_trades(["Kafka — trades.lifecycle"])
+    orch["Risk Orchestrator<br/>5-phase pipeline"]
+    re["Risk Engine — Valuate (gRPC)"]
+    k_results(["Kafka — risk.results / pnl.intraday / limits.breaches"])
+    k_audit(["Kafka — risk.audit"])
+    notif["Notification Service"]
+    audit["Audit Service — SHA-256 chain"]
+    wsui["UI — Positions / P&amp;L / Risk / Alerts"]
+
+    ui -->|"REST POST /trades"| gw
+    gw -->|"HTTP"| pos
+    pos -->|"publish"| k_trades
+    k_trades --> orch
+    orch -->|"gRPC"| re
+    re --> orch
+    orch --> k_results
+    orch --> k_audit
+    k_results --> notif
+    k_audit --> audit
+    notif -->|"WebSocket via gateway"| wsui
 ```
-User clicks Place in UI
-   ↓ REST POST /trades
-Gateway (Keycloak JWT)
-   ↓ HTTP
-Position Service
-   • Pre-trade limit checks across 6 levels (ADR-0023)
-   • Trade persisted
-   ↓ Kafka trades.lifecycle
-Risk Orchestrator
-   • 5-phase pipeline (ADR-0021): positions → discover → fetch → valuate → publish
-   ↓ gRPC Valuate (ADR-0024, ADR-0029)
-Risk Engine (Python)
-   • Pure-function calculator: positions + market data + seed → results
-   ↑ gRPC response
-Risk Orchestrator
-   ↓ Kafka risk.results, risk.pnl.intraday, limits.breaches
-Notification Service + Gateway WebSocket
-   ↓ WebSocket
-UI updates Positions, P&L, Risk, Alerts tabs
-```
+
+> Rendered version with storage nodes: [`docs/diagrams/data-flow-trade.md`](https://github.com/panayotovk/kinetix/blob/main/docs/diagrams/data-flow-trade.md). For the phase-by-phase gRPC sequence (discovery + valuation), see [`docs/diagrams/risk-flow.md`](https://github.com/panayotovk/kinetix/blob/main/docs/diagrams/risk-flow.md).
 
 The same path ships an audit event via `risk.audit` and `trades.lifecycle.audit` to audit-service, which chains it into the SHA-256 audit log.
 
