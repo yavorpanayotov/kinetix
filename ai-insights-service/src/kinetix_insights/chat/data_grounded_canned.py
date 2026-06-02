@@ -277,6 +277,12 @@ class DataGroundedCannedChatClient:
         if components:
             top_key = max(components, key=lambda key: abs(components[key]))
             top_value = float(components[top_key])
+            if top_key not in _PNL_COMPONENT_LABELS:
+                _LOGGER.warning(
+                    "data-grounded canned chat: P&L component key %r has no "
+                    "human label in _PNL_COMPONENT_LABELS; rendering raw key",
+                    top_key,
+                )
             label = _PNL_COMPONENT_LABELS.get(top_key, top_key)
             top_citation = self._derive_citation(
                 headline,

@@ -271,6 +271,57 @@ async def test_ungrounded_topic_falls_back() -> None:
 
 
 @pytest.mark.asyncio
+async def test_unlabelled_pnl_component_logs_warning_and_renders_raw_key(
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An unknown P&L component key logs a warning and still renders via the raw key.
+
+    Simulates a future risk engine adding a new Greek (``delta_pnl`` is removed
+    from ``_PNL_COMPONENT_LABELS`` via monkeypatch so it acts as an unlabelled
+    key) to drive the unlabelled-label code path without changing the real label
+    map permanently.
+    """
+    import logging
+
+    import kinetix_insights.chat.data_grounded_canned as _module
+
+    # Remove 'delta_pnl' from the label map so it becomes an unlabelled key.
+    patched_labels = {
+        k: v
+        for k, v in _module._PNL_COMPONENT_LABELS.items()
+        if k != "delta_pnl"
+    }
+    monkeypatch.setattr(_module, "_PNL_COMPONENT_LABELS", patched_labels)
+
+    http = FakeKinetixHttpClient()
+    http.register_response(
+        "GET",
+        "risk-orchestrator",
+        "/api/v1/risk/pnl-attribution/fx-main",
+        _PNL_PAYLOAD,  # delta_pnl=1.2M is the dominant component
+    )
+    client = DataGroundedCannedChatClient(http=http, delay_seconds=0.0, now=_now)
+    request = ChatRequest(
+        message="how's my P&L today?",
+        page_context={"page": "pnl-attribution", "book_id": "fx-main"},
+    )
+
+    with caplog.at_level(logging.WARNING, logger="kinetix_insights.chat"):
+        chunks = await _collect(client.chat(request))
+
+    narrative = _narrative(chunks)
+
+    # Warning must be emitted mentioning the unlabelled key.
+    assert any(
+        "delta_pnl" in record.message for record in caplog.records
+    ), f"Expected a warning about 'delta_pnl'; got: {[r.message for r in caplog.records]}"
+
+    # Narrative still renders with the raw key as the label (graceful, never raises).
+    assert "delta_pnl" in narrative
+
+
+@pytest.mark.asyncio
 async def test_tool_failure_degrades_to_fallback_without_raising() -> None:
     http = FakeKinetixHttpClient()
     http.register_response(
