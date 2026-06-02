@@ -8,6 +8,8 @@
 > correct — the deadline semantics, what degrades versus what is
 > canonical, which states the UI must always reach — were mine.
 
+![The Counterparty Risk tab](../screenshots/counterparty-risk-tab.png)
+
 ## The requirement
 
 The Counterparty Risk tab shows the firm's exposure to each counterparty,
