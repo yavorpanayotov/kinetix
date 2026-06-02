@@ -74,6 +74,22 @@ describe('useCounterpartyRisk', () => {
     expect(result.current.exposures).toHaveLength(0)
   })
 
+  it('clears the spinner and surfaces an error when the fetch times out (no perpetual spinner)', async () => {
+    // A hung gateway: the API layer enforces a client-side timeout and rejects
+    // with an abort error. The hook must end with loading=false and error set
+    // rather than spinning forever (kx-qfqn).
+    mockFetchAll.mockRejectedValue(new DOMException('Aborted', 'AbortError'))
+
+    const { result } = renderHook(() => useCounterpartyRisk())
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+
+    expect(result.current.error).not.toBeNull()
+    expect(result.current.exposures).toHaveLength(0)
+  })
+
   it('selectCounterparty fetches detail and history', async () => {
     mockFetchOne.mockResolvedValue(SAMPLE_EXPOSURE)
     mockFetchHistory.mockResolvedValue([SAMPLE_EXPOSURE])

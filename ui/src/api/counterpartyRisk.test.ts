@@ -16,6 +16,7 @@ describe('counterpartyRisk API', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+    vi.useRealTimers()
   })
 
   const sampleExposure = {
@@ -45,7 +46,10 @@ describe('counterpartyRisk API', () => {
 
       expect(result).toHaveLength(1)
       expect(result[0].counterpartyId).toBe('CP-GS')
-      expect(mockFetch).toHaveBeenCalledWith('/api/v1/counterparty-risk')
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/v1/counterparty-risk',
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      )
     })
 
     it('throws on 500', async () => {
@@ -58,6 +62,30 @@ describe('counterpartyRisk API', () => {
       await expect(fetchAllCounterpartyExposures()).rejects.toThrow(
         'Failed to fetch counterparty exposures: 500 Internal Server Error',
       )
+    })
+
+    it('rejects when the gateway hangs past the client timeout', async () => {
+      // Simulate a gateway that never responds: fetch only settles when the
+      // AbortController fires. Without a client-side timeout this would hang
+      // forever, leaving the UI stuck on a perpetual spinner (kx-qfqn).
+      mockFetch.mockImplementation((_input: RequestInfo | URL, init?: RequestInit) => {
+        return new Promise((_resolve, reject) => {
+          const signal = init?.signal
+          if (signal) {
+            signal.addEventListener('abort', () => {
+              reject(new DOMException('Aborted', 'AbortError'))
+            })
+          }
+        })
+      })
+
+      vi.useFakeTimers()
+      const promise = fetchAllCounterpartyExposures()
+      const assertion = expect(promise).rejects.toThrow()
+      await vi.advanceTimersByTimeAsync(20_000)
+      await assertion
+      // The request must have been issued with an abort signal.
+      expect(mockFetch.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal)
     })
   })
 
@@ -76,7 +104,10 @@ describe('counterpartyRisk API', () => {
       const result = await fetchCounterpartyExposure('CP-GS')
 
       expect(result?.counterpartyId).toBe('CP-GS')
-      expect(mockFetch).toHaveBeenCalledWith('/api/v1/counterparty-risk/CP-GS')
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/v1/counterparty-risk/CP-GS',
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      )
     })
 
     it('returns null on 404', async () => {
@@ -119,7 +150,10 @@ describe('counterpartyRisk API', () => {
       const result = await fetchCounterpartyExposureHistory('CP-GS')
 
       expect(result).toHaveLength(1)
-      expect(mockFetch).toHaveBeenCalledWith('/api/v1/counterparty-risk/CP-GS/history?limit=90')
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/v1/counterparty-risk/CP-GS/history?limit=90',
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      )
     })
 
     it('passes custom limit', async () => {
@@ -131,7 +165,10 @@ describe('counterpartyRisk API', () => {
 
       await fetchCounterpartyExposureHistory('CP-GS', 30)
 
-      expect(mockFetch).toHaveBeenCalledWith('/api/v1/counterparty-risk/CP-GS/history?limit=30')
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/v1/counterparty-risk/CP-GS/history?limit=30',
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      )
     })
   })
 
