@@ -64,13 +64,13 @@ Deterministic scaffolding is committable + testable; the agentic steps (run `/we
 
 Flagship: counterparty-risk (`specs/counterparty-risk.allium`, commits `kx-qfqn`: client timeout, bounded/parallel enrichment, e2e terminal states). Vignettes: limits (`specs/limits.allium`, `kx-fx9`/`kx-7tf`/`kx-o8j`), audit (`specs/audit.allium` + ADR-0017). Screenshots via the `/screenshot` skill → `docs/screenshots/`.
 
-- [ ] Flagship `docs/case-studies/counterparty-risk.md`: narrate requirement → spec edit → `/weed` divergence → `/propagate` tests → implementation → the `kx-qfqn` commits, with explicit "judgement stayed human" callouts (why bound enrichment, the timeout choice, terminal-state design). Link the real spec, tests, and commits.
+- [x] Flagship `docs/case-studies/counterparty-risk.md`: narrate requirement → spec edit → `/weed` divergence → `/propagate` tests → implementation → the `kx-qfqn` commits, with explicit "judgement stayed human" callouts (why bound enrichment, the timeout choice, terminal-state design). Link the real spec, tests, and commits.
   Acceptance: `grep -q "kx-qfqn" docs/case-studies/counterparty-risk.md && grep -qi "stayed human\|judgement\|judgment" docs/case-studies/counterparty-risk.md`
-- [ ] Vignette `docs/case-studies/limits.md`: shorter spec→`/weed`→`/propagate`→fix arc for limits with its `kx-` commit IDs.
+- [x] Vignette `docs/case-studies/limits.md`: shorter spec→`/weed`→`/propagate`→fix arc for limits with its `kx-` commit IDs.
   Acceptance: `grep -qE "kx-fx9|kx-7tf|kx-o8j" docs/case-studies/limits.md`
-- [ ] Vignette `docs/case-studies/audit.md`: hash-chain arc tying `specs/audit.allium` to ADR-0017 and the gap-detection/DLQ-replay fixes.
+- [x] Vignette `docs/case-studies/audit.md`: hash-chain arc tying `specs/audit.allium` to ADR-0017 and the gap-detection/DLQ-replay fixes.
   Acceptance: `grep -q "0017" docs/case-studies/audit.md && grep -qi "hash" docs/case-studies/audit.md`
-- [ ] Capture supporting screenshots (`/screenshot` for counterparty-risk tab + copilot) into `docs/screenshots/` and embed them in the flagship.
+- [x] Capture supporting screenshots (`/screenshot` for counterparty-risk tab + copilot) into `docs/screenshots/` and embed them in the flagship.
   Acceptance: `ls docs/screenshots/*.png >/dev/null 2>&1 && test -f docs/screenshots/README.md`
 - [ ] Case-study hub `docs/case-studies/README.md`: index all three with one-line hooks, framed as "the loop applied repeatedly."
   Acceptance: `grep -q "counterparty-risk.md" docs/case-studies/README.md && grep -q "limits.md" docs/case-studies/README.md && grep -q "audit.md" docs/case-studies/README.md`
