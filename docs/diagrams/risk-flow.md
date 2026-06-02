@@ -38,6 +38,6 @@ sequenceDiagram
     G-->>U: live update — Risk / P&L / Alerts tabs
 ```
 
-Last regenerated: 2026-06-02 @ `1023b46b`
+Last regenerated: 2026-06-02 @ `c3ef7922`
 
-Source signals: ADR-0021 (5-phase orchestration), ADR-0029 (discovery-valuation), ADR-0024 (unified Valuate RPC), ADR-0018 (run manifests), ADR-0017 (hash-chained audit), `docs/wiki/Architecture.md` (trade booking → risk update flow).
+Source signals: ADR-0021 (5-phase orchestration), ADR-0029 (discovery-valuation), ADR-0024 (unified Valuate RPC), ADR-0018 (run manifests), ADR-0017 (hash-chained audit), `risk-orchestrator/Application.kt` (Kafka publishers: `KafkaRiskResultPublisher`, `KafkaIntradayPnlPublisher`, `KafkaRiskAuditPublisher`; consumers: `TradeEventConsumer` on `trades.lifecycle`).

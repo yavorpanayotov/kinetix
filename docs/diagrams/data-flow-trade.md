@@ -33,6 +33,6 @@ flowchart TD
     notif -->|"WebSocket via gateway"| wsui
 ```
 
-Last regenerated: 2026-06-02 @ `1023b46b`
+Last regenerated: 2026-06-02 @ `c3ef7922`
 
-Source signals: `docs/wiki/Architecture.md` (trade booking → risk update), ADR-0023 (hierarchical limits), ADR-0021 (orchestration), ADR-0017 (audit chain), Kafka topic literals (`trades.lifecycle`, `risk.results`, `risk.audit`).
+Source signals: ADR-0023 (hierarchical limits), ADR-0021 (orchestration), ADR-0017 (audit chain), `position-service/kafka/KafkaTradeEventPublisher.kt` (publishes `trades.lifecycle`), `position-service/kafka/KafkaLimitBreachEventPublisher.kt` (publishes `limits.breaches`), `risk-orchestrator/Application.kt` (consumes `trades.lifecycle`, publishes `risk.results`, `risk.pnl.intraday`, `risk.audit`), `audit-service/Application.kt` (consumes `trades.lifecycle`).

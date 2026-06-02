@@ -25,6 +25,6 @@ sequenceDiagram
     G-->>UI: response
 ```
 
-Last regenerated: 2026-06-02 @ `1023b46b`
+Last regenerated: 2026-06-02 @ `c3ef7922`
 
-Source signals: ADR-0013 (Keycloak auth & RBAC), ADR-0036 (service-principal `X-User-Id` / `X-User-Books`), ADR-0022 (correlation-id propagation), ADR-0012 (gateway aggregation).
+Source signals: ADR-0013 (Keycloak auth & RBAC), ADR-0036 (service-principal `X-User-Id` / `X-User-Books`), ADR-0022 (correlation-id propagation), ADR-0012 (gateway aggregation), `gateway/Application.kt` (JwtConfig, BookAccessService, requirePermission).

@@ -22,6 +22,6 @@ flowchart TD
     auddb --> verify
 ```
 
-Last regenerated: 2026-06-02 @ `1023b46b`
+Last regenerated: 2026-06-02 @ `c3ef7922`
 
-Source signals: ADR-0017 (hash-chained audit trail), `docs/wiki/Audit-and-Compliance.md`, Kafka topic literals (`governance.audit`, `risk.audit`, `kinetix.audit.chain`), `docs/wiki/Architecture.md` (audit event fork).
+Source signals: ADR-0017 (hash-chained audit trail), `audit-service/Application.kt` (consumers: `AuditEventConsumer` on `trades.lifecycle`, `GovernanceAuditEventConsumer` on `governance.audit`), `audit-service/kafka/GovernanceAuditEventConsumer.kt` (topic `governance.audit`), `ExposedAuditEventRepository.kt` (comment: pg_advisory_xact_lock on `kinetix.audit.chain` hash), `risk-orchestrator/kafka/KafkaRiskAuditPublisher.kt` (publishes `risk.audit`), `gateway/audit/GovernanceAuditPublisher.kt` + `notification-service/audit/KafkaGovernanceAuditPublisher.kt` + `regulatory-service/audit/GovernanceAuditPublisher.kt` (publish `governance.audit`).

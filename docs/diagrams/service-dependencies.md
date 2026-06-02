@@ -31,6 +31,6 @@ graph LR
     regulatory -->|HTTP| orchestrator
 ```
 
-Last regenerated: 2026-06-02 @ `1023b46b`
+Last regenerated: 2026-06-02 @ `c3ef7922`
 
-Source signals: ADR-0012 (gateway aggregation), ADR-0021 (orchestrator HTTP clients: PositionProvider, MarketDataFetcher), ADR-0024/0029 (gRPC to risk-engine), ADR-0036 (ai-insights MCP tool targets). Kafka edges intentionally omitted — see kafka-topology.
+Source signals: ADR-0012 (gateway aggregation), ADR-0021 (orchestrator HTTP clients in `risk-orchestrator/Application.kt`: `HttpPositionServiceClient`, `HttpPriceServiceClient`, `HttpRatesServiceClient`, `HttpVolatilityServiceClient`, `HttpCorrelationServiceClient`, `HttpReferenceDataServiceClient`), ADR-0024/0029 (gRPC to risk-engine), ADR-0036 (ai-insights MCP tool targets). Kafka edges intentionally omitted — see kafka-topology.

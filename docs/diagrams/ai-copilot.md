@@ -72,6 +72,6 @@ sequenceDiagram
     G->>UI: WebSocket /ws/copilot
 ```
 
-Last regenerated: 2026-06-02 @ `1023b46b`
+Last regenerated: 2026-06-02 @ `c3ef7922`
 
-Source signals: ADR-0036 (AI Copilot architecture v2), `specs/ai-insights.allium`, `docker-compose.services.yml` (ai-insights-service, port 8096), ADR-0013 (Keycloak JWT → service-principal headers), ADR-0016 (broadcaster pattern).
+Source signals: ADR-0036 (AI Copilot architecture v2), `ai-insights-service/src/kinetix_insights/push/kafka_consumer.py` (`RISK_RESULTS_TOPIC = "risk.results"`, `REGIME_CHANGES_TOPIC = "risk.regime.changes"`), `ai-insights-service/src/kinetix_insights/push/threshold_evaluator.py` (IntradayThresholdEvaluator), `ai-insights-service/src/kinetix_insights/push/push_generator.py` (IntradayPushGenerator), `gateway/DevModule.kt` (CopilotBroadcaster, COPILOT_INTERNAL_TOKEN guard), ADR-0013 (Keycloak JWT → service-principal headers), ADR-0016 (broadcaster pattern).

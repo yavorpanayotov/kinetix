@@ -15,6 +15,6 @@ stateDiagram-v2
     SUPERSEDED --> [*]
 ```
 
-Last regenerated: 2026-06-02 @ `1023b46b`
+Last regenerated: 2026-06-02 @ `c3ef7922`
 
-Source signals: ADR-0019 (official EOD labelling with promotion governance), `docs/wiki/Architecture.md` (EOD promotion), Kafka topic `risk.official-eod` (consumers: gateway, regulatory). Intermediate `RUNNING`/`FAILED`/`SUPERSEDED` states inferred from the run lifecycle — verify against `ValuationJob` status enum before relying on exact names.
+Source signals: ADR-0019 (official EOD labelling with promotion governance), `risk-orchestrator/kafka/KafkaOfficialEodPublisher.kt` (topic `risk.official-eod`), `risk-orchestrator/service/EodPromotionService.kt` (promotion logic), `demo-orchestrator/kafka/OfficialEodConsumer.kt` (consumer), `regulatory-service` (consumes `risk.official-eod` for submission anchoring).

@@ -77,6 +77,6 @@ graph TB
     position --> redis
 ```
 
-Last regenerated: 2026-06-02 @ `1023b46b`
+Last regenerated: 2026-06-02 @ `c3ef7922`
 
-Source signals: `settings.gradle.kts` (module list), `docker-compose.services.yml` (containers), `README.md` (Services in depth), `docs/wiki/Architecture.md` (communication patterns), ADR-0012 (gateway aggregation), ADR-0024/0029 (unified Valuate, discovery-valuation), ADR-0036 (AI copilot, in-proc MCP, service-principal). Database-per-service per ADR-0011 — only representative Postgres/Redis edges drawn to keep the diagram legible.
+Source signals: `settings.gradle.kts` (module list), `README.md` (Services in depth, Architecture), ADR-0012 (gateway aggregation), ADR-0024/0029 (unified Valuate, discovery-valuation), ADR-0036 (AI copilot, in-proc MCP, service-principal). Database-per-service per ADR-0011 — only representative Postgres/Redis edges drawn to keep the diagram legible.

@@ -4,7 +4,7 @@ Kinetix as a single black box, showing the human actors who use it and the exter
 
 ```mermaid
 graph TB
-    trader["Trader<br/>books trades, monitors risk & P&amp;L"]
+    trader["Trader<br/>books trades, monitors risk &amp; P&amp;L"]
     riskmgr["Risk Manager<br/>limits, VaR, EOD sign-off"]
     compliance["Compliance Officer<br/>model governance, submissions"]
     auditor["Auditor<br/>immutable trail review"]
@@ -31,6 +31,6 @@ graph TB
     kinetix -->|"grounded chat over MCP"| anthropic
 ```
 
-Last regenerated: 2026-06-02 @ `1023b46b`
+Last regenerated: 2026-06-02 @ `c3ef7922`
 
-Source signals: `README.md` (At a glance, Architecture), `docs/wiki/Architecture.md`, ADR-0013 (Keycloak), ADR-0035 (FIX gateway extraction), ADR-0036 (AI copilot — host credential, no API key).
+Source signals: `README.md` (At a glance, Architecture, Services in depth), ADR-0013 (Keycloak), ADR-0035 (FIX gateway extraction), ADR-0036 (AI copilot — host credential, no API key).

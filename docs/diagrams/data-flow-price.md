@@ -21,6 +21,6 @@ flowchart TD
     orch -.->|"point-in-time GET on valuation"| prc
 ```
 
-Last regenerated: 2026-06-02 @ `1023b46b`
+Last regenerated: 2026-06-02 @ `c3ef7922`
 
-Source signals: `docs/wiki/Architecture.md` (Kafka topic table — `price.updates` producer/consumers), ADR-0005 (TimescaleDB), ADR-0021 (orchestrator fetches point-in-time via HTTP, not streaming), ADR-0016 (WebSocket for real-time UI).
+Source signals: `price-service/kafka/KafkaPricePublisher.kt` (topic `price.updates`, key=instrumentId), `risk-orchestrator/Application.kt` (`PriceEventConsumer` consumes `price.updates`; `HttpPriceServiceClient` fetches point-in-time), `gateway/kafka/KafkaIntradayPnlConsumer.kt` + `DevModule.kt` (gateway consumes `price.updates` for WS fan-out), ADR-0005 (TimescaleDB), ADR-0021 (point-in-time fetch), ADR-0016 (WebSocket).

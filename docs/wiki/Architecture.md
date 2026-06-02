@@ -131,7 +131,7 @@ flowchart TD
     orch["Risk Orchestrator<br/>5-phase pipeline"]
     re["Risk Engine — Valuate (gRPC)"]
     k_results(["Kafka — risk.results / pnl.intraday / limits.breaches"])
-    k_audit(["Kafka — risk.audit"])
+    k_audit(["Kafka — risk.audit + trades.lifecycle"])
     notif["Notification Service"]
     audit["Audit Service — SHA-256 chain"]
     wsui["UI — Positions / P&amp;L / Risk / Alerts"]
