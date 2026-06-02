@@ -24,6 +24,6 @@ flowchart LR
     tempo --> grafana
 ```
 
-Last regenerated: 2026-06-02 @ `1023b46b`
+Last regenerated: 2026-06-02 @ `c3ef7922`
 
-Source signals: ADR-0008 (Grafana stack — Prometheus + Loki + Tempo), ADR-0022 (correlation-id propagation), `docs/wiki/Observability.md`, `infra/docker-compose.observability.yml`, `deploy/observability/`.
+Source signals: ADR-0008 (Grafana stack — Prometheus + Loki + Tempo), ADR-0022 (correlation-id propagation), `infra/docker-compose.observability.yml`, `deploy/observability/`, `common/observability/OtelInit.kt` + `CorrelationIdHttpServerPlugin.kt` (OTel instrumentation in every service).

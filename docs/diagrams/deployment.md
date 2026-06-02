@@ -42,6 +42,6 @@ flowchart TB
     orchestrator -->|"gRPC"| riskengine
 ```
 
-Last regenerated: 2026-06-02 @ `1023b46b`
+Last regenerated: 2026-06-02 @ `c3ef7922`
 
-Source signals: `docker-compose.services.yml` (service + caddy + ui containers), `infra/docker-compose.infra.yml` (postgres, kafka, redis), `CLAUDE.md` (local URLs, redeploy.sh), `deploy/`. Deployment is Docker Compose (not Kubernetes) per project conventions.
+Source signals: `docker-compose.services.yml` (service + caddy + ui containers), `infra/docker-compose.infra.yml` (postgres, kafka, redis), `CLAUDE.md` (local URLs, redeploy.sh), `settings.gradle.kts` (module list). Deployment is Docker Compose (not Kubernetes) per project conventions.

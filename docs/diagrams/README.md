@@ -22,4 +22,4 @@ Regenerable [Mermaid](https://mermaid.js.org/) diagrams of the Kinetix platform.
 | [deployment](deployment.md) | Docker Compose topology (Caddy, services, infra) | Local-dev wiring |
 | [observability](observability.md) | Metrics/logs/traces → Prometheus/Loki/Tempo/Grafana | Telemetry, correlation-id tracing |
 
-Last regenerated: 2026-06-02 @ `1023b46b`
+Last regenerated: 2026-06-02 @ `c3ef7922`
