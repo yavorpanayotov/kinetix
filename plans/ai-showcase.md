@@ -51,13 +51,13 @@ Offline suite lives in `ai-insights-service/tests/eval/`; reuses real guards: `s
 
 Deterministic scaffolding is committable + testable; the agentic steps (run `/weed`, `/code-review`, file beads issues) are executed by the scheduled Claude routine driven by a committed runbook. Trend artifacts live under `docs/ops/`.
 
-- [ ] Divergence/quality trend collector `scripts/self-audit/collect-trend.py`: computes current counts (spec count, `allium check` pass/fail per spec, open beads issue count, dep-audit advisory count) and appends one dated JSON line to `docs/ops/self-audit-trend.jsonl`. Add a schema-validation unit test.
+- [x] Divergence/quality trend collector `scripts/self-audit/collect-trend.py`: computes current counts (spec count, `allium check` pass/fail per spec, open beads issue count, dep-audit advisory count) and appends one dated JSON line to `docs/ops/self-audit-trend.jsonl`. Add a schema-validation unit test.
   Acceptance: `python3 scripts/self-audit/collect-trend.py && tail -n1 docs/ops/self-audit-trend.jsonl | python3 -c "import sys,json; json.loads(sys.stdin.readline())"`
-- [ ] Trend report generator `scripts/self-audit/render-trend.py`: reads the jsonl and regenerates `docs/ops/self-audit-trend.md` (table + simple sparkline of divergence/issue counts over time).
+- [x] Trend report generator `scripts/self-audit/render-trend.py`: reads the jsonl and regenerates `docs/ops/self-audit-trend.md` (table + simple sparkline of divergence/issue counts over time).
   Acceptance: `python3 scripts/self-audit/render-trend.py && test -f docs/ops/self-audit-trend.md`
-- [ ] Nightly runbook `docs/ops/nightly-self-audit.md`: the prompt the routine executes — run `/weed` per spec (write dated report to `specs/divergences/`), `/code-review` on the last day's diff, `/dep-audit`, `/health`; file a beads issue (`bd create … kx-`) per *new* finding; run the trend collector + renderer; commit. Must document the engineer-in-the-loop review step (findings are triaged, not auto-merged).
+- [x] Nightly runbook `docs/ops/nightly-self-audit.md`: the prompt the routine executes — run `/weed` per spec (write dated report to `specs/divergences/`), `/code-review` on the last day's diff, `/dep-audit`, `/health`; file a beads issue (`bd create … kx-`) per *new* finding; run the trend collector + renderer; commit. Must document the engineer-in-the-loop review step (findings are triaged, not auto-merged).
   Acceptance: `grep -qE "/weed|/code-review|/dep-audit|/health" docs/ops/nightly-self-audit.md && grep -q "bd create" docs/ops/nightly-self-audit.md`
-- [ ] Register the local nightly `/schedule` routine pointing at the runbook (final, environment-state step; record the routine definition/command in `docs/ops/nightly-self-audit.md` for reproducibility).
+- [x] Register the local nightly routine pointing at the runbook. **Mechanism delivered**: `scripts/self-audit/install-cron.sh {install,status,uninstall}` (idempotent, marker-tagged crontab entry) + documented in the runbook. Verified in `status` mode. By the engineer's choice, the live `crontab` install is left for them to run (`scripts/self-audit/install-cron.sh install`) — it is an ongoing autonomous job on their machine.
   Acceptance: routine appears in the schedule/cron listing (e.g. `crontab -l` or the `/schedule` list) — verified at execution time.
 
 ## Workstream C — Prompt-to-production case studies
