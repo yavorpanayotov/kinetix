@@ -2,7 +2,7 @@
 
 Reads the hash-chained ``audit_events`` feed from audit-service
 (``GET /api/v1/audit/events``) and projects the matching rows onto the
-v2 tool-output shape defined in ``plans/ai-v2.md`` § PR 6:
+v2 tool-output shape defined in ``docs/plans/ai-v2.md`` § PR 6:
 
     {
         "query": str,

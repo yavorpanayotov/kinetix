@@ -141,7 +141,7 @@ def register_tools(
     purpose. Return-type annotations are ``dict[str, Any]`` across the
     board so FastMCP creates a generic structured-output model for
     each tool — hand-crafting per-tool output schemas is deferred (see
-    ``plans/ai-v2.md`` § PR 2).
+    ``docs/plans/ai-v2.md`` § PR 2).
 
     Re-registering the same tool name on the same ``FastMCP`` instance
     is idempotent — FastMCP's tool manager warns and keeps the

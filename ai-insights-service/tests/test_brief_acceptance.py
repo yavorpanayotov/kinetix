@@ -1,6 +1,6 @@
 """Acceptance + unit tests for the morning-brief route, store, and scheduler.
 
-These cover checkbox 6.7 of ``plans/ai-v2.md``:
+These cover checkbox 6.7 of ``docs/plans/ai-v2.md``:
 
 * ``GET /api/v1/insights/brief/today`` — 200 when the brief is ready,
   202 (with a ``Retry-After`` header) while a brief is mid-generation,

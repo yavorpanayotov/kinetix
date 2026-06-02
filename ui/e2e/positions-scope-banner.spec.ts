@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test'
 import { mockKeycloakAuth } from './fixtures'
 
 // ---------------------------------------------------------------------------
-// Positions scope banner — `plans/ui-trader-review.md` P1 §11/§12
+// Positions scope banner — `docs/plans/ui-trader-review.md` P1 §11/§12
 // ---------------------------------------------------------------------------
 //
 // The trader review observed that the Positions tab shows "Firm Summary" as a

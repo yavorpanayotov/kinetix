@@ -9,7 +9,7 @@ import io.kotest.matchers.string.shouldNotContain
  * Verifies that the copilot alert thresholds migration (V69) creates the
  * `copilot_alert_thresholds` table with the columns, composite index, and
  * seeded global defaults required by the intraday-push threshold evaluator
- * (see plans/ai-v2.md §7.2).
+ * (see docs/plans/ai-v2.md §7.2).
  *
  * We validate the migration SQL content directly rather than running it against
  * a database: this keeps the check in the fast plain `test` task and decouples

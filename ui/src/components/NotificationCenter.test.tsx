@@ -1755,7 +1755,7 @@ describe('NotificationCenter', () => {
   })
 
   describe('inline alert explainer', () => {
-    // plans/ai-v2.md §9.3 — an <ExplainButton> on every alert/breach row
+    // docs/plans/ai-v2.md §9.3 — an <ExplainButton> on every alert/breach row
     // opens an inline <AIInsightPanel> wired to the v2 /chat stream.
     it('renders an Explain button on every alert row', () => {
       render(

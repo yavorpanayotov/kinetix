@@ -5,7 +5,7 @@ The orchestrator passes you one beads issue `{{KX_ID}}` plus the worktree path. 
 ## Steps
 
 1. **Claim.** Run `bd update {{KX_ID}} --claim`. If it errors (already claimed or closed), exit with code 2 and a one-line reason — do NOT pick another issue.
-2. **Read spec.** Run `bd show {{KX_ID}}`. The description's first line is `lane: <tag>` — this tells you which file set you own (see the lane manifest in `plans/commit-velocity.md`). The description body is the change spec. The acceptance criterion (if set) or the `Acceptance:` line in the description gives you the exact test command.
+2. **Read spec.** Run `bd show {{KX_ID}}`. The description's first line is `lane: <tag>` — this tells you which file set you own (see the lane manifest in `docs/plans/commit-velocity.md`). The description body is the change spec. The acceptance criterion (if set) or the `Acceptance:` line in the description gives you the exact test command.
 3. **Implement test-first.** Write the failing test, then the production code, per CLAUDE.md conventions for the module (Kotest FunSpec / pytest unit / Vitest, etc.). Touch only files in your lane's owned paths. If you find the change needs files outside the lane, exit with code 3 and a one-line reason — the orchestrator will reclassify.
 4. **Verify.** Run the acceptance command from the spec. If it fails, fix the code, not the test. Do not skip, disable, or weaken any test. If you cannot make it pass in this worktree, exit with code 4 and the failure summary.
 5. **Lint where required.** For UI lanes (U-*), additionally run `cd ui && npm run lint` before committing — CLAUDE.md requires it.

@@ -7,7 +7,7 @@ assert that:
 * the tool routes to the correct position-service endpoint and does not
   forward any unsupported query parameters,
 * the upstream ``List[PositionResponse]`` payload is mapped to the v2
-  tool output shape defined in ``plans/ai-v2.md`` § PR 2,
+  tool output shape defined in ``docs/plans/ai-v2.md`` § PR 2,
 * a single :class:`Citation` describing the aggregate ``total_mtm`` value
   is populated with the expected provenance fields, including the v2
   quality flags surfacing the gaps vs the plan spec

@@ -52,7 +52,7 @@ import java.util.concurrent.ConcurrentHashMap
  *    `PnlComputationService.compute`.
  *  - `POST /api/v1/risk/pnl-attribution/{bookId}/compute` — the read path
  *    the live UI's P&L Waterfall chart consumes. The assertion in this test
- *    that drives checkbox 8.1 of `plans/ui-fix-v1.md`. Returns `412
+ *    that drives checkbox 8.1 of `docs/plans/ui-fix-v1.md`. Returns `412
  *    Precondition Failed` until a baseline has been captured for the book.
  *
  * No Postgres / Kafka Testcontainers here: demo-orchestrator has no
@@ -106,7 +106,7 @@ class SodBaselineCaptureIntegrationTest : FunSpec({
             // Pin the clock to the configured trading-hours-start (09:00 UTC)
             // — the demo day-open hook is responsible for firing the SOD
             // capture sweep. 2026-05-19 matches the audit date in
-            // plans/ui-fix-v1.md.
+            // docs/plans/ui-fix-v1.md.
             val openInstant = LocalDate.of(2026, 5, 19)
                 .atTime(9, 0)
                 .atZone(ZoneOffset.UTC)
@@ -311,7 +311,7 @@ private fun startFakeRiskOrchestratorWithSod(state: FakeRiskOrchestratorSodState
                 }
                 // Mirror a mixed-asset-class book's attribution shape: every
                 // Greek component fires once the baseline is in place. The
-                // figures here mirror plans/ui-fix-v1.md (Delta ≈ +$17,704)
+                // figures here mirror docs/plans/ui-fix-v1.md (Delta ≈ +$17,704)
                 // and a plausible spread across the other Greeks — the
                 // assertion only cares that they are non-zero.
                 call.respond(

@@ -1,6 +1,6 @@
 """Unit tests for the ``copilot_*`` Prometheus metrics namespace.
 
-Checkbox 10.4 of ``plans/ai-v2.md`` wires a focused set of copilot
+Checkbox 10.4 of ``docs/plans/ai-v2.md`` wires a focused set of copilot
 metrics into the default ``prometheus_client`` registry and exposes
 them at ``/metrics``. These tests pin two contracts:
 

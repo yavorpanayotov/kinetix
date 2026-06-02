@@ -2,7 +2,7 @@
 
 Reads the persisted ``limit_breach_events`` for a single book and
 projects them onto the v2 tool-output shape defined in
-``plans/ai-v2.md`` § PR 6:
+``docs/plans/ai-v2.md`` § PR 6:
 
     {
         "book_id": str,

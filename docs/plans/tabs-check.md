@@ -19,7 +19,7 @@ states.
 
 Loop-ready for `/work-plan`. Each `- [ ]` is one independently committable
 change with an `Acceptance:` command on the line immediately under it. Advance
-end-to-end with `/loop /work-plan plans/tabs-check.md`.
+end-to-end with `/loop /work-plan docs/plans/tabs-check.md`.
 
 ## What was exercised
 

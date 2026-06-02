@@ -9,7 +9,7 @@ import { mockAllApiRoutes } from './fixtures'
  * API-error path. Routes are mocked per `e2e/fixtures.ts`; the audit endpoints
  * are the gateway-proxied paths the typed client in `src/api/audit.ts` calls.
  *
- * Plan ref: plans/audit-v2.md PR 8 §8.4.
+ * Plan ref: docs/plans/audit-v2.md PR 8 §8.4.
  */
 
 interface AuditEventFixture {

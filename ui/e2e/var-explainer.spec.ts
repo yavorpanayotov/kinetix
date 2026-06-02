@@ -8,7 +8,7 @@ import {
 } from './fixtures'
 
 // ---------------------------------------------------------------------------
-// AI Insight Panel — Explain VaR (plans/ai-v1.md §2)
+// AI Insight Panel — Explain VaR (docs/plans/ai-v1.md §2)
 // ---------------------------------------------------------------------------
 //
 // The VaR dashboard exposes an "Explain" button that POSTs the current VaR

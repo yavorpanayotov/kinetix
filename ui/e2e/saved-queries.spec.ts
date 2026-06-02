@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 import { briefMockCanned, chatMockCanned, mockAllApiRoutes } from './fixtures'
 
 // ---------------------------------------------------------------------------
-// Saved queries — copilot saved-query chips (plans/ai-v2.md §8.3)
+// Saved queries — copilot saved-query chips (docs/plans/ai-v2.md §8.3)
 // ---------------------------------------------------------------------------
 //
 // A *saved query* is a named, reusable copilot prompt. Five undeletable

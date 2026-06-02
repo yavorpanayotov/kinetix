@@ -2567,7 +2567,7 @@ export const TEST_INSIGHT_RESPONSE = {
 }
 
 /**
- * Mocks the AI insights explainer endpoints used by §2 of plans/ai-v1.md.
+ * Mocks the AI insights explainer endpoints used by §2 of docs/plans/ai-v1.md.
  *
  * - `varResponse`: payload returned for POST /api/v1/insights/explain/var
  *   (defaults to TEST_INSIGHT_RESPONSE, a "Demo mode" canned answer).

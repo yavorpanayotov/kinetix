@@ -29,7 +29,7 @@ import kotlin.math.abs
  *  - Book Contributions table summed to roughly `$182M`.
  *  - Factor Risk Decomposition reported `Total VaR $1K` for the same scope.
  *
- * The plan (`plans/ui-trader-review.md`, P0 #5) picks the header value as
+ * The plan (`docs/plans/ui-trader-review.md`, P0 #5) picks the header value as
  * canonical and requires all three other surfaces to derive from the SAME
  * promoted run, SAME scope, SAME units, reconciling within rounding.
  *

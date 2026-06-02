@@ -2,7 +2,7 @@
  * Client for the v2 morning-brief endpoint.
  *
  * Wraps ``GET /api/v1/insights/brief/today`` (gateway-proxied — see
- * plans/ai-v2.md §6.8). The endpoint either returns a ready brief
+ * docs/plans/ai-v2.md §6.8). The endpoint either returns a ready brief
  * (HTTP 200) or signals that generation is still in progress
  * (HTTP 202). ``fetchTodayBrief`` collapses both into a single
  * ``BriefTodayResponse`` discriminated by ``status`` so callers branch

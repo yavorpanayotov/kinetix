@@ -8,7 +8,7 @@ assert that:
   when no ``as_of`` is supplied, ``/history`` (with a synthesised
   ``from``/``to`` day window) when ``as_of`` is provided,
 * the upstream ``VolSurfaceResponse`` is mapped to the v2 tool output
-  shape defined in ``plans/ai-v2.md`` § PR 2 — including a per-tenor
+  shape defined in ``docs/plans/ai-v2.md`` § PR 2 — including a per-tenor
   ATM derivation by median strike,
 * term-structure inversions (short-dated ATM > long-dated by more than
   2 vol points) are detected and surfaced both in the response and as

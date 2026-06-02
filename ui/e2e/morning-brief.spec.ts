@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 import { briefMockCanned, mockAllApiRoutes } from './fixtures'
 
 // ---------------------------------------------------------------------------
-// Morning brief — notification-strip morning-brief card (plans/ai-v2.md §6.10)
+// Morning brief — notification-strip morning-brief card (docs/plans/ai-v2.md §6.10)
 // ---------------------------------------------------------------------------
 //
 // The notification strip (§6.9) sits between <SystemStatusBanner> and

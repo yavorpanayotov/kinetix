@@ -174,7 +174,7 @@ LLM-powered analytics built *into* the platform — not bolted on. The AI surfac
 
 The Kinetix Copilot — morning brief, intraday push, ⌘K — runs over an in-process [Model Context Protocol](https://modelcontextprotocol.io/) server exposing read-only Kinetix tools, with a citation contract that requires every numeric token to declare its source and a server-side policy guard that blocks advisory language. Write actions remain out of scope by design.
 
-Full architecture — MCP tools, citation contract, policy guard, demo-mode client — lives in the [AI Insights Service](#ai-insights-service) block further down. Ongoing work is tracked in [`plans/ai-v2.md`](plans/ai-v2.md); a longer-form walkthrough lives in the [AI Features wiki page](docs/wiki/AI-Features.md).
+Full architecture — MCP tools, citation contract, policy guard, demo-mode client — lives in the [AI Insights Service](#ai-insights-service) block further down. Ongoing work is tracked in [`docs/plans/ai-v2.md`](docs/plans/ai-v2.md); a longer-form walkthrough lives in the [AI Features wiki page](docs/wiki/AI-Features.md).
 
 ## Services
 

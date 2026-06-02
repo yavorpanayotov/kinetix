@@ -21,7 +21,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * Trader-review P2 (plans/ui-trader-review.md): on Place Order form-blur,
+ * Trader-review P2 (docs/plans/ui-trader-review.md): on Place Order form-blur,
  * the trader needs a risk-impact preview — Δ VaR, Δ Delta, Δ Notional,
  * Δ counterparty exposure — before clicking Submit. The gateway exposes
  * the preview via `POST /api/v1/risk/pretrade-preview`, which reuses the

@@ -2,7 +2,7 @@ import { test, expect, type Page, type Route } from '@playwright/test'
 import { mockAllApiRoutes } from './fixtures'
 
 /**
- * Trader-review P2 (plans/ui-trader-review.md): on Place Order form-blur,
+ * Trader-review P2 (docs/plans/ui-trader-review.md): on Place Order form-blur,
  * the trader expects to see the candidate order's risk impact —
  * Δ VaR / Δ Delta / Δ Notional / Δ counterparty exposure — before
  * clicking Submit. The preview is a read-only panel inside the Place

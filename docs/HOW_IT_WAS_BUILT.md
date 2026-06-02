@@ -16,7 +16,7 @@ Three skills keep specs and code honest. `/distill` reads existing implementatio
 
 ## /work-plan and /loop: autonomous execution
 
-Multi-day work lives in markdown plans under `plans/` with literal `- [ ]` checkboxes and per-item acceptance commands. `/work-plan` advances exactly one checkbox per invocation — it spawns a *fresh* subagent so the previous step's context never bloats the next one, executes the change, runs the acceptance command, ticks the box, and commits. Wrapping with `/loop` lets the system self-drive end-to-end through a plan of dozens or hundreds of items. This document was produced by exactly that pipeline.
+Multi-day work lives in markdown plans under `docs/plans/` with literal `- [ ]` checkboxes and per-item acceptance commands. `/work-plan` advances exactly one checkbox per invocation — it spawns a *fresh* subagent so the previous step's context never bloats the next one, executes the change, runs the acceptance command, ticks the box, and commits. Wrapping with `/loop` lets the system self-drive end-to-end through a plan of dozens or hundreds of items. This document was produced by exactly that pipeline.
 
 ## Sub-agents as on-demand domain experts
 

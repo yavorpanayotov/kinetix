@@ -25,7 +25,7 @@ data class CopilotWebSocketMessage(
  * Broadcasts intraday Copilot push frames to subscribed `/ws/copilot`
  * WebSocket clients. Mirrors [AlertBroadcaster] (ADR-0016 / ADR-0036).
  *
- * Split across checkboxes 7.5 and 7.6 of `plans/ai-v2.md`:
+ * Split across checkboxes 7.5 and 7.6 of `docs/plans/ai-v2.md`:
  *
  *  - **7.5** introduced the *publish* side. The internal route
  *    `POST /internal/copilot/push` builds a [CopilotWebSocketMessage] from the

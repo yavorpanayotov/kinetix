@@ -21,7 +21,7 @@ All four surfaces share the same underlying machinery: a Claude Code SDK convers
 
 v2 keeps the v1 auth model: the host's `~/.claude/` Claude Code subscription, no `ANTHROPIC_API_KEY`. Live in dev/demo, canned in CI.
 
-This ADR records the architecture decisions that the plan in `plans/ai-v2.md` is built on, so subsequent PRs can refer to a single source of truth rather than re-litigating them per checkbox.
+This ADR records the architecture decisions that the plan in `docs/plans/ai-v2.md` is built on, so subsequent PRs can refer to a single source of truth rather than re-litigating them per checkbox.
 
 ## Decision
 
@@ -106,7 +106,7 @@ Rationale:
 
 - In-memory ships in days; Redis ships in weeks (Testcontainers, deployment, ops). Decoupling via the protocol means the v2 codebase is Redis-ready without paying the Redis tax up front.
 - 24h TTL matches a trading day — long enough for "I'll come back after lunch", short enough that we never accumulate a chat history database.
-- No persistent multi-session memory is **explicit policy** — see "Out of scope" in `plans/ai-v2.md`. Persistent memory was rejected as a v2 surface; reconsider only after v2 ships and we have data.
+- No persistent multi-session memory is **explicit policy** — see "Out of scope" in `docs/plans/ai-v2.md`. Persistent memory was rejected as a v2 surface; reconsider only after v2 ships and we have data.
 
 ### Citation contract & policy guards
 
@@ -221,7 +221,7 @@ Per-user Claude billing / OAuth is **explicitly deferred**; see *Alternatives co
 
 ## References
 
-- `plans/ai-v2.md` — execution plan with checkboxes derived from this ADR.
+- `docs/plans/ai-v2.md` — execution plan with checkboxes derived from this ADR.
 - ADR-0012 — API Gateway Aggregation Pattern (where streaming proxy and `/internal/copilot/push` route fit).
 - ADR-0013 — Keycloak for Authentication (JWT source for `X-User-Id` / `X-User-Books`).
 - ADR-0016 — WebSocket for Real-Time UI Updates (the `AlertBroadcaster` pattern that `CopilotBroadcaster` mirrors).

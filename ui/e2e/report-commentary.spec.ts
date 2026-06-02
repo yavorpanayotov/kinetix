@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 import { insightsMock, mockAllApiRoutes } from './fixtures'
 
 // ---------------------------------------------------------------------------
-// AI Insight Panel — Report Commentary (plans/ai-v1.md §3)
+// AI Insight Panel — Report Commentary (docs/plans/ai-v1.md §3)
 // ---------------------------------------------------------------------------
 //
 // The Reports tab renders an AIInsightPanel below the generated report

@@ -9,7 +9,7 @@ import {
 } from './fixtures'
 
 // ---------------------------------------------------------------------------
-// Inline explainer — Positions table (plans/ai-v2.md §9.1)
+// Inline explainer — Positions table (docs/plans/ai-v2.md §9.1)
 // ---------------------------------------------------------------------------
 //
 // The Position Risk table exposes an <ExplainButton> on every row (rightmost

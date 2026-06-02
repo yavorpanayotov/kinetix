@@ -1,7 +1,7 @@
 """MCP tool ``get_alert_thresholds`` — copilot alert-threshold config read.
 
 Reads the ``copilot_alert_thresholds`` configuration table and projects
-the rows onto the v2 tool-output shape defined in ``plans/ai-v2.md``
+the rows onto the v2 tool-output shape defined in ``docs/plans/ai-v2.md``
 § PR 7:
 
     {

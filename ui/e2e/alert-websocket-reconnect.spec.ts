@@ -3,7 +3,7 @@ import { mockAllApiRoutes } from './fixtures'
 
 /**
  * E2E coverage for the alert delivery path under a connection-loss /
- * reconnect window (plan §11.3, plans/audit-v2.md).
+ * reconnect window (plan §11.3, docs/plans/audit-v2.md).
  *
  * ----------------------------------------------------------------------------
  * KNOWN GAP — documented, not fixed by this spec (TEST-ONLY checkbox).
@@ -32,7 +32,7 @@ import { mockAllApiRoutes } from './fixtures'
  *
  * Server-side alert-event replay/buffering AND wiring a live alert WebSocket
  * into the UI are explicitly OUT OF SCOPE for PR 11 — see the "Out of scope"
- * section of plans/audit-v2.md: "Alert-WebSocket server-side event
+ * section of docs/plans/audit-v2.md: "Alert-WebSocket server-side event
  * replay/buffering. PR 11 adds a *test* exposing the gap; building the buffer
  * is follow-up work." This spec is that test.
  *

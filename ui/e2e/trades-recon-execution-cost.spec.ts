@@ -3,7 +3,7 @@ import { mockAllApiRoutes } from './fixtures'
 import type { Page, Route } from '@playwright/test'
 
 /**
- * Checkbox 7.2 of plans/ui-fix-v1.md — proves that, given the demo seed
+ * Checkbox 7.2 of docs/plans/ui-fix-v1.md — proves that, given the demo seed
  * data produced by the position-service / demo-orchestrator changes in
  * checkbox 7.1, the Trades > Reconciliation and Trades > Execution Cost
  * subtabs render non-empty grids rather than their empty states.

@@ -23,7 +23,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
-// Resolve repo root relative to this script (plans/scripts/ → repo root).
+// Resolve repo root relative to this script (docs/plans/scripts/ → repo root).
 const SCRIPT_DIR = path.dirname(new URL(import.meta.url).pathname);
 const REPO_ROOT = path.resolve(SCRIPT_DIR, '..', '..');
 

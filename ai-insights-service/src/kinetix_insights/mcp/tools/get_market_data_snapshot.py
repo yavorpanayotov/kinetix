@@ -3,7 +3,7 @@
 Reads latest quotes from price-service and computes day-over-day change
 metrics by reaching back to ``/history`` for a prior close. The upstream
 ``PricePointResponse`` payloads are mapped to the v2 tool-output shape
-defined in ``plans/ai-v2.md`` § PR 2:
+defined in ``docs/plans/ai-v2.md`` § PR 2:
 
     {
         "quotes": [

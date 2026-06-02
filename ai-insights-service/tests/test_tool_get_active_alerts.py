@@ -8,7 +8,7 @@ assert that:
   (``GET /api/v1/notifications/alerts``) and always sends
   ``params={"limit": 200}`` so client-side filtering has enough headroom,
 * the upstream ``List[AlertEventResponse]`` payload is mapped to the v2
-  tool output shape defined in ``plans/ai-v2.md`` § PR 2,
+  tool output shape defined in ``docs/plans/ai-v2.md`` § PR 2,
 * client-side filtering (book scope, ACTIVE status, optional ``severity``
   and ``since``) and sort-by-``triggered_at``-desc behave as specified,
 * invalid ``severity`` / ``since`` raise ``BAD_REQUEST`` BEFORE any HTTP

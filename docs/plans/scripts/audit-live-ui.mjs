@@ -1,4 +1,4 @@
-// Final live-UI audit for plans/ui-fix-v1.md checkbox 10.3.
+// Final live-UI audit for docs/plans/ui-fix-v1.md checkbox 10.3.
 //
 // Drives every tab of the live UI in a real browser and asserts the
 // post-fix invariants: zero console errors, zero api.kinetixrisk.ai 4xx/5xx,
@@ -6,7 +6,7 @@
 // banner, and the Regulatory tab's SBM table. Writes a JSON report to
 // /tmp/kinetix-audit/report.json and exits non-zero if any invariant fails.
 //
-// Usage: node plans/scripts/audit-live-ui.mjs
+// Usage: node docs/plans/scripts/audit-live-ui.mjs
 //   UI / GATEWAY env vars override the default kinetixrisk.ai hosts.
 //
 // Requires Playwright's chromium — resolved from ui/node_modules.

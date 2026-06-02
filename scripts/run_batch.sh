@@ -4,7 +4,7 @@
 # Convention: every issue created by the commit-velocity orchestrator carries
 # its lane as the first line of its description, formatted exactly as:
 #   lane: <tag>
-# where <tag> is one of the entries in plans/commit-velocity.md (e.g. R-bs-greeks,
+# where <tag> is one of the entries in docs/plans/commit-velocity.md (e.g. R-bs-greeks,
 # K-position, U-format, …).
 #
 # Usage: scripts/run_batch.sh [N]   # default N=5

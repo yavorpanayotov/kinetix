@@ -4,7 +4,7 @@ import type { Page } from '@playwright/test'
 import { briefMockCanned, chatMockCanned, mockAllApiRoutes } from './fixtures'
 
 // ---------------------------------------------------------------------------
-// Copilot v2 demo walkthrough — the 90-second demo script (plans/ai-v2.md §11.1)
+// Copilot v2 demo walkthrough — the 90-second demo script (docs/plans/ai-v2.md §11.1)
 // ---------------------------------------------------------------------------
 //
 // This spec walks the full v2 Copilot demo end-to-end against the same

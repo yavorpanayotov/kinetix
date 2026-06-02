@@ -2,7 +2,7 @@ import { test, expect, type Page, type Route } from '@playwright/test'
 import { mockAllApiRoutes } from './fixtures'
 
 /**
- * Trader-review finding P1 #16 (plans/ui-trader-review.md):
+ * Trader-review finding P1 #16 (docs/plans/ui-trader-review.md):
  *
  *   "Activity tab uses 2/21/2026, 2:00:01 PM (US date) while every other tab
  *    uses ISO (2026-05-27). Pick one."

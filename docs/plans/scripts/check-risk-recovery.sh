@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Live-deploy smoke for PR 2 of plans/ui-fix-v1.md.
+# Live-deploy smoke for PR 2 of docs/plans/ui-fix-v1.md.
 # Asserts every on-demand risk POST returns 200 with the UI-shape payload AND
 # the firm hierarchy aggregate is populated (varValue != "0.00", childCount > 0).
 # Exits non-zero on any failure.

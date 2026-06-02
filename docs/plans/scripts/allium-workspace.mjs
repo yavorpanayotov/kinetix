@@ -25,7 +25,7 @@
 //     exits with code 2 (no inputs), or if its output cannot be parsed.
 //
 // This script is the acceptance command for the spec checkboxes in Phases 2,
-// 4 and 5 of plans/alium-v6.md — its summary is the drift baseline later
+// 4 and 5 of docs/plans/alium-v6.md — its summary is the drift baseline later
 // checkboxes compare against. Uses only Node.js built-ins.
 //
 // --- unreachableTrigger baseline (Allium v6, recorded 2026-05-21) ------------
@@ -47,7 +47,7 @@ import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
 
-// Resolve repo root relative to this script (plans/scripts/ → repo root).
+// Resolve repo root relative to this script (docs/plans/scripts/ → repo root).
 const SCRIPT_DIR = path.dirname(new URL(import.meta.url).pathname);
 const REPO_ROOT = path.resolve(SCRIPT_DIR, '..', '..');
 

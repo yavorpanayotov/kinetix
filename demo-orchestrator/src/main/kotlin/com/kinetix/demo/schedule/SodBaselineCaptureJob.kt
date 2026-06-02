@@ -19,7 +19,7 @@ import java.time.ZoneOffset
  * Waterfall chart on the P&L tab renders zero for Gamma / Vega / Theta /
  * Rho (Delta still pops up because it falls back to the latest VaR
  * snapshot). Capturing the baseline at trading-day open closes that gap
- * automatically — see plans/ui-fix-v1.md checkbox 8.1.
+ * automatically — see docs/plans/ui-fix-v1.md checkbox 8.1.
  *
  * The wider `risk-orchestrator` `ScheduledSodSnapshotJob` exists but cannot
  * run inside the demo because it is gated on wall-clock UTC time and the

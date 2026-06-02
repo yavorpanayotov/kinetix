@@ -35,7 +35,7 @@ import java.time.Instant
 
 /**
  * Instrumentation contract for the five metrics the FIX Gateway Grafana dashboard
- * queries. PR 2 of plans/grafana-v2.md covers the four whose code paths already
+ * queries. PR 2 of docs/plans/grafana-v2.md covers the four whose code paths already
  * exist:
  *   - fix_messages_out_total          (Counter, tags: venue, msg_type)
  *   - cancel_ack_latency_seconds      (Timer,   tag:  venue)

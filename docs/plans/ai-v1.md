@@ -11,7 +11,7 @@ This plan ships:
 
 ## Status
 
-This plan is loop-ready for `/work-plan`. Each `- [ ]` checkbox below is one independently-committable change, ordered top-to-bottom by dependency, with an `Acceptance:` command on the line directly after it. Advance end-to-end with `/loop /work-plan plans/ai-v1.md`.
+This plan is loop-ready for `/work-plan`. Each `- [ ]` checkbox below is one independently-committable change, ordered top-to-bottom by dependency, with an `Acceptance:` command on the line directly after it. Advance end-to-end with `/loop /work-plan docs/plans/ai-v1.md`.
 
 ## Decisions applied
 

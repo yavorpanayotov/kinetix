@@ -2,7 +2,7 @@
 
 Returns the worst-first stress P&L impact for a book against a list of
 named scenarios, mapped onto the v2 tool-output shape defined in
-``plans/ai-v2.md`` § PR 2:
+``docs/plans/ai-v2.md`` § PR 2:
 
     {
         "book_id": str,

@@ -22,7 +22,7 @@ This plan closes the last mile so that a trader, a risk manager, and a support e
 
 ## Status
 
-This plan is **loop-ready** for `/work-plan`. Each `- [ ]` checkbox is one independently-committable change, ordered top-to-bottom by dependency, with an `Acceptance:` command on the line directly after it. Advance end-to-end with `/loop /work-plan plans/audit-v2.md`.
+This plan is **loop-ready** for `/work-plan`. Each `- [ ]` checkbox is one independently-committable change, ordered top-to-bottom by dependency, with an `Acceptance:` command on the line directly after it. Advance end-to-end with `/loop /work-plan docs/plans/audit-v2.md`.
 
 ## Decisions applied
 

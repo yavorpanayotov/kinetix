@@ -3,7 +3,7 @@
 Reads the current positions for a book from position-service
 (``GET /api/v1/books/{bookId}/positions``) and maps the upstream
 ``List[PositionResponse]`` payload to the v2 tool-output shape defined
-in ``plans/ai-v2.md`` § PR 2:
+in ``docs/plans/ai-v2.md`` § PR 2:
 
     {
         "positions": [

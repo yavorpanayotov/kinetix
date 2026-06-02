@@ -6,7 +6,7 @@ assert that:
 
 * the tool routes to the correct risk-orchestrator endpoint,
 * the upstream ``VaRResultResponse`` is mapped to the tool output shape
-  defined in ``plans/ai-v2.md`` § PR 2,
+  defined in ``docs/plans/ai-v2.md`` § PR 2,
 * a single :class:`Citation` describing ``total_var`` is populated with
   the right provenance fields,
 * book-level ACL fails closed before the HTTP client is ever touched,

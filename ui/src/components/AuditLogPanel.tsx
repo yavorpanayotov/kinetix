@@ -86,7 +86,7 @@ interface AuditLogPanelProps {
  * indicator surfaces the result of `verifyAuditChain()` so users can see at a
  * glance whether the trail has been tampered with.
  *
- * Plan ref: plans/audit-v2.md PR 8 §8.2.
+ * Plan ref: docs/plans/audit-v2.md PR 8 §8.2.
  */
 export function AuditLogPanel({ initialBookId = '', initialTradeId = '' }: AuditLogPanelProps = {}) {
   const auth = useAuth()

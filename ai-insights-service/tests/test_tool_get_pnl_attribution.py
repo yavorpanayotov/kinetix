@@ -11,7 +11,7 @@ assert that:
   ``from`` / ``to`` ISO instants bounding the requested day,
 * the upstream daily ``PnlAttributionResponse`` and the intraday
   ``IntradayPnlSeriesResponse`` payloads are mapped to the v2 tool
-  output shape defined in ``plans/ai-v2.md`` § PR 2,
+  output shape defined in ``docs/plans/ai-v2.md`` § PR 2,
 * the upstream ``dataQualityFlag`` (daily) and ``dataQualityWarning``
   (intraday, latest snapshot) end up in the citation ``quality_flags``
   — not buried in the response body — per the plan's "surfaces

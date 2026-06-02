@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 import { mockAllApiRoutes, chatMockCanned } from './fixtures'
 
 // ---------------------------------------------------------------------------
-// CopilotLauncher — visible discovery affordance (plans/ai-copilot-demo-polish.md §1)
+// CopilotLauncher — visible discovery affordance (docs/plans/ai-copilot-demo-polish.md §1)
 //
 // The launcher button ("Ask Kinetix") in the header right cluster gives demo
 // viewers a click target to open the AI copilot without knowing ⌘K. These

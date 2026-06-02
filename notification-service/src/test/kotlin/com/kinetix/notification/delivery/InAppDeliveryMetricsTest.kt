@@ -12,7 +12,7 @@ import io.micrometer.prometheusmetrics.PrometheusMeterRegistry
 /**
  * Instrumentation contract for the in-app delivery metrics that drive the
  * `overview/notification-service.json` Grafana dashboard (checkbox 4.6 of
- * plans/grafana-v2.md):
+ * docs/plans/grafana-v2.md):
  *
  *   - notification_inapp_messages_delivered_total{severity}  Counter
  *   - notification_inapp_delivery_failures_total{severity}   Counter

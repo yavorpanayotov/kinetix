@@ -49,13 +49,13 @@ dashboards for the dark services.
 This plan is loop-ready for `/work-plan`. Each `- [ ]` checkbox is one
 independently-committable change, ordered top-to-bottom by dependency, with an
 `Acceptance:` command on the line directly after it. Advance end-to-end with
-`/loop /work-plan plans/grafana-v2.md`. The codebase must build and tests must
+`/loop /work-plan docs/plans/grafana-v2.md`. The codebase must build and tests must
 pass after every commit.
 
 ## Decisions applied
 
 - **Validation gate.** A new zero-dependency Node script,
-  `plans/scripts/validate-grafana.mjs`, is the test for every dashboard-JSON
+  `docs/plans/scripts/validate-grafana.mjs`, is the test for every dashboard-JSON
   change. Grafana provisioned JSON is configuration, not the Kinetix React UI —
   Vitest/Playwright do not apply. The script is the acceptance command for all
   JSON-only checkboxes.
@@ -107,7 +107,7 @@ not stop mid-loop:
   `infra/grafana/provisioning/dashboards/`. Approved.
 - **New Prometheus metrics in existing services** (Micrometer / `prometheus_client`).
   No new libraries. Approved.
-- **New script** `plans/scripts/validate-grafana.mjs`. Approved.
+- **New script** `docs/plans/scripts/validate-grafana.mjs`. Approved.
 - **No `.github/workflows/*` changes are anticipated.** If a subagent finds it
   must touch a CI/CD pipeline file, STOP and flag.
 - No new Kafka topics, DB tables, services, or cross-service API contracts.
@@ -129,7 +129,7 @@ not stop mid-loop:
 
 ### PR 0 — Alerting safety net & dashboard validation
 
-- [x] 0.1 Create `plans/scripts/validate-grafana.mjs` — a zero-dependency Node
+- [x] 0.1 Create `docs/plans/scripts/validate-grafana.mjs` — a zero-dependency Node
       script that: (a) parses every `infra/grafana/provisioning/dashboards/**/*.json`
       and fails on any JSON syntax error; (b) checks every panel `datasource`
       (uid or name) resolves to a datasource provisioned in
@@ -139,7 +139,7 @@ not stop mid-loop:
       `deploy/observability/alert-rules.yml` exists, structurally validates it
       (every `- alert:` has `expr`, `for`, `labels`, `annotations`). Exits
       non-zero on any hard error.
-      Acceptance: `node plans/scripts/validate-grafana.mjs`
+      Acceptance: `node docs/plans/scripts/validate-grafana.mjs`
 - [x] 0.2 Create `deploy/observability/alert-rules.yml` (referenced by
       `prometheus.yml:11` but missing — the alert pipeline is currently inert).
       Add at least 12 rules across groups for: service down (`up == 0` per job),
@@ -147,7 +147,7 @@ not stop mid-loop:
       data (`price_staleness_seconds`), VaR-limit breach, risk-run staleness,
       database connection saturation, and JVM/process health. Each rule has
       `expr`, `for`, a severity `label`, and `summary`/`description` annotations.
-      Acceptance: `node plans/scripts/validate-grafana.mjs`
+      Acceptance: `node docs/plans/scripts/validate-grafana.mjs`
 
 ### PR 1 — Fix broken & misleading panels (dashboard JSON only)
 
@@ -157,30 +157,30 @@ not stop mid-loop:
       Change the **DLQ panel** from `rate(...current_offset...)` to absolute DLQ
       depth so a stalled DLQ is visible instead of reading zero; add red
       thresholds.
-      Acceptance: `node plans/scripts/validate-grafana.mjs`
+      Acceptance: `node docs/plans/scripts/validate-grafana.mjs`
 - [x] 1.2 `risk/greeks.json` — change the delta and gamma panels from
       `unit: short` to `unit: none` with explicit display names ("Net Delta
       (dimensionless)", "Net Gamma"); correct the vega panel `description` to state
       it is dollars-per-vol-point, not a currency amount.
-      Acceptance: `node plans/scripts/validate-grafana.mjs`
+      Acceptance: `node docs/plans/scripts/validate-grafana.mjs`
 - [x] 1.3 `trading/pnl.json` — fix the "Unexplained P&L Fraction" panel: the
       `!= 0` filter in the denominator blanks the whole panel when total P&L is
       exactly zero (flat book, new book, end of day). Replace with a zero-safe
       denominator (`clamp_min(abs(pnl_attribution_total_pnl{...}), 1)`) so a flat
       book shows 0%, not "No data".
-      Acceptance: `node plans/scripts/validate-grafana.mjs`
+      Acceptance: `node docs/plans/scripts/validate-grafana.mjs`
 - [x] 1.4 Across all 14 dashboards, set `fieldConfig.defaults.noValue` on every
       `stat`/`gauge`/`bargauge` panel, and stop service-health stat panels from
       using `lastNotNull` alone (add a companion `up`-based health panel or a
       window-aware reducer) so a service that has gone down is not rendered green
       from its last scraped value.
-      Acceptance: `node plans/scripts/validate-grafana.mjs`
+      Acceptance: `node docs/plans/scripts/validate-grafana.mjs`
 - [x] 1.5 `risk/risk-engine.json` — fix the FRTB and stress-test panels: give the
       duration series its own y-axis and `unit: s`, separate from the rate series;
       add the missing
       `histogram_quantile(0.95, ...stress_test_duration_seconds_bucket...)` query
       so the stress panel shows duration as its title promises.
-      Acceptance: `node plans/scripts/validate-grafana.mjs`
+      Acceptance: `node docs/plans/scripts/validate-grafana.mjs`
 
 ### PR 2 — Instrument metrics behind broken panels
 
@@ -190,7 +190,7 @@ not stop mid-loop:
       panel to plot utilisation
       `risk_var_value / on(book_id) group_left() risk_var_limit` as a percentage
       with 80%/100% thresholds, replacing the hardcoded $500k/$1M steps. TDD.
-      Acceptance: `./gradlew :position-service:test && node plans/scripts/validate-grafana.mjs`
+      Acceptance: `./gradlew :position-service:test && node docs/plans/scripts/validate-grafana.mjs`
 - [x] 2.2 Instrument `fix-gateway` with 4 of the metrics its dashboard already
       queries but no code emits: `fix_messages_out_total`, `cancel_ack_latency_seconds`
       (Timer), `cancel_failed_total`, `unacknowledged_outbound_total` (Gauge from
@@ -212,7 +212,7 @@ not stop mid-loop:
       `unacknowledged_outbound_total` panel's PromQL: that metric is a gauge and
       Prometheus exports it as `unacknowledged_outbound` (the `_total` suffix is
       stripped from gauges) — drop `_total` from that panel's query.
-      Acceptance: `node plans/scripts/validate-grafana.mjs`
+      Acceptance: `node docs/plans/scripts/validate-grafana.mjs`
 - [x] 2.4 Add a Prometheus `/metrics` endpoint to `ai-insights-service` and a
       corresponding `ai-insights-service` scrape job in
       `deploy/observability/prometheus.yml` (the service is currently not scraped
@@ -224,28 +224,28 @@ not stop mid-loop:
 - [x] 3.1 Standardise dashboard chrome across all 14 JSON files: `refresh: "30s"`,
       default `time` range `now-1h`, consistent `timezone`, and a folder-aligned
       `tags` entry (`infrastructure`/`overview`/`trading`/`risk`).
-      Acceptance: `node plans/scripts/validate-grafana.mjs`
+      Acceptance: `node docs/plans/scripts/validate-grafana.mjs`
 - [x] 3.2 Add a `$datasource` template variable (type `datasource`) to every
       dashboard and repoint every panel `datasource` to `${datasource}`, so
       dashboards are portable across Prometheus/Loki instances.
-      Acceptance: `node plans/scripts/validate-grafana.mjs`
+      Acceptance: `node docs/plans/scripts/validate-grafana.mjs`
 - [x] 3.3 Rename implementation-detail panel titles to user-facing language across
       all dashboards (e.g. "PendingNewCorrelator: TTL Evictions" → "Order
       Correlator — TTL Evictions"; "fix_message_log Partitions Archived" → "FIX Log
       Partitions Archived").
-      Acceptance: `node plans/scripts/validate-grafana.mjs`
+      Acceptance: `node docs/plans/scripts/validate-grafana.mjs`
 - [x] 3.4 On `risk-overview.json`, `risk-engine.json`, `limit-utilisation.json`
       and `greeks.json`, make VaR statistically self-describing: every VaR panel
       title/legend states confidence level and holding period (e.g. "VaR (99%,
       1-day)"); add panel `description`s clarifying cumulative-vs-interval for P&L
       gauges; add dashboard links between `risk-overview` and `risk-engine` to
       disambiguate the two.
-      Acceptance: `node plans/scripts/validate-grafana.mjs`
+      Acceptance: `node docs/plans/scripts/validate-grafana.mjs`
 - [x] 3.5 `overview/system-health.json` — add `$job`/`$consumergroup` template
       variables and rework the Kafka Consumer Lag panel to group by consumer group
       (not group+topic+partition) so it stays legible at scale; add an amber
       threshold step to the Error Rate stat panel between green and red.
-      Acceptance: `node plans/scripts/validate-grafana.mjs`
+      Acceptance: `node docs/plans/scripts/validate-grafana.mjs`
 
 ### PR 4 — New dashboards & coverage for dark services
 
@@ -256,29 +256,29 @@ adds the dashboard in the same commit — one self-contained feature per checkbo
       metrics the gateway already exposes: request rate, 4xx/5xx error rate,
       latency percentiles by route, upstream service-call latency, in-flight
       requests. No new instrumentation required.
-      Acceptance: `node plans/scripts/validate-grafana.mjs && test -f infra/grafana/provisioning/dashboards/overview/gateway.json`
+      Acceptance: `node docs/plans/scripts/validate-grafana.mjs && test -f infra/grafana/provisioning/dashboards/overview/gateway.json`
 - [x] 4.2 Instrument `position-service` with exposure metrics (`position_notional`,
       `position_count`, top-N concentration gauges by instrument/book) and add a
       `trading/position-concentration.json` dashboard showing net exposure,
       long/short split, and top-10 concentrations. TDD.
-      Acceptance: `./gradlew :position-service:test && node plans/scripts/validate-grafana.mjs && test -f infra/grafana/provisioning/dashboards/trading/position-concentration.json`
+      Acceptance: `./gradlew :position-service:test && node docs/plans/scripts/validate-grafana.mjs && test -f infra/grafana/provisioning/dashboards/trading/position-concentration.json`
 - [x] 4.3 Instrument `risk-engine` with stress-scenario result metrics
       (`stress_test_loss` gauge labelled by `scenario_name`/`book_id`) and add a
       `risk/stress-results.json` dashboard showing per-scenario P&L, worst scenario
       per book, and breach highlighting. TDD.
-      Acceptance: `( cd risk-engine && uv run pytest -m unit ) && node plans/scripts/validate-grafana.mjs && test -f infra/grafana/provisioning/dashboards/risk/stress-results.json`
+      Acceptance: `( cd risk-engine && uv run pytest -m unit ) && node docs/plans/scripts/validate-grafana.mjs && test -f infra/grafana/provisioning/dashboards/risk/stress-results.json`
 - [x] 4.4 Instrument `regulatory-service` with model-governance metrics (VaR
       backtesting exceptions, backtest pass/fail counts, submission outcomes) and
       add a `risk/regulatory.json` dashboard. TDD.
-      Acceptance: `./gradlew :regulatory-service:test && node plans/scripts/validate-grafana.mjs && test -f infra/grafana/provisioning/dashboards/risk/regulatory.json`
+      Acceptance: `./gradlew :regulatory-service:test && node docs/plans/scripts/validate-grafana.mjs && test -f infra/grafana/provisioning/dashboards/risk/regulatory.json`
 - [x] 4.5 Instrument `volatility-service` and `correlation-service` with
       surface-health metrics (last-update age, surface point count, calibration
       failures) and add a `risk/surface-health.json` dashboard. TDD.
-      Acceptance: `./gradlew :volatility-service:test :correlation-service:test && node plans/scripts/validate-grafana.mjs && test -f infra/grafana/provisioning/dashboards/risk/surface-health.json`
+      Acceptance: `./gradlew :volatility-service:test :correlation-service:test && node docs/plans/scripts/validate-grafana.mjs && test -f infra/grafana/provisioning/dashboards/risk/surface-health.json`
 - [x] 4.6 Instrument `notification-service` with in-app delivery metrics on
       `InAppDeliveryService` — in-app messages delivered and delivery failures —
       and add an `overview/notification-service.json` dashboard. TDD.
-      Acceptance: `./gradlew :notification-service:test && node plans/scripts/validate-grafana.mjs && test -f infra/grafana/provisioning/dashboards/overview/notification-service.json`
+      Acceptance: `./gradlew :notification-service:test && node docs/plans/scripts/validate-grafana.mjs && test -f infra/grafana/provisioning/dashboards/overview/notification-service.json`
       Note: scope corrected 2026-05-22 (originally "WebSocket metrics"). Verified
       against the codebase: `notification-service` has no WebSocket server — it
       consumes Kafka and persists alerts to Postgres (`InAppDeliveryService` →
@@ -293,7 +293,7 @@ adds the dashboard in the same commit — one self-contained feature per checkbo
 - [x] 4.7 Instrument `audit-service` with audit-trail metrics (append rate,
       hash-chain verification pass/fail, write latency, chain length) and add an
       `overview/audit-service.json` dashboard. TDD.
-      Acceptance: `./gradlew :audit-service:test && node plans/scripts/validate-grafana.mjs && test -f infra/grafana/provisioning/dashboards/overview/audit-service.json`
+      Acceptance: `./gradlew :audit-service:test && node docs/plans/scripts/validate-grafana.mjs && test -f infra/grafana/provisioning/dashboards/overview/audit-service.json`
       Note: verified 2026-05-22. The 14 new 4.7 tests (`AuditMetricsTest`,
       `MeteredAuditEventRepositoryTest`) all pass; validate-grafana clean (21
       dashboards, 0/0); dashboard file present. `./gradlew :audit-service:test`
@@ -307,4 +307,4 @@ adds the dashboard in the same commit — one self-contained feature per checkbo
       theta / rho P&L, plus dollar-delta / dollar-gamma) in `risk-engine`, and
       extend `trading/pnl.json` with a P&L-decomposition panel set so a desk can
       see whether a move was delta-, vega-, or theta-driven. TDD.
-      Acceptance: `( cd risk-engine && uv run pytest -m unit ) && node plans/scripts/validate-grafana.mjs && grep -qE 'delta_pnl|pnl.*decomposition|attribution' infra/grafana/provisioning/dashboards/trading/pnl.json`
+      Acceptance: `( cd risk-engine && uv run pytest -m unit ) && node docs/plans/scripts/validate-grafana.mjs && grep -qE 'delta_pnl|pnl.*decomposition|attribution' infra/grafana/provisioning/dashboards/trading/pnl.json`

@@ -2,7 +2,7 @@ import type { GreeksResultDto } from '../types'
 
 /**
  * `page_context` builder for the Greeks panel inline explainer
- * (plans/ai-v2.md §9.5).
+ * (docs/plans/ai-v2.md §9.5).
  *
  * The aggregate Greeks card (`<RiskSensitivities>`) renders per-asset-class
  * delta / gamma / vega plus book-level theta / rho. The card-level

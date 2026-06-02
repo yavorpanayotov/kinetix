@@ -14,7 +14,7 @@ import {
  * canned tile next to it rendered a real Δ PV for `+100BPS_PARALLEL` — two
  * components reading from different data sources and disagreeing about the
  * same conceptual state. See trader-review P0 #10 in
- * `plans/ui-trader-review.md`.
+ * `docs/plans/ui-trader-review.md`.
  */
 test.describe('Risk → Stress Test Summary / canned tile consistency', () => {
   test.beforeEach(async ({ page }) => {

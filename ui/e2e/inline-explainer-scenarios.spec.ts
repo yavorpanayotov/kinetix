@@ -2,7 +2,7 @@ import { test, expect, type Page, type Route } from '@playwright/test'
 import { chatMockCanned, mockAllApiRoutes } from './fixtures'
 
 // ---------------------------------------------------------------------------
-// Inline explainer — Stress / Scenarios panel (plans/ai-v2.md §9.4)
+// Inline explainer — Stress / Scenarios panel (docs/plans/ai-v2.md §9.4)
 // ---------------------------------------------------------------------------
 //
 // The scenario comparison table on the Scenarios tab exposes an

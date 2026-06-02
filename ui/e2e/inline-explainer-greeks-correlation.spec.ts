@@ -8,7 +8,7 @@ import {
 } from './fixtures'
 
 // ---------------------------------------------------------------------------
-// Inline explainer — Greeks panel + Correlation matrix (plans/ai-v2.md §9.5)
+// Inline explainer — Greeks panel + Correlation matrix (docs/plans/ai-v2.md §9.5)
 // ---------------------------------------------------------------------------
 //
 // Two card/matrix-level <ExplainButton> surfaces land in this checkbox:

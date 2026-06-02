@@ -3,7 +3,7 @@ import type { Page, Route } from '@playwright/test'
 import { mockAllApiRoutes } from './fixtures'
 
 // ---------------------------------------------------------------------------
-// Copilot latency budget — first useful content within 3 s (plans/ai-v2.md §10.6)
+// Copilot latency budget — first useful content within 3 s (docs/plans/ai-v2.md §10.6)
 // ---------------------------------------------------------------------------
 //
 // The §10.6 hardening requirement ("Latency budget — 3 s to first useful

@@ -4,7 +4,7 @@ import { authFetch } from '../auth/authFetch'
  * Typed client for the gateway-proxied audit API.
  *
  * Backend: gateway audit proxy (`/api/v1/audit/*`) forwarding to audit-service.
- * Plan ref: plans/audit-v2.md PR 8 §8.1.
+ * Plan ref: docs/plans/audit-v2.md PR 8 §8.1.
  */
 
 /**

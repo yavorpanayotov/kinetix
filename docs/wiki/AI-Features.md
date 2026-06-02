@@ -2,7 +2,7 @@
 
 Kinetix integrates LLM-powered explainers and (in v2) a read-only Copilot. Everything runs through a dedicated Python service — `ai-insights-service` — that wraps the [Claude Agent SDK](https://docs.anthropic.com/en/docs/claude-code/sdk) and reuses the host's `~/.claude/` Claude Code subscription. There is no `ANTHROPIC_API_KEY` anywhere in the platform; there is no per-token billing.
 
-This page is the single reference for the AI integration. The authoritative architecture decision is [ADR-0036](https://github.com/panayotovk/kinetix/blob/main/docs/adr/ADR-0036-ai-copilot-architecture.md); the v1 and v2 execution plans live in [`plans/ai-v1.md`](https://github.com/panayotovk/kinetix/blob/main/plans/ai-v1.md) and [`plans/ai-v2.md`](https://github.com/panayotovk/kinetix/blob/main/plans/ai-v2.md).
+This page is the single reference for the AI integration. The authoritative architecture decision is [ADR-0036](https://github.com/panayotovk/kinetix/blob/main/docs/adr/ADR-0036-ai-copilot-architecture.md); the v1 and v2 execution plans live in [`docs/plans/ai-v1.md`](https://github.com/panayotovk/kinetix/blob/main/docs/plans/ai-v1.md) and [`docs/plans/ai-v2.md`](https://github.com/panayotovk/kinetix/blob/main/docs/plans/ai-v2.md).
 
 ## Status
 
@@ -21,7 +21,7 @@ This page is the single reference for the AI integration. The authoritative arch
 | v2 | Morning brief (scheduled + on-demand) | Shipped |
 | v2 | Intraday push (Kafka consumer + WebSocket) | Shipped |
 | v2 | ⌘K command palette with saved-query chips | Shipped |
-| v2 | Demo polish: launcher, freshness urgency, tool_calls reasoning, book-reset, friendly errors, source-of-truth footnote | In flight (`plans/ai-copilot-demo-polish.md`) |
+| v2 | Demo polish: launcher, freshness urgency, tool_calls reasoning, book-reset, friendly errors, source-of-truth footnote | In flight (`docs/plans/ai-copilot-demo-polish.md`) |
 
 ## v1 — shipped explainers
 
@@ -120,7 +120,7 @@ The single host `~/.claude/` credential does not provide per-user isolation. To 
 - **Push transport:** WebSocket `/ws/copilot` on the gateway for intraday push.
 - **Conversation state:** `ConversationStore` protocol with `InMemoryConversationStore` in v2 and a `RedisConversationStore` impl as the hardening item. TTL 24h.
 
-(All of these surfaces are shipped. See `plans/ai-v2.md` for the completed execution history and `plans/ai-copilot-demo-polish.md` for ongoing demo-polish work.)
+(All of these surfaces are shipped. See `docs/plans/ai-v2.md` for the completed execution history and `docs/plans/ai-copilot-demo-polish.md` for ongoing demo-polish work.)
 
 ## Demo mode and host auth
 
@@ -217,4 +217,4 @@ Related files outside the service:
 - `ui/src/components/AIInsightPanel.tsx` — narrative + bullets + "Demo mode" badge
 - `ui/src/components/VaRDashboard.tsx`, `ui/src/components/ReportsTab.tsx` — surfaces that wire `AIInsightPanel`
 - `docs/adr/ADR-0036-ai-copilot-architecture.md` — authoritative ADR
-- `plans/ai-v1.md`, `plans/ai-v2.md` — execution plans
+- `docs/plans/ai-v1.md`, `docs/plans/ai-v2.md` — execution plans

@@ -9,7 +9,7 @@ numbers came from, and a severity badge.
 
 Why ``book_id`` lives on :class:`MorningBrief`
 ----------------------------------------------
-``plans/ai-v2.md`` § 6.5 specifies ``MorningBrief{sections[...],
+``docs/plans/ai-v2.md`` § 6.5 specifies ``MorningBrief{sections[...],
 generated_at, mode}`` without a top-level ``book_id``, but also asks the
 generator to iterate *per book*. A :class:`MorningBrief` is therefore
 PER-BOOK — one brief object per book — and we keep ``book_id`` on it so

@@ -8,7 +8,7 @@ import io.kotest.matchers.string.shouldNotContain
 /**
  * Verifies that the limit breach events migration (V32) creates the
  * `limit_breach_events` table with the columns and indexes required by the
- * morning brief's `get_recent_breaches` MCP tool (see plans/ai-v2.md §6).
+ * morning brief's `get_recent_breaches` MCP tool (see docs/plans/ai-v2.md §6).
  *
  * We validate the migration SQL content directly rather than running it against
  * a database: this keeps the check in the fast plain `test` task and decouples

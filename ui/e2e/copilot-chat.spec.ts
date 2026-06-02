@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 import { chatMockCanned, chatMockCannedWithToolCalls, mockAllApiRoutes } from './fixtures'
 
 // ---------------------------------------------------------------------------
-// Copilot chat — Cmd+K command palette copilot zone (plans/ai-v2.md §5.8)
+// Copilot chat — Cmd+K command palette copilot zone (docs/plans/ai-v2.md §5.8)
 // ---------------------------------------------------------------------------
 //
 // With `copilotMode` enabled, the Cmd+K command palette doubles as an inline

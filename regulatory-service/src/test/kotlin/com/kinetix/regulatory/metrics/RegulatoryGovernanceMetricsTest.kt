@@ -12,7 +12,7 @@ import io.micrometer.prometheusmetrics.PrometheusMeterRegistry
 
 /**
  * Instrumentation contract for the model-governance metrics that drive the
- * `risk/regulatory.json` Grafana dashboard (checkbox 4.4 of plans/grafana-v2.md):
+ * `risk/regulatory.json` Grafana dashboard (checkbox 4.4 of docs/plans/grafana-v2.md):
  *
  *   - regulatory_backtest_runs_total{book_id,test,outcome}      Counter
  *   - regulatory_backtest_exceptions_total{book_id,zone}        Counter

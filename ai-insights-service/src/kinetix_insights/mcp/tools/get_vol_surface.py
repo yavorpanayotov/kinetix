@@ -2,7 +2,7 @@
 
 Reads the latest (or historical) volatility surface for an underlier
 from volatility-service and maps the upstream ``VolSurfaceResponse``
-payload to the v2 tool-output shape defined in ``plans/ai-v2.md`` § PR
+payload to the v2 tool-output shape defined in ``docs/plans/ai-v2.md`` § PR
 2:
 
     {

@@ -10,7 +10,7 @@ assert that:
 * the upstream ``List[LimitDefinitionResponse]`` payload is filtered
   to BOOK-level rows whose ``entityId`` matches ``book_id``, optionally
   narrowed by ``limit_type``, and mapped to the v2 tool output shape
-  defined in ``plans/ai-v2.md`` § PR 2,
+  defined in ``docs/plans/ai-v2.md`` § PR 2,
 * every row carries v2 placeholders (``current is None``,
   ``utilisation_pct is None``, ``status == "UNKNOWN"``) and the
   citation always carries the matching gap quality flags

@@ -33,7 +33,7 @@ import kotlinx.serialization.json.jsonPrimitive
  * and surfaces as a 500, which causes audits to wrongly diagnose the
  * gateway as broken when the real fault is a malformed caller payload.
  *
- * See `plans/ui-fix-v1.md` checkbox 2.4.
+ * See `docs/plans/ui-fix-v1.md` checkbox 2.4.
  */
 class StatusPagesAcceptanceTest : FunSpec({
 

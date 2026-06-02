@@ -8,7 +8,7 @@ assert that:
   (``GET /api/v1/books/{book_id}/limit-breaches``) with no query
   parameters and forwards the caller's :class:`UserContext`,
 * the upstream ``limit_breach_events`` JSON array is mapped to the v2
-  tool-output shape defined in ``plans/ai-v2.md`` § PR 6,
+  tool-output shape defined in ``docs/plans/ai-v2.md`` § PR 6,
 * client-side filtering (``since`` window, default last 7 days) and
   sort-by-``breachedAt``-desc behave as specified,
 * ``open_count`` and the ``OPEN_BREACHES`` quality flag track the

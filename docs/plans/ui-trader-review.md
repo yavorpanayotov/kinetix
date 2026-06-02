@@ -75,7 +75,7 @@ Findings are grouped by severity. P0 are **data correctness** — they would mak
 
 ## Decisions applied
 
-To make this plan loop-ready (`/loop /work-plan plans/ui-trader-review.md`), defaults below are pre-resolved. Override in a follow-up if you disagree.
+To make this plan loop-ready (`/loop /work-plan docs/plans/ui-trader-review.md`), defaults below are pre-resolved. Override in a follow-up if you disagree.
 
 - **TDD throughout.** Every fix-checkbox writes a failing test first (unit at the boundary of the bug, plus a higher-level acceptance/Playwright test where the bug is user-visible), then ships the minimal change to make it green. Run the full module suite on every change per the project testing philosophy.
 - **Default fix branch:** create one PR per P0 item, one PR per logical P1 cluster. P2/P3 items can ride along on related P1 PRs unless they are pure-UI polish, in which case they batch.
@@ -192,7 +192,7 @@ Ordered top-to-bottom by dependency. P0 first because every P1 cross-tab inconsi
 
 - Real exchange/venue connectivity, FIX session management, market-data subscription tuning.
 - Backtest of VaR model adequacy (regulatory backtesting cadence already exists under Regulatory).
-- AI Copilot tone / answer quality — separate plan under `plans/ai-v2.md`.
+- AI Copilot tone / answer quality — separate plan under `docs/plans/ai-v2.md`.
 - New asset classes (commodities futures, FX options) not currently in the demo data.
 - Anything that requires changing CI/CD pipelines, adding new top-level services, or new external dependencies.
 

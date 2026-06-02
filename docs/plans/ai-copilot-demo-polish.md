@@ -2,7 +2,7 @@
 
 ## Context
 
-The Copilot foundation from `plans/ai-v2.md` is shipped (74/75 checkboxes): MCP server + 10 read tools, `ChatRequest`/`ChatChunk`, streaming SSE chat endpoint, gateway proxy, citation verifier, policy guard, ⌘K command palette, `<StreamingNarrative>`, `<CitationFootnote>`/`<CitationList>`, `<NotificationStrip>` with morning brief and intraday push, saved-query chips, and inline `<ExplainButton>` rollout on the Risk / P&L / Alerts surfaces.
+The Copilot foundation from `docs/plans/ai-v2.md` is shipped (74/75 checkboxes): MCP server + 10 read tools, `ChatRequest`/`ChatChunk`, streaming SSE chat endpoint, gateway proxy, citation verifier, policy guard, ⌘K command palette, `<StreamingNarrative>`, `<CitationFootnote>`/`<CitationList>`, `<NotificationStrip>` with morning brief and intraday push, saved-query chips, and inline `<ExplainButton>` rollout on the Risk / P&L / Alerts surfaces.
 
 What's **missing** is everything Marcus (senior FX/rates trader) called out in his review of an interactive copilot on a professional risk system:
 

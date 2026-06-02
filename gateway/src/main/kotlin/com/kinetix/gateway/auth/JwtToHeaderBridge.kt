@@ -15,7 +15,7 @@ import io.ktor.client.request.HttpRequestBuilder
  *   (forward-compat path) or from [BookAccessService] (the v2 source of
  *   truth). Wildcard scope is rendered as `"*"`.
  *
- * This is the AI-v2 PR 4.3 implementation; see `plans/ai-v2.md`.
+ * This is the AI-v2 PR 4.3 implementation; see `docs/plans/ai-v2.md`.
  */
 object JwtToHeaderBridge {
 

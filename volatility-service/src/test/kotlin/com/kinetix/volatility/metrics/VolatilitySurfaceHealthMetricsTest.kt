@@ -17,7 +17,7 @@ import java.time.ZoneOffset
 /**
  * Instrumentation contract for the surface-health metrics that drive the
  * `risk/surface-health.json` Grafana dashboard (checkbox 4.5 of
- * plans/grafana-v2.md):
+ * docs/plans/grafana-v2.md):
  *
  *   - volatility_surface_last_update_timestamp_seconds{underlying}  Gauge
  *   - volatility_surface_points{underlying}                        Gauge

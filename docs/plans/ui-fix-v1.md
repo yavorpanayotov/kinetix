@@ -11,7 +11,7 @@ banners) compound the trust hit.
 
 Loop-ready for `/work-plan`. Each `- [ ]` is one independently committable
 change with an `Acceptance:` command on the line immediately under it. Advance
-end-to-end with `/loop /work-plan plans/ui-fix-v1.md`.
+end-to-end with `/loop /work-plan docs/plans/ui-fix-v1.md`.
 
 ## Decisions applied
 
@@ -31,7 +31,7 @@ end-to-end with `/loop /work-plan plans/ui-fix-v1.md`.
   the risk-orchestrator itself — the diagnose step lands first so the fix step
   is informed.
 - **TDD pair = one checkbox.** Per CLAUDE.md "Commit Practices" and
-  `plans/demo-v2.md` precedent, the failing acceptance test and the production
+  `docs/plans/demo-v2.md` precedent, the failing acceptance test and the production
   fix that turns it green LAND IN THE SAME COMMIT under a single checkbox.
   Splitting red→green into separate checkboxes trips `/work-plan` because the
   first checkbox's verification command would fail by design. Subagents must
@@ -109,7 +109,7 @@ into a generic 500 instead of a 400 with a field name. The `[x]` 2.1
 checkbox already captured this.
 
 - [x] 2.1 Diagnose: see `## Diagnosis log` entry 2.1 below.
-      Acceptance: `grep -q "^### 2.1 " plans/ui-fix-v1.md`
+      Acceptance: `grep -q "^### 2.1 " docs/plans/ui-fix-v1.md`
 - [x] 2.2 TDD pair (test + fix in one commit): fix
       `GET /api/v1/risk/hierarchy/firm/firm` returning zeros. Add an
       acceptance test in `gateway/src/test/kotlin/com/kinetix/gateway/routes/HierarchyRiskRoutesAcceptanceTest.kt`
@@ -138,7 +138,7 @@ checkbox already captured this.
       the gateway's status-pages plugin / global error handler
       (`gateway/.../Application.kt` or equivalent).
       Acceptance: `./gradlew :gateway:acceptanceTest --tests "*StatusPagesAcceptance*"`
-- [x] 2.5 Live-deploy smoke: create `plans/scripts/check-risk-recovery.sh`
+- [x] 2.5 Live-deploy smoke: create `docs/plans/scripts/check-risk-recovery.sh`
       (~25 lines) that curls each risk POST with the **correct UI-shape
       payload** and asserts 200 for `/risk/var/{book}`,
       `/risk/stress/{book}`, `/risk/what-if/{book}`, and
@@ -147,7 +147,7 @@ checkbox already captured this.
       `childCount > 0`. Exit non-zero on any failure. The hedge-suggest
       endpoint is excluded because it's a pre-condition error (412 once
       patched), not a recovery check.
-      Acceptance: `bash plans/scripts/check-risk-recovery.sh`
+      Acceptance: `bash docs/plans/scripts/check-risk-recovery.sh`
 
       Status (2026-05-19): script lands and the four risk-POST checks pass
       against the live deploy. The hierarchy check correctly reports the
@@ -195,7 +195,7 @@ checkbox already captured this.
       from gateway + regulatory-service logs (it's the report-service /
       regulatory-service producing the upstream_error). Append a dated entry
       to `## Diagnosis log` with the root-cause line.
-      Acceptance: `grep -q "^### 4.1 " plans/ui-fix-v1.md`
+      Acceptance: `grep -q "^### 4.1 " docs/plans/ui-fix-v1.md`
 - [x] 4.2 TDD pair (test + fix in one commit): add
       `gateway/.../routes/ReportsGenerateAcceptanceTest.kt` POSTing
       `/api/v1/reports/generate` with `{templateId:"tpl-risk-summary",
@@ -222,16 +222,16 @@ checkbox already captured this.
       `OfficialEodPromotedEvent` Kafka event AND that
       `GET /api/v1/risk/eod-timeline/balanced-income?from=…&to=…` returns at
       least one entry. Then wire the EOD-promotion scheduler (cite
-      `plans/demo-v2.md` Decision: "EOD observation — Kafka topic
+      `docs/plans/demo-v2.md` Decision: "EOD observation — Kafka topic
       `risk.official-eod`, event `OfficialEodPromotedEvent`"). Schedule runs
       daily at the configured close time; idempotent on re-run within the
       same simulated day.
       Acceptance: `./gradlew :demo-orchestrator:integrationTest --tests "*EodPromotion*"`
-- [x] 5.2 Smoke: create `plans/scripts/check-eod-recovery.sh` that curls
+- [x] 5.2 Smoke: create `docs/plans/scripts/check-eod-recovery.sh` that curls
       `GET /api/v1/risk/eod-timeline/balanced-income?from=$(date -d "30 days
       ago" +%F)&to=$(date +%F)` and asserts the JSON `.entries` array
       length is greater than zero.
-      Acceptance: `bash plans/scripts/check-eod-recovery.sh`
+      Acceptance: `bash docs/plans/scripts/check-eod-recovery.sh`
 
       Status (2026-05-19): script lands. Currently fails against the live
       deploy with `0 entries` because demo-orchestrator hasn't been
@@ -344,14 +344,14 @@ checkbox already captured this.
       renders.
       Acceptance: `cd ui && npm run test -- DataQualityIndicator && cd ui && npm run lint`
 - [ ] 10.3 Audit pass: re-run the original audit probe
-      (checked in as `plans/scripts/audit-live-ui.mjs`) against the live
+      (checked in as `docs/plans/scripts/audit-live-ui.mjs`) against the live
       deploy and confirm ZERO console errors, ZERO `api.kinetixrisk.ai`
       4xx/5xx responses, non-empty ticker strip, populated Firm Summary,
       single rollup breach banner, Reports generate succeeds end-to-end,
       EOD timeline has entries, Regulatory tab renders the SBM table.
-      Acceptance: `node plans/scripts/audit-live-ui.mjs && grep -q '"consoleErrors": \[\]' /tmp/kinetix-audit/report.json`
+      Acceptance: `node docs/plans/scripts/audit-live-ui.mjs && grep -q '"consoleErrors": \[\]' /tmp/kinetix-audit/report.json`
 
-      Status (2026-05-20): `plans/scripts/audit-live-ui.mjs` is checked in
+      Status (2026-05-20): `docs/plans/scripts/audit-live-ui.mjs` is checked in
       and operational. It currently FAILS against the live deploy by
       design — the deployment still runs pre-fix binaries (ticker NAV
       $0.00, Firm Summary $0.00, no SBM table, 4 stale console 404s). This
@@ -361,7 +361,7 @@ checkbox already captured this.
       this box can be ticked.
 
       Blocked: 2026-05-21 — verification failed for `node
-      plans/scripts/audit-live-ui.mjs`:
+      docs/plans/scripts/audit-live-ui.mjs`:
       ✗ ticker NAV populated — NAV="$0.00"
       ✗ Firm Summary NAV populated — total-nav="$0.00"
       ✓ breach banners rolled up — 0 rollup banner(s)

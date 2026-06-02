@@ -42,7 +42,7 @@ and a full `surface RestApi` sweep across all 24 specs.
 This plan is loop-ready for `/work-plan`. Each `- [ ]` checkbox is one
 independently-committable change, ordered top-to-bottom by dependency, with an
 `Acceptance:` command on the line directly after it. Advance end-to-end with
-`/loop /work-plan plans/alium-v6.md`. The codebase must build and tests must pass
+`/loop /work-plan docs/plans/alium-v6.md`. The codebase must build and tests must pass
 after every commit (CLAUDE.md "Commit Practices").
 
 ## Decisions applied
@@ -55,7 +55,7 @@ after every commit (CLAUDE.md "Commit Practices").
   engine as live, so the code moves to the spec rather than the reverse.
 - **Allium tooling: full surface-block sweep.** A `surface RestApi { … }` block is
   added to every spec so HTTP-origin triggers resolve in-spec, plus a workspace
-  wrapper script (`plans/scripts/allium-workspace.mjs`) that checks/analyses the
+  wrapper script (`docs/plans/scripts/allium-workspace.mjs`) that checks/analyses the
   whole set at once.
 - **Ambiguous direction rule.** Where code + proto + UI all agree against the
   spec, the **spec** is updated (lower risk than re-cutting a live wire contract).
@@ -117,14 +117,14 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
 
 ## Phase 0 — Tooling foundation
 
-- [x] 0.1 Create `plans/scripts/allium-workspace.mjs` — a zero-dependency Node
+- [x] 0.1 Create `docs/plans/scripts/allium-workspace.mjs` — a zero-dependency Node
       script that runs `allium check specs/` and `allium analyse specs/` over the
       whole spec set (resolving cross-spec `use` paths and triggers), parses the
       JSON, exits non-zero only on `error`-severity diagnostics, and prints a
       summary count of `unreachableTrigger` / `field.unused` findings as a
       baseline. This script is the acceptance command for every spec checkbox in
       Phases 2, 4 and 5.
-      Acceptance: `node plans/scripts/allium-workspace.mjs && echo OK`
+      Acceptance: `node docs/plans/scripts/allium-workspace.mjs && echo OK`
 
 ## Phase 1 — P0 code bugs (the punch list)
 
@@ -229,7 +229,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       331, 506, 519, 523. Code, proto (`risk_calculation.proto:172,186`),
       risk-engine, gateway tests and UI all use `portfolioGroupId`; the spec is the
       only laggard. Source: `initial-report.md` C1 / `group-c`.
-      Acceptance: `node plans/scripts/allium-workspace.mjs`
+      Acceptance: `node docs/plans/scripts/allium-workspace.mjs`
 
 - [x] 2.2 `market-data.allium` — align the stale-price contract to shipped code
       (Decisions applied): `QueryStalePrices` query param `staleAfter` → `thresholdHours`;
@@ -238,13 +238,13 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       Fix the `RiskFreeRate` `@guidance` precision note (`decimal(18,8)` →
       `decimal(28,12)`). Note that `VolSurfaceEvent` carries only `pointCount`.
       Source: `group-a` S2 + StaleInstrument + RiskFreeRate precision.
-      Acceptance: `node plans/scripts/allium-workspace.mjs`
+      Acceptance: `node docs/plans/scripts/allium-workspace.mjs`
 
 - [x] 2.3 `market-data.allium` — downgrade `ReconcileImpliedVsRealisedVol` to a
       seeder-only / `@aspirational` rule (no runtime `/reconcile` route, no
       `VolReconciliation` DTO, no UI dashboard component exist — only the seeder
       acceptance test). Source: `group-a` aspirational finding.
-      Acceptance: `node plans/scripts/allium-workspace.mjs`
+      Acceptance: `node docs/plans/scripts/allium-workspace.mjs`
 
 - [x] 2.4 `reference-data.allium` — add `@guidance` for: variant `currency`
       duplication on `EquityFuture`/`CommodityFuture`/`InterestRateSwap`/`CorporateBond`;
@@ -252,53 +252,53 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       `dayCountConvention` non-null defaults; `DividendYield.exDate` as typed
       `LocalDate`; and fix `CreateTrader` to look up `Desk` by id, not `name`.
       Source: `group-a` spec bugs + regressions of `initial-report.md` #20/#27.
-      Acceptance: `node plans/scripts/allium-workspace.mjs`
+      Acceptance: `node docs/plans/scripts/allium-workspace.mjs`
 
 - [x] 2.5 `intraday-pnl.allium` — mark `IntradayPnlState` and `InitialiseIntradayState`
       `@aspirational` (the live design is the stateless `recompute()` against the
       repo; no state class or `SodBaseline.created` listener exists). Close the
       stale open question at line 414 — `IntradayVaRTimeline` is already shipped in
       a separate table; document the design. Source: `group-c` S4 + IntradayVaRTimeline.
-      Acceptance: `node plans/scripts/allium-workspace.mjs`
+      Acceptance: `node docs/plans/scripts/allium-workspace.mjs`
 
 - [x] 2.6 `scenarios.allium` — three fixes: add the missing `pending_approval → draft`
       arc to the `SavedScenario` transitions block (E-S2C-04); update `ReplayResult`
       to the per-position shape the regulatory-service actually returns, or document
       both views (E-S2C-06); update `ReverseStressResult` to the per-instrument
       `shocks` contract the engine implements (E-S2C-05).
-      Acceptance: `node plans/scripts/allium-workspace.mjs`
+      Acceptance: `node docs/plans/scripts/allium-workspace.mjs`
 
 - [x] 2.7 `discovery-valuation.allium` — reconcile the `FetchOutcome` enum /
       `FetchResult` value type with the Kotlin sealed `FetchResult`
       (`FetchSuccess`/`FetchFailure`): either annotate the divergence in `@guidance`
       or align the spec to the sealed shape. Source: `group-e` E-C2S-04 / `group-a` S5.
-      Acceptance: `node plans/scripts/allium-workspace.mjs`
+      Acceptance: `node docs/plans/scripts/allium-workspace.mjs`
 
 - [x] 2.8 `alerts.allium` — correct the `BudgetBreachExtractor` description: it
       returns the actual `utilisationPct` from the sentinel, not a `1.0` flag
       (E-S2C-03). Add `@guidance` location hints to the three location-less
       `deferred` blocks: `extract_metric`, `promote_severity`, `escalation_channels`
       (E-S2C-17).
-      Acceptance: `node plans/scripts/allium-workspace.mjs`
+      Acceptance: `node docs/plans/scripts/allium-workspace.mjs`
 
 - [x] 2.9 `regulatory.allium` — add the `ensures: GovernanceTransitionOccurred(...)`
       clauses the code already emits: `RegisterModel`/`ValidateModel`/`ApproveModel`/
       `RetireModel` emit `MODEL_STATUS_CHANGED`; `ApproveSubmission`/`AcknowledgeSubmission`
       emit their events. Add `created_at` to `RegulatorySubmission`. Source:
       `group-e` E-S2C-14/15/16.
-      Acceptance: `node plans/scripts/allium-workspace.mjs`
+      Acceptance: `node docs/plans/scripts/allium-workspace.mjs`
 
 - [x] 2.10 `regime.allium` — fix the invariant section (lines 438-444) to match the
       `ApplyRegimeParameters` guidance and code (CRISIS 5-day + EWMA path):
       `AdaptiveRegimeParameterProvider` implements the guidance values. Rename
       `RegimeHistory.signals_at_transition` → `signals` (or annotate). Source:
       `group-d` regime invariant inconsistency.
-      Acceptance: `node plans/scripts/allium-workspace.mjs`
+      Acceptance: `node docs/plans/scripts/allium-workspace.mjs`
 
 - [x] 2.11 `factor-model.allium` — apply the "persisted as `factorName: String`"
       `@guidance` note to `FactorDefinition.factor` (the same note already exists
       on `InstrumentFactorLoading`). Source: `group-d` FactorDefinition naming.
-      Acceptance: `node plans/scripts/allium-workspace.mjs`
+      Acceptance: `node docs/plans/scripts/allium-workspace.mjs`
 
 - [x] 2.12 `liquidity.allium` — clarify whether `PositionLiquidityResult.liquidity_tier`
       is the instrument reference tier or a recomputed per-position ADV-fraction
@@ -307,14 +307,14 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       vs `marketValue`/`horizonDays`/`lvarContribution`/`concentrationStatus`); rename
       `LiquidityRiskSnapshot.lvar` to `portfolio_lvar` (matching the persisted
       column) and fix the `LVaRExceedsVaR` invariant reference. Source: `group-d`.
-      Acceptance: `node plans/scripts/allium-workspace.mjs`
+      Acceptance: `node docs/plans/scripts/allium-workspace.mjs`
 
 - [x] 2.13 `hierarchy-risk.allium` + `hedge.allium` — annotate `BookHierarchyMapping`
       vs code class `BookHierarchyEntry`; document the marginal-VaR formula
       (sum-of-contributions vs drop-out reaggregation) on `ComputeMarginalContribution`;
       annotate `HedgeRecommendation.id` as serialised-string of a `UUID`. Source:
       `group-d` naming items.
-      Acceptance: `node plans/scripts/allium-workspace.mjs`
+      Acceptance: `node docs/plans/scripts/allium-workspace.mjs`
 
 ## Phase 3 — Remaining code bugs
 
@@ -385,34 +385,34 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       invariant (every numeric claim cites a source), the banned-phrase policy
       invariant, MCP read-only tool contracts, and the `ClaudeAgentChatClient` /
       `CannedChatClient` switch. Source: `coverage-gaps.md` §ai-insights-service.
-      Acceptance: `node plans/scripts/allium-workspace.mjs`
+      Acceptance: `node docs/plans/scripts/allium-workspace.mjs`
 
 - [x] 4.2 Extend `execution.allium` — add `VenueSession` / `VenueCutoff` entities,
       a `DayOrderExpiry` rule driven by venue-cutoff timestamps, a FIX-message-log
       durability invariant (every wire message persisted), and promote
       `CancelAttempt` to a first-class entity with its `CancelAttemptStatus`
       lifecycle. Source: `coverage-gaps.md` §fix-gateway + `group-b` `cancel_attempts`.
-      Acceptance: `node plans/scripts/allium-workspace.mjs`
+      Acceptance: `node docs/plans/scripts/allium-workspace.mjs`
 
 - [x] 4.3 Extend `risk.allium` — add a `ReplayRun` entity + `RecordReplayRun` rule
       (the `replay_runs` table / `RunReplayRoutes` audit trail, per ADR-0018), a
       `CompareRuns` rule (`RunComparisonService`), and surface the interactive
       What-if / Rebalancing services. Source: `coverage-gaps.md` + `group-c`.
-      Acceptance: `node plans/scripts/allium-workspace.mjs`
+      Acceptance: `node docs/plans/scripts/allium-workspace.mjs`
 
 - [x] 4.4 Extend `factor-model.allium` — add a `BrinsonAttribution` rule and
       `AttributionResult` entity (`risk-engine/brinson.py`, gRPC `AttributionService`,
       gateway `BenchmarkAttributionRoutes`), and add the `FactorPnlAttribution`
       entity / `ComputeFactorPnlAttribution` surface that has no Kotlin
       representation today. Source: `coverage-gaps.md` + `group-d` C10 tail.
-      Acceptance: `node plans/scripts/allium-workspace.mjs`
+      Acceptance: `node docs/plans/scripts/allium-workspace.mjs`
 
 - [x] 4.5 Extend `audit.allium` — add a `ReplayDlqMessage` rule (must re-hash with
       sequence-preserving semantics) with an authz invariant restricting replay to
       the operator role; tighten `RecordGovernanceAuditEvent` to name the consumed
       Kafka topic and require idempotency on `(source_service, event_id)`. Source:
       `coverage-gaps.md` §Audit DLQ replay + §governance consumer.
-      Acceptance: `node plans/scripts/allium-workspace.mjs`
+      Acceptance: `node docs/plans/scripts/allium-workspace.mjs`
 
 - [x] 4.6 Extend `alerts.allium` — spec the snooze workflow (`snoozed_until` field,
       snooze rule, dedup interaction), add `EscalateAlertManually` and
@@ -420,52 +420,52 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       and add an `AnomalyDetected` trigger + `RaiseAnomalyAlert` rule for the
       notification-service `AnomalyEvent` consumer. Source: `group-e` E-C2S-01/02/03
       + `coverage-gaps.md` §anomaly.
-      Acceptance: `node plans/scripts/allium-workspace.mjs`
+      Acceptance: `node docs/plans/scripts/allium-workspace.mjs`
 
 - [x] 4.7 Extend `market-data.allium` — add a `requires: psd(values)` clause to
       `IngestCorrelationMatrix` and a `PsdValidationResult { is_psd, min_eigenvalue,
       tolerance }` value type, modelling the `CorrelationPsdValidator` that already
       rejects non-PSD matrices. Source: `group-a` coverage gap.
-      Acceptance: `node plans/scripts/allium-workspace.mjs`
+      Acceptance: `node docs/plans/scripts/allium-workspace.mjs`
 
 - [x] 4.8 Extend `risk-models.allium` — add a `RunReverseStressTest` rule
       (`risk-engine/reverse_stress.py`) and a `@guidance` note on
       `CalculatePricingGreeks` for the numerical cross-Greeks fallback path
       (`cross_greeks.py`). Source: `group-c` coverage gaps.
-      Acceptance: `node plans/scripts/allium-workspace.mjs`
+      Acceptance: `node docs/plans/scripts/allium-workspace.mjs`
 
 - [x] 4.9 Extend `regulatory.allium` — add `ReportTemplate` and `GenerateReport`
       rules for the report-template engine (`report_templates`/`generated_reports`,
       `ReportRoutes`, V56 migration). Add `RunHistoricalReplay` coverage for the
       `historical_scenario_periods`/`historical_scenario_returns` tables. Source:
       `coverage-gaps.md` §reporting + §historical scenario tables.
-      Acceptance: `node plans/scripts/allium-workspace.mjs`
+      Acceptance: `node docs/plans/scripts/allium-workspace.mjs`
 
 - [x] 4.10 Extend `regime.allium` — add a minimal `MLPredictionRequested` /
       `MLPredictionProduced` rule pair for `ml_server.py` / `MLPredictionService`
       so the ML output is governable (model-version pinning, audit). Annotate
       `RegimeModelConfig` as `@aspirational` with a `TODO(REG_D-03)` location hint.
       Source: `coverage-gaps.md` §ML prediction + `group-d` RegimeModelConfig.
-      Acceptance: `node plans/scripts/allium-workspace.mjs`
+      Acceptance: `node docs/plans/scripts/allium-workspace.mjs`
 
 - [x] 4.11 Extend `counterparty-risk.allium` — add a persisted SA-CCR history
       entity (`SaCcrResultsTable`), a `CounterpartyExposureHistory` entity, a
       `NettingSetAssignment` rule (trade ↔ netting-set association), and an
       `InternalMargin` entity + `CalculateMargin` rule (`MarginCalculator` /
       `MarginEstimate`). Source: `group-d` + `coverage-gaps.md` §MarginCalculator.
-      Acceptance: `node plans/scripts/allium-workspace.mjs`
+      Acceptance: `node docs/plans/scripts/allium-workspace.mjs`
 
 - [x] 4.12 Extend `hierarchy-risk.allium` — annotate `ScheduledHierarchyAggregation`
       and the `TriggerCROReport` delegation as `@aspirational` (no scheduler exists;
       `CroReportRoutes` returns synchronous JSON, not a delegated PDF/CSV). Source:
       `group-d` aspirational findings.
-      Acceptance: `node plans/scripts/allium-workspace.mjs`
+      Acceptance: `node docs/plans/scripts/allium-workspace.mjs`
 
 - [x] 4.13 Extend `positions.allium` + `trading.allium` — add a `PositionNote`
       entity with CRUD rules (`position_notes` table, retention/audit obligations)
       and a `TradeStrategy` entity with the `StrategyType` enum and CRUD rules
       (drives P&L attribution). Source: `group-b` coverage gaps.
-      Acceptance: `node plans/scripts/allium-workspace.mjs`
+      Acceptance: `node docs/plans/scripts/allium-workspace.mjs`
 
 - [x] 4.14 Add the remaining design-note coverage: a `## Out of scope` callout in
       `eod-close.allium` / `trading.allium` for `demo-orchestrator`; a distributed-lock
@@ -473,7 +473,7 @@ aligns an implementation to its spec, and the user approved the full v6 scope:
       topics + payload schemas for the budget-breach / factor-concentration /
       liquidity-concentration / regime-event publishers in `alerts.allium`. Source:
       `coverage-gaps.md` + `group-d`.
-      Acceptance: `node plans/scripts/allium-workspace.mjs`
+      Acceptance: `node docs/plans/scripts/allium-workspace.mjs`
 
 ## Phase 5 — Surface-block sweep
 
@@ -484,32 +484,32 @@ commit.
 
 - [x] 5.1 Group A — add `surface RestApi` blocks to `core.allium`,
       `market-data.allium`, `reference-data.allium`.
-      Acceptance: `node plans/scripts/allium-workspace.mjs`
+      Acceptance: `node docs/plans/scripts/allium-workspace.mjs`
 
 - [x] 5.2 Group B — add `surface RestApi` blocks to `positions.allium`,
       `trading.allium`, `limits.allium`, `execution.allium`.
-      Acceptance: `node plans/scripts/allium-workspace.mjs`
+      Acceptance: `node docs/plans/scripts/allium-workspace.mjs`
 
 - [x] 5.3 Group C — add `surface RestApi` blocks to `risk.allium`,
       `risk-models.allium`, `intraday-pnl.allium`, `eod-close.allium`.
-      Acceptance: `node plans/scripts/allium-workspace.mjs`
+      Acceptance: `node docs/plans/scripts/allium-workspace.mjs`
 
 - [x] 5.4 Group D — add `surface RestApi` blocks to `counterparty-risk.allium`,
       `hierarchy-risk.allium`, `factor-model.allium`, `liquidity.allium`,
       `hedge.allium`, `regime.allium`.
-      Acceptance: `node plans/scripts/allium-workspace.mjs`
+      Acceptance: `node docs/plans/scripts/allium-workspace.mjs`
 
 - [x] 5.5 Group E — add `surface RestApi` blocks to `scenarios.allium`,
       `scenario-lifecycle.allium`, `discovery-valuation.allium`, `alerts.allium`,
       `alert-escalation.allium`, `audit.allium`, `regulatory.allium`, plus
       `ai-insights.allium` if not already covered by 4.1.
-      Acceptance: `node plans/scripts/allium-workspace.mjs`
+      Acceptance: `node docs/plans/scripts/allium-workspace.mjs`
 
-- [x] 5.6 Final verification — run `node plans/scripts/allium-workspace.mjs`,
+- [x] 5.6 Final verification — run `node docs/plans/scripts/allium-workspace.mjs`,
       confirm zero `error`-severity diagnostics across the whole set and that the
       `unreachableTrigger` count has dropped substantially from the 0.1 baseline.
       Record the new baseline in the script output / a comment.
-      Acceptance: `node plans/scripts/allium-workspace.mjs`
+      Acceptance: `node docs/plans/scripts/allium-workspace.mjs`
 
 ---
 

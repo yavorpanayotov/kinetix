@@ -14,7 +14,7 @@ import { mockAllApiRoutes } from './fixtures'
  * endpoint that `fetchAlerts` (src/api/notifications.ts) calls; routes are
  * mocked per `e2e/fixtures.ts`.
  *
- * Plan ref: plans/audit-v2.md PR 9 §9.2.
+ * Plan ref: docs/plans/audit-v2.md PR 9 §9.2.
  */
 
 interface AlertEventFixture {

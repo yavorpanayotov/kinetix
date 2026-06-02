@@ -2,7 +2,7 @@ import { test, expect, type Page, type Route } from '@playwright/test'
 import { chatMockCanned, mockAllApiRoutes } from './fixtures'
 
 // ---------------------------------------------------------------------------
-// Inline explainer — Alerts / breaches panel (plans/ai-v2.md §9.3)
+// Inline explainer — Alerts / breaches panel (docs/plans/ai-v2.md §9.3)
 // ---------------------------------------------------------------------------
 //
 // The NotificationCenter alerts/breaches panel exposes an <ExplainButton> on

@@ -56,7 +56,7 @@ import java.util.concurrent.ConcurrentHashMap
  *    `EodPromotionService.promoteCore` + `KafkaOfficialEodPublisher`.
  *  - `GET /api/v1/risk/eod-timeline/{bookId}` — the read path the live UI's
  *    EOD History tab consumes; the assertion in this test that drives
- *    checkbox 5.1 of `plans/ui-fix-v1.md`.
+ *    checkbox 5.1 of `docs/plans/ui-fix-v1.md`.
  *
  * No Postgres / Kafka Testcontainers here: demo-orchestrator has no
  * database of its own, and the `OfficialEodPromotedEvent` Kafka
@@ -102,7 +102,7 @@ class EodPromotionIntegrationTest : FunSpec({
 
             // Pin the clock past the configured trading-hours-end (16:30 UTC).
             // 2026-05-18 is a Monday and matches the documented audit date in
-            // plans/ui-fix-v1.md.
+            // docs/plans/ui-fix-v1.md.
             val closeInstant = LocalDate.of(2026, 5, 18)
                 .atTime(17, 0)
                 .atZone(ZoneOffset.UTC)

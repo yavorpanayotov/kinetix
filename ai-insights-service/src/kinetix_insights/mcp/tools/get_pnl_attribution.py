@@ -2,7 +2,7 @@
 
 Reads first- and second-order P&L attribution for a book from
 risk-orchestrator and maps the upstream payload to the v2 tool-output
-shape defined in ``plans/ai-v2.md`` § PR 2:
+shape defined in ``docs/plans/ai-v2.md`` § PR 2:
 
     {
         "period": "daily" | "intraday",

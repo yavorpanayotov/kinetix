@@ -1,6 +1,6 @@
 /**
  * `page_context` builder for the correlation matrix inline explainer
- * (plans/ai-v2.md §9.5).
+ * (docs/plans/ai-v2.md §9.5).
  *
  * The correlation matrix (`<CorrelationHeatmap>`) renders a symmetric
  * asset-class correlation grid. The matrix-level `<ExplainButton>` opens

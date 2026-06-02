@@ -2,7 +2,7 @@
 
 Reads the configured limit *definitions* from position-service
 (``GET /api/v1/limits``) and projects the rows that apply to a single
-book onto the v2 tool-output shape defined in ``plans/ai-v2.md`` § PR 2:
+book onto the v2 tool-output shape defined in ``docs/plans/ai-v2.md`` § PR 2:
 
     {
         "limits": [

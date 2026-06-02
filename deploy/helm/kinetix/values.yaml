@@ -164,7 +164,7 @@ risk-orchestrator:
     KAFKA_BOOTSTRAP_SERVERS: "kinetix-kafka:9092"
 
 # Disabled by default. Enable via --set demo-orchestrator.enabled=true or use
-# values-demo.yaml overlay. See plans/demo-v2.md for the demo-mode runbook.
+# values-demo.yaml overlay. See docs/plans/demo-v2.md for the demo-mode runbook.
 demo-orchestrator:
   enabled: false
   replicaCount: 1

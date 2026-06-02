@@ -244,7 +244,7 @@ class PendingNewCorrelator(
          * exposition name. The FIX Gateway dashboard panel currently queries
          * `unacknowledged_outbound_total`; that PromQL must drop the `_total`
          * suffix to match this gauge (a dashboard-side fix, not an instrumentation
-         * one — see plans/grafana-v2.md PR 2 checkbox 2.3).
+         * one — see docs/plans/grafana-v2.md PR 2 checkbox 2.3).
          */
         internal const val UNACKNOWLEDGED_OUTBOUND_METER = "unacknowledged_outbound"
     }

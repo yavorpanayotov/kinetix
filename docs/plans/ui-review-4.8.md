@@ -151,5 +151,5 @@ line below it.
   Scenarios, report generate, Ask Kinetix, position expand; then loads 8 Grafana
   dashboards and counts "No data" panels.
 - Raw results: `crawl.json`, `interact.json`. Screenshots: `shots/` (28 PNGs).
-- Re-run: `cd ui && node ../plans/ui-review-4.8-artifacts/crawl-review.mjs` (Playwright
+- Re-run: `cd ui && node ../docs/plans/ui-review-4.8-artifacts/crawl-review.mjs` (Playwright
   1.58 + Chromium already installed).

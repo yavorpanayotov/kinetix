@@ -32,7 +32,7 @@ import java.time.ZoneOffset
  *   projection (`valuation_jobs.pv_value` → `findOfficialEodRange` →
  *   `EodTimelineRoutes.computeTimeline` → gateway → UI) carried `null`.
  *
- * The acceptance pinned by `plans/ui-trader-review.md` is "PV is non-null on
+ * The acceptance pinned by `docs/plans/ui-trader-review.md` is "PV is non-null on
  * every promoted EOD row". This spec asserts that contract end-to-end against
  * the real Postgres-backed [ExposedValuationJobRecorder] and the real
  * EOD-timeline Ktor route — the same components the UI hits in production.

@@ -159,7 +159,7 @@ Start any spec-related task by reading [`specs/README.md`](specs/README.md). Dri
 
 ## Plans
 
-Multi-step plans live in `plans/` and should be loop-ready so they can be advanced autonomously by `/work-plan` (usually wrapped in `/loop`). When you author or substantially edit a plan:
+Multi-step plans live in `docs/plans/` and should be loop-ready so they can be advanced autonomously by `/work-plan` (usually wrapped in `/loop`). When you author or substantially edit a plan:
 
 - **Use literal `- [ ]` markdown checkboxes for every executable unit.** `/work-plan` advances exactly one checkbox per iteration; sections without checkboxes are inert prose. One checkbox = one independently committable change.
 - **Order checkboxes top-to-bottom by dependency.** The first unchecked box is what runs next. Don't bury blocking work later in the file.

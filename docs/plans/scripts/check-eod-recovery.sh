@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Live-deploy smoke for PR 5 of plans/ui-fix-v1.md.
+# Live-deploy smoke for PR 5 of docs/plans/ui-fix-v1.md.
 # Asserts the EOD timeline returns at least one entry for balanced-income
 # over the last 30 days. Exits non-zero if the timeline is empty.
 set -euo pipefail

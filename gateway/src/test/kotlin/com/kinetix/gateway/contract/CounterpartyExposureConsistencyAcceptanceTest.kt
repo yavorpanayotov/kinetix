@@ -20,7 +20,7 @@ import io.ktor.server.testing.*
 import kotlinx.serialization.json.*
 
 /**
- * Trader-review P0 #6 regression — `plans/ui-trader-review.md`.
+ * Trader-review P0 #6 regression — `docs/plans/ui-trader-review.md`.
  *
  * Two surfaces on the live demo showed counterparty exposure and disagreed
  * on count, sign, and magnitude:

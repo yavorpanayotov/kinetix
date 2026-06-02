@@ -4,7 +4,7 @@ import type { Page } from '@playwright/test'
 import { mockAllApiRoutes } from './fixtures'
 
 // ---------------------------------------------------------------------------
-// Intraday Copilot push — notification-strip push items (plans/ai-v2.md §7.10)
+// Intraday Copilot push — notification-strip push items (docs/plans/ai-v2.md §7.10)
 // ---------------------------------------------------------------------------
 //
 // PR 7 streams intraday Copilot pushes over the `/ws/copilot` WebSocket

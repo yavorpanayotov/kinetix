@@ -22,7 +22,7 @@ import kotlinx.serialization.json.jsonPrimitive
 /**
  * Acceptance test for the gateway's `/ws/copilot` WebSocket route — the
  * subscriber side of the intraday Copilot push channel (PR 7 / ADR-0036,
- * checkbox 7.6 of `plans/ai-v2.md`).
+ * checkbox 7.6 of `docs/plans/ai-v2.md`).
  *
  * The route mirrors `/ws/alerts`: JWT auth on connect, then book-scope
  * filtering by the connecting user's `X-User-Books` access (the JWT `books`

@@ -16,7 +16,7 @@ import io.mockk.mockk
  * Unit tests for [JwtToHeaderBridge] — the AI-v2 PR 4.3 utility that
  * translates a Kinetix gateway JWT principal into the downstream
  * user-context headers (`X-User-Id`, `X-User-Books`) consumed by the
- * ai-insights-service. See `plans/ai-v2.md` for the wider context.
+ * ai-insights-service. See `docs/plans/ai-v2.md` for the wider context.
  */
 class JwtToHeaderBridgeTest : FunSpec({
 

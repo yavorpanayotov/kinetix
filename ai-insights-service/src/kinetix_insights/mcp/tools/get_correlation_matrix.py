@@ -3,7 +3,7 @@
 Reads the latest correlation matrix for a set of instrument labels
 from correlation-service (``GET /api/v1/correlations/latest``) and
 projects the upstream ``CorrelationMatrixResponse`` payload onto the
-v2 tool-output shape defined in ``plans/ai-v2.md`` § PR 2:
+v2 tool-output shape defined in ``docs/plans/ai-v2.md`` § PR 2:
 
     {
         "labels": list[str],          # echoes upstream order

@@ -43,7 +43,7 @@ Findings verified before writing this plan:
   audit DB and Loki only; no `risk_calculation_failed_total` counter exists.
   The rule that would alert on a failing risk pipeline is commented out with a
   TODO. Trader question "why is my VaR stale?" today requires reading
-  audit-service logs by hand. (This overlaps with `plans/grafana-v2.md` —
+  audit-service logs by hand. (This overlaps with `docs/plans/grafana-v2.md` —
   the metric work is folded there; this plan only adds the runbook entry.)
 - **Trader-facing support runbooks do not exist.** `docs/runbooks/` contains a
   single entry (`zero-downtime-deployment.md`) — operations-facing, not
@@ -79,12 +79,12 @@ Findings verified before writing this plan:
 This plan is loop-ready for `/work-plan`. Each `- [ ]` checkbox is one
 independently committable change, ordered top-to-bottom by dependency, with an
 `Acceptance:` command on the line directly after it. Advance end-to-end with
-`/loop /work-plan plans/tech-support-review.md`. The codebase must build and
+`/loop /work-plan docs/plans/tech-support-review.md`. The codebase must build and
 tests must pass after every commit.
 
 ## Decisions applied
 
-- **Scope boundary vs `plans/grafana-v2.md`.** The Grafana v2 plan owns
+- **Scope boundary vs `docs/plans/grafana-v2.md`.** The Grafana v2 plan owns
   dashboards, panels, and the bulk of instrumentation work (including the
   missing `risk_calculation_failed_total` counter). This plan owns: (a)
   production observability availability, (b) runbooks, (c) CLI diagnostic
@@ -127,7 +127,7 @@ DB tables, or cross-service API contracts.
 ## Out of scope
 
 - **Dashboard panel work, new dashboards, and metric instrumentation** — owned
-  by `plans/grafana-v2.md`. This plan references those gaps in the context
+  by `docs/plans/grafana-v2.md`. This plan references those gaps in the context
   section but does not re-checkbox them.
 - **Trace propagation audit across services.** Worth doing, but blocked on
   local Tempo working (see first checkbox). Will be a follow-up plan.

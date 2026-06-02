@@ -3,7 +3,7 @@
 Reads the latest cached ``VaRResultResponse`` for a book from
 risk-orchestrator (``GET /api/v1/risk/var/{bookId}``) and maps the
 upstream payload to the v2 tool-output shape defined in
-``plans/ai-v2.md`` § PR 2:
+``docs/plans/ai-v2.md`` § PR 2:
 
     {
         "total_var": float,

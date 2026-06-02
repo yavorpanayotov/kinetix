@@ -8,7 +8,7 @@ assert that:
   (``GET /api/v1/prices/{id}/latest`` and
   ``GET /api/v1/prices/{id}/history``) once per unique instrument,
 * the upstream ``PricePointResponse`` payloads are mapped onto the v2
-  tool-output shape defined in ``plans/ai-v2.md`` § PR 2 with
+  tool-output shape defined in ``docs/plans/ai-v2.md`` § PR 2 with
   ``change_abs`` / ``change_pct`` derived from the last historical
   point of the synthesised two-day window,
 * missing or failing per-instrument calls are tolerated — a 404 on

@@ -3,7 +3,7 @@ import fs from 'node:fs'
 
 const BASE = 'https://kinetixrisk.ai'
 const GRAF = 'https://grafana.kinetixrisk.ai'
-const OUT = '/Users/yavorpanayotov/IdeaProjects/kinetixlk/plans/ui-review-4.8-artifacts'
+const OUT = '/Users/yavorpanayotov/IdeaProjects/kinetixlk/docs/plans/ui-review-4.8-artifacts'
 const SHOTS = `${OUT}/shots`
 const out = { interactions: {}, grafana: {} }
 

@@ -7,7 +7,7 @@ import kotlin.math.abs
  * Guards the Risk dashboard reconciliation invariants defined in
  * `specs/risk.allium` for cross-book valuation results.
  *
- * The trader-review (P0 #5, `plans/ui-trader-review.md`) found four
+ * The trader-review (P0 #5, `docs/plans/ui-trader-review.md`) found four
  * different "total VaR" numbers rendered on the same Risk tab for the same
  * scope. Root cause: the gateway passed through whatever the orchestrator
  * sent, with no check that:

@@ -10,7 +10,7 @@ import java.time.Instant
 /**
  * Contract for [MeteredAuditEventRepository] — the metrics-recording decorator
  * that drives the audit-trail meters on the `overview/audit-service.json`
- * Grafana dashboard (checkbox 4.7 of plans/grafana-v2.md).
+ * Grafana dashboard (checkbox 4.7 of docs/plans/grafana-v2.md).
  *
  * The decorator wraps any [AuditEventRepository] and, on every `save`, records:
  *  - one increment of the `audit_records_appended_total` append counter,

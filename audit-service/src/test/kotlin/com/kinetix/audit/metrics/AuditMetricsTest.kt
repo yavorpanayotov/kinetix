@@ -15,7 +15,7 @@ import java.time.Duration
 /**
  * Instrumentation contract for the audit-trail metrics that drive the
  * `overview/audit-service.json` Grafana dashboard (checkbox 4.7 of
- * plans/grafana-v2.md):
+ * docs/plans/grafana-v2.md):
  *
  *   - audit_records_appended_total              Counter
  *   - audit_record_write_seconds                Timer  (percentile histogram)

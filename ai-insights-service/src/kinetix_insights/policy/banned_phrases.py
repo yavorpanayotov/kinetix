@@ -11,7 +11,7 @@ phrases and exposes two helpers:
   phrases in order of first appearance for logging or error payloads.
 
 The phrase list is intentionally narrow and curated: see the plan in
-``plans/ai-v2.md`` (item 1.6) for the contract. Adding or removing a
+``docs/plans/ai-v2.md`` (item 1.6) for the contract. Adding or removing a
 phrase changes the public guard contract and must update both the
 constant and the tests in lockstep.
 """

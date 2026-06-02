@@ -4,7 +4,7 @@ Reads the current alert feed from notification-service
 (``GET /api/v1/notifications/alerts``) and maps the upstream
 ``List[AlertEventResponse]`` payload — filtered to the caller's book
 and to non-resolved statuses — onto the v2 tool-output shape defined
-in ``plans/ai-v2.md`` § PR 2:
+in ``docs/plans/ai-v2.md`` § PR 2:
 
     {
         "book_id": str,

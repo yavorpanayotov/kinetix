@@ -2,7 +2,7 @@ import { test, expect, type Route } from '@playwright/test'
 import { chatMockCanned, mockAllApiRoutes } from './fixtures'
 
 // ---------------------------------------------------------------------------
-// Copilot chat — book-boundary conversation reset (plans/ai-copilot-demo-polish.md §4.2)
+// Copilot chat — book-boundary conversation reset (docs/plans/ai-copilot-demo-polish.md §4.2)
 // ---------------------------------------------------------------------------
 //
 // When the active book changes while the copilot has a non-empty conversation

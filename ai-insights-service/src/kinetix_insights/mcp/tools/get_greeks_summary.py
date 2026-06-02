@@ -3,7 +3,7 @@
 Reads the latest cached ``VaRResultResponse`` for a book from
 risk-orchestrator (``GET /api/v1/risk/var/{bookId}``) and projects the
 optional ``greeks`` / ``positionGreeks`` slices of the payload onto
-the v2 tool-output shape defined in ``plans/ai-v2.md`` § PR 2:
+the v2 tool-output shape defined in ``docs/plans/ai-v2.md`` § PR 2:
 
     {
         "aggregate": {

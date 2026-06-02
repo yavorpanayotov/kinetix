@@ -5,7 +5,7 @@
 This plan is loop-ready for `/work-plan`. Each `- [ ]` checkbox below is one
 independently-committable change, ordered top-to-bottom by dependency, with an
 `Acceptance:` command on the line directly after it. Advance end-to-end with
-`/loop /work-plan plans/demo-v2.md`.
+`/loop /work-plan docs/plans/demo-v2.md`.
 
 ## Decisions applied
 

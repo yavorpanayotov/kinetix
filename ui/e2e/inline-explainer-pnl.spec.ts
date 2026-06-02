@@ -2,7 +2,7 @@ import { test, expect, type Page, type Route } from '@playwright/test'
 import { chatMockCanned, mockAllApiRoutes, mockRiskTabRoutes } from './fixtures'
 
 // ---------------------------------------------------------------------------
-// Inline explainer — P&L attribution chart (plans/ai-v2.md §9.2)
+// Inline explainer — P&L attribution chart (docs/plans/ai-v2.md §9.2)
 // ---------------------------------------------------------------------------
 //
 // The P&L attribution waterfall chart exposes an <ExplainButton> in its

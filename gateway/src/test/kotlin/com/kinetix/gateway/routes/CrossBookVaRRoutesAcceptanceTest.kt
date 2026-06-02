@@ -35,7 +35,7 @@ import kotlinx.serialization.json.jsonPrimitive
  * [com.kinetix.gateway.dtos.CrossBookVaRRequestDto] declares
  * `portfolioGroupId` as a non-nullable required field, so kotlinx.serialization
  * threw on the missing field and the global error handler flattened the
- * throwable into a generic 500 `internal_error` — `plans/ui-fix-v1.md` 2.3.
+ * throwable into a generic 500 `internal_error` — `docs/plans/ui-fix-v1.md` 2.3.
  *
  * Both halves of the contract are pinned here: the happy path with
  * `portfolioGroupId` returns 200 with all canonical fields populated, and a
@@ -117,7 +117,7 @@ class CrossBookVaRRoutesAcceptanceTest : FunSpec({
         // Locks down the regression: a payload missing the required
         // `portfolioGroupId` must be rejected as a client error, not flattened
         // into 500 `internal_error`. Today's global handler returns 500 — see
-        // plans/ui-fix-v1.md checkbox 2.4 for the dedicated fix to flatten
+        // docs/plans/ui-fix-v1.md checkbox 2.4 for the dedicated fix to flatten
         // serialisation throwables into 400. Until that lands the gateway
         // returns 500; once it lands the assertion below tightens to 400.
         // Either way the contract is "not 200, not a silent passthrough".

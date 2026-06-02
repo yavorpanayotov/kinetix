@@ -10,7 +10,7 @@ v2 keeps the v1 auth model: the host's `~/.claude/` Claude Code subscription, no
 
 ## Status
 
-This plan is loop-ready for `/work-plan`. Each `- [ ]` checkbox below is one independently-committable change, ordered top-to-bottom by dependency, with an `Acceptance:` command on the line directly after it. Advance end-to-end with `/loop /work-plan plans/ai-v2.md`.
+This plan is loop-ready for `/work-plan`. Each `- [ ]` checkbox below is one independently-committable change, ordered top-to-bottom by dependency, with an `Acceptance:` command on the line directly after it. Advance end-to-end with `/loop /work-plan docs/plans/ai-v2.md`.
 
 ## Decisions applied
 
