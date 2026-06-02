@@ -53,8 +53,9 @@ def calculate_valuation(
     pv_value = None
     computed = []
 
+    historical_returns = market_data_bundle.historical_returns if market_data_bundle else None
+
     if need_var:
-        historical_returns = market_data_bundle.historical_returns if market_data_bundle else None
         if calculation_type == CalculationType.HISTORICAL and historical_returns is None:
             degradation_flags.append("HISTORICAL_RETURNS_UNAVAILABLE")
         var_result = calculate_book_var(
@@ -82,6 +83,11 @@ def calculate_valuation(
             time_horizon_days=time_horizon_days,
             book_id=book_id,
             base_var_value=base_var,
+            volatility_provider=volatility_provider or VolatilityProvider.static(),
+            correlation_matrix=correlation_matrix,
+            historical_returns=historical_returns,
+            num_simulations=num_simulations,
+            seed=seed,
         )
         computed.append("GREEKS")
 

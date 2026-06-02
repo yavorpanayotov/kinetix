@@ -165,6 +165,10 @@ class RiskCalculationServicer(risk_calculation_pb2_grpc.RiskCalculationServiceSe
                     time_horizon_days=request.time_horizon_days or 1,
                     book_id=book_id,
                     base_var_value=result.var_value,
+                    volatility_provider=bundle.volatility_provider or VolatilityProvider.static(),
+                    correlation_matrix=bundle.correlation_matrix,
+                    historical_returns=bundle.historical_returns,
+                    num_simulations=request.num_simulations or 10_000,
                 )
                 for ac, val in gr.delta.items():
                     greeks_delta.labels(book_id=book_id, asset_class=ac.value).set(val)
