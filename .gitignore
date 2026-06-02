@@ -47,3 +47,7 @@ risk-engine/models/manifest.json
 .dolt/
 *.db
 .beads-credential-key
+
+# Claude Code ephemeral subagent worktrees and scratch plans
+.claude/worktrees/
+.claude/plans/
