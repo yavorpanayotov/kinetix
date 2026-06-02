@@ -83,7 +83,7 @@ Draws on `docs/HOW_IT_WAS_BUILT.md`, `docs/evolution-report.md`, `docs/ai-impact
   Acceptance: `test -f docs/ai-impact-report.md && grep -qiE "prompt|commit|spec" docs/ai-impact-report.md`
 - [x] Write `docs/THE_JOURNEY.md`: engineer-as-protagonist narrative — who Yavor is, the method he designed (specs-as-source-of-truth, agent personas he directed, the self-auditing loop), the timeline with metrics, and a prominent "what stayed human" section. Link the case studies, the eval scorecard, the self-audit trend, and the talks.
   Acceptance: `grep -qi "stayed human\|judgement\|judgment\|directed" docs/THE_JOURNEY.md && grep -q "case-studies" docs/THE_JOURNEY.md`
-- [ ] README front-door section "How I Built Kinetix" (reframed, engineer-first) linking `THE_JOURNEY.md`, `HOW_IT_WAS_BUILT.md`, the case-study hub, the governance scorecard, and the talks; update the README documentation map.
+- [x] README front-door section "How I Built Kinetix" (reframed, engineer-first) linking `THE_JOURNEY.md`, `HOW_IT_WAS_BUILT.md`, the case-study hub, the governance scorecard, and the talks; update the README documentation map.
   Acceptance: `grep -qi "How I Built Kinetix" README.md && grep -q "THE_JOURNEY.md" README.md && grep -q "case-studies" README.md`
 
 ---

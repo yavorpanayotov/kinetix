@@ -6,15 +6,16 @@
 
 | Metric | Sparkline | Latest |
 | --- | --- | --- |
-| Allium errors | `▁` | 0 |
-| Allium warnings | `▁` | 81 |
-| Specs | `▁` | 25 |
-| Divergence reports | `▁` | 5 |
-| Open issues | `▁` | 12 |
-| Closed issues | `▁` | 50 |
+| Allium errors | `▁▁` | 0 |
+| Allium warnings | `▁▁` | 81 |
+| Specs | `▁▁` | 25 |
+| Divergence reports | `▁▁` | 5 |
+| Open issues | `▁▁` | 12 |
+| Closed issues | `▁▁` | 50 |
 
 ## Runs
 
 | Date | Commit | Specs | Errors | Warnings | Divergences | Open | Closed |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 2026-06-02 | `806d5744` | 25 | 0 | 81 | 5 | 12 | 50 |
+| 2026-06-02 | `fd9ddce7` | 25 | 0 | 81 | 5 | 12 | 50 |
