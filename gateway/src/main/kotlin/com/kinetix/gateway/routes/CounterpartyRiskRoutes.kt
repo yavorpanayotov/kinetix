@@ -6,6 +6,10 @@ import io.ktor.http.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonArray
@@ -29,9 +33,21 @@ import kotlinx.serialization.json.put
  * — preserving the legacy contract for module overloads that don't wire a
  * position client.
  */
+/**
+ * Default deadline for the trade-counterparty enrichment fan-out. The
+ * canonical risk-orchestrator snapshot must always come back quickly; the
+ * trade-derived placeholder rows are a best-effort consistency nicety
+ * (trader-review P0 #6). If the position-service fan-out can't finish inside
+ * this window we drop the placeholders rather than hang the whole response —
+ * the bug behind kx-qfqn was an unbounded sequential fan-out that left the
+ * Counterparty Risk tab on a perpetual spinner.
+ */
+const val DEFAULT_COUNTERPARTY_ENRICHMENT_TIMEOUT_MS = 4_000L
+
 fun Route.counterpartyRiskRoutes(
     riskClient: RiskServiceClient,
     positionClient: PositionServiceClient? = null,
+    enrichmentTimeoutMs: Long = DEFAULT_COUNTERPARTY_ENRICHMENT_TIMEOUT_MS,
 ) {
 
     get("/api/v1/counterparty-risk") {
@@ -39,7 +55,7 @@ fun Route.counterpartyRiskRoutes(
         val merged = if (positionClient != null) {
             CounterpartyExposureMerge.mergeWithTradeDerivedCounterparties(
                 snapshots = exposures,
-                tradeCounterparties = collectFirmTradeCounterparties(positionClient),
+                tradeCounterparties = collectFirmTradeCounterparties(positionClient, enrichmentTimeoutMs),
             )
         } else {
             exposures
@@ -96,20 +112,29 @@ fun Route.counterpartyRiskRoutes(
  * back to the legacy risk-service-only set than fail the whole response
  * when position-service is degraded. The merge step still runs (no-op if
  * the set is empty) so the existing snapshot rows continue to flow.
+ *
+ * Bounded and parallel (kx-qfqn): the per-book trade-history calls run
+ * concurrently inside a [coroutineScope] so total latency tracks the slowest
+ * single book rather than the sum of all of them, and the whole fan-out is
+ * wrapped in [withTimeoutOrNull] so a slow position-service can't hang the
+ * Counterparty Risk response. On timeout (or any failure) we return an empty
+ * set and the canonical snapshot rows still flow.
  */
 private suspend fun collectFirmTradeCounterparties(
     positionClient: PositionServiceClient,
+    enrichmentTimeoutMs: Long,
 ): Set<String> = try {
-    val books = positionClient.listPortfolios()
-    val counterparties = mutableSetOf<String>()
-    for (book in books) {
-        val rows = positionClient.getTradeHistory(book.id)
-        for (row in rows) {
-            val cp = row.trade.counterpartyId?.takeIf { it.isNotBlank() } ?: continue
-            counterparties += cp
+    withTimeoutOrNull(enrichmentTimeoutMs) {
+        val books = positionClient.listPortfolios()
+        coroutineScope {
+            books
+                .map { book -> async { positionClient.getTradeHistory(book.id) } }
+                .awaitAll()
+                .flatten()
+                .mapNotNull { row -> row.trade.counterpartyId?.takeIf { it.isNotBlank() } }
+                .toSet()
         }
-    }
-    counterparties
+    } ?: emptySet()
 } catch (_: Exception) {
     emptySet()
 }
