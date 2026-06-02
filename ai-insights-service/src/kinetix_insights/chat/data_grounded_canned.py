@@ -240,16 +240,12 @@ class DataGroundedCannedChatClient:
             top = max(breakdown, key=lambda row: abs(row["var_contribution"]))
             contribution = float(top["var_contribution"])
             asset_class = str(top["asset_class"])
-            top_citation = Citation(
+            top_citation = self._derive_citation(
+                headline,
                 tool="get_book_var",
                 params={"book_id": book_id},
                 result_field="var_by_asset_class.top.var_contribution",
                 result_value=contribution,
-                result_currency=headline.result_currency,
-                as_of_timestamp=headline.as_of_timestamp,
-                data_source=headline.data_source,
-                freshness_seconds=headline.freshness_seconds,
-                quality_flags=list(headline.quality_flags),
             )
             citations.append(top_citation)
             deltas.append(
@@ -282,16 +278,12 @@ class DataGroundedCannedChatClient:
             top_key = max(components, key=lambda key: abs(components[key]))
             top_value = float(components[top_key])
             label = _PNL_COMPONENT_LABELS.get(top_key, top_key)
-            top_citation = Citation(
+            top_citation = self._derive_citation(
+                headline,
                 tool="get_pnl_attribution",
                 params={"book_id": book_id},
                 result_field=f"components.{top_key}",
                 result_value=top_value,
-                result_currency=headline.result_currency,
-                as_of_timestamp=headline.as_of_timestamp,
-                data_source=headline.data_source,
-                freshness_seconds=headline.freshness_seconds,
-                quality_flags=list(headline.quality_flags),
             )
             citations.append(top_citation)
             deltas.append(
@@ -302,6 +294,37 @@ class DataGroundedCannedChatClient:
             deltas=deltas,
             citations=citations,
             tool_calls=[self._tool_call("get_pnl_attribution", book_id, headline)],
+        )
+
+    @staticmethod
+    def _derive_citation(
+        headline: Citation,
+        *,
+        tool: str,
+        params: dict,
+        result_field: str,
+        result_value: float,
+    ) -> Citation:
+        """Build a derived :class:`Citation` from a headline citation.
+
+        Reuses the headline's provenance fields (``result_currency``,
+        ``as_of_timestamp``, ``data_source``, ``freshness_seconds``, and a
+        copy of ``quality_flags``) while substituting the caller-supplied
+        ``tool``, ``params``, ``result_field``, and ``result_value``. This
+        avoids repeating the five-field copy at every site that constructs a
+        component-level citation off the same tool response.
+        """
+
+        return Citation(
+            tool=tool,
+            params=params,
+            result_field=result_field,
+            result_value=result_value,
+            result_currency=headline.result_currency,
+            as_of_timestamp=headline.as_of_timestamp,
+            data_source=headline.data_source,
+            freshness_seconds=headline.freshness_seconds,
+            quality_flags=list(headline.quality_flags),
         )
 
     @staticmethod
