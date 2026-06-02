@@ -1289,6 +1289,18 @@ export interface SaCcrResultDto {
   alpha: number
 }
 
+/**
+ * Counterparty-wide SA-CCR (BCBS 279) result. The backend computes EAD per
+ * netting set — trades partitioned by their real ISDA/GMRA agreement — so the
+ * response carries one {@link SaCcrResultDto} per set plus the total EAD summed
+ * across them. Mirrors the orchestrator's `SaCcrSummaryResponse`.
+ */
+export interface SaCcrSummaryDto {
+  counterpartyId: string
+  totalEad: number
+  nettingSets: SaCcrResultDto[]
+}
+
 export interface PositionNoteDto {
   id: string
   bookId: string

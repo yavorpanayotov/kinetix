@@ -3,7 +3,7 @@ import { Users, AlertTriangle, RefreshCw, Activity, ArrowUp, ArrowDown, ArrowRig
 import { useCounterpartyRisk } from '../hooks/useCounterpartyRisk'
 import type { CounterpartyExposureDto, ExposureAtTenorDto } from '../api/counterpartyRisk'
 import { fetchSaCcr } from '../api/saCcr'
-import type { SaCcrResultDto } from '../types'
+import type { SaCcrSummaryDto } from '../types'
 import { formatCurrency } from '../utils/format'
 import { SectionHeading, Spinner } from './ui'
 import { SaCcrPanel } from './SaCcrPanel'
@@ -482,7 +482,7 @@ export function CounterpartyRiskDashboard({ onJumpToTrades }: CounterpartyRiskDa
   } = useCounterpartyRisk()
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [saCcrResult, setSaCcrResult] = useState<SaCcrResultDto | null>(null)
+  const [saCcrResult, setSaCcrResult] = useState<SaCcrSummaryDto | null>(null)
   const [saCcrLoading, setSaCcrLoading] = useState(false)
   const [saCcrError, setSaCcrError] = useState<string | null>(null)
   const [prevSaCcrId, setPrevSaCcrId] = useState<string | null>(null)

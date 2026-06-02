@@ -104,3 +104,69 @@ test.describe('Counterparty detail panel — malformed pfeProfile', () => {
     await expect(page.getByText('Something went wrong')).not.toBeVisible()
   })
 })
+
+// ---------------------------------------------------------------------------
+// SA-CCR panel — real per-netting-set summary contract (kx-eihp)
+//
+// The orchestrator's /sa-ccr endpoint (no nettingSetId) returns a
+// SaCcrSummaryResponse: { counterpartyId, totalEad, nettingSets: [...] }, NOT a
+// flat result. The UI previously expected a flat object and crashed with
+// "Cannot read properties of undefined (reading 'toFixed')" on result.multiplier.
+// Mock the real 200 shape and prove the panel renders.
+// ---------------------------------------------------------------------------
+
+const SA_CCR_SUMMARY = {
+  counterpartyId: CP_ID,
+  totalEad: 5_268_000,
+  nettingSets: [
+    {
+      nettingSetId: 'ISDA-GS-2019',
+      counterpartyId: CP_ID,
+      replacementCost: 2_100_000,
+      pfeAddon: 1_013_000,
+      multiplier: 0.995,
+      ead: 4_218_000,
+      alpha: 1.4,
+    },
+    {
+      nettingSetId: `${CP_ID}-UNASSIGNED`,
+      counterpartyId: CP_ID,
+      replacementCost: 500_000,
+      pfeAddon: 250_000,
+      multiplier: 1.0,
+      ead: 1_050_000,
+      alpha: 1.4,
+    },
+  ],
+}
+
+test.describe('Counterparty detail — SA-CCR per-netting-set summary', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockAllApiRoutes(page)
+    await setupCounterpartyDetailRoutes(page)
+    // Override the SA-CCR route with the real 200 summary shape.
+    await page.route('**/api/v1/counterparty/*/sa-ccr*', (route) => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(SA_CCR_SUMMARY),
+      })
+    })
+  })
+
+  test('renders total EAD and a row per netting set without crashing', async ({ page }) => {
+    await page.goto('/')
+    await page.getByTestId('tab-counterparty-risk').click()
+    await page.waitForSelector(`[data-testid="counterparty-row-${CP_ID}"]`)
+    await page.getByTestId(`counterparty-row-${CP_ID}`).click()
+
+    await expect(page.getByTestId('sa-ccr-panel')).toBeVisible()
+    await expect(page.getByTestId('sa-ccr-total-ead')).toContainText('$5,268,000')
+    await expect(page.getByTestId('sa-ccr-netting-set-ISDA-GS-2019')).toBeVisible()
+    await expect(page.getByTestId(`sa-ccr-netting-set-${CP_ID}-UNASSIGNED`)).toBeVisible()
+    await expect(page.getByTestId('sa-ccr-multiplier-ISDA-GS-2019')).toContainText('0.9950')
+
+    // The crash this fixes: undefined.toFixed would trip the global ErrorBoundary.
+    await expect(page.getByText('Something went wrong')).not.toBeVisible()
+  })
+})
