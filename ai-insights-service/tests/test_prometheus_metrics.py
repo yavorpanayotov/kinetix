@@ -38,7 +38,7 @@ EXPECTED_HISTOGRAMS: tuple[str, ...] = (
     "copilot_brief_generation_duration_seconds",
 )
 
-# The eight counters. prometheus_client exposes a counter constructed
+# The nine counters. prometheus_client exposes a counter constructed
 # from base name ``copilot_chat_session`` as ``copilot_chat_session_total``
 # on the wire — the literal names below are what MUST appear at /metrics.
 EXPECTED_COUNTERS: tuple[str, ...] = (
@@ -49,6 +49,7 @@ EXPECTED_COUNTERS: tuple[str, ...] = (
     "copilot_freshness_sla_breach_total",
     "copilot_sdk_error_total",
     "copilot_demo_mode_fallback_total",
+    "copilot_demo_mode_total",
     "copilot_redis_cache_hit_total",
 )
 
@@ -61,7 +62,7 @@ def test_all_histograms_are_defined() -> None:
 
 
 def test_all_counters_are_defined() -> None:
-    """The eight copilot counters are exposed as module attributes."""
+    """The nine copilot counters are exposed as module attributes."""
     for name in EXPECTED_COUNTERS:
         # Module attribute is keyed by the wire name (with ``_total``).
         metric = getattr(copilot_metrics, name.upper(), None)

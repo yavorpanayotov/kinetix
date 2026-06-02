@@ -33,6 +33,7 @@ from kinetix_insights.brief.factory import build_brief_client
 from kinetix_insights.brief.models import MorningBrief
 from kinetix_insights.citations.models import Citation
 from kinetix_insights.clients.user_context import UserContext
+from kinetix_insights.metrics import copilot_metrics
 from tests.fakes.fake_kinetix_http_client import FakeKinetixHttpClient
 
 pytestmark = pytest.mark.unit
@@ -286,3 +287,51 @@ async def test_live_brief_client_generate_brief_returns_briefs() -> None:
     assert isinstance(brief, MorningBrief)
     assert brief.mode == "live"
     assert len(brief.sections) == 5
+
+
+# ---------------------------------------------------------------------------
+# Metric-split tests (kx-ikk9)
+# ---------------------------------------------------------------------------
+
+
+def test_demo_mode_true_increments_demo_mode_total_not_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Intentional DEMO_MODE=true increments COPILOT_DEMO_MODE_TOTAL only."""
+    monkeypatch.setenv("DEMO_MODE", "true")
+
+    before_demo = copilot_metrics.COPILOT_DEMO_MODE_TOTAL._value.get()
+    before_fallback = copilot_metrics.COPILOT_DEMO_MODE_FALLBACK_TOTAL._value.get()
+
+    build_brief_client(http=FakeKinetixHttpClient())
+
+    assert copilot_metrics.COPILOT_DEMO_MODE_TOTAL._value.get() == before_demo + 1
+    assert (
+        copilot_metrics.COPILOT_DEMO_MODE_FALLBACK_TOTAL._value.get()
+        == before_fallback
+    ), "COPILOT_DEMO_MODE_FALLBACK_TOTAL must not fire on intentional demo mode"
+
+
+def test_exception_fallback_increments_fallback_total_not_demo_mode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Claude-unavailable exception path increments COPILOT_DEMO_MODE_FALLBACK_TOTAL only."""
+    monkeypatch.delenv("DEMO_MODE", raising=False)
+
+    def _raise(*_args: object, **_kwargs: object) -> None:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(brief_factory, "ClaudeAgentBriefClient", _raise)
+
+    before_demo = copilot_metrics.COPILOT_DEMO_MODE_TOTAL._value.get()
+    before_fallback = copilot_metrics.COPILOT_DEMO_MODE_FALLBACK_TOTAL._value.get()
+
+    build_brief_client(http=FakeKinetixHttpClient())
+
+    assert (
+        copilot_metrics.COPILOT_DEMO_MODE_FALLBACK_TOTAL._value.get()
+        == before_fallback + 1
+    )
+    assert (
+        copilot_metrics.COPILOT_DEMO_MODE_TOTAL._value.get() == before_demo
+    ), "COPILOT_DEMO_MODE_TOTAL must not fire on exception fallback"

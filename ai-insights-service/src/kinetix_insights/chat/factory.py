@@ -34,6 +34,7 @@ from kinetix_insights.chat.data_grounded_canned import DataGroundedCannedChatCli
 from kinetix_insights.clients.kinetix_http_client import HttpxKinetixHttpClient
 from kinetix_insights.metrics.copilot_metrics import (
     COPILOT_DEMO_MODE_FALLBACK_TOTAL,
+    COPILOT_DEMO_MODE_TOTAL,
 )
 
 logger = logging.getLogger(__name__)
@@ -76,7 +77,7 @@ def build_chat_client(
 
     if os.environ.get("DEMO_MODE", "").strip().lower() == "true":
         logger.info("DEMO_MODE=true — using a canned chat client")
-        COPILOT_DEMO_MODE_FALLBACK_TOTAL.inc()
+        COPILOT_DEMO_MODE_TOTAL.inc()
         return _build_canned_chat_client()
     try:
         return ClaudeAgentCopilotChatClient(conversation_store=conversation_store)

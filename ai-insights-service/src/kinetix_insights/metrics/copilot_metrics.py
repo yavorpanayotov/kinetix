@@ -115,7 +115,18 @@ COPILOT_SDK_ERROR_TOTAL: Counter = Counter(
     "Total Claude Agent SDK errors hit by the Copilot.",
 )
 
-#: Incremented when a canned / demo client is selected over the live one.
+#: Incremented when an operator explicitly selects the canned / demo client
+#: via ``DEMO_MODE=true``. Tracks intentional demo selections only — see
+#: :data:`COPILOT_DEMO_MODE_FALLBACK_TOTAL` for the error-recovery path.
+COPILOT_DEMO_MODE_TOTAL: Counter = Counter(
+    "copilot_demo_mode",
+    "Total times a canned/demo client was selected intentionally via DEMO_MODE.",
+)
+
+#: Incremented when a canned / demo client is selected because constructing
+#: the live Claude client raised an exception (error-recovery fallback). This
+#: counter is safe to alert on — it only fires when Claude is unavailable, not
+#: when an operator deliberately chose demo mode.
 COPILOT_DEMO_MODE_FALLBACK_TOTAL: Counter = Counter(
     "copilot_demo_mode_fallback",
     "Total times the Copilot fell back to a canned / demo client.",

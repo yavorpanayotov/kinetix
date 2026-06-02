@@ -22,6 +22,7 @@ from kinetix_insights.brief.claude_agent_brief_client import ClaudeAgentBriefCli
 from kinetix_insights.clients.kinetix_http_client import KinetixHttpClient
 from kinetix_insights.metrics.copilot_metrics import (
     COPILOT_DEMO_MODE_FALLBACK_TOTAL,
+    COPILOT_DEMO_MODE_TOTAL,
 )
 
 logger = logging.getLogger(__name__)
@@ -41,7 +42,7 @@ def build_brief_client(*, http: KinetixHttpClient) -> BriefClient:
 
     if os.environ.get("DEMO_MODE", "").strip().lower() == "true":
         logger.info("DEMO_MODE=true — using CannedBriefClient")
-        COPILOT_DEMO_MODE_FALLBACK_TOTAL.inc()
+        COPILOT_DEMO_MODE_TOTAL.inc()
         return CannedBriefClient()
     try:
         return ClaudeAgentBriefClient(http=http)
