@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PnlAttributionDto, StressTestResultDto } from '../types'
 
 vi.mock('../hooks/useVaR')
+vi.mock('../hooks/useCrossBookVaR')
 vi.mock('../hooks/useJobHistory')
 vi.mock('../hooks/usePositionRisk')
 vi.mock('../hooks/useVarLimit')
@@ -16,6 +17,7 @@ vi.mock('../hooks/useIntradayVaRTimelineWithFallback')
 
 import { RiskTab } from './RiskTab'
 import { useVaR } from '../hooks/useVaR'
+import { useCrossBookVaR } from '../hooks/useCrossBookVaR'
 import { useJobHistory } from '../hooks/useJobHistory'
 import { usePositionRisk } from '../hooks/usePositionRisk'
 import { useVarLimit } from '../hooks/useVarLimit'
@@ -27,6 +29,7 @@ import { useWorkspace, DEFAULT_PREFERENCES } from '../hooks/useWorkspace'
 import { useIntradayVaRTimelineWithFallback } from '../hooks/useIntradayVaRTimelineWithFallback'
 
 const mockUseVaR = vi.mocked(useVaR)
+const mockUseCrossBookVaR = vi.mocked(useCrossBookVaR)
 const mockUseJobHistory = vi.mocked(useJobHistory)
 const mockUsePositionRisk = vi.mocked(usePositionRisk)
 const mockUseVarLimit = vi.mocked(useVarLimit)
@@ -77,6 +80,13 @@ describe('RiskTab', () => {
       selectedConfidenceLevel: 'CL_95',
       setSelectedConfidenceLevel: vi.fn(),
       isLive: true,
+    })
+    mockUseCrossBookVaR.mockReturnValue({
+      result: null,
+      loading: false,
+      refreshing: false,
+      error: null,
+      refresh: vi.fn(),
     })
     mockUseJobHistory.mockReturnValue({
       runs: [],
@@ -838,6 +848,174 @@ describe('RiskTab', () => {
       } finally {
         vi.useRealTimers()
       }
+    })
+  })
+
+  describe('aggregated (firm) view VaR reconciliation (kx-r2hj)', () => {
+    // Firm aggregate from the cross-book hook (~$190M sum-of-books).
+    const CROSS_BOOK_RESULT = {
+      portfolioGroupId: 'firm',
+      bookIds: ['emerging-markets', 'macro-hedge'],
+      calculationType: 'HISTORICAL',
+      confidenceLevel: 'CL_95',
+      varValue: '152000000',
+      expectedShortfall: '198000000',
+      componentBreakdown: [
+        { assetClass: 'EQUITY', varContribution: '90000000', percentageOfTotal: '59.2' },
+        { assetClass: 'RATES', varContribution: '62000000', percentageOfTotal: '40.8' },
+      ],
+      bookContributions: [
+        { bookId: 'emerging-markets', varContribution: '89400000', percentageOfTotal: '49.4', standaloneVar: '94000000', diversificationBenefit: '4600000', marginalVar: '0.5123', incrementalVar: '85000000' },
+        { bookId: 'macro-hedge', varContribution: '87400000', percentageOfTotal: '48.3', standaloneVar: '96100000', diversificationBenefit: '8700000', marginalVar: '0.4877', incrementalVar: '83000000' },
+      ],
+      totalStandaloneVar: '190100000',
+      diversificationBenefit: '38100000',
+      calculatedAt: '2026-06-02T10:00:00Z',
+    }
+
+    // Single-book result the stray fall-through bookId resolves to (~$226K).
+    const SINGLE_BOOK_RESULT = {
+      bookId: 'multi-asset',
+      calculationType: 'HISTORICAL',
+      confidenceLevel: 'CL_95',
+      varValue: '226600',
+      expectedShortfall: '310000',
+      componentBreakdown: [
+        { assetClass: 'EQUITY', varContribution: '150000', percentageOfTotal: '66.2' },
+        { assetClass: 'RATES', varContribution: '76600', percentageOfTotal: '33.8' },
+      ],
+      calculatedAt: '2026-06-02T10:00:00Z',
+    }
+
+    function mockSingleBookVaR() {
+      mockUseVaR.mockReturnValue({
+        varResult: SINGLE_BOOK_RESULT,
+        greeksResult: null,
+        history: [],
+        filteredHistory: [],
+        loading: false,
+        historyLoading: false,
+        error: null,
+        errorTransient: false,
+        refresh: vi.fn(),
+        refreshing: false,
+        timeRange: { from: '2026-06-01T10:00:00Z', to: '2026-06-02T10:00:00Z', label: 'Last 24h' },
+        setTimeRange: vi.fn(),
+        zoomIn: vi.fn(),
+        resetZoom: vi.fn(),
+        zoomDepth: 0,
+        selectedConfidenceLevel: 'CL_95',
+        setSelectedConfidenceLevel: vi.fn(),
+        isLive: true,
+      })
+    }
+
+    it('drives the firm VaR gauge from the cross-book aggregate so it reconciles with sum-of-books', () => {
+      mockSingleBookVaR()
+      mockUseCrossBookVaR.mockReturnValue({
+        result: CROSS_BOOK_RESULT,
+        loading: false,
+        refreshing: false,
+        error: null,
+        refresh: vi.fn(),
+      })
+
+      render(
+        <RiskTab
+          bookId="multi-asset"
+          aggregatedView
+          effectiveBookIds={['emerging-markets', 'macro-hedge']}
+          portfolioGroupId="firm"
+          hierarchyLevel="FIRM"
+          {...defaultStressProps}
+        />,
+      )
+
+      const gaugeValue = screen.getByTestId('var-value')
+      const sumOfBooks = screen.getByTestId('sum-of-books-var')
+
+      // The gauge headline must reflect the firm aggregate (~$152M), NOT the
+      // stray single-book figure (~$227K). Sum-of-books is ~$190M.
+      const gaugeUsd = Number(gaugeValue.getAttribute('title')?.replace(/[^0-9.]/g, ''))
+      const sumUsd = Number(sumOfBooks.getAttribute('title')?.replace(/[^0-9.]/g, ''))
+
+      expect(gaugeUsd).toBe(152000000)
+      // Gauge (diversified firm VaR) must be within sum-of-books scope — same
+      // order of magnitude, never ~1000x off.
+      expect(gaugeUsd).toBeGreaterThan(sumUsd * 0.5)
+      expect(gaugeUsd).toBeLessThanOrEqual(sumUsd)
+    })
+
+    it('drives the component breakdown from the cross-book aggregate in firm view', () => {
+      mockSingleBookVaR()
+      mockUseCrossBookVaR.mockReturnValue({
+        result: CROSS_BOOK_RESULT,
+        loading: false,
+        refreshing: false,
+        error: null,
+        refresh: vi.fn(),
+      })
+
+      render(
+        <RiskTab
+          bookId="multi-asset"
+          aggregatedView
+          effectiveBookIds={['emerging-markets', 'macro-hedge']}
+          portfolioGroupId="firm"
+          hierarchyLevel="FIRM"
+          {...defaultStressProps}
+        />,
+      )
+
+      // ComponentBreakdown must show the firm-scale per-asset contributions
+      // ($90M EQUITY / $62M RATES), not the stray single-book contributions
+      // ($150K / $76.6K). Each row carries the asset class as a test id and its
+      // contribution rendered via formatMoney.
+      const parseRowUsd = (row: HTMLElement) => {
+        // Row text is "<label>$90,000,000.0059.2%": grab the first $-prefixed
+        // money token (the VaR contribution) and drop grouping commas.
+        const match = row.textContent?.match(/\$([\d,]+(?:\.\d+)?)/)
+        return Number(match?.[1].replace(/,/g, ''))
+      }
+      const equityRow = screen.getByTestId('breakdown-EQUITY')
+      const ratesRow = screen.getByTestId('breakdown-RATES')
+      const equityUsd = parseRowUsd(equityRow)
+      const ratesUsd = parseRowUsd(ratesRow)
+      // Firm scale: tens of millions, not hundreds of thousands.
+      expect(equityUsd).toBeGreaterThan(1_000_000)
+      expect(ratesUsd).toBeGreaterThan(1_000_000)
+      // The breakdown components reconcile with the firm gauge VaR ($152M):
+      // diversification benefit ≈ 0 (sum of components − bookVaR).
+      const diversificationAmount = screen.getByTestId('diversification-amount')
+      const benefit = Number(diversificationAmount.textContent?.replace(/[^0-9.+-]/g, ''))
+      expect(Math.abs(benefit)).toBeLessThan(1)
+    })
+
+    it('does not fire useVaR with a stray book id when in firm/aggregated view', () => {
+      mockSingleBookVaR()
+      mockUseCrossBookVaR.mockReturnValue({
+        result: CROSS_BOOK_RESULT,
+        loading: false,
+        refreshing: false,
+        error: null,
+        refresh: vi.fn(),
+      })
+
+      render(
+        <RiskTab
+          bookId="multi-asset"
+          aggregatedView
+          effectiveBookIds={['emerging-markets', 'macro-hedge']}
+          portfolioGroupId="firm"
+          hierarchyLevel="FIRM"
+          {...defaultStressProps}
+        />,
+      )
+
+      // In aggregated view the single-book VaR hook must not be scoped to a
+      // stray concrete book — it should be passed null so no $226K result
+      // leaks into the firm dashboard.
+      expect(mockUseVaR).toHaveBeenCalledWith(null, null)
     })
   })
 })

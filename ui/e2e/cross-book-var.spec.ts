@@ -200,6 +200,44 @@ test.describe('Cross-Book VaR', () => {
     await expect(page.getByTestId('aggregated-var-note')).toContainText('Recalculate All')
   })
 
+  test('firm VaR gauge reconciles with the Book Contributions sum-of-books (kx-r2hj)', async ({ page }) => {
+    // Single-book VaR (~$125K) is intentionally an order of magnitude below
+    // the firm aggregate (~$200K diversified, ~$250K sum-of-books). Before the
+    // fix the gauge rendered the stray single-book figure while the Book
+    // Contributions table showed the firm sum — the two clashed. In aggregated
+    // view the gauge must be sourced from the cross-book aggregate so it
+    // reconciles with "Sum of books".
+    await mockRiskTabRoutes(page, {
+      varResult: TEST_VAR_RESULT,
+      jobHistory: TEST_JOB_HISTORY,
+    })
+    await mockCrossBookVaR(page, TEST_CROSS_BOOK_VAR_RESULT)
+
+    await goToRiskTab(page)
+    await page.waitForSelector('[data-testid="var-dashboard"]')
+
+    // Gauge headline is the diversified firm VaR ($200,000.00), NOT the stray
+    // single-book VaR ($125,000.50).
+    await expect(page.getByTestId('var-value')).toHaveAttribute('title', '$200,000.00')
+
+    // Sum-of-books is the firm standalone total ($250,000.00).
+    await expect(page.getByTestId('sum-of-books-var')).toHaveAttribute('title', '$250,000.00')
+
+    // Reconciliation: the diversified gauge VaR sits at or below sum-of-books
+    // and within the same order of magnitude (never ~1000x apart). Parse the
+    // numeric titles and assert the relationship.
+    const gaugeTitle = await page.getByTestId('var-value').getAttribute('title')
+    const sumTitle = await page.getByTestId('sum-of-books-var').getAttribute('title')
+    const gaugeUsd = Number((gaugeTitle ?? '').replace(/[^0-9.]/g, ''))
+    const sumUsd = Number((sumTitle ?? '').replace(/[^0-9.]/g, ''))
+    expect(gaugeUsd).toBeGreaterThan(sumUsd * 0.5)
+    expect(gaugeUsd).toBeLessThanOrEqual(sumUsd)
+
+    // The Component Breakdown is also firm-scoped: its EQUITY contribution is
+    // the firm figure ($120,000.00), not the single-book one ($80,000.30).
+    await expect(page.getByTestId('breakdown-EQUITY')).toContainText('$120,000.00')
+  })
+
   test('refresh triggers cross-book VaR calculation', async ({ page }) => {
     const postRequests: { url: string; body: string }[] = []
 

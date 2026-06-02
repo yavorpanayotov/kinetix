@@ -12,7 +12,7 @@ import { useLiquidityRisk } from '../hooks/useLiquidityRisk'
 import { useFactorRisk } from '../hooks/useFactorRisk'
 import { useFactorRiskHistory } from '../hooks/useFactorRiskHistory'
 import { useHierarchyNodeRisk } from '../hooks/useHierarchyNodeRisk'
-import type { MarketRegime, StressTestResultDto } from '../types'
+import type { MarketRegime, StressTestResultDto, VaRResultDto } from '../types'
 import { VaRDashboard } from './VaRDashboard'
 import { PositionRiskTable } from './PositionRiskTable'
 import { BookContributionTable } from './BookContributionTable'
@@ -50,6 +50,7 @@ import { SectionBlock } from './ui/SectionBlock'
 import { useWorkspace, type RiskDashboardSectionsState } from '../hooks/useWorkspace'
 import { SnapshotCompareControl } from './SnapshotCompareControl'
 import { findNearestPoint, resolveSnapshotTarget, SNAPSHOT_PRESETS, type SnapshotPreset } from '../utils/snapshotCompare'
+import { crossBookResultToVaRResult } from '../utils/crossBookResultToVaRResult'
 
 type RiskSubTab = 'dashboard' | 'run-compare' | 'market-data' | 'intraday'
 
@@ -201,7 +202,13 @@ export function RiskTab({
     selectedConfidenceLevel,
     setSelectedConfidenceLevel,
     isLive,
-  } = useVaR(bookId, valuationDate)
+    // kx-r2hj — in aggregated (firm/division/desk) view the single-book VaR
+    // hook must NOT be scoped to a stray concrete book id (App.tsx falls
+    // through to a literal book like 'multi-asset' when effectiveBookId is
+    // null). Passing null keeps the single-book gauge (~$226K) from leaking
+    // into the firm dashboard; the gauge is driven from the cross-book
+    // aggregate below instead.
+  } = useVaR(aggregatedView ? null : bookId, valuationDate)
 
   const {
     positionRisk,
@@ -220,6 +227,21 @@ export function RiskTab({
     aggregatedView ? effectiveBookIds : [],
     aggregatedView ? portfolioGroupId : null,
   )
+
+  // kx-r2hj — when viewing an aggregated hierarchy node (firm/division/desk),
+  // the gauge, ES headline and Component Breakdown must reflect the cross-book
+  // firm aggregate so they reconcile with the Book Contributions "Sum of
+  // books". CrossBookVaRResultDto already carries varValue / expectedShortfall
+  // / componentBreakdown / calculationType / confidenceLevel / calculatedAt —
+  // map it into the VaRResultDto shape the dashboard/gauge expects. Greeks,
+  // PV and valuationDate are book-level concepts and have no firm aggregate,
+  // so they remain undefined.
+  const dashboardVarResult: VaRResultDto | null = useMemo(() => {
+    if (aggregatedView && crossBookResult) {
+      return crossBookResultToVaRResult(crossBookResult)
+    }
+    return varResult
+  }, [aggregatedView, crossBookResult, varResult])
 
   const { varLimit } = useVarLimit()
   const { alerts, dismissAlert } = useAlerts()
@@ -368,9 +390,9 @@ export function RiskTab({
             >
               <ErrorBoundary fallback={<SectionErrorCard name="VaR Dashboard" />}>
                 <VaRDashboard
-                  varResult={varResult}
+                  varResult={dashboardVarResult}
                   filteredHistory={filteredHistory}
-                  loading={varLoading}
+                  loading={aggregatedView ? crossBookLoading : varLoading}
                   historyLoading={varHistoryLoading}
                   refreshing={varRefreshing || crossBookRefreshing}
                   error={crossBookError || varError}
@@ -380,7 +402,7 @@ export function RiskTab({
                   zoomIn={varZoomIn}
                   resetZoom={varResetZoom}
                   zoomDepth={varZoomDepth}
-                  greeksResult={greeksResult}
+                  greeksResult={aggregatedView ? null : greeksResult}
                   varLimit={varLimit}
                   onWhatIf={onWhatIf}
                   selectedConfidenceLevel={selectedConfidenceLevel}
