@@ -72,7 +72,7 @@ Flagship: counterparty-risk (`specs/counterparty-risk.allium`, commits `kx-qfqn`
   Acceptance: `grep -q "0017" docs/case-studies/audit.md && grep -qi "hash" docs/case-studies/audit.md`
 - [x] Capture supporting screenshots (`/screenshot` for counterparty-risk tab + copilot) into `docs/screenshots/` and embed them in the flagship.
   Acceptance: `ls docs/screenshots/*.png >/dev/null 2>&1 && test -f docs/screenshots/README.md`
-- [ ] Case-study hub `docs/case-studies/README.md`: index all three with one-line hooks, framed as "the loop applied repeatedly."
+- [x] Case-study hub `docs/case-studies/README.md`: index all three with one-line hooks, framed as "the loop applied repeatedly."
   Acceptance: `grep -q "counterparty-risk.md" docs/case-studies/README.md && grep -q "limits.md" docs/case-studies/README.md && grep -q "audit.md" docs/case-studies/README.md`
 
 ## Workstream D — The Journey + front-door reframe
