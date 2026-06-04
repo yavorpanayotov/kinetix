@@ -40,7 +40,7 @@ const fulfillJson = (route: Route, body: unknown, status = 200) =>
 // default once the workspace finishes loading async; without seeding, that reset
 // can bounce a late-rendering tab back to Positions between assertion and
 // capture. Seeding the default tab makes the reset a no-op for our target.
-async function gotoApp(page: Page, defaultTab = 'positions', extraPrefs: Record<string, unknown> = {}) {
+async function gotoApp(page: Page, defaultTab = 'positions', extraPrefs: Record<string, unknown> = {}, bookId: string | null = 'port-1') {
   await page.addInitScript(
     ({ tab, extra }) => {
       localStorage.setItem(
@@ -101,9 +101,21 @@ async function gotoApp(page: Page, defaultTab = 'positions', extraPrefs: Record<
   })
   await page.goto('/')
   await page.waitForSelector('[data-testid="tab-positions"]')
-  // Wait for the ticker's resolved-book NAV — a deterministic signal that the
-  // async book selection has settled — then a short beat for charts to paint.
-  await page.waitForSelector('[data-testid="ticker-nav"]', { timeout: 15000 })
+  if (bookId) {
+    // The default firm view aggregates to all-books, which leaves single-book
+    // tabs (P&L, Regulatory, EOD, …) empty or racy. Deterministically select a
+    // book via the command palette — its book command sets the hierarchy and
+    // both book hooks at once. Pass bookId=null to stay at firm (the Risk
+    // dashboard's cross-book view).
+    await page.waitForTimeout(500)
+    await page.keyboard.press('ControlOrMeta+k')
+    await page.waitForSelector('[data-testid="command-palette"]')
+    await page.getByTestId('command-palette-input').fill(bookId)
+    await page.getByTestId(`command-palette-item-book:${bookId}`).click()
+    await page.waitForSelector('[data-testid="ticker-nav"]', { timeout: 15000 })
+  } else {
+    await page.waitForTimeout(1500)
+  }
   await page.waitForTimeout(600)
 }
 
@@ -216,9 +228,13 @@ test.describe('UI screenshots — Trading', () => {
     }
     await page.route('**/api/v1/risk/pnl-attribution/**', (route: Route) => fulfillJson(route, pnlData))
 
-    await gotoApp(page, 'pnl', { defaultBook: 'port-1' })
-    await page.getByTestId('tab-pnl').click()
-    await page.waitForSelector('[data-testid="intraday-pnl-chart"]')
+    await gotoApp(page, 'pnl')
+    // Compute attribution if the tab is showing the compute prompt, then wait
+    // for the populated attribution table.
+    const computeBtn = page.getByTestId('pnl-compute-button')
+    if (await computeBtn.count()) await computeBtn.click()
+    await page.waitForSelector('[data-testid="attribution-table"]', { timeout: 10000 })
+    await page.waitForTimeout(400)
 
     await page.screenshot({ path: `${SHOTS}/pnl-tab.png`, fullPage: true })
   })
@@ -256,9 +272,14 @@ test.describe('UI screenshots — Risk', () => {
       route.request().method() === 'POST' ? fulfillJson(route, crossBook) : route.fallback())
     await page.route('**/api/v1/risk/var/cross-book/*', (route: Route) => fulfillJson(route, crossBook))
 
-    await gotoApp(page, 'risk')
+    // bookId=null: stay at firm level so the aggregated cross-book dashboard renders.
+    await gotoApp(page, 'risk', {}, null)
     await page.getByTestId('tab-risk').click()
     await page.waitForSelector('[data-testid="var-dashboard"]')
+    // Wait for the cross-book result to load (diversification summary), not just
+    // the container, so we don't capture the "sum of book VaRs" fallback.
+    await page.waitForSelector('[data-testid="diversification-summary"]', { timeout: 10000 })
+    await page.waitForTimeout(400)
 
     await page.screenshot({ path: `${SHOTS}/risk-dashboard.png`, fullPage: true })
   })
