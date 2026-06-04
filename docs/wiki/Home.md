@@ -8,6 +8,10 @@ This wiki is a living reference for engineers, quants, risk managers, and operat
 
 ## Wiki contents
 
+- **[User Guide](User-Guide)** — the web app, tab by tab: layout, global chrome, and every panel and control
+  - [User Guide: Trading](User-Guide-Trading) — Positions, Trades, P&L
+  - [User Guide: Risk](User-Guide-Risk) — Risk, EOD History, Scenarios, Counterparty Risk
+  - [User Guide: Operations](User-Guide-Operations) — Regulatory, Reports, Activity, Alerts, System
 - **[Architecture](Architecture)** — service topology, data flows, communication patterns
 - **[Kafka Topology](Kafka-Topology)** — producers → topics → consumers, DLQs, partition keys
 - **[Services](Services)** — per-service responsibilities, ownership boundaries, tech inside each box
@@ -27,7 +31,7 @@ This wiki is a living reference for engineers, quants, risk managers, and operat
 | **Backend** | 12 Kotlin/Ktor microservices on JVM 21 |
 | **Risk engine** | Python 3.12 — NumPy, SciPy, PyTorch — 11 gRPC services |
 | **AI** | Python `ai-insights-service` (FastAPI) on the Claude Agent SDK; in-process MCP server; citation-enforced narratives |
-| **Frontend** | React 19 + TypeScript, 11 trader/risk tabs |
+| **Frontend** | React 19 + TypeScript, 12 trader/risk tabs in 3 clusters (see [User Guide](User-Guide)) |
 | **Datastores** | PostgreSQL 17 / TimescaleDB (database-per-service), Redis 7 |
 | **Messaging** | Apache Kafka 3.9 (KRaft) — 20 production topics, per-topic DLQs |
 | **Schema** | 173 Flyway migrations across 11 service schemas |
@@ -47,6 +51,7 @@ This wiki is a living reference for engineers, quants, risk managers, and operat
 
 ## Where to go next
 
+- A trader or risk manager learning the application should start with the [User Guide](User-Guide).
 - A new contributor should start with the [main README](https://github.com/panayotovk/kinetix), then [Local Development](Local-Development), then the project's `CLAUDE.md` for conventions.
 - A risk reviewer should jump to [Risk Methodology](Risk-Methodology) and [FRTB Capital](FRTB-Capital).
 - An architect should read [Architecture](Architecture) and the [ADR Index](ADR-Index).

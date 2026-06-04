@@ -30,6 +30,10 @@ On subsequent updates, edit the files here, copy across, push.
 | File | Slug | Purpose |
 |---|---|---|
 | `Home.md` | `Home` | Landing page; table of contents |
+| `User-Guide.md` | `User-Guide` | Web app walkthrough: layout, global chrome, cross-tab navigation |
+| `User-Guide-Trading.md` | `User-Guide-Trading` | Positions, Trades, P&L tabs |
+| `User-Guide-Risk.md` | `User-Guide-Risk` | Risk, EOD History, Scenarios, Counterparty Risk tabs |
+| `User-Guide-Operations.md` | `User-Guide-Operations` | Regulatory, Reports, Activity, Alerts, System tabs |
 | `Architecture.md` | `Architecture` | Service topology, Kafka topics, data flows |
 | `Services.md` | `Services` | Per-service responsibilities and boundaries |
 | `Risk-Methodology.md` | `Risk-Methodology` | VaR/ES, Greeks, factor model, stress, regime |
