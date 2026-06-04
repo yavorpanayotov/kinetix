@@ -12,6 +12,8 @@ For shared chrome (header, ticker, copilot, hedge / what-if panels) see the [Use
 
 A live portfolio grid with valuation and risk analytics per holding. Source: [`PositionGrid.tsx`](https://github.com/panayotovk/kinetix/blob/main/ui/src/components/PositionGrid.tsx).
 
+![Positions tab](https://raw.githubusercontent.com/panayotovk/kinetix/main/docs/screenshots/positions-tab.png)
+
 ### Summary cards
 
 A row of book-level cards: **position count**, **market value**, **unrealised P&L** (colour-coded), and — when risk data is loaded — **book delta** and **book VaR**.
@@ -49,6 +51,8 @@ The order and trade lifecycle. Four sub-tabs, selected via the sub-tab bar.
 ### Trade Blotter
 
 Every trade with fill status and venue routing. Source: [`TradeBlotter.tsx`](https://github.com/panayotovk/kinetix/blob/main/ui/src/components/TradeBlotter.tsx).
+
+![Trade blotter](https://raw.githubusercontent.com/panayotovk/kinetix/main/docs/screenshots/trades-blotter.png)
 
 - **Filters:** instrument (substring), side (Buy/Sell), counterparty (server-side), instrument type. A **venue-routing status dot** (green/amber/red) sits top-left.
 - **Columns:** Time, Instrument, Name, Type, Side (green buy / red sell), Qty, Filled, Open, Price, Notional, Status badge, and optional Venue and Venue Order ID (with copy-to-clipboard).

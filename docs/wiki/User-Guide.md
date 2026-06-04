@@ -4,6 +4,8 @@ A walkthrough of the Kinetix web application — every tab, sub-tab, panel, and 
 
 The interface is organised into **12 tabs grouped into three clusters**, sitting under a shared chrome (header, live KPI ticker, notification inbox) that is visible on every tab.
 
+![Risk dashboard](https://raw.githubusercontent.com/panayotovk/kinetix/main/docs/screenshots/risk-dashboard.png)
+
 | Cluster | Tabs | Page |
 |---|---|---|
 | **Trading** | Positions, Trades, P&L | [User Guide: Trading](User-Guide-Trading) |
@@ -69,6 +71,8 @@ An always-on KPI band for the selected book: connection status, NAV, unrealised 
 
 - **Command mode** — fuzzy search across tabs, sub-tabs, books, instruments, and scenarios, with a recent-commands list.
 - **Copilot mode** — free-form questions routed to the AI copilot (`/chat`), with streaming answers, inline **citations**, and multi-turn follow-ups scoped to the current book. See [AI Features](AI-Features).
+
+![AI copilot with citation](https://raw.githubusercontent.com/panayotovk/kinetix/main/docs/screenshots/copilot-narrative.png)
 
 ### Slide-in analysis panels
 

@@ -16,6 +16,8 @@ A **valuation-date picker** at the top runs every calculation as-of a chosen dat
 
 A collapsible, multi-section view; section open/closed state persists to the saved workspace.
 
+![Risk dashboard](https://raw.githubusercontent.com/panayotovk/kinetix/main/docs/screenshots/risk-dashboard.png)
+
 **Market Risk**
 - **VaR gauge** ([`VaRDashboard.tsx`](https://github.com/panayotovk/kinetix/blob/main/ui/src/components/VaRDashboard.tsx), [`VaRGauge.tsx`](https://github.com/panayotovk/kinetix/blob/main/ui/src/components/VaRGauge.tsx)) — VaR, Expected Shortfall, and limit utilisation (green < 60%, amber 60–85%, red > 85%) at a selectable confidence level (95% / 97.5% / 99%). A trend chart plots VaR (and a Greeks overlay) over time with zoom; an **Explain VaR** button and a **What-If** button sit alongside.
 - **Risk sensitivities** — aggregate Delta / Gamma / Vega / Theta / Rho with explanatory popovers ([`RiskSensitivities.tsx`](https://github.com/panayotovk/kinetix/blob/main/ui/src/components/RiskSensitivities.tsx)).
@@ -54,6 +56,9 @@ Each comparison surfaces component, position, and Greek deltas, new/resolved lim
 ### Market Data
 
 The reference surfaces feeding the engine:
+
+![Market data sub-tab](https://raw.githubusercontent.com/panayotovk/kinetix/main/docs/screenshots/risk-market-data.png)
+
 - **Vol surface** — implied-vol skew (vs. strike) and term structure (vs. maturity) for a chosen instrument, with an optional compare-to date ([`VolSurfacePanel.tsx`](https://github.com/panayotovk/kinetix/blob/main/ui/src/components/VolSurfacePanel.tsx)).
 - **Yield curve** — yield vs. tenor by currency, with hollow markers on interpolated points ([`YieldCurvePanel.tsx`](https://github.com/panayotovk/kinetix/blob/main/ui/src/components/YieldCurvePanel.tsx)).
 
@@ -74,6 +79,8 @@ Historical end-of-day risk snapshots with drill-down. Source: [`EodTimelineTab.t
 
 Stress testing, scenario governance, and reverse stress. Source: [`ScenariosTab.tsx`](https://github.com/panayotovk/kinetix/blob/main/ui/src/components/ScenariosTab.tsx).
 
+![Scenarios tab](https://raw.githubusercontent.com/panayotovk/kinetix/main/docs/screenshots/scenarios-tab.png)
+
 - **Control bar** — Run All (approved scenarios), Custom Scenario, Compare (2–3 selected), Export CSV, Manage Scenarios, Reverse Stress; plus confidence-level and time-horizon selectors.
 - **Comparison table** — per scenario: category badge, base VaR, stressed VaR, multiplier, P&L impact, and limit-breach status. Rows expand into a **detail panel** with asset-class, position-level, and Greek-under-stress views; an **Explain** button narrates the result.
 - **Custom scenario builder** — define vol and price shocks, then **Save as Scenario** (submitted for approval) or **Run as Ad-Hoc** ([`CustomScenarioBuilder.tsx`](https://github.com/panayotovk/kinetix/blob/main/ui/src/components/CustomScenarioBuilder.tsx)).
@@ -86,6 +93,8 @@ Stress testing, scenario governance, and reverse stress. Source: [`ScenariosTab.
 ## Counterparty Risk
 
 Credit exposure, PFE, CVA, and regulatory counterparty capital. Source: [`CounterpartyRiskDashboard.tsx`](https://github.com/panayotovk/kinetix/blob/main/ui/src/components/CounterpartyRiskDashboard.tsx).
+
+![Counterparty risk tab](https://raw.githubusercontent.com/panayotovk/kinetix/main/docs/screenshots/counterparty-risk-tab.png)
 
 - **Counterparty list (left)** — searchable, sortable table: Counterparty, Net Exposure, Peak PFE, CVA (italic when estimated), and a Wrong-Way-Risk indicator. High-exposure counterparties (top decile) and those with an **expired ISDA agreement** are badged; the latter offer a **Block new trades** action. A methodology label reads e.g. "Monte Carlo · 95% · 1Y".
 - **Detail view (right)** — for the selected counterparty: net exposure, peak PFE, and CVA metrics; **Compute PFE** and **Compute CVA** actions; and a **PFE profile chart** plotting Expected Exposure and PFE-95 across tenors.

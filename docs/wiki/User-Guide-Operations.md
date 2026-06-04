@@ -10,6 +10,8 @@ Five tabs: **Regulatory**, **Reports**, **Activity**, **Alerts**, **System**. Ea
 
 FRTB Standardised Approach capital. Source: [`RegulatoryDashboard.tsx`](https://github.com/panayotovk/kinetix/blob/main/ui/src/components/RegulatoryDashboard.tsx) (via [`RegulatoryTab.tsx`](https://github.com/panayotovk/kinetix/blob/main/ui/src/components/RegulatoryTab.tsx)).
 
+![Regulatory FRTB tab](https://raw.githubusercontent.com/panayotovk/kinetix/main/docs/screenshots/regulatory-frtb.png)
+
 - **Actions:** Calculate FRTB, Download CSV, Download XBRL (the last two enable once a result exists).
 - **Summary cards:** Total Capital Charge, SBM, DRC, RRAO, plus a stacked bar of each charge's share of the total.
 - **SBM breakdown table:** Delta / Vega / Curvature / Total for every risk class — GIRR, CSR (non-sec, sec-CTP, sec-non-CTP), Equity, Commodity, FX — always rendered in order, even at zero.
@@ -34,6 +36,8 @@ Generate, narrate, and download reports. Source: [`ReportsTab.tsx`](https://gith
 
 The hash-chained audit trail of every material system event. Source: [`AuditLogPanel.tsx`](https://github.com/panayotovk/kinetix/blob/main/ui/src/components/AuditLogPanel.tsx). Background: [Audit and Compliance](Audit-and-Compliance), ADR-0017.
 
+![Activity audit trail](https://raw.githubusercontent.com/panayotovk/kinetix/main/docs/screenshots/activity-audit.png)
+
 - **Chain-integrity indicator** — verifies the hash chain on load: "Chain verified · N events" (green) or "Chain broken · N events" (red), with a recheck action.
 - **Filters** — book, trade, event type (e.g. `TRADE_BOOKED`), and a from/to time window.
 - **Events table** — Time, Event (colour-coded by class: info / warning / critical / success), Subject (the affected entity), Book, and User.
@@ -44,6 +48,8 @@ The hash-chained audit trail of every material system event. Source: [`AuditLogP
 ## Alerts
 
 Define alert rules and triage the live alert queue. Source: [`NotificationCenter.tsx`](https://github.com/panayotovk/kinetix/blob/main/ui/src/components/NotificationCenter.tsx).
+
+![Alerts tab](https://raw.githubusercontent.com/panayotovk/kinetix/main/docs/screenshots/alerts-tab.png)
 
 **Create rule** — name, rule type (VAR_BREACH, PNL_THRESHOLD, RISK_LIMIT, DELTA_BREACH, VEGA_BREACH, CONCENTRATION, MARGIN_BREACH), threshold, operator (above / below), severity (CRITICAL / WARNING / INFO), and delivery channels (in-app / email / webhook). Inline validation gates the Create button.
 
@@ -60,6 +66,8 @@ Define alert rules and triage the live alert queue. Source: [`NotificationCenter
 ## System
 
 Platform health and observability entry points. Source: [`SystemDashboard.tsx`](https://github.com/panayotovk/kinetix/blob/main/ui/src/components/SystemDashboard.tsx).
+
+![System dashboard](https://raw.githubusercontent.com/panayotovk/kinetix/main/docs/screenshots/system-dashboard.png)
 
 - **Status banner** — "All Systems Operational" (green) or "Degraded" (amber), with a refresh.
 - **Service health grid** — a card per backend service (gateway, position, price, risk-orchestrator, notification, rates, reference-data, volatility, correlation, regulatory, audit) with a READY/DOWN status dot and, where configured, a link straight to that service's Grafana dashboard.
