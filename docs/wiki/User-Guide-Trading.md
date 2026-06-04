@@ -91,6 +91,8 @@ Internal positions vs. prime-broker holdings. Source: [`ReconciliationPanel.tsx`
 
 Intraday P&L and daily attribution to Greek factors. Source: [`PnlTab.tsx`](https://github.com/panayotovk/kinetix/blob/main/ui/src/components/PnlTab.tsx).
 
+![P&L tab](https://raw.githubusercontent.com/panayotovk/kinetix/main/docs/screenshots/pnl-tab.png)
+
 ### Intraday P&L chart
 
 Cumulative intraday P&L over the trading day, with optional **trade markers** annotating execution times. Driven live by the intraday-P&L WebSocket, falling back to the last session's historical snapshots when live data is unavailable (with a "Last session" indicator).
