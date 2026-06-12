@@ -14,6 +14,7 @@ import { TimeRangeSelector } from './TimeRangeSelector'
 import { Card, Button, Spinner, EmptyState, ErrorCard } from './ui'
 import { AIInsightPanel } from './AIInsightPanel'
 import { ExplainButton } from './ExplainButton'
+import { ValueScopeBadge } from './ValueScopeBadge'
 import { explainVar, type ExplainVarRequest, type InsightResponse } from '../api/insights'
 
 function confidenceLevelToNumber(level: string): number {
@@ -187,7 +188,12 @@ export function VaRDashboard({ varResult, filteredHistory, loading, historyLoadi
           Historical — {valuationDate}
         </div>
       )}
-      <div className="flex items-center justify-end mb-2">
+      <div className="flex items-center justify-between mb-2">
+        <ValueScopeBadge
+          scope={varResult.bookId}
+          asOf={varResult.calculatedAt}
+          data-testid="var-dashboard-scope"
+        />
         <ExplainButton
           onClick={handleExplain}
           isBusy={insightLoading}

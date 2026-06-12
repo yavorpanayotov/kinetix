@@ -139,6 +139,41 @@ describe('RiskTickerStrip', () => {
     })
   })
 
+  describe('VaR scope stamp', () => {
+    it('stamps the VaR cell with the book scope and as-of time', () => {
+      render(
+        <RiskTickerStrip
+          bookId="fx-main"
+          bookSummary={sampleBookSummary()}
+          intradaySnapshot={null}
+          varResult={sampleVaR()}
+          greeksResult={null}
+          varLimit={null}
+          streamConnected={true}
+        />,
+      )
+
+      expect(screen.getByTestId('ticker-var-scope-scope')).toHaveTextContent('fx-main')
+      expect(screen.getByTestId('ticker-var-scope-asof')).toBeInTheDocument()
+    })
+
+    it('renders no scope stamp while the VaR cell is empty', () => {
+      render(
+        <RiskTickerStrip
+          bookId="fx-main"
+          bookSummary={sampleBookSummary()}
+          intradaySnapshot={null}
+          varResult={null}
+          greeksResult={null}
+          varLimit={null}
+          streamConnected={true}
+        />,
+      )
+
+      expect(screen.queryByTestId('ticker-var-scope-scope')).not.toBeInTheDocument()
+    })
+  })
+
   describe('VaR limit breach colour-coding', () => {
     it('does NOT colour VaR cell red when utilisation is at or below 80% of limit', () => {
       render(

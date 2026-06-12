@@ -229,6 +229,22 @@ describe('VaRDashboard', () => {
     expect(screen.getByTestId('var-value')).toHaveTextContent('$1.2M')
   })
 
+  it('stamps the VaR figure with its scope and as-of time', () => {
+    render(
+      <VaRDashboard
+        varResult={varResult}
+
+        loading={false}
+        error={null}
+        onRefresh={() => {}}
+        {...defaultZoomProps}
+      />,
+    )
+
+    expect(screen.getByTestId('var-dashboard-scope-scope')).toHaveTextContent('book-1')
+    expect(screen.getByTestId('var-dashboard-scope-asof')).toBeInTheDocument()
+  })
+
   it('renders component breakdown segments', () => {
     render(
       <VaRDashboard

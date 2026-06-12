@@ -64,6 +64,19 @@ describe('FactorDecompositionPanel', () => {
     expect(screen.getByTestId('factor-total-var').textContent).toContain('50')
   })
 
+  it('stamps total VaR with its book scope and as-of time', () => {
+    render(<FactorDecompositionPanel result={sampleResult} loading={false} error={null} />)
+
+    expect(screen.getByTestId('factor-var-scope-scope')).toHaveTextContent('BOOK-1')
+    expect(screen.getByTestId('factor-var-scope-asof')).toBeInTheDocument()
+  })
+
+  it('renders the calculated timestamp in ISO format, not locale format', () => {
+    render(<FactorDecompositionPanel result={sampleResult} loading={false} error={null} />)
+
+    expect(screen.getByText(/Calculated: 2026-03-24 \d{2}:00:00/)).toBeInTheDocument()
+  })
+
   it('renders systematic VaR', () => {
     render(<FactorDecompositionPanel result={sampleResult} loading={false} error={null} />)
 

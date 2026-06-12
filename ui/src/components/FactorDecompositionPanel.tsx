@@ -2,6 +2,8 @@ import type { FactorRiskDto, FactorContributionDto, MarketRegime } from '../type
 import { Card } from './ui'
 import { Spinner } from './ui/Spinner'
 import { ScenarioBadge } from './ScenarioBadge'
+import { ValueScopeBadge } from './ValueScopeBadge'
+import { formatTimestamp } from '../utils/format'
 
 interface FactorDecompositionPanelProps {
   result: FactorRiskDto | null
@@ -155,6 +157,11 @@ export function FactorDecompositionPanel({
             >
               {formatCurrency(result.totalVar)}
             </span>
+            <ValueScopeBadge
+              scope={result.bookId}
+              asOf={result.calculatedAt}
+              data-testid="factor-var-scope"
+            />
             <ScenarioBadge scenario={activeScenario} regime={marketRegime} />
           </span>
         </div>
@@ -280,7 +287,7 @@ export function FactorDecompositionPanel({
       )}
 
       <p className="text-right text-xs text-gray-400 dark:text-gray-500">
-        Calculated: {new Date(result.calculatedAt).toLocaleString()}
+        Calculated: {formatTimestamp(result.calculatedAt)}
       </p>
     </Card>
   )

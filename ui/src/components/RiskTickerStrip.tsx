@@ -12,6 +12,7 @@ import {
   formatTimeOnly,
   pnlColorClass,
 } from '../utils/format'
+import { ValueScopeBadge } from './ValueScopeBadge'
 
 interface RiskTickerStripProps {
   bookId: string | null
@@ -189,6 +190,13 @@ export function RiskTickerStrip({
         >
           {varValueText}
         </span>
+        {varResult && (
+          <ValueScopeBadge
+            scope={bookId ?? 'Firm'}
+            asOf={varResult.calculatedAt}
+            data-testid="ticker-var-scope"
+          />
+        )}
         {varLimit !== null && varValueNumber !== null && (
           <span
             data-testid="ticker-var-utilisation"
