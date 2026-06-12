@@ -45,6 +45,61 @@ describe('PlaceOrderPanel', () => {
     expect(screen.getByTestId('place-order-submit')).toBeDisabled()
   })
 
+  describe('arrival price is captured server-side (execution.allium SubmitOrder)', () => {
+    it('enables submit for a MARKET order without an arrival price', () => {
+      render(<PlaceOrderPanel bookId="port-1" />)
+      fireEvent.change(screen.getByTestId('place-order-instrument'), { target: { value: 'AAPL' } })
+      fireEvent.change(screen.getByTestId('place-order-quantity'), { target: { value: '100' } })
+      fireEvent.change(screen.getByTestId('place-order-type'), { target: { value: 'MARKET' } })
+
+      expect(screen.getByTestId('place-order-submit')).not.toBeDisabled()
+    })
+
+    it('enables submit for a LIMIT order with a limit price but no arrival price', () => {
+      render(<PlaceOrderPanel bookId="port-1" />)
+      fireEvent.change(screen.getByTestId('place-order-instrument'), { target: { value: 'AAPL' } })
+      fireEvent.change(screen.getByTestId('place-order-quantity'), { target: { value: '100' } })
+      fireEvent.change(screen.getByTestId('place-order-limit-price'), { target: { value: '150.00' } })
+
+      expect(screen.getByTestId('place-order-submit')).not.toBeDisabled()
+    })
+
+    it('submits a MARKET order without sending an arrival price', async () => {
+      vi.mocked(submitOrder).mockResolvedValue(ack({ orderType: 'MARKET', limitPrice: null }))
+      render(<PlaceOrderPanel bookId="port-1" />)
+      fireEvent.change(screen.getByTestId('place-order-instrument'), { target: { value: 'AAPL' } })
+      fireEvent.change(screen.getByTestId('place-order-quantity'), { target: { value: '100' } })
+      fireEvent.change(screen.getByTestId('place-order-type'), { target: { value: 'MARKET' } })
+      fireEvent.click(screen.getByTestId('place-order-submit'))
+
+      await waitFor(() => expect(submitOrder).toHaveBeenCalled())
+      expect(vi.mocked(submitOrder).mock.calls[0][0].arrivalPrice).toBeUndefined()
+    })
+
+    it('prefills the arrival price from the book position market price for the typed instrument', () => {
+      render(
+        <PlaceOrderPanel
+          bookId="port-1"
+          positions={[
+            {
+              bookId: 'port-1',
+              instrumentId: 'AAPL',
+              assetClass: 'EQUITY',
+              quantity: '100',
+              averageCost: { amount: '150.00', currency: 'USD' },
+              marketPrice: { amount: '155.25', currency: 'USD' },
+              marketValue: { amount: '15525.00', currency: 'USD' },
+              unrealizedPnl: { amount: '525.00', currency: 'USD' },
+            },
+          ]}
+        />,
+      )
+      fireEvent.change(screen.getByTestId('place-order-instrument'), { target: { value: 'aapl' } })
+
+      expect(screen.getByTestId('place-order-arrival-price')).toHaveValue('155.25')
+    })
+  })
+
   it('on successful submission, shows the venue order id in a confirmation modal with a clipboard button', async () => {
     vi.mocked(submitOrder).mockResolvedValueOnce(ack())
 

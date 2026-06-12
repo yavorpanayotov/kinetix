@@ -100,7 +100,12 @@ export interface SubmitOrderRequestDto {
   quantity: string
   orderType: string
   limitPrice?: string
-  arrivalPrice: string
+  /**
+   * Informational only — the backend captures the authoritative arrival
+   * price from price-service at submission time and ignores this field
+   * (execution.allium SubmitOrder).
+   */
+  arrivalPrice?: string
   assetClass?: string
   currency?: string
   timeInForce?: OrderTimeInForce

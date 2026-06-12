@@ -102,4 +102,25 @@ test.describe('PlaceOrderPanel — golden path', () => {
     await navigateToPlaceOrder(page)
     await expect(page.getByTestId('place-order-submit')).toBeDisabled()
   })
+
+  test('a MARKET order submits without an arrival price — the backend captures it', async ({ page }) => {
+    await mockPlaceOrder(page, { ...PLACE_ORDER_RESPONSE, orderType: 'MARKET', limitPrice: null })
+    await navigateToPlaceOrder(page)
+    await page.getByTestId('place-order-instrument').fill('NVDA')
+    await page.getByTestId('place-order-quantity').fill('25')
+    await page.getByTestId('place-order-type').selectOption('MARKET')
+
+    await expect(page.getByTestId('place-order-submit')).toBeEnabled()
+    await page.getByTestId('place-order-submit').click()
+
+    await expect(page.getByTestId('place-order-confirmation')).toBeVisible()
+  })
+
+  test('typing an instrument held in the book prefills the arrival price from its market price', async ({ page }) => {
+    await navigateToPlaceOrder(page)
+    // AAPL is in the mocked book fixtures with marketPrice 155.00.
+    await page.getByTestId('place-order-instrument').fill('AAPL')
+
+    await expect(page.getByTestId('place-order-arrival-price')).toHaveValue('155.00')
+  })
 })

@@ -973,7 +973,7 @@ function AppContent() {
                         initialCounterpartyFilter={tradesCounterpartyFilter}
                       />
                     )}
-                    {tradesSubTab === 'place' && <PlaceOrderPanel bookId={bookId ?? ''} />}
+                    {tradesSubTab === 'place' && <PlaceOrderPanel bookId={bookId ?? ''} positions={positions} />}
                     {tradesSubTab === 'cost' && <ExecutionCostPanel bookId={bookId} />}
                     {tradesSubTab === 'reconciliation' && <ReconciliationPanel bookId={bookId} />}
                   </div>

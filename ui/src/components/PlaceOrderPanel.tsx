@@ -4,7 +4,7 @@ import { Button, Card, Input, Select } from './ui'
 import { OrderPlacementErrorBanner } from './OrderPlacementErrorBanner'
 import { PreTradeRiskPreviewPanel } from './PreTradeRiskPreviewPanel'
 import { useOrderPlacement } from '../hooks/useOrderPlacement'
-import type { OrderTimeInForce, PreTradeRiskPreviewRequestDto, SubmitOrderRequestDto } from '../types'
+import type { OrderTimeInForce, PositionDto, PreTradeRiskPreviewRequestDto, SubmitOrderRequestDto } from '../types'
 
 /**
  * Launch venues with regular-session cutoffs in `VenueCutoffRegistry` (ADR-0035 §2.3).
@@ -28,17 +28,25 @@ type Venue = typeof LAUNCH_VENUES[number] | 'OTHER'
  */
 interface PlaceOrderPanelProps {
   bookId: string
+  /**
+   * Current book positions, used only to prefill the arrival-price preview
+   * from the instrument's live market price. The authoritative arrival price
+   * is captured server-side at submission (execution.allium SubmitOrder:
+   * `let arrival_price = current_mid_price(instrument_id)`).
+   */
+  positions?: PositionDto[]
 }
 
 const TIF_OPTIONS: OrderTimeInForce[] = ['DAY', 'GTC', 'IOC', 'FOK', 'GTD']
 
-export function PlaceOrderPanel({ bookId }: PlaceOrderPanelProps) {
+export function PlaceOrderPanel({ bookId, positions }: PlaceOrderPanelProps) {
   const [instrumentId, setInstrumentId] = useState('')
   const [side, setSide] = useState<'BUY' | 'SELL'>('BUY')
   const [quantity, setQuantity] = useState('')
   const [orderType, setOrderType] = useState<'LIMIT' | 'MARKET'>('LIMIT')
   const [limitPrice, setLimitPrice] = useState('')
   const [arrivalPrice, setArrivalPrice] = useState('')
+  const [arrivalEdited, setArrivalEdited] = useState(false)
   const [timeInForce, setTimeInForce] = useState<OrderTimeInForce>('DAY')
   const [venue, setVenue] = useState<Venue>('NYSE')
   const [copyConfirmed, setCopyConfirmed] = useState(false)
@@ -49,10 +57,18 @@ export function PlaceOrderPanel({ bookId }: PlaceOrderPanelProps) {
 
   const { state, submit, reset } = useOrderPlacement()
 
+  const handleInstrumentChange = (value: string) => {
+    setInstrumentId(value)
+    if (arrivalEdited) return
+    const match = positions?.find(
+      (p) => p.instrumentId.toUpperCase() === value.trim().toUpperCase(),
+    )
+    if (match) setArrivalPrice(match.marketPrice.amount)
+  }
+
   const formIncomplete =
     !instrumentId.trim() ||
     !quantity.trim() ||
-    !arrivalPrice.trim() ||
     (orderType === 'LIMIT' && !limitPrice.trim())
 
   const submitting = state.kind === 'submitting'
@@ -64,22 +80,24 @@ export function PlaceOrderPanel({ bookId }: PlaceOrderPanelProps) {
     quantity: quantity.trim(),
     orderType,
     limitPrice: orderType === 'LIMIT' ? limitPrice.trim() : undefined,
-    arrivalPrice: arrivalPrice.trim(),
+    arrivalPrice: arrivalPrice.trim() || undefined,
     timeInForce,
     instrumentType: 'CASH_EQUITY',
   }), [bookId, instrumentId, side, quantity, orderType, limitPrice, arrivalPrice, timeInForce])
 
   /**
    * Build the candidate body sent to /api/v1/risk/pretrade-preview on
-   * form-blur. Returns null until the four required fields are filled,
-   * so the preview panel stays hidden while the trader is still typing.
-   * The price used is the limit (for LIMIT orders) or the arrival price
-   * (for MARKET orders); both are what the trader would expect the
-   * preview to value against.
+   * form-blur. Returns null until the required fields are filled, so the
+   * preview panel stays hidden while the trader is still typing. The price
+   * used is the limit (for LIMIT orders) or the arrival-price preview (for
+   * MARKET orders); a MARKET order with no preview price simply skips the
+   * pre-trade preview — it never blocks submission, because the
+   * authoritative arrival price is captured server-side.
    */
   const previewCandidate: PreTradeRiskPreviewRequestDto | null = useMemo(() => {
     if (formIncomplete) return null
     const priceAmount = orderType === 'LIMIT' ? limitPrice.trim() : arrivalPrice.trim()
+    if (!priceAmount) return null
     return {
       bookId,
       instrumentId: instrumentId.trim().toUpperCase(),
@@ -127,7 +145,7 @@ export function PlaceOrderPanel({ bookId }: PlaceOrderPanelProps) {
             <Input
               data-testid="place-order-instrument"
               value={instrumentId}
-              onChange={(e) => setInstrumentId(e.target.value)}
+              onChange={(e) => handleInstrumentChange(e.target.value)}
               className="w-full mt-1"
               placeholder="AAPL"
               disabled={submitting}
@@ -176,13 +194,13 @@ export function PlaceOrderPanel({ bookId }: PlaceOrderPanelProps) {
           </label>
 
           <label className="text-xs text-slate-500">
-            Arrival Price
+            Arrival Price (auto — captured at submission)
             <Input
               data-testid="place-order-arrival-price"
               type="text"
               inputMode="decimal"
               value={arrivalPrice}
-              onChange={(e) => setArrivalPrice(e.target.value)}
+              onChange={(e) => { setArrivalEdited(true); setArrivalPrice(e.target.value) }}
               className="w-full mt-1"
               disabled={submitting}
             />
