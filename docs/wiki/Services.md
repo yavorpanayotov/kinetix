@@ -132,21 +132,19 @@ Venue and prime-broker FIX 4.4 connectivity, extracted from position-service per
 
 Stateless gRPC calculator. No I/O outside RPC boundaries. Inputs in, results out.
 
-**gRPC services exposed:**
+**gRPC services exposed** (9):
 
 | Service | Methods |
 |---|---|
-| `RiskCalculationService` | CalculateVaR, Valuate, CalculatePricingGreeks, CrossBookVaR |
-| `MLPredictionServicer` | Volatility forecast, credit PD |
-| `StressTestServicer` | Scenario evaluation, reverse stress |
-| `AttributionServicer` | P&L attribution (Greek decomposition) |
-| `CounterpartyRiskServicer` | PFE, CVA, WWR |
-| `LiquidityAdjustedVaRServicer` | LVaR with liquidity-spread shocks |
-| `RegulatoryReportingServicer` | FRTB SBM/DRC/RRAO |
-| `MarketDataDependenciesServicer` | Sensitivity bucketing for discovery phase |
-| `FactorDecompositionServicer` | Factor exposures and contributions |
-| `SaCcrServicer` | Standardised Approach to Counterparty Credit Risk |
-| `HedgeOptimizerServicer` | Constrained hedge optimisation |
+| `RiskCalculationService` | CalculateVaR, Valuate, CalculatePricingGreeks, CrossBookVaR, factor decomposition, hedge suggestion |
+| `MLPredictionService` | Volatility forecast, credit PD |
+| `StressTestService` | Scenario evaluation, reverse stress |
+| `AttributionService` | P&L attribution (Greek decomposition) |
+| `CounterpartyRiskService` | PFE, CVA, WWR |
+| `LiquidityRiskService` | LVaR with liquidity-spread shocks |
+| `RegulatoryReportingService` | FRTB SBM/DRC/RRAO |
+| `MarketDataDependenciesService` | Sensitivity bucketing for discovery phase |
+| `SaCcrService` | Standardised Approach to Counterparty Credit Risk |
 
 **Module structure:**
 
@@ -167,11 +165,11 @@ See [Risk Methodology](Risk-Methodology) for the math and references.
 
 **Path:** [`ui/`](https://github.com/panayotovk/kinetix/tree/main/ui)
 
-React 19 + TypeScript trading and risk dashboard. 11 tabs grouped into three clusters.
+React 19 + TypeScript trading and risk dashboard. 12 tabs grouped into three clusters.
 
 **Trading cluster:** Positions · Trades · P&L
 **Risk cluster:** Risk · EOD History · Scenarios · Counterparty Risk
-**Ops cluster:** Regulatory · Reports · Alerts · System
+**Ops cluster:** Regulatory · Reports · Activity · Alerts · System
 
 - Workspaces with saved views, auto-switch on tab/book selection
 - Cross-tab navigation (e.g. counterparty row → filtered Trades blotter)

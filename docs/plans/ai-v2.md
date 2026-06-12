@@ -41,7 +41,7 @@ Per CLAUDE.md, the following cross architecture / dependency / schema lines and 
 - **MCP server in-process on port 8096**: internal-only bind, exposed in Docker Compose and Helm chart for the `ai-insights-service` container. Approved.
 - **New Kafka consumer group**: `ai-insights-risk-consumer` on existing topics `risk.results` and `risk.regime.changes`. No new topic. Approved.
 - **New DB tables**: `limit_breach_events` (position-service) and `copilot_alert_thresholds` (risk-orchestrator). Flyway migrations. Approved.
-- **New ADR**: `docs/adr/ADR-0036-ai-copilot-architecture.md`. Approved.
+- **New ADR**: `docs/adr/0036-ai-copilot-architecture.md`. Approved.
 - **No CI/CD pipeline file changes anticipated** (`.github/workflows/*`). If a subagent discovers it must touch one, STOP and flag.
 
 ## Out of scope
@@ -74,8 +74,8 @@ Verify v1 AI features and existing infra are green before any v2 work lands.
 
 ### PR 1 — Foundation: ADR + dependencies + MCP scaffold
 
-- [x] 1.1 Draft `docs/adr/ADR-0036-ai-copilot-architecture.md`: covers in-process MCP, service-principal auth, SSE for chat, WebSocket for push, conversation state model, demo-mode strategy, and `~/.claude/` credential multi-tenancy limitations. Update `docs/adr/README.md` index.
-      Acceptance: `test -f docs/adr/ADR-0036-ai-copilot-architecture.md && grep -q 'ADR-0036' docs/adr/README.md`
+- [x] 1.1 Draft `docs/adr/0036-ai-copilot-architecture.md`: covers in-process MCP, service-principal auth, SSE for chat, WebSocket for push, conversation state model, demo-mode strategy, and `~/.claude/` credential multi-tenancy limitations. Update `docs/adr/README.md` index.
+      Acceptance: `test -f docs/adr/0036-ai-copilot-architecture.md && grep -q 'ADR-0036' docs/adr/README.md`
 - [x] 1.2 Add Python deps to `ai-insights-service/pyproject.toml`: `mcp`, `aiokafka`, `redis[hiredis]`, `prometheus-client`. Run `uv sync`. No code changes; deps only.
       Acceptance: `cd ai-insights-service && uv sync && uv run python -c "import mcp, aiokafka, redis, prometheus_client"`
 - [x] 1.3 Add `KinetixHttpClient` abstraction in `src/kinetix_insights/clients/kinetix_http_client.py` — async httpx wrapper that stamps `X-User-Id` and `X-User-Books` headers from a `UserContext` dataclass on every call. Inject base URLs via env (`POSITION_SERVICE_URL`, `RISK_ORCHESTRATOR_URL`, `PRICE_SERVICE_URL`, etc.). Fake implementation in `tests/fakes/fake_kinetix_http_client.py` for unit tests.

@@ -2,15 +2,15 @@
 
 Kinetix follows **strict TDD** ([CLAUDE.md](https://github.com/panayotovk/kinetix/blob/main/CLAUDE.md) — Testing Philosophy). Tests are written first, behaviour-focused (not implementation-focused), and named like specifications.
 
-**915 tests** across the stack:
+**11,300+ tests** across the stack:
 
 | Suite | Count | Tool |
 |---|---|---|
-| Kotlin | 561 | Kotest (FunSpec) + MockK + Testcontainers |
-| Python (risk engine) | 79 | pytest + Hypothesis |
-| UI unit | 191 | Vitest |
-| UI browser | 84 | Playwright |
-| **Total** | **915** | |
+| Kotlin | 4,991 | Kotest (FunSpec) + MockK + Testcontainers |
+| Python (risk engine + AI insights) | 1,952 | pytest + Hypothesis |
+| UI unit | 3,592 | Vitest |
+| UI browser | 847 | Playwright |
+| **Total** | **11,382** | |
 
 Plus mutation testing (Stryker for UI, mutmut for Python), property-based tests (Hypothesis), Gatling load tests, and a coverage ratchet gating merges.
 
@@ -134,7 +134,7 @@ Worked examples lock the absolute output; property tests guard the algebraic str
 Path: [`load-tests/`](https://github.com/panayotovk/kinetix/tree/main/load-tests)
 
 ```bash
-./gradlew :load-tests:gatlingRun
+./gradlew -p load-tests gatlingRun
 ```
 
 Scenarios include:

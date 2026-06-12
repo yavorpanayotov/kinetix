@@ -112,7 +112,7 @@ Key modules under `src/kinetix_insights/`:
 
 AI v2 ships the **Kinetix Copilot** — a proactive morning brief, intraday push
 alerts, ⌘K free-form ask, and saved queries (see [`../plans/ai-v2.md`](../plans/ai-v2.md)
-and [`../docs/adr/ADR-0036-ai-copilot-architecture.md`](../docs/adr/ADR-0036-ai-copilot-architecture.md)).
+and [`../docs/adr/0036-ai-copilot-architecture.md`](../docs/adr/0036-ai-copilot-architecture.md)).
 Every v2 endpoint has a `Canned*Client` that replays a deterministic fixture, so
 the whole demo runs end-to-end with **zero live SDK calls** when `DEMO_MODE=true`.
 

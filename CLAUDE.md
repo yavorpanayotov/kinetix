@@ -119,7 +119,7 @@ Start any spec-related task by reading [`specs/README.md`](specs/README.md). Dri
 
 ## Architectural Decisions
 
-- **36 ADRs are recorded in [`docs/adr/`](docs/adr/README.md).** Consult them before changes that overlap. Notable ones to know about:
+- **37 ADRs are recorded in [`docs/adr/`](docs/adr/README.md).** Consult them before changes that overlap. Notable ones to know about:
   - ADR-0001 monorepo structure
   - ADR-0004 Kafka for async messaging
   - ADR-0008 observability stack (Prometheus + Loki + Tempo)

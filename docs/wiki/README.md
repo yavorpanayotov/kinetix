@@ -43,7 +43,7 @@ On subsequent updates, edit the files here, copy across, push.
 | `AI-Features.md` | `AI-Features` | Claude Agent SDK integration, v1 explainers, v2 Copilot foundation |
 | `Local-Development.md` | `Local-Development` | Setup, dev loops, troubleshooting |
 | `Testing-Strategy.md` | `Testing-Strategy` | Test pyramid, Testcontainers, mutation, property |
-| `ADR-Index.md` | `ADR-Index` | All 36 ADRs with summaries and by-task lookup |
+| `ADR-Index.md` | `ADR-Index` | All 37 ADRs with summaries and by-task lookup |
 
 ## Conventions
 

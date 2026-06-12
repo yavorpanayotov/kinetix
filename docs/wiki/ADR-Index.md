@@ -1,6 +1,6 @@
 # ADR Index
 
-35 Architecture Decision Records. 32 Accepted, 3 Proposed.
+37 Architecture Decision Records, all Accepted.
 
 ADRs are **guidelines and guardrails** — every ADR has two sections beyond Context / Decision / Consequences / Alternatives:
 
@@ -35,6 +35,8 @@ The canonical index, with a by-task lookup table, lives in [`docs/adr/README.md`
 | Touching the regime classifier | 0034 |
 | Touching FIX / order placement / venue connectivity | 0035 |
 | Tuning HPAs, memory limits, or Kafka consumer scaling | 0026 |
+| Touching the AI copilot, MCP tools, citations, or insight narratives | 0036 |
+| Touching service-to-service auth, TLS, or network trust boundaries | 0037 |
 
 ## Full list
 
@@ -65,7 +67,7 @@ The canonical index, with a by-task lookup table, lives in [`docs/adr/README.md`
 | [0023](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0023-hierarchical-limit-management.md) | Hierarchical limit management | Accepted | Six-level limits: Firm → Division → Desk → Book → Trader → Counterparty |
 | [0024](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0024-unified-valuation-rpc.md) | Unified valuation RPC | Accepted | Single Valuate RPC with requested_outputs, market_data oneof, MC seed |
 | [0025](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0025-flyway-backward-compatible-migrations.md) | Backward-compatible migrations | Accepted | Expand-contract split across two releases |
-| [0026](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0026-hpa-scaling-metrics.md) | HPA scaling metrics | **Proposed** | CPU + memory baseline; Kafka consumer lag on consumer services |
+| [0026](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0026-hpa-scaling-metrics.md) | HPA scaling metrics | Accepted | CPU + memory baseline; Kafka consumer lag on consumer services |
 | [0027](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0027-database-migration-practices.md) | DB migration practices | Accepted | Naming, transaction constraints, hypertable rules, rollback files |
 | [0028](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0028-key-rate-duration-tenor-buckets.md) | KRD tenor buckets | Accepted | 4-tenor internal (2/5/10/30Y); 12-tenor FRTB GIRR |
 | [0029](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0029-discovery-valuation-two-phase-contract.md) | Discovery-valuation contract | Accepted | Risk-engine is a pure calculator; orchestrator owns all data fetching |
@@ -74,4 +76,6 @@ The canonical index, with a by-task lookup table, lives in [`docs/adr/README.md`
 | [0032](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0032-intraday-pnl-greek-source.md) | Greek source for intraday P&L | Accepted | Use pricing Greeks from SodGreekSnapshot, not VaR Greeks, for attribution |
 | [0033](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0033-vol-surface-diff-method.md) | Vol-surface diff method | Accepted | Bilinear in (log K, √T) for surfaces on differing grids |
 | [0034](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0034-regime-degraded-signal-policy.md) | Regime classifier on degraded inputs | Accepted | Transition only fires when all available signals agree |
-| [0035](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0035-fix-gateway-service-extraction.md) | Fix-gateway service extraction | **Proposed** | Venue/FIX-protocol concerns isolated in a dedicated service |
+| [0035](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0035-fix-gateway-service-extraction.md) | Fix-gateway service extraction | Accepted | Venue/FIX-protocol concerns isolated in a dedicated service |
+| [0036](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0036-ai-copilot-architecture.md) | AI Copilot architecture (v2) | Accepted | In-process MCP server with read-only tools, citation contract + policy guard, SSE chat, demo-mode canned clients |
+| [0037](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0037-inter-service-trust-model.md) | Inter-service trust model | Accepted | mTLS for service-to-service gRPC in the prod profile; docker bridge network as the demo trust boundary |

@@ -21,15 +21,15 @@ On top of that risk surface sits the **Kinetix Copilot** — citation-enforced, 
 | | |
 |---|---|
 | **Services** | 12 Kotlin/Ktor microservices on JVM 21 + Python risk engine + Python `ai-insights-service` |
-| **Risk engine** | Python 3.12 — NumPy, SciPy, PyTorch — exposes 11 gRPC services |
-| **AI** | Python `ai-insights-service` (FastAPI) on top of the Claude Agent SDK, in-process MCP server, citation-enforced narratives ([ADR-0036](docs/adr/ADR-0036-ai-copilot-architecture.md)) |
-| **Frontend** | React 19 + TypeScript dashboard, 11 trader/risk tabs |
+| **Risk engine** | Python 3.12 — NumPy, SciPy, PyTorch — exposes 9 gRPC services |
+| **AI** | Python `ai-insights-service` (FastAPI) on top of the Claude Agent SDK, in-process MCP server, citation-enforced narratives ([ADR-0036](docs/adr/0036-ai-copilot-architecture.md)) |
+| **Frontend** | React 19 + TypeScript dashboard, 12 trader/risk tabs |
 | **Datastores** | PostgreSQL 17 / TimescaleDB (database-per-service), Redis 7 |
 | **Messaging** | Apache Kafka 3.9 (KRaft) — 20 production topics with per-topic DLQs |
-| **Schema** | 173 Flyway migrations across 11 service schemas |
-| **Behavioural specs** | 24 [Allium v3](https://github.com/juxt/allium) specifications |
-| **Architecture decisions** | 36 ADRs in [`docs/adr/`](docs/adr/) |
-| **Tests** | 915 — 561 Kotlin (Kotest) · 79 Python (pytest) · 191 Vitest · 84 Playwright |
+| **Schema** | 180 Flyway migrations across 11 service schemas |
+| **Behavioural specs** | 25 [Allium v3](https://github.com/juxt/allium) specifications |
+| **Architecture decisions** | 37 ADRs in [`docs/adr/`](docs/adr/) |
+| **Tests** | 11,300+ — 4,991 Kotlin (Kotest) · 1,952 Python (pytest) · 3,592 Vitest · 847 Playwright |
 | **Observability** | Prometheus, Grafana, Loki, Tempo, OpenTelemetry |
 | **Quality gates** | Coverage ratchet, mutation testing (Stryker, mutmut), property-based tests (Hypothesis), Gatling load tests |
 
@@ -198,7 +198,7 @@ LLM-powered analytics built *into* the platform — not bolted on. The AI surfac
 - **VaR Explainer** — click **Explain** on the Risk tab's VaR gauge for a narrative walk-through plus the top contributors.
 - **AI Commentary** — every generated Report renders an AI Commentary card summarising drivers and limit breaches.
 
-**v2 — in flight ([ADR-0036](docs/adr/ADR-0036-ai-copilot-architecture.md))**
+**v2 — in flight ([ADR-0036](docs/adr/0036-ai-copilot-architecture.md))**
 
 The Kinetix Copilot — morning brief, intraday push, ⌘K — runs over an in-process [Model Context Protocol](https://modelcontextprotocol.io/) server exposing read-only Kinetix tools, with a citation contract that requires every numeric token to declare its source and a server-side policy guard that blocks advisory language. Write actions remain out of scope by design.
 
@@ -221,8 +221,8 @@ Full architecture — MCP tools, citation contract, policy guard, demo-mode clie
 | **Notification Service** | Kotlin | Alert rule engine (13 alert types), debounced/deduplicated delivery via in-app/email/webhook/PagerDuty, escalation, anomaly subscriptions |
 | **Fix Gateway** | Kotlin | FIX 4.4 venue connectivity, `NewOrderSingle`/`ExecutionReport` lifecycle, session reconciliation, mass-cancel-on-disconnect ([ADR-0035](docs/adr/0035-fix-gateway-service-extraction.md)) |
 | **Risk Engine** | Python | Stateless gRPC calculator: VaR (3 methods), ES, Greeks, BSM/bond/swap pricing, FRTB SBM/DRC/RRAO, SA-CCR, factor model, regime classifier, reverse stress, ML services |
-| **AI Insights Service** | Python | FastAPI on port 8095 wrapping the Claude Agent SDK. v1 explainers (`/api/v1/insights/explain/var`, `/api/v1/insights/explain/report`) plus the v2 Copilot foundation — in-process MCP server (port 8096) with 10 read-only Kinetix tools, `Citation` contract, banned-phrase policy guard, and a deterministic canned client for `DEMO_MODE=true` ([ADR-0036](docs/adr/ADR-0036-ai-copilot-architecture.md)) |
-| **UI** | TypeScript | React 19 trading + risk dashboard — 11 tabs in three clusters (Trading, Risk, Ops), workspaces with saved views, WCAG 2.1 accessibility, dark mode, CSV export, WebSocket streaming, `AIInsightPanel` rendering insights with mode badge |
+| **AI Insights Service** | Python | FastAPI on port 8095 wrapping the Claude Agent SDK. v1 explainers (`/api/v1/insights/explain/var`, `/api/v1/insights/explain/report`) plus the v2 Copilot foundation — in-process MCP server (port 8096) with 10 read-only Kinetix tools, `Citation` contract, banned-phrase policy guard, and a deterministic canned client for `DEMO_MODE=true` ([ADR-0036](docs/adr/0036-ai-copilot-architecture.md)) |
+| **UI** | TypeScript | React 19 trading + risk dashboard — 12 tabs in three clusters (Trading, Risk, Ops), workspaces with saved views, WCAG 2.1 accessibility, dark mode, CSV export, WebSocket streaming, `AIInsightPanel` rendering insights with mode badge |
 
 ## Services in depth
 
@@ -383,7 +383,7 @@ Each service owns one domain and exposes a narrow contract to its neighbours. Be
 
 ### Risk Engine
 
-**What it owns:** Stateless quantitative calculator exposing 11 gRPC services.
+**What it owns:** Stateless quantitative calculator exposing 9 gRPC services.
 
 **What's interesting**
 
@@ -404,7 +404,7 @@ Each service owns one domain and exposes a narrow contract to its neighbours. Be
 
 - **Routes through the host's Claude Code subscription** via the Claude Agent SDK (Python) — no `ANTHROPIC_API_KEY`, no per-token spend, host credentials never leave the box.
 - **v1 explainers** — `POST /api/v1/insights/explain/var` and `/explain/report` return `{narrative, bullets, model, mode}` so the UI can render a *Demo mode* badge when the SDK isn't reachable.
-- **In-process MCP server** ([ADR-0036](docs/adr/ADR-0036-ai-copilot-architecture.md)) on internal port 8096 with ten read-only Kinetix tools: `get_book_var`, `get_positions`, `get_greeks_summary`, `get_limit_utilisation`, `get_pnl_attribution`, `get_vol_surface`, `get_stress_scenarios`, `get_correlation_matrix`, `get_active_alerts`, `get_market_data_snapshot`. The Copilot reasons over Kinetix's own data, not a fine-tuned snapshot.
+- **In-process MCP server** ([ADR-0036](docs/adr/0036-ai-copilot-architecture.md)) on internal port 8096 with ten read-only Kinetix tools: `get_book_var`, `get_positions`, `get_greeks_summary`, `get_limit_utilisation`, `get_pnl_attribution`, `get_vol_surface`, `get_stress_scenarios`, `get_correlation_matrix`, `get_active_alerts`, `get_market_data_snapshot`. The Copilot reasons over Kinetix's own data, not a fine-tuned snapshot.
 - **Citation contract** — every numeric token in a response must carry `{tool, params, result_field, result_value, as_of_timestamp, data_source, freshness_seconds}`. Uncited numbers are a contract violation, not a stylistic preference.
 - **Server-side policy guard** rejects advisory language (`you should`, `i recommend`, `consider hedging`, …) with `POLICY_VIOLATION`. The Copilot reads, narrates, and cites; it never books, hedges, or recommends.
 - **Deterministic canned client for `DEMO_MODE=true`** — CI, Playwright, and any public demo run end-to-end against scripted responses, so the AI surface stays testable.
@@ -413,11 +413,11 @@ Each service owns one domain and exposes a narrow contract to its neighbours. Be
 
 ### UI
 
-React 19 + TypeScript trading and risk dashboard — 11 tabs in three clusters (Trading, Risk, Ops), workspaces with saved views, WCAG 2.1 AA accessibility, dark mode, CSV export, WebSocket streaming for live position / P&L / limit pushes, and `AIInsightPanel` rendering insights with the mode badge. Full tab-by-tab breakdown lives in [`ui/README.md`](ui/README.md).
+React 19 + TypeScript trading and risk dashboard — 12 tabs in three clusters (Trading, Risk, Ops), workspaces with saved views, WCAG 2.1 AA accessibility, dark mode, CSV export, WebSocket streaming for live position / P&L / limit pushes, and `AIInsightPanel` rendering insights with the mode badge. Full tab-by-tab breakdown lives in [`ui/README.md`](ui/README.md).
 
 ## Behavioural specifications
 
-The platform's intended behaviour is formally specified in 24 [Allium v3](https://github.com/juxt/allium) files under [`specs/`](specs/). Each spec declares entities with lifecycle transition graphs, state-dependent field presence, rules with pre/post-conditions, and invariants — design documentation and a verifiable contract in one.
+The platform's intended behaviour is formally specified in 25 [Allium v3](https://github.com/juxt/allium) files under [`specs/`](specs/). Each spec declares entities with lifecycle transition graphs, state-dependent field presence, rules with pre/post-conditions, and invariants — design documentation and a verifiable contract in one.
 
 | Spec | Domain |
 |---|---|
@@ -442,6 +442,7 @@ The platform's intended behaviour is formally specified in 24 [Allium v3](https:
 | `eod-close.allium` | Automatic EOD trigger and promotion |
 | `market-data.allium` | Price, rate, vol, correlation ingestion |
 | `reference-data.allium` | Instruments, org hierarchy, users, benchmarks |
+| `ai-insights.allium` | Copilot chat contract — SSE streaming, citation verification, policy guard, MCP tool registry |
 | `core.allium` | Shared value types (Money, TimeRange, CurvePoint) |
 
 ## Tech stack
@@ -536,14 +537,14 @@ cd ui && npm run test                             # Vitest unit tests
 cd ui && npx playwright test                      # Playwright browser tests
 
 # Load
-./gradlew :load-tests:gatlingRun                  # Gatling performance tests
+./gradlew -p load-tests gatlingRun                # Gatling performance tests
 ```
 
 A coverage ratchet gates merges, mutation testing (Stryker for UI, mutmut for Python) keeps assertion quality honest, and Hypothesis property-based tests sit alongside example-based pytest for the risk engine. See [`CLAUDE.md`](CLAUDE.md) for the testing philosophy (TDD/BDD, naming, coverage expectations).
 
 ## Architecture Decision Records
 
-36 ADRs. Every ADR has an **Applies when** trigger list and an imperative **Rules** section, so the decision *and* the resulting code contract are both explicit. Full index and by-task lookup table in [`docs/adr/`](docs/adr/README.md).
+37 ADRs. Every ADR has an **Applies when** trigger list and an imperative **Rules** section, so the decision *and* the resulting code contract are both explicit. Full index and by-task lookup table in [`docs/adr/`](docs/adr/README.md).
 
 Highlights:
 
@@ -564,7 +565,8 @@ Highlights:
 | [0033](docs/adr/0033-vol-surface-diff-method.md) | Vol-surface diff method |
 | [0034](docs/adr/0034-regime-degraded-signal-policy.md) | Regime classifier behaviour on degraded inputs |
 | [0035](docs/adr/0035-fix-gateway-service-extraction.md) | Fix-gateway service extraction |
-| [0036](docs/adr/ADR-0036-ai-copilot-architecture.md) | AI Copilot architecture (in-process MCP, citations, policy guard) |
+| [0036](docs/adr/0036-ai-copilot-architecture.md) | AI Copilot architecture (in-process MCP, citations, policy guard) |
+| [0037](docs/adr/0037-inter-service-trust-model.md) | Inter-service trust model (mTLS in the prod profile) |
 
 ## Project structure
 
@@ -582,12 +584,13 @@ kinetix/
 ├── regulatory-service/      FRTB, model governance, scenarios, submissions
 ├── notification-service/    Alert rules and multi-channel delivery
 ├── fix-gateway/             FIX 4.4 venue connectivity (ADR-0035)
+├── demo-orchestrator/       Demo data seeding and scenario orchestration (dev/demo)
 ├── risk-engine/             Python quantitative engine (gRPC)
 ├── ai-insights-service/     LLM-powered explainers + Copilot foundation (FastAPI, Claude Agent SDK, MCP)
 ├── ui/                      React 19 trading and risk dashboard
 ├── proto/                   Protobuf / gRPC service contracts
 ├── common/                  Shared Kotlin library
-├── specs/                   24 Allium v3 behavioural specifications
+├── specs/                   25 Allium v3 behavioural specifications
 ├── end2end-tests/           End-to-end API tests
 ├── schema-tests/            Kafka event schema compatibility tests
 ├── smoke-tests/             Post-deploy smoke checks
