@@ -494,6 +494,35 @@ describe('CommandPalette — copilot mode', () => {
     )
   })
 
+  it('suppresses the "No matches." filter result once a question is asked', async () => {
+    // UX review: the tab-filter's "No matches." rendered as noise directly
+    // above the copilot's streaming answer.
+    const chatFn = vi.fn<ChatFn>(
+      (): ReadableStream<ChatChunk> =>
+        streamOf({ type: 'delta', delta: 'VaR moved because…' }, doneChunk),
+    )
+    render(
+      <CommandPalette
+        open={true}
+        onClose={vi.fn()}
+        items={buildItems(vi.fn())}
+        copilotMode
+        chatFn={chatFn}
+      />,
+    )
+    const input = screen.getByTestId('command-palette-input')
+    fireEvent.change(input, { target: { value: 'Why did my VaR move today?' } })
+    // Before submitting, the non-matching query shows the empty state.
+    expect(screen.getByTestId('command-palette-empty')).toBeInTheDocument()
+
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() =>
+      expect(screen.getByTestId('streaming-narrative-text')).toHaveTextContent('VaR moved because…'),
+    )
+    expect(screen.queryByTestId('command-palette-empty')).not.toBeInTheDocument()
+  })
+
   it('renders a follow-up textarea after the first answer', async () => {
     const chatFn = vi.fn<ChatFn>(
       (): ReadableStream<ChatChunk> =>

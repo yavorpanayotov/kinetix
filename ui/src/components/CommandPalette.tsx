@@ -499,7 +499,10 @@ export function CommandPalette({
           role="listbox"
           aria-label="Command palette results"
         >
-          {flatFiltered.length === 0 && (
+          {/* Once a question is in flight or answered, the tab-filter's
+              "No matches." is noise above the copilot answer (UX review) —
+              the question wasn't trying to match a command. */}
+          {flatFiltered.length === 0 && !copilotStream && !copilotAnswered && (
             <div
               data-testid="command-palette-empty"
               className="px-4 py-6 text-sm text-center text-slate-500 dark:text-slate-400"
