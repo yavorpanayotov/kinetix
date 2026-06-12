@@ -30,6 +30,8 @@ data class AuditEventResponse(
     val submissionId: String? = null,
     val details: String? = null,
     val sequenceNumber: Long? = null,
+    /** End-to-end request correlation id (audit-v2, migration V13); null when not captured. */
+    val correlationId: String? = null,
 )
 
 fun AuditEvent.toResponse(): AuditEventResponse = AuditEventResponse(
@@ -55,4 +57,5 @@ fun AuditEvent.toResponse(): AuditEventResponse = AuditEventResponse(
     submissionId = submissionId,
     details = details,
     sequenceNumber = sequenceNumber,
+    correlationId = correlationId,
 )

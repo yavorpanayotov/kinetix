@@ -58,6 +58,18 @@ function effectiveEventType(event: AuditEventDto): string {
   return 'EVENT'
 }
 
+/**
+ * Maximum characters of a correlation id rendered inline. The full value is
+ * always available via the cell's `title` tooltip.
+ */
+const CORRELATION_ID_DISPLAY_LENGTH = 8
+
+/** Shortens a correlation id for inline display, appending an ellipsis when truncated. */
+function shortCorrelationId(correlationId: string): string {
+  if (correlationId.length <= CORRELATION_ID_DISPLAY_LENGTH) return correlationId
+  return `${correlationId.slice(0, CORRELATION_ID_DISPLAY_LENGTH)}…`
+}
+
 /** Renders an audit event's primary subject — its trade or governance target. */
 function eventSubject(event: AuditEventDto): string {
   if (event.tradeId) return event.tradeId
@@ -296,6 +308,7 @@ export function AuditLogPanel({ initialBookId = '', initialTradeId = '' }: Audit
                     <th className="px-4 py-2 text-left text-sm font-semibold text-slate-700 dark:text-slate-300">Subject</th>
                     <th className="px-4 py-2 text-left text-sm font-semibold text-slate-700 dark:text-slate-300">Book</th>
                     <th className="px-4 py-2 text-left text-sm font-semibold text-slate-700 dark:text-slate-300">User</th>
+                    <th className="px-4 py-2 text-left text-sm font-semibold text-slate-700 dark:text-slate-300">Correlation</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-surface-700">
@@ -327,6 +340,19 @@ export function AuditLogPanel({ initialBookId = '', initialTradeId = '' }: Audit
                       </td>
                       <td className="px-4 py-2 text-sm text-slate-600 dark:text-slate-400">
                         {event.userId ?? '—'}
+                      </td>
+                      <td className="px-4 py-2 text-sm text-slate-600 dark:text-slate-400">
+                        {event.correlationId ? (
+                          <span
+                            data-testid={`audit-correlation-${event.id}`}
+                            title={event.correlationId}
+                            className="font-mono text-xs"
+                          >
+                            {shortCorrelationId(event.correlationId)}
+                          </span>
+                        ) : (
+                          <span data-testid={`audit-correlation-${event.id}`}>—</span>
+                        )}
                       </td>
                     </tr>
                   ))}

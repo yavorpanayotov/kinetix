@@ -12,8 +12,8 @@ import { authFetch } from '../auth/authFetch'
  *
  * Trade fields (`tradeId`, `bookId`, `instrumentId`, …) are null for governance
  * events; governance fields (`modelName`, `scenarioId`, …) are null for trade
- * events. `correlationId` is optional for forward compatibility — the current
- * audit-service `AuditEventResponse` DTO does not yet expose it.
+ * events. `correlationId` is optional on the wire — audit-service omits it
+ * for events captured before audit-v2 (migration V13) recorded one.
  */
 export interface AuditEventDto {
   id: number
@@ -46,7 +46,7 @@ export interface AuditEventDto {
   submissionId: string | null
   details: string | null
   sequenceNumber: number | null
-  // Forward-compatible: not yet emitted by audit-service AuditEventResponse.
+  // Omitted on the wire when the event has no correlation id recorded.
   correlationId?: string
 }
 

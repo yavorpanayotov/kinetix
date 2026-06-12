@@ -69,6 +69,52 @@ class AuditRoutesTest : FunSpec({
         }
     }
 
+    test("GET /api/v1/audit/events surfaces correlationId when the event carries one") {
+        val events = listOf(
+            AuditEvent(
+                id = 1,
+                tradeId = "t-1",
+                bookId = "port-1",
+                instrumentId = "AAPL",
+                assetClass = "EQUITY",
+                side = "BUY",
+                quantity = "100",
+                priceAmount = "150.00",
+                priceCurrency = "USD",
+                tradedAt = "2025-01-15T10:00:00Z",
+                receivedAt = Instant.parse("2025-01-15T10:00:01Z"),
+                correlationId = "corr-abc-123",
+            ),
+            AuditEvent(
+                id = 2,
+                tradeId = "t-2",
+                bookId = "port-1",
+                instrumentId = "MSFT",
+                assetClass = "EQUITY",
+                side = "SELL",
+                quantity = "50",
+                priceAmount = "300.00",
+                priceCurrency = "USD",
+                tradedAt = "2025-01-15T11:00:00Z",
+                receivedAt = Instant.parse("2025-01-15T11:00:01Z"),
+                correlationId = null,
+            ),
+        )
+        coEvery {
+            repository.findPage(0L, 1000, null, null, null, null, null)
+        } returns events
+
+        testApplication {
+            application { module(repository) }
+            val response = client.get("/api/v1/audit/events")
+            response.status shouldBe HttpStatusCode.OK
+            val body = Json.parseToJsonElement(response.bodyAsText()).jsonArray
+            body[0].jsonObject["correlationId"]?.jsonPrimitive?.content shouldBe "corr-abc-123"
+            // Null correlationId carries no value on the wire (absent or JSON null).
+            body[1].jsonObject["correlationId"]?.jsonPrimitive?.contentOrNull shouldBe null
+        }
+    }
+
     test("GET /api/v1/audit/events returns empty array when no events") {
         coEvery {
             repository.findPage(0L, 1000, null, null, null, null, null)

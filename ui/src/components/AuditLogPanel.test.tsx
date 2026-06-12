@@ -148,6 +148,29 @@ describe('AuditLogPanel', () => {
     expect(screen.getByTestId('audit-event-badge-9')).toHaveTextContent(/trade/i)
   })
 
+  test('renders correlationId as a short monospace id with the full value in the title', async () => {
+    // kx-oy2: audit-service now emits `correlationId` (audit-v2 migration
+    // V13) and the Activity tab should surface it so a user can hop from an
+    // audit row to the correlated trace/logs. Long ids render shortened with
+    // the full value available via the title tooltip.
+    mockFetchAuditEvents.mockResolvedValue([
+      buildEvent({ id: 11, correlationId: 'corr-1234567890-abcdef' }),
+      buildEvent({ id: 12, correlationId: undefined }),
+    ])
+    render(<AuditLogPanel />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('audit-row-11')).toBeInTheDocument()
+    })
+
+    const withId = screen.getByTestId('audit-correlation-11')
+    expect(withId).toHaveTextContent('corr-123')
+    expect(withId).toHaveAttribute('title', 'corr-1234567890-abcdef')
+
+    // Events without a correlationId show the missing-data em-dash.
+    expect(screen.getByTestId('audit-correlation-12')).toHaveTextContent('—')
+  })
+
   test('requests events with the default page size on mount', async () => {
     render(<AuditLogPanel />)
     await waitFor(() => {
