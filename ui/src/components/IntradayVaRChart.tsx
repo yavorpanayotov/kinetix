@@ -95,7 +95,13 @@ export function IntradayVaRChart({ varPoints, tradeAnnotations, sessionDate }: I
     const max = Math.max(...values)
     const range = max - min
     const pad = range * 0.15 || Math.abs(max) * 0.15 || 1
-    return { varMin: min - pad, varMax: max + pad }
+    // Enforce a minimum visible span of ±2% of the midpoint: a 0.15% intraday
+    // drift auto-scaled to fill the plot reads as a cliff (UX review) — the
+    // axis must give the eye a denominator.
+    const mid = (min + max) / 2
+    const minSpan = Math.abs(mid) * 0.04
+    const span = Math.max(max - min + 2 * pad, minSpan)
+    return { varMin: mid - span / 2, varMax: mid + span / 2 }
   }, [varPoints])
 
   // Y scale for delta values (right axis)

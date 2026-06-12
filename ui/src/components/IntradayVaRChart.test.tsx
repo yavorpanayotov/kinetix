@@ -47,6 +47,20 @@ describe('IntradayVaRChart', () => {
     expect(container.querySelector('svg')).toBeInTheDocument()
   })
 
+  it('does not over-zoom the y-axis on near-flat data — enforces a minimum span around the level', () => {
+    // UX review: VaR drifting 255.8K→256.2K (~0.15%) auto-scaled to fill the
+    // plot and read as a cliff. With the ±2% minimum span the axis ticks must
+    // reach well outside the data range.
+    const flat = [
+      makePoint('2026-03-25T09:00:00Z', { varValue: 256_200 }),
+      makePoint('2026-03-25T12:00:00Z', { varValue: 255_800 }),
+    ]
+    render(<IntradayVaRChart varPoints={flat} tradeAnnotations={[]} />)
+
+    // A $260K gridline only exists if the axis spans ≥ ~±2% of the level.
+    expect(screen.getByText('$260K')).toBeInTheDocument()
+  })
+
   it('renders VaR line path when multiple points are present', () => {
     const { container } = render(<IntradayVaRChart varPoints={twoPoints} tradeAnnotations={[]} />)
 
