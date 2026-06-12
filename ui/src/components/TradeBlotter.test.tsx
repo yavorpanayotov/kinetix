@@ -649,4 +649,52 @@ describe('TradeBlotter', () => {
       expect(screen.getByTestId('trade-venue-v-novenue')).toHaveTextContent('—')
     })
   })
+
+  describe('expandable order detail on every row (kx-ia4z)', () => {
+    it('exposes the expand affordance on every row, including FILLED trades', () => {
+      setupDefaults()
+      render(<TradeBlotter bookId="book-1" />)
+
+      expect(screen.getByTestId('expand-trade-row-t-1')).toBeInTheDocument()
+      expect(screen.getByTestId('expand-trade-row-t-2')).toBeInTheDocument()
+      expect(screen.getByTestId('expand-trade-row-t-3')).toBeInTheDocument()
+    })
+
+    it('expands a FILLED trade to show the order detail panel', () => {
+      setupDefaults()
+      render(<TradeBlotter bookId="book-1" />)
+
+      const expandButton = screen.getByTestId('expand-trade-row-t-1')
+      expect(expandButton).toHaveAttribute('aria-expanded', 'false')
+
+      fireEvent.click(expandButton)
+
+      expect(expandButton).toHaveAttribute('aria-expanded', 'true')
+      const detail = screen.getByTestId('trade-row-detail-t-1')
+      expect(within(detail).getByTestId('trade-detail-panel')).toBeInTheDocument()
+      expect(within(detail).getByTestId('detail-trade-id')).toHaveTextContent('t-1')
+    })
+
+    it('collapses the detail row when the expand button is clicked again', () => {
+      setupDefaults()
+      render(<TradeBlotter bookId="book-1" />)
+
+      fireEvent.click(screen.getByTestId('expand-trade-row-t-1'))
+      expect(screen.getByTestId('trade-row-detail-t-1')).toBeInTheDocument()
+
+      fireEvent.click(screen.getByTestId('expand-trade-row-t-1'))
+      expect(screen.queryByTestId('trade-row-detail-t-1')).not.toBeInTheDocument()
+    })
+
+    it('expands only one trade at a time', () => {
+      setupDefaults()
+      render(<TradeBlotter bookId="book-1" />)
+
+      fireEvent.click(screen.getByTestId('expand-trade-row-t-1'))
+      fireEvent.click(screen.getByTestId('expand-trade-row-t-3'))
+
+      expect(screen.queryByTestId('trade-row-detail-t-1')).not.toBeInTheDocument()
+      expect(screen.getByTestId('trade-row-detail-t-3')).toBeInTheDocument()
+    })
+  })
 })

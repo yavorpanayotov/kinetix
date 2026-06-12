@@ -151,17 +151,22 @@ test.describe('TradeBlotter — order detail ghost fills', () => {
     await expect(detailRow).toHaveCount(0)
   })
 
-  test('FILLED orders do not expose the expand affordance', async ({ page }) => {
+  test('FILLED orders expand to the order detail panel without a ghost-fills section (kx-ia4z)', async ({
+    page,
+  }) => {
     await mockTradesEndpoint(page, [FILLED_TRADE])
     await navigateToTradeBlotter(page)
 
     await expect(page.getByTestId(`trade-row-${FILLED_TRADE.tradeId}`)).toBeVisible()
-    await expect(
-      page.getByTestId(`expand-trade-row-${FILLED_TRADE.tradeId}`),
-    ).toHaveCount(0)
+    await page.getByTestId(`expand-trade-row-${FILLED_TRADE.tradeId}`).click()
+
+    const detailRow = page.getByTestId(`trade-row-detail-${FILLED_TRADE.tradeId}`)
+    await expect(detailRow.getByTestId('trade-detail-panel')).toBeVisible()
+    await expect(detailRow.getByTestId('ghost-fill-banner')).toHaveCount(0)
+    await expect(detailRow.getByTestId('ghost-fill-row')).toHaveCount(0)
   })
 
-  test('terminal order without ghost fills expands to an empty detail (no banner, no rows)', async ({
+  test('terminal order without ghost fills expands to the detail panel (no banner, no rows)', async ({
     page,
   }) => {
     await mockTradesEndpoint(page, [EXPIRED_TRADE])
@@ -173,6 +178,7 @@ test.describe('TradeBlotter — order detail ghost fills', () => {
 
     const detailRow = page.getByTestId(`trade-row-detail-${EXPIRED_TRADE.tradeId}`)
     await expect(detailRow).toBeVisible()
+    await expect(detailRow.getByTestId('trade-detail-panel')).toBeVisible()
     await expect(detailRow.getByTestId('ghost-fill-banner')).toHaveCount(0)
     await expect(detailRow.getByTestId('ghost-fill-row')).toHaveCount(0)
   })

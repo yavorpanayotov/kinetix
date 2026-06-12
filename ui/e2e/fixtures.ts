@@ -74,6 +74,9 @@ export interface TradeFixture {
   // Trader-review P2 §22: trading venue / execution destination (e.g. NYSE,
   // NASDAQ) surfaced by the optional Venue column on the blotter.
   venue?: string
+  // ADR-0035: venue-assigned order identifier, shown in the optional Venue
+  // Order ID column and the expanded order detail panel (kx-ia4z).
+  venueOrderId?: string
 }
 
 export const TEST_TRADES: TradeFixture[] = [

@@ -9,49 +9,8 @@ import type { TradeHistoryDto } from '../types'
 import { InstrumentTypeBadge } from './InstrumentTypeBadge'
 import { INSTRUMENT_TYPE_OPTIONS, formatInstrumentTypeLabel } from '../utils/instrumentTypes'
 import { VenueRoutingStatusDot } from './VenueRoutingStatusDot'
-import { OrderGhostFills } from './OrderGhostFills'
-
-const TERMINAL_STATUSES = new Set(['EXPIRED', 'CANCELLED', 'REJECTED'])
-
-/**
- * Trader-review P2 §21: project the trade's fill state into the badge text.
- * The gateway sends an explicit FIX-style `fillStatus`
- * (WORKING / FILLED / PARTIAL / CANCELLED / REJECTED) on every booked row.
- *
- * When the upstream omits `fillStatus`, fall back to deriving from the
- * trade-lifecycle `status`:
- *   - LIVE / AMENDED (or missing) → FILLED  (booked records are filled)
- *   - CANCELLED → CANCELLED
- *   - Anything else (in-flight order states like PENDING / PENDING_FAILED /
- *     SENT / EXPIRED — see ADR-0035 phase 4) is left as-is so the order
- *     badges keep rendering their original status text.
- */
-const BOOKED_LIFECYCLE = new Set(['LIVE', 'AMENDED'])
-
-function fillStatus(trade: TradeHistoryDto): string {
-  if (trade.fillStatus) return trade.fillStatus
-  const lifecycle = trade.status ?? 'LIVE'
-  if (lifecycle === 'CANCELLED') return 'CANCELLED'
-  if (BOOKED_LIFECYCLE.has(lifecycle)) return 'FILLED'
-  return lifecycle
-}
-
-function qtyFilledOf(trade: TradeHistoryDto): string {
-  if (trade.qtyFilled !== undefined) return trade.qtyFilled
-  const lifecycle = trade.status ?? 'LIVE'
-  if (lifecycle === 'CANCELLED') return '0'
-  if (BOOKED_LIFECYCLE.has(lifecycle)) return trade.quantity
-  return '0'
-}
-
-function qtyOpenOf(trade: TradeHistoryDto): string {
-  if (trade.qtyOpen !== undefined) return trade.qtyOpen
-  const lifecycle = trade.status ?? 'LIVE'
-  if (BOOKED_LIFECYCLE.has(lifecycle) || lifecycle === 'CANCELLED') return '0'
-  // In-flight order states default to "open = quantity" — the order
-  // hasn't filled yet.
-  return trade.quantity
-}
+import { TradeDetailPanel } from './TradeDetailPanel'
+import { fillStatus, notional, qtyFilledOf, qtyOpenOf } from '../utils/tradeProjections'
 
 interface TradeBlotterProps {
   bookId: string | null
@@ -61,10 +20,6 @@ interface TradeBlotterProps {
    * edit or clear the field after it's been pre-populated.
    */
   initialCounterpartyFilter?: string
-}
-
-function notional(trade: TradeHistoryDto): number {
-  return Number(trade.quantity) * Number(trade.price.amount)
 }
 
 function statusBadgeClass(status: string): string {
@@ -368,7 +323,6 @@ export function TradeBlotter({ bookId, initialCounterpartyFilter = '' }: TradeBl
                 </tr>
               ) : (
                 paginatedTrades.flatMap((trade) => {
-                  const expandable = TERMINAL_STATUSES.has(fillStatus(trade))
                   const expanded = expandedTradeId === trade.tradeId
                   const colSpan = totalColumns
                   const mainRow = (
@@ -378,25 +332,23 @@ export function TradeBlotter({ bookId, initialCounterpartyFilter = '' }: TradeBl
                     className="hover:bg-slate-50 dark:hover:bg-surface-700 transition-colors"
                   >
                     <td className="px-2 py-2 text-sm">
-                      {expandable ? (
-                        <button
-                          data-testid={`expand-trade-row-${trade.tradeId}`}
-                          aria-label={expanded ? 'Collapse order detail' : 'Expand order detail'}
-                          aria-expanded={expanded}
-                          onClick={() =>
-                            setExpandedTradeId((current) =>
-                              current === trade.tradeId ? null : trade.tradeId,
-                            )
-                          }
-                          className="p-1 rounded hover:bg-slate-100 dark:hover:bg-surface-700"
-                        >
-                          {expanded ? (
-                            <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
-                          ) : (
-                            <ChevronRight className="h-3.5 w-3.5 text-slate-500" />
-                          )}
-                        </button>
-                      ) : null}
+                      <button
+                        data-testid={`expand-trade-row-${trade.tradeId}`}
+                        aria-label={expanded ? 'Collapse order detail' : 'Expand order detail'}
+                        aria-expanded={expanded}
+                        onClick={() =>
+                          setExpandedTradeId((current) =>
+                            current === trade.tradeId ? null : trade.tradeId,
+                          )
+                        }
+                        className="p-1 rounded hover:bg-slate-100 dark:hover:bg-surface-700"
+                      >
+                        {expanded ? (
+                          <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
+                        ) : (
+                          <ChevronRight className="h-3.5 w-3.5 text-slate-500" />
+                        )}
+                      </button>
                     </td>
                     <td className="px-4 py-2 text-sm text-slate-600 dark:text-slate-400">
                       {formatTimestamp(trade.tradedAt)}
@@ -488,7 +440,7 @@ export function TradeBlotter({ bookId, initialCounterpartyFilter = '' }: TradeBl
                       className="bg-slate-50 dark:bg-surface-800"
                     >
                       <td colSpan={colSpan} className="px-4 py-3">
-                        <OrderGhostFills orderId={trade.tradeId} />
+                        <TradeDetailPanel trade={trade} />
                       </td>
                     </tr>,
                   ]
