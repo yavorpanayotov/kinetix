@@ -17,6 +17,8 @@ const allUpHealth: SystemHealthResponse = {
     'correlation-service': { status: 'READY' },
     'regulatory-service': { status: 'READY' },
     'audit-service': { status: 'READY' },
+    'ai-insights-service': { status: 'READY' },
+    'fix-gateway': { status: 'READY' },
   },
 }
 
@@ -194,6 +196,8 @@ describe('SystemDashboard', () => {
     expect(screen.getByText('Reference Data')).toBeInTheDocument()
     expect(screen.getByText('Volatility')).toBeInTheDocument()
     expect(screen.getByText('Correlations')).toBeInTheDocument()
+    expect(screen.getByText('AI Insights')).toBeInTheDocument()
+    expect(screen.getByText('FIX Gateway')).toBeInTheDocument()
   })
 
   it('gateway card links to the service overview dashboard', () => {

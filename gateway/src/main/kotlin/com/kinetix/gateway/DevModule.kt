@@ -55,6 +55,7 @@ import com.kinetix.gateway.routes.sodSnapshotRoutes
 import com.kinetix.gateway.routes.strategyProxyRoutes
 import com.kinetix.gateway.routes.stressScenarioRoutes
 import com.kinetix.gateway.routes.stressTestRoutes
+import com.kinetix.gateway.routes.monitoredServiceUrls
 import com.kinetix.gateway.routes.systemHealthRoutes
 import com.kinetix.gateway.routes.tapeReplayStatusRoutes
 import com.kinetix.gateway.routes.traderRoutes
@@ -201,18 +202,7 @@ fun Application.devModule() {
     val wsJwkProvider = if (authEnabled) sharedJwkProvider else null
     val appLog = log
 
-    val serviceUrls = mapOf(
-        "position-service" to positionUrl,
-        "price-service" to priceUrl,
-        "risk-orchestrator" to riskUrl,
-        "notification-service" to notificationUrl,
-        "rates-service" to ratesUrl,
-        "reference-data-service" to referenceDataUrl,
-        "volatility-service" to volatilityUrl,
-        "correlation-service" to correlationUrl,
-        "regulatory-service" to regulatoryUrl,
-        "audit-service" to auditUrl,
-    )
+    val serviceUrls = monitoredServiceUrls(servicesConfig)
 
     routing {
         priceWebSocket(priceBroadcaster, wsJwtConfig, wsJwkProvider)

@@ -160,6 +160,11 @@ def health() -> dict[str, str]:
 
 
 @app.get("/ready")
+@app.get("/health/ready")
 def ready() -> dict[str, str]:
-    """Readiness probe — returns ready when the service can accept traffic."""
+    """Readiness probe — returns ready when the service can accept traffic.
+
+    Served at both /ready (k8s-style) and /health/ready (the path the
+    gateway's system-health aggregator probes on every monitored service).
+    """
     return {"status": "ready"}

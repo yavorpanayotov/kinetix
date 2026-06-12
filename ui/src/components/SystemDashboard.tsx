@@ -11,6 +11,8 @@ import {
   Database,
   Activity,
   GitMerge,
+  Sparkles,
+  ArrowLeftRight,
   type LucideIcon,
 } from 'lucide-react'
 import type { SystemHealthResponse } from '../api/system'
@@ -41,6 +43,8 @@ const SERVICE_LABELS: Record<string, string> = {
   'correlation-service': 'Correlations',
   'regulatory-service': 'Regulatory Service',
   'audit-service': 'Audit Service',
+  'ai-insights-service': 'AI Insights',
+  'fix-gateway': 'FIX Gateway',
 }
 
 /**
@@ -65,6 +69,8 @@ const SERVICE_ICONS: Record<string, LucideIcon> = {
   'reference-data-service': Database,
   'volatility-service': Activity,
   'correlation-service': GitMerge,
+  'ai-insights-service': Sparkles,
+  'fix-gateway': ArrowLeftRight,
 }
 
 const SERVICE_DASHBOARD_PATHS: Record<string, string> = {

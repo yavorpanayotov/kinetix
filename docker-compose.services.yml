@@ -560,6 +560,7 @@ services:
       REGULATORY_SERVICE_URL: http://regulatory-service:8085
       AUDIT_SERVICE_URL: http://audit-service:8084
       INSIGHTS_SERVICE_URL: http://ai-insights-service:8095
+      FIX_GATEWAY_URL: http://fix-gateway:8092
       JWT_ISSUER: https://auth.kinetixrisk.ai/realms/kinetix
       JWT_JWKS_URL: http://keycloak:8080/realms/kinetix/protocol/openid-connect/certs
       JWT_AUDIENCE: kinetix-api

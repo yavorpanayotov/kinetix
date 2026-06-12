@@ -34,3 +34,12 @@ def test_ready_endpoint_returns_ready() -> None:
     response = client.get("/ready")
     assert response.status_code == 200
     assert response.json() == {"status": "ready"}
+
+
+def test_health_ready_alias_returns_ready() -> None:
+    """/health/ready returns 200 — the gateway's system-health aggregator
+    probes every monitored service at this path."""
+    client = TestClient(app)
+    response = client.get("/health/ready")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ready"}
