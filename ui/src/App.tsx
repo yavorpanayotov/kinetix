@@ -813,6 +813,7 @@ function AppContent() {
       <NotificationStrip
         items={notificationStripItems}
         morningBrief={morningBrief}
+        autoCollapseKey={activeTab}
         intradayPushes={copilotPushes}
         onRunSavedQuery={(query) => {
           setPendingSavedQuery(query)

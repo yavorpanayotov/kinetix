@@ -79,6 +79,14 @@ export interface NotificationStripProps {
    * empty list.
    */
   intradayPushes?: CopilotPushEvent[]
+  /**
+   * When this key changes (App passes the active tab id), an open inbox
+   * collapses back to the 36px bar. The brief and inbox are reading
+   * material for the moment the user opens them — they should not ride
+   * along expanded into every other tab (UX review). Ignored for
+   * controlled-expansion callers, who own their own state.
+   */
+  autoCollapseKey?: string
 }
 
 const DISMISSED_KEY = 'kinetix:copilot-inbox:dismissed'
@@ -89,6 +97,18 @@ const INBOX_ID = 'notification-inbox-panel'
 /** Today's date as a UTC `YYYY-MM-DD` string. */
 function todayUtcDate(): string {
   return new Date().toISOString().slice(0, 10)
+}
+
+/**
+ * Age beyond which a morning brief no longer auto-expands the strip. A brief
+ * generated weeks ago is background reading, not a daily digest — auto-opening
+ * it on every tab costs ~190px of every screen (UX review).
+ */
+const BRIEF_FRESH_MS = 24 * 60 * 60 * 1000
+
+function isFreshBrief(brief: MorningBrief): boolean {
+  const generated = new Date(brief.generated_at).getTime()
+  return Number.isFinite(generated) && Date.now() - generated <= BRIEF_FRESH_MS
 }
 
 /**
@@ -325,6 +345,7 @@ export function NotificationStrip({
   morningBrief = null,
   onRunSavedQuery,
   intradayPushes = [],
+  autoCollapseKey,
 }: NotificationStripProps) {
   const [dismissed, setDismissed] = useState<Set<string>>(() => loadDismissed())
   // Dismissed intraday-push session ids. Kept separate from the
@@ -374,6 +395,10 @@ export function NotificationStrip({
   useEffect(() => {
     if (autoExpandDoneRef.current) return
     if (!morningBrief || isControlled) return
+    // A stale brief (>24h old) stays reachable behind the toggle but never
+    // auto-opens — and doesn't stamp the seen-date, so a fresh brief landing
+    // later today still gets its one auto-expand.
+    if (!isFreshBrief(morningBrief)) return
     autoExpandDoneRef.current = true
     if (loadBriefSeenDate() === todayUtcDate()) return
     saveBriefSeenDate(todayUtcDate())
@@ -381,6 +406,20 @@ export function NotificationStrip({
     onExpandedChange?.(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [morningBrief])
+
+  // Collapse the open inbox when the user navigates to another tab —
+  // expanded reading material must not ride along into every view. The
+  // ref-compare skips the first render so an auto-expand on mount survives.
+  const prevCollapseKeyRef = useRef(autoCollapseKey)
+  useEffect(() => {
+    if (prevCollapseKeyRef.current === autoCollapseKey) return
+    prevCollapseKeyRef.current = autoCollapseKey
+    if (!isControlled && internalExpanded) {
+      setInternalExpanded(false)
+      onExpandedChange?.(false)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoCollapseKey])
 
   // After an auto-expand, scroll the brief wrapper into view. Guarded
   // for jsdom, where `scrollIntoView` is not implemented.

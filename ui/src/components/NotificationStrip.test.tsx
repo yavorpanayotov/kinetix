@@ -294,6 +294,40 @@ describe('NotificationStrip', () => {
       ).not.toBeInTheDocument()
     })
 
+    test('collapses the open inbox when autoCollapseKey changes (tab switch)', async () => {
+      window.localStorage.setItem(BRIEF_SEEN_KEY, todayUtc())
+      const user = userEvent.setup()
+      const { rerender } = render(
+        <NotificationStrip items={makeItems()} morningBrief={makeBrief()} autoCollapseKey="positions" />,
+      )
+      await user.click(screen.getByTestId('notification-strip-toggle'))
+      expect(screen.getByTestId('notification-strip')).toHaveAttribute('data-expanded', 'true')
+
+      rerender(
+        <NotificationStrip items={makeItems()} morningBrief={makeBrief()} autoCollapseKey="risk" />,
+      )
+      expect(screen.getByTestId('notification-strip')).toHaveAttribute('data-expanded', 'false')
+    })
+
+    test('does not auto-expand for a stale brief generated more than 24h ago', () => {
+      // UX review: a 23-day-old Morning Brief auto-expanded at the top of
+      // every tab, eating ~190px of every screen. A stale brief stays
+      // reachable behind the toggle but never auto-opens.
+      window.localStorage.removeItem(BRIEF_SEEN_KEY)
+      const staleBrief = {
+        ...makeBrief(),
+        generated_at: new Date(Date.now() - 23 * 24 * 60 * 60 * 1000).toISOString(),
+      }
+      render(<NotificationStrip items={[]} morningBrief={staleBrief} />)
+      expect(screen.getByTestId('notification-strip')).toHaveAttribute(
+        'data-expanded',
+        'false',
+      )
+      // The seen-date must NOT be stamped — a fresh brief arriving later
+      // today should still auto-expand once.
+      expect(window.localStorage.getItem(BRIEF_SEEN_KEY)).toBeNull()
+    })
+
     test('does not auto-expand when there is no brief', () => {
       window.localStorage.removeItem(BRIEF_SEEN_KEY)
       render(<NotificationStrip items={makeItems()} />)
