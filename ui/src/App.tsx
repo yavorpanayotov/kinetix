@@ -370,6 +370,35 @@ function AppContent() {
     }
   }
 
+  // kx-8ayo — Book selection lives in three transient hooks (hierarchy,
+  // bookSelector, usePositions) that all reset to defaults when AppContent
+  // remounts (reload, error-boundary recovery, viewport-floor remount). The
+  // workspace preference is the durable copy: re-apply it once, as soon as
+  // the books list is available, unless the user has already navigated away
+  // from the initial firm-level default. Skip silently if the persisted book
+  // no longer exists (the nightly demo reseed can change the book set).
+  const restoredDefaultBookRef = useRef(false)
+  useEffect(() => {
+    if (restoredDefaultBookRef.current) return
+    const saved = workspace.preferences.defaultBook
+    if (!saved || saved === ALL_BOOKS) {
+      restoredDefaultBookRef.current = true
+      return
+    }
+    if (bookSelector.allBookIds.length === 0) return
+    restoredDefaultBookRef.current = true
+    if (!bookSelector.allBookIds.includes(saved)) return
+    if (hierarchy.selection.level !== 'firm' || hierarchy.selection.bookId) return
+    hierarchy.setSelection({
+      level: 'book',
+      divisionId: hierarchy.selection.divisionId,
+      deskId: hierarchy.selection.deskId,
+      bookId: saved,
+    })
+    rawSelectBook(saved)
+    bookSelector.selectBook(saved)
+  }, [workspace.preferences.defaultBook, bookSelector, hierarchy, rawSelectBook])
+
   const bookId = hierarchy.effectiveBookId ?? (isAllSelected ? ALL_BOOKS : rawBookId)
   // Plan §7.3.3 — per-instrument notes only meaningful when a concrete book is
   // selected (not the firm-wide "All" aggregate).
@@ -528,6 +557,9 @@ function AppContent() {
         })
         rawSelectBook(id)
         bookSelector.selectBook(id)
+        // kx-8ayo — persist so the selection survives a remount/reload;
+        // the restore effect below re-applies it.
+        workspace.updatePreference('defaultBook', id)
       },
     })),
     // Instruments — from currently loaded positions. Capped at 50 so the

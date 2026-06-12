@@ -1067,6 +1067,119 @@ describe('App', () => {
     })
   })
 
+  describe('book selection persistence (kx-8ayo)', () => {
+    it('selecting a book via the command palette persists it as the workspace defaultBook', () => {
+      const updatePreference = vi.fn()
+      mockUseWorkspace.mockReturnValue({
+        preferences: DEFAULT_PREFERENCES,
+        updatePreference,
+        resetPreferences: vi.fn(),
+        views: [{ id: 'view-default', name: 'Default', prefs: DEFAULT_PREFERENCES }],
+        activeViewId: 'view-default',
+        switchView: vi.fn(),
+        saveAsNewView: vi.fn(() => 'view-new'),
+        updateActiveView: vi.fn(),
+        deleteView: vi.fn(),
+        renameView: vi.fn(),
+      })
+      render(<App />)
+
+      fireEvent.keyDown(window, { key: 'k', metaKey: true })
+      const paletteInput = screen.getByTestId('command-palette-input')
+      fireEvent.change(paletteInput, { target: { value: 'book-2' } })
+      fireEvent.click(screen.getByTestId('command-palette-item-book:book-2'))
+
+      expect(updatePreference).toHaveBeenCalledWith('defaultBook', 'book-2')
+    })
+
+    it('restores the persisted defaultBook into the hierarchy after a remount', () => {
+      const setSelection = vi.fn()
+      const bookSelectorSelectBook = vi.fn()
+      mockUseWorkspace.mockReturnValue({
+        preferences: { ...DEFAULT_PREFERENCES, defaultBook: 'book-2' },
+        updatePreference: vi.fn(),
+        resetPreferences: vi.fn(),
+        views: [{ id: 'view-default', name: 'Default', prefs: { ...DEFAULT_PREFERENCES, defaultBook: 'book-2' } }],
+        activeViewId: 'view-default',
+        switchView: vi.fn(),
+        saveAsNewView: vi.fn(() => 'view-new'),
+        updateActiveView: vi.fn(),
+        deleteView: vi.fn(),
+        renameView: vi.fn(),
+      })
+      mockUseHierarchySelector.mockReturnValue({
+        selection: { level: 'firm', divisionId: null, deskId: null, bookId: null },
+        setSelection,
+        breadcrumb: [{ level: 'firm', id: null, label: 'Firm' }],
+        effectiveBookId: null,
+        effectiveBookIds: ['book-1', 'book-2'],
+        divisions: [],
+        desks: [],
+        books: [{ bookId: 'book-1' }, { bookId: 'book-2' }],
+        loading: false,
+        error: null,
+      })
+      mockUseBookSelector.mockReturnValue({
+        bookOptions: [
+          { value: '__ALL__', label: 'All Books' },
+          { value: 'book-1', label: 'book-1' },
+          { value: 'book-2', label: 'book-2' },
+        ],
+        selectedBookId: 'book-1',
+        isAllSelected: false,
+        allBookIds: ['book-1', 'book-2'],
+        positions: [position],
+        aggregatedPositions: [],
+        selectBook: bookSelectorSelectBook,
+        loading: false,
+        error: null,
+      })
+
+      render(<App />)
+
+      expect(setSelection).toHaveBeenCalledWith({
+        level: 'book',
+        divisionId: null,
+        deskId: null,
+        bookId: 'book-2',
+      })
+      expect(bookSelectorSelectBook).toHaveBeenCalledWith('book-2')
+      expect(selectBook).toHaveBeenCalledWith('book-2')
+    })
+
+    it('does not restore a persisted book that no longer exists (demo reseed)', () => {
+      const setSelection = vi.fn()
+      mockUseWorkspace.mockReturnValue({
+        preferences: { ...DEFAULT_PREFERENCES, defaultBook: 'book-gone' },
+        updatePreference: vi.fn(),
+        resetPreferences: vi.fn(),
+        views: [{ id: 'view-default', name: 'Default', prefs: { ...DEFAULT_PREFERENCES, defaultBook: 'book-gone' } }],
+        activeViewId: 'view-default',
+        switchView: vi.fn(),
+        saveAsNewView: vi.fn(() => 'view-new'),
+        updateActiveView: vi.fn(),
+        deleteView: vi.fn(),
+        renameView: vi.fn(),
+      })
+      mockUseHierarchySelector.mockReturnValue({
+        selection: { level: 'firm', divisionId: null, deskId: null, bookId: null },
+        setSelection,
+        breadcrumb: [{ level: 'firm', id: null, label: 'Firm' }],
+        effectiveBookId: null,
+        effectiveBookIds: ['book-1', 'book-2'],
+        divisions: [],
+        desks: [],
+        books: [{ bookId: 'book-1' }, { bookId: 'book-2' }],
+        loading: false,
+        error: null,
+      })
+
+      render(<App />)
+
+      expect(setSelection).not.toHaveBeenCalled()
+    })
+  })
+
   describe('command palette (plan §7.1)', () => {
     beforeEach(() => {
       window.localStorage.clear()
