@@ -61,6 +61,20 @@ describe('IntradayVaRChart', () => {
     expect(screen.getByText('$260K')).toBeInTheDocument()
   })
 
+  it('formats right-axis delta labels compactly instead of printing raw floats', () => {
+    // UX review (kx-cz68): the right axis printed raw unseparated values like
+    // "-19750000." truncated at the plot edge. Dollar-scale deltas must render
+    // through the shared compact formatter (e.g. "-19.5M").
+    const points = [
+      makePoint('2026-03-25T09:00:00Z', { delta: -19_750_000 }),
+      makePoint('2026-03-25T12:00:00Z', { delta: -18_500_000 }),
+    ]
+    render(<IntradayVaRChart varPoints={points} tradeAnnotations={[]} />)
+
+    expect(screen.getByText('-19.5M')).toBeInTheDocument()
+    expect(screen.queryByText(/-?\d{7,}/)).not.toBeInTheDocument()
+  })
+
   it('renders VaR line path when multiple points are present', () => {
     const { container } = render(<IntradayVaRChart varPoints={twoPoints} tradeAnnotations={[]} />)
 
