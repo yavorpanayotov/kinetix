@@ -132,9 +132,9 @@ export function CounterpartyExposureTile({
               </span>
               <span
                 data-testid={`counterparty-exposure-trade-count-${row.counterpartyId}`}
-                className="text-xs text-slate-400 dark:text-slate-500 w-12 text-right"
+                className="text-xs text-slate-400 dark:text-slate-500 w-16 text-right"
               >
-                {row.tradeCount} tr
+                {row.tradeCount} trade{row.tradeCount === 1 ? '' : 's'}
               </span>
             </li>
           )

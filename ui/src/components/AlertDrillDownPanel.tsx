@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { ArrowUpCircle, Check, CheckSquare, Clock, X } from 'lucide-react'
 import type { AlertEventDto } from '../types'
 import { fetchAlertContributors, type PositionContributor } from '../api/alertContributors'
-import { formatCurrency, formatRelativeFuture } from '../utils/format'
+import { formatCurrency, formatRelativeFuture, formatTimestamp } from '../utils/format'
 import { Button, EmptyState, Input, Spinner } from './ui'
 
 /**
@@ -257,7 +257,7 @@ export function AlertDrillDownPanel({
             {snoozedActive && alert.snoozedUntil && (
               <span
                 data-testid="drill-down-snoozed-until-badge"
-                title={new Date(alert.snoozedUntil).toLocaleString()}
+                title={formatTimestamp(alert.snoozedUntil)}
                 className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-800 rounded"
               >
                 <Clock className="h-3 w-3" />
@@ -278,7 +278,7 @@ export function AlertDrillDownPanel({
         <div className="mt-2 text-xs text-slate-500 dark:text-slate-400 space-y-1">
           <div>Book: <span className="font-medium text-slate-700 dark:text-slate-300">{alert.bookId}</span></div>
           <div>Breach: <span className="font-medium text-red-600">{formatCurrency(breachMagnitude)}</span> over threshold of {formatCurrency(alert.threshold)}</div>
-          <div>Triggered: {new Date(alert.triggeredAt).toLocaleString()}</div>
+          <div>Triggered: {formatTimestamp(alert.triggeredAt)}</div>
         </div>
 
         {!anyFormOpen && (canAcknowledge || canEscalate || canResolve || canSnooze) && (

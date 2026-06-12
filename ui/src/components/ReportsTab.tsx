@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { FileText, Download, Play, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react'
 import { SectionHeading, Spinner } from './ui'
 import {
+import { formatTimestamp } from '../utils/format'
   fetchReportTemplates,
   generateReport,
   downloadReportCsv,
@@ -331,7 +332,7 @@ export function ReportsTab({ bookId, onJumpToRiskAtDate }: ReportsTabProps) {
                   className="text-xs text-slate-500 dark:text-slate-400"
                 >
                   {currentOutput.rowCount} rows &middot; generated{' '}
-                  {new Date(currentOutput.generatedAt).toLocaleString()}
+                  {formatTimestamp(currentOutput.generatedAt)}
                 </span>
               }
             >
@@ -383,7 +384,7 @@ export function ReportsTab({ bookId, onJumpToRiskAtDate }: ReportsTabProps) {
                       </span>
                       <span className="ml-3 text-xs text-slate-400 dark:text-slate-500">
                         {output.rowCount} rows &middot;{' '}
-                        {new Date(output.generatedAt).toLocaleString()}
+                        {formatTimestamp(output.generatedAt)}
                       </span>
                     </div>
                     {expandedOutputId === output.outputId ? (
@@ -455,7 +456,7 @@ export function ReportsTab({ bookId, onJumpToRiskAtDate }: ReportsTabProps) {
                   </span>
                   <div className="text-xs text-slate-400 dark:text-slate-500">
                     {report.user} &middot;{' '}
-                    {new Date(report.timestamp).toLocaleString()}
+                    {formatTimestamp(report.timestamp)}
                   </div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">

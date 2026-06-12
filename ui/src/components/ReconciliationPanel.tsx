@@ -3,6 +3,7 @@ import { Inbox, AlertTriangle } from 'lucide-react'
 import { fetchReconciliations } from '../api/execution'
 import type { ReconciliationDto } from '../types'
 import { Card, EmptyState, ErrorCard, Spinner } from './ui'
+import { formatTimestamp } from '../utils/format'
 
 function SimulationModeBanner() {
   return (
@@ -128,7 +129,7 @@ export function ReconciliationPanel({ bookId }: ReconciliationPanelProps) {
                   <span className="text-amber-700 font-medium">{recon.breakCount} break(s)</span>
                 )}
                 <span className="text-xs text-slate-400">
-                  {new Date(recon.reconciledAt).toLocaleString()}
+                  {formatTimestamp(recon.reconciledAt)}
                 </span>
               </div>
             </div>

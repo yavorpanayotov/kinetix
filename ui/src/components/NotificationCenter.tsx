@@ -17,7 +17,7 @@ import {
   Clock,
 } from 'lucide-react'
 import type { AlertRuleDto, AlertEventDto, CreateAlertRuleRequestDto } from '../types'
-import { formatRelativeTime, formatRelativeFuture } from '../utils/format'
+import { formatRelativeTime, formatRelativeFuture, formatTimestamp } from '../utils/format'
 import { exportToCsv } from '../utils/exportCsv'
 import { Card, Button, Badge, Input, Select, Spinner, ErrorCard } from './ui'
 import { ConfirmDialog } from './ui/ConfirmDialog'
@@ -715,7 +715,7 @@ export function NotificationCenter({
             {snoozedActive && alert.snoozedUntil && (
               <span
                 data-testid={`snoozed-until-badge-${alert.id}`}
-                title={new Date(alert.snoozedUntil).toLocaleString()}
+                title={formatTimestamp(alert.snoozedUntil)}
                 className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-800 rounded"
               >
                 <Clock className="h-3 w-3" />

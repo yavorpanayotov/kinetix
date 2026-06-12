@@ -16,6 +16,7 @@ import { AIInsightPanel } from './AIInsightPanel'
 import { ExplainButton } from './ExplainButton'
 import { ValueScopeBadge } from './ValueScopeBadge'
 import { explainVar, type ExplainVarRequest, type InsightResponse } from '../api/insights'
+import { formatTimestamp } from '../utils/format'
 
 function confidenceLevelToNumber(level: string): number {
   if (level === 'CL_99') return 0.99
@@ -322,7 +323,7 @@ export function VaRDashboard({ varResult, filteredHistory, loading, historyLoadi
             </span>
           )}
           {' '}&middot;{' '}
-          <span title={new Date(varResult.calculatedAt).toLocaleString()}>
+          <span title={formatTimestamp(varResult.calculatedAt)}>
             {new Date(varResult.calculatedAt).toLocaleTimeString()}
           </span>
           {varResult.valuationDate && (

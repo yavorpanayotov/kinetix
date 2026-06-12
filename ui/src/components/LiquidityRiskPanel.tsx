@@ -4,6 +4,7 @@ import { computeStalenessDays, formatLvar } from '../utils/liquidityFormat'
 import { LiquidityScoreBar } from './LiquidityScoreBar'
 import { Card } from './ui'
 import { Spinner } from './ui/Spinner'
+import { formatTimestamp } from '../utils/format'
 
 interface LiquidityRiskPanelProps {
   result: LiquidityRiskResultDto | null
@@ -195,7 +196,7 @@ export function LiquidityRiskPanel({
       )}
 
       <p className="text-right text-xs text-gray-400 dark:text-gray-500">
-        Calculated: {new Date(result.calculatedAt).toLocaleString()}
+        Calculated: {formatTimestamp(result.calculatedAt)}
       </p>
     </Card>
   )

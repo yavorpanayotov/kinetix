@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { formatTimestamp } from '../utils/format'
 
 interface ScenarioTooltipProps {
   scenarioName: string
@@ -36,7 +37,7 @@ function parseShocks(shocks: string | undefined): ParsedShocks | null {
 
 function formatDateTime(iso: string): string {
   try {
-    return new Date(iso).toLocaleString()
+    return formatTimestamp(iso)
   } catch {
     return iso
   }
