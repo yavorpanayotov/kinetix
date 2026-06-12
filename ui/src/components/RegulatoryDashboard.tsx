@@ -58,9 +58,12 @@ export function RegulatoryDashboard({
         >
           {loading ? 'Calculating...' : 'Calculate FRTB'}
         </Button>
+        {/* Same visual weight as XBRL — two equivalent export formats must
+            not differ in colour, and a green 'success' button reads as
+            enabled even when disabled (UX review). */}
         <Button
           data-testid="download-csv-btn"
-          variant="success"
+          variant="secondary"
           icon={<Download className="h-3.5 w-3.5" />}
           onClick={onDownloadCsv}
           disabled={!result || loading}
@@ -96,7 +99,9 @@ export function RegulatoryDashboard({
           data-testid="frtb-empty-state"
           className="text-sm text-slate-500 dark:text-slate-400 py-6"
         >
-          Click Calculate FRTB to compute risk charges.
+          No FRTB run for this book yet. Calculate FRTB to compute the
+          SbM, DRC, and RRAO capital charges — the latest run is reloaded
+          automatically next time you open this tab.
         </div>
       )}
 
