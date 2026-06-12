@@ -1,7 +1,7 @@
 import { Fragment, useState } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import type { PnlAttributionDto, PositionPnlAttributionDto } from '../types'
-import { formatSignedNum, pnlColorClass } from '../utils/format'
+import { EM_DASH, formatPctOfTotal, formatSignedNum, pnlColorClass } from '../utils/format'
 import { PNL_FACTOR_COLORS } from '../utils/factorColors'
 
 interface PnlAttributionTableProps {
@@ -77,7 +77,7 @@ export function PnlAttributionTable({ data }: PnlAttributionTableProps) {
           {factors.map((factor) => {
             const amount = String(data[factor.portfolioField] ?? '0')
             const amountNum = Number(amount)
-            const pctOfTotal = totalPnl !== 0 ? ((amountNum / totalPnl) * 100) : 0
+            const pctOfTotal = formatPctOfTotal(amountNum, totalPnl)
             const isExpanded = expandedFactor === factor.key
 
             return (
@@ -111,8 +111,11 @@ export function PnlAttributionTable({ data }: PnlAttributionTableProps) {
                       {formatSignedNum(amountNum)}
                     </span>
                   </td>
-                  <td className="py-2 px-3 text-right font-mono tabular-nums text-slate-600">
-                    {pctOfTotal.toFixed(1)}%
+                  <td
+                    className="py-2 px-3 text-right font-mono tabular-nums text-slate-600"
+                    title={pctOfTotal === EM_DASH ? 'Not meaningful — factor amounts offset to a near-zero total' : undefined}
+                  >
+                    {pctOfTotal}
                   </td>
                 </tr>
 
@@ -135,7 +138,7 @@ export function PnlAttributionTable({ data }: PnlAttributionTableProps) {
                         {formatSignedNum(posAmountNum)}
                       </td>
                       <td className="py-1.5 px-3 text-right font-mono tabular-nums text-slate-400">
-                        {totalPnl !== 0 ? ((posAmountNum / totalPnl) * 100).toFixed(1) : '0.0'}%
+                        {formatPctOfTotal(posAmountNum, totalPnl)}
                       </td>
                     </tr>
                   )

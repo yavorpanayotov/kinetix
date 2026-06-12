@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { RotateCcw } from 'lucide-react'
 import type { IntradayVaRPointDto, TradeAnnotationDto } from '../types'
-import { formatCurrency, formatTimeOnly } from '../utils/format'
+import { formatCompactNum, formatCurrency, formatTimeOnly } from '../utils/format'
 import { formatCompactCurrency } from '../utils/formatCompactCurrency'
 import { clampTooltipLeft } from '../utils/clampTooltipLeft'
 import { useBrushSelection } from '../hooks/useBrushSelection'
@@ -393,7 +393,7 @@ export function IntradayVaRChart({ varPoints, tradeAnnotations, sessionDate }: I
               fill="#6ee7b7"
               fontSize={10}
             >
-              {v.toFixed(2)}
+              {formatCompactNum(v)}
             </text>
           )
         })}

@@ -133,6 +133,29 @@ export function formatDuration(ms: number): string {
   return `${minutes}m ${remainingSeconds}s`
 }
 
+// Compact magnitude formatting for chart axis labels and badges where a full
+// thousands-separated number would not fit: 12.4B / -19.8M / 255.9K. Values
+// under 1,000 keep two decimals so small Greeks remain legible.
+export function formatCompactNum(value: number): string {
+  const abs = Math.abs(value)
+  const sign = value < 0 ? '-' : ''
+  if (abs >= 1_000_000_000) return `${sign}${(abs / 1_000_000_000).toFixed(1).replace(/\.0$/, '')}B`
+  if (abs >= 1_000_000) return `${sign}${(abs / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`
+  if (abs >= 1_000) return `${sign}${(abs / 1_000).toFixed(1).replace(/\.0$/, '')}K`
+  return `${sign}${abs.toFixed(2)}`
+}
+
+// Share-of-total percentage for attribution tables. When components offset to
+// a total near zero, the ratio explodes into the millions of percent and reads
+// as garbage — beyond ±999.9% the figure carries no information, so render the
+// not-available sentinel instead and let the caller explain via tooltip.
+export function formatPctOfTotal(amount: number, total: number): string {
+  if (total === 0) return EM_DASH
+  const pct = (amount / total) * 100
+  if (!Number.isFinite(pct) || Math.abs(pct) > 999.9) return EM_DASH
+  return `${pct.toFixed(1)}%`
+}
+
 export function formatNum(value: string | number | null | undefined, decimals = 2): string {
   if (value === null || value === undefined) return EM_DASH
   const num = typeof value === 'string' ? Number(value) : value

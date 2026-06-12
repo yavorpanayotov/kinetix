@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Inbox, AlertTriangle } from 'lucide-react'
 import { fetchExecutionCosts } from '../api/execution'
 import type { ExecutionCostDto } from '../types'
+import { formatNum, formatQuantity, formatTimestamp } from '../utils/format'
 import { Card, EmptyState, ErrorCard, Spinner } from './ui'
 
 function SimulationModeBanner() {
@@ -132,18 +133,18 @@ export function ExecutionCostPanel({ bookId }: ExecutionCostPanelProps) {
                   >
                     {cost.side}
                   </td>
-                  <td className="px-4 py-2 text-sm text-right">{cost.totalQty}</td>
-                  <td className="px-4 py-2 text-sm text-right">{cost.arrivalPrice}</td>
-                  <td className="px-4 py-2 text-sm text-right">{cost.averageFillPrice}</td>
+                  <td className="px-4 py-2 text-sm text-right tabular-nums">{formatQuantity(cost.totalQty)}</td>
+                  <td className="px-4 py-2 text-sm text-right tabular-nums">{formatNum(cost.arrivalPrice)}</td>
+                  <td className="px-4 py-2 text-sm text-right tabular-nums">{formatNum(cost.averageFillPrice)}</td>
                   <td
                     data-testid={`slippage-${cost.orderId}`}
-                    className={`px-4 py-2 text-sm text-right font-medium ${isPositiveCost ? 'text-amber-600' : 'text-green-600'}`}
+                    className={`px-4 py-2 text-sm text-right font-medium tabular-nums ${isPositiveCost ? 'text-amber-600' : 'text-green-600'}`}
                   >
-                    {cost.slippageBps}
+                    {formatNum(cost.slippageBps, 1)}
                   </td>
-                  <td className="px-4 py-2 text-sm text-right">{cost.totalCostBps}</td>
-                  <td className="px-4 py-2 text-sm text-slate-500">
-                    {new Date(cost.completedAt).toLocaleString()}
+                  <td className="px-4 py-2 text-sm text-right tabular-nums">{formatNum(cost.totalCostBps, 1)}</td>
+                  <td className="px-4 py-2 text-sm text-slate-500 tabular-nums">
+                    {formatTimestamp(cost.completedAt)}
                   </td>
                 </tr>
               )

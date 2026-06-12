@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
-import { formatMoney, formatSignedMoney, formatCurrency, formatQuantity, formatRelativeTime, formatTimestamp, formatTimeOnly, formatChartTime, formatDuration, formatNum, formatSignedNum, pnlColorClass } from './format'
+import { formatMoney, formatSignedMoney, formatCurrency, formatQuantity, formatRelativeTime, formatTimestamp, formatTimeOnly, formatChartTime, formatDuration, formatNum, formatSignedNum, formatCompactNum, formatPctOfTotal, pnlColorClass } from './format'
 
 describe('formatMoney', () => {
   it('formats USD with dollar sign and commas', () => {
@@ -135,6 +135,46 @@ describe('formatCurrency', () => {
 
   it('coerces string values to numbers', () => {
     expect(formatCurrency('9999.99' as unknown as number)).toBe('$9,999.99')
+  })
+})
+
+describe('formatPctOfTotal', () => {
+  it('formats an ordinary share of total', () => {
+    expect(formatPctOfTotal(250, 1000)).toBe('25.0%')
+  })
+
+  it('keeps the sign on negative shares', () => {
+    expect(formatPctOfTotal(-250, 1000)).toBe('-25.0%')
+  })
+
+  it('suppresses ratios beyond ±999.9% as not meaningful', () => {
+    expect(formatPctOfTotal(-12382262479.12, -77046.35)).toBe('—')
+  })
+
+  it('suppresses division by a zero total', () => {
+    expect(formatPctOfTotal(100, 0)).toBe('—')
+  })
+})
+
+describe('formatCompactNum', () => {
+  it('abbreviates millions with one decimal', () => {
+    expect(formatCompactNum(-19750000)).toBe('-19.8M')
+  })
+
+  it('abbreviates thousands', () => {
+    expect(formatCompactNum(255854.85)).toBe('255.9K')
+  })
+
+  it('abbreviates billions', () => {
+    expect(formatCompactNum(12382262479)).toBe('12.4B')
+  })
+
+  it('keeps small values at two decimals', () => {
+    expect(formatCompactNum(0.2851)).toBe('0.29')
+  })
+
+  it('drops trailing .0 from abbreviations', () => {
+    expect(formatCompactNum(2000)).toBe('2K')
   })
 })
 

@@ -41,8 +41,32 @@ describe('ExecutionCostPanel', () => {
     await waitFor(() => {
       expect(screen.getByText('AAPL')).toBeInTheDocument()
     })
-    expect(screen.getByTestId('slippage-ord-001')).toHaveTextContent('10.00')
+    expect(screen.getByTestId('slippage-ord-001')).toHaveTextContent('10.0')
     expect(screen.getByTestId('cost-row-ord-001')).toBeInTheDocument()
+  })
+
+  test('formats raw numeric strings: quantity separators, price and bps precision, ISO timestamp', async () => {
+    mockFetchExecutionCosts.mockResolvedValue([
+      {
+        ...sampleCost,
+        totalQty: '7000000000000',
+        arrivalPrice: '98.5600000000000',
+        averageFillPrice: '98.7250000000001',
+        slippageBps: '12',
+        totalCostBps: '20.5000000',
+      },
+    ])
+    render(<ExecutionCostPanel bookId="book-alpha" />)
+
+    await waitFor(() => {
+      expect(screen.getByText('7,000,000,000,000')).toBeInTheDocument()
+    })
+    expect(screen.getByText('98.56')).toBeInTheDocument()
+    expect(screen.getByText('98.73')).toBeInTheDocument()
+    expect(screen.getByTestId('slippage-ord-001')).toHaveTextContent('12.0')
+    expect(screen.getByText('20.5')).toBeInTheDocument()
+    // Completed timestamps render in the platform-wide ISO format, not locale-dependent toLocaleString
+    expect(screen.getByTestId('cost-row-ord-001').textContent).toMatch(/2026-03-24 \d{2}:00:00/)
   })
 
   test('shows arrival price and average fill price columns', async () => {

@@ -373,6 +373,24 @@ describe('PositionGrid', () => {
       expect(within(summary).getByTestId('summary-book-delta')).toBeInTheDocument()
       expect(within(summary).getByTestId('summary-book-var')).toBeInTheDocument()
     })
+
+    it('suppresses the Book VaR tile value when contributions net negative', () => {
+      const positions = [
+        makePosition({ instrumentId: 'AAPL' }),
+        makePosition({ instrumentId: 'MSFT' }),
+      ]
+      const risk = [
+        makeRisk({ instrumentId: 'AAPL', varContribution: '800.00' }),
+        makeRisk({ instrumentId: 'MSFT', varContribution: '-25200.00' }),
+      ]
+
+      render(<PositionGrid positions={positions} positionRisk={risk} />)
+
+      const tile = screen.getByTestId('summary-book-var')
+      expect(tile).toHaveTextContent('—')
+      expect(tile).not.toHaveTextContent('-$')
+      expect(tile.querySelector('[title]')?.getAttribute('title')).toMatch(/net negative/i)
+    })
   })
 
   describe('pagination', () => {

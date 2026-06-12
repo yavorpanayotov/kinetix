@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Wifi, WifiOff, Inbox, Settings, Download, Eye, EyeOff, StickyNote } from 'lucide-react'
 import type { PositionDto, PositionNoteDto, PositionRiskDto } from '../types'
-import { formatMoney, formatSignedMoney, formatNum, formatQuantity, pnlColorClass } from '../utils/format'
+import { EM_DASH, formatMoney, formatSignedMoney, formatNum, formatQuantity, pnlColorClass } from '../utils/format'
 import { formatPrice } from '../utils/formatPrice'
 import { formatCompactCurrency } from '../utils/formatCompactCurrency'
 import { exportToCsv } from '../utils/exportCsv'
@@ -393,8 +393,13 @@ export function PositionGrid({ positions, connected, reconnecting, lastConnected
           <Card>
             <div data-testid="summary-book-var" className="text-center -my-1">
               <div className="text-xs text-slate-500">Book VaR</div>
-              <div className="text-lg font-bold text-slate-800 dark:text-slate-100">
-                {formatCompactCurrency(totalVar)}
+              {/* VaR is a loss magnitude — a negative netted sum means the risk
+                  run is inconsistent with the position set, not a real number */}
+              <div
+                className="text-lg font-bold text-slate-800 dark:text-slate-100"
+                title={totalVar < 0 ? 'VaR contributions net negative — awaiting a consistent risk run' : undefined}
+              >
+                {totalVar < 0 ? EM_DASH : formatCompactCurrency(totalVar)}
               </div>
             </div>
           </Card>

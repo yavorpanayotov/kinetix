@@ -61,6 +61,25 @@ describe('PnlAttributionTable', () => {
     expect(deltaRow).toHaveTextContent('53.3%')
   })
 
+  it('suppresses % of total when offsetting factors dwarf a near-zero total', () => {
+    render(
+      <PnlAttributionTable
+        data={{
+          ...attribution,
+          totalPnl: '-77046.35',
+          gammaPnl: '-12382262479.12',
+          unexplainedPnl: '12384262713.22',
+        }}
+      />,
+    )
+
+    const gammaRow = screen.getByTestId('factor-row-gamma')
+    expect(gammaRow).toHaveTextContent('—')
+    expect(gammaRow).not.toHaveTextContent('%')
+    const naCell = gammaRow.querySelector('td[title]')
+    expect(naCell?.getAttribute('title')).toMatch(/not meaningful/i)
+  })
+
   it('prefixes a + on positive factor amounts and not on negatives', () => {
     render(<PnlAttributionTable data={attribution} />)
 
