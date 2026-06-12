@@ -62,6 +62,22 @@ describe('ScenariosTab', () => {
     expect(screen.getAllByTestId('scenario-row')).toHaveLength(4)
   })
 
+  it('stamps the stress results with the book scope and run time (kx-opat)', () => {
+    // The Base VaR / Stressed VaR figures in the comparison table are
+    // book-scoped numbers from a specific run — the badge says which book
+    // and when, so they cannot be confused with the firm-level VaR figures.
+    render(<ScenariosTab {...defaultProps} results={ALL_STRESS_RESULTS} />)
+
+    expect(screen.getByTestId('scenarios-var-scope-scope')).toHaveTextContent('book-1')
+    expect(screen.getByTestId('scenarios-var-scope-asof')).toBeInTheDocument()
+  })
+
+  it('omits the scope badge while there are no stress results yet', () => {
+    render(<ScenariosTab {...defaultProps} />)
+
+    expect(screen.queryByTestId('scenarios-var-scope')).not.toBeInTheDocument()
+  })
+
   it('shows loading state', () => {
     render(<ScenariosTab {...defaultProps} loading={true} />)
 

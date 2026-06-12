@@ -17,6 +17,7 @@ import { CustomScenarioBuilder } from './CustomScenarioBuilder'
 import { ScenarioLibraryGrid } from './ScenarioLibraryGrid'
 import { HistoricalReplayPanel } from './HistoricalReplayPanel'
 import { ReverseStressDialog } from './ReverseStressDialog'
+import { ValueScopeBadge } from './ValueScopeBadge'
 
 export interface ScenariosTabProps {
   bookId: string | null
@@ -213,6 +214,14 @@ export function ScenariosTab({
 
   const comparedScenarios = results.filter((r) => checkedScenarios.has(r.scenarioName))
 
+  // Scope + freshness stamp for the result table's VaR figures (kx-opat).
+  // All rows in one batch run share the selected book and a run timestamp —
+  // ISO strings compare lexically, so the latest run is the string max.
+  const latestRunAt = results.reduce<string | null>(
+    (max, r) => (max === null || r.calculatedAt > max ? r.calculatedAt : max),
+    null,
+  )
+
   return (
     <>
       <Card
@@ -221,6 +230,13 @@ export function ScenariosTab({
           <span className="flex items-center gap-1.5">
             <Zap className="h-4 w-4" />
             Stress Testing
+            {results.length > 0 && (
+              <ValueScopeBadge
+                scope={bookId ?? 'Firm'}
+                asOf={latestRunAt}
+                data-testid="scenarios-var-scope"
+              />
+            )}
           </span>
         }
       >

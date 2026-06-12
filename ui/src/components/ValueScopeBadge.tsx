@@ -1,10 +1,18 @@
-import { formatRelativeTime, formatTimestamp } from '../utils/format'
+import { formatRelativeTime, formatTimestamp, isOlderThanMinutes } from '../utils/format'
+
+const DEFAULT_STALE_AFTER_MINUTES = 15
 
 interface ValueScopeBadgeProps {
   /** What the number describes: 'Firm', a book id, a hierarchy node name… */
   scope: string
   /** ISO timestamp of the run that produced the number. */
   asOf?: string | null
+  /**
+   * Minutes after which the as-of stamp is styled as stale. A risk number
+   * older than this is no longer "live" and the freshness stamp turns amber
+   * so the reader does not mistake it for a current figure.
+   */
+  staleAfterMinutes?: number
   'data-testid'?: string
 }
 
@@ -17,7 +25,14 @@ interface ValueScopeBadgeProps {
  * described. Every headline VaR figure carries one of these badges so the
  * scope and the as-of time travel with the number.
  */
-export function ValueScopeBadge({ scope, asOf = null, 'data-testid': testId = 'value-scope-badge' }: ValueScopeBadgeProps) {
+export function ValueScopeBadge({
+  scope,
+  asOf = null,
+  staleAfterMinutes = DEFAULT_STALE_AFTER_MINUTES,
+  'data-testid': testId = 'value-scope-badge',
+}: ValueScopeBadgeProps) {
+  const isStale = asOf !== null && isOlderThanMinutes(asOf, staleAfterMinutes)
+
   return (
     <span data-testid={testId} className="inline-flex items-center gap-1 align-middle">
       <span
@@ -29,8 +44,12 @@ export function ValueScopeBadge({ scope, asOf = null, 'data-testid': testId = 'v
       {asOf && (
         <span
           data-testid={`${testId}-asof`}
-          className="text-[10px] text-slate-400 dark:text-slate-500"
-          title={formatTimestamp(asOf)}
+          className={`text-[10px] ${
+            isStale
+              ? 'text-amber-500 dark:text-amber-400'
+              : 'text-slate-400 dark:text-slate-500'
+          }`}
+          title={isStale ? `${formatTimestamp(asOf)} — stale` : formatTimestamp(asOf)}
         >
           {formatRelativeTime(asOf)}
         </span>

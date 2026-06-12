@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
-import { formatMoney, formatSignedMoney, formatCurrency, formatQuantity, formatRelativeTime, formatTimestamp, formatTimeOnly, formatChartTime, formatDuration, formatNum, formatSignedNum, formatCompactNum, formatPctOfTotal, pnlColorClass } from './format'
+import { formatMoney, formatSignedMoney, formatCurrency, formatQuantity, formatRelativeTime, formatTimestamp, formatTimeOnly, formatChartTime, formatDuration, formatNum, formatSignedNum, formatCompactNum, formatPctOfTotal, isOlderThanMinutes, pnlColorClass } from './format'
 
 describe('formatMoney', () => {
   it('formats USD with dollar sign and commas', () => {
@@ -358,6 +358,24 @@ describe('formatRelativeTime', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2025-01-15T09:00:00Z'))
     expect(formatRelativeTime('2025-01-15T10:00:00Z')).toBe('just now')
+  })
+})
+
+describe('isOlderThanMinutes', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('is true when the timestamp is older than the threshold', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2025-01-15T10:30:00Z'))
+    expect(isOlderThanMinutes('2025-01-15T10:00:00Z', 15)).toBe(true)
+  })
+
+  it('is false when the timestamp is within the threshold', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2025-01-15T10:05:00Z'))
+    expect(isOlderThanMinutes('2025-01-15T10:00:00Z', 15)).toBe(false)
   })
 })
 

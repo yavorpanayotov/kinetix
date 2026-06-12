@@ -74,6 +74,15 @@ export function formatRelativeTime(isoString: string): string {
 }
 
 /**
+ * True when an ISO-8601 timestamp is older than the given number of minutes.
+ * Companion to {@link formatRelativeTime} for staleness checks — components
+ * call this instead of reading the clock in render (react-hooks/purity).
+ */
+export function isOlderThanMinutes(isoString: string, minutes: number): boolean {
+  return Date.now() - new Date(isoString).getTime() > minutes * 60_000
+}
+
+/**
  * Render an ISO-8601 timestamp as a relative-future string ("in 1h", "in 3d").
  * Mirror of {@link formatRelativeTime} for deadlines such as snooze-until
  * markers. Past timestamps fall back to "now" since the deadline has lapsed.
