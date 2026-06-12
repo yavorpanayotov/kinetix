@@ -39,6 +39,7 @@ test.describe('Demo mode', () => {
     for (const p of personas) {
       await page.getByTestId('persona-switcher-toggle').click()
       await page.getByTestId(`persona-option-${p.key}`).click()
+      await page.getByTestId('confirm-dialog-confirm').click()
       await expect(page.getByTestId('header-role-badge')).toHaveText(p.badge)
       await expect(page.getByTestId('header-username')).toHaveText(p.username)
     }
@@ -59,6 +60,7 @@ test.describe('Demo mode', () => {
     // Switch to TRADER
     await page.getByTestId('persona-switcher-toggle').click()
     await page.getByTestId('persona-option-trader').click()
+    await page.getByTestId('confirm-dialog-confirm').click()
     await expect(page.getByTestId('header-role-badge')).toHaveText('TRADER')
 
     // Refresh
@@ -94,6 +96,7 @@ test.describe('Demo mode', () => {
     // Switch to TRADER persona
     await page.getByTestId('persona-switcher-toggle').click()
     await page.getByTestId('persona-option-trader').click()
+    await page.getByTestId('confirm-dialog-confirm').click()
     await expect(page.getByTestId('header-role-badge')).toHaveText('TRADER')
 
     // Navigate to Trades tab and verify it renders

@@ -1,8 +1,12 @@
-import { useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { ChevronDown, Check } from 'lucide-react'
 import { useClickOutside } from '../hooks/useClickOutside'
 import { useDemoPersona } from '../auth/useDemoPersona'
 import { DEMO_PERSONAS, type DemoPersona } from '../auth/demoPersonas'
+import { ConfirmDialog } from './ui/ConfirmDialog'
+
+/** How long the "Now viewing as…" confirmation toast stays on screen. */
+const SWITCH_TOAST_MS = 4000
 
 const ROLE_BADGE_CLASSES: Record<string, string> = {
   ADMIN: 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300',
@@ -24,21 +28,47 @@ export function PersonaSwitcher() {
   const optionRefs = useRef<(HTMLDivElement | null)[]>([])
 
   const { persona, setPersona } = useDemoPersona()
+  // Switching role is consequential (entitlements change and the choice
+  // persists across sessions), so a single stray click must not do it
+  // silently (UX review): selection stages a confirm dialog, and the applied
+  // switch announces itself with a transient status toast.
+  const [pendingPersona, setPendingPersona] = useState<DemoPersona | null>(null)
+  const [switchedTo, setSwitchedTo] = useState<DemoPersona | null>(null)
 
   useClickOutside(containerRef, () => {
     setOpen(false)
     setFocusedIndex(-1)
   })
 
+  useEffect(() => {
+    if (!switchedTo) return
+    const timer = setTimeout(() => setSwitchedTo(null), SWITCH_TOAST_MS)
+    return () => clearTimeout(timer)
+  }, [switchedTo])
+
   const selectPersona = useCallback(
     (p: DemoPersona) => {
-      setPersona(p)
       setOpen(false)
       setFocusedIndex(-1)
       toggleRef.current?.focus()
+      if (p.key === persona.key) return
+      setPendingPersona(p)
     },
-    [setPersona],
+    [persona.key],
   )
+
+  const confirmSwitch = useCallback(() => {
+    if (!pendingPersona) return
+    setPersona(pendingPersona)
+    setSwitchedTo(pendingPersona)
+    setPendingPersona(null)
+    toggleRef.current?.focus()
+  }, [pendingPersona, setPersona])
+
+  const cancelSwitch = useCallback(() => {
+    setPendingPersona(null)
+    toggleRef.current?.focus()
+  }, [])
 
   const handleToggleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -142,6 +172,32 @@ export function PersonaSwitcher() {
               </div>
             )
           })}
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={pendingPersona !== null}
+        title="Switch persona"
+        message={
+          pendingPersona
+            ? `View the platform as ${pendingPersona.label} (${pendingPersona.username})? Data and entitlements reload for that role, and the choice persists for future sessions.`
+            : ''
+        }
+        confirmLabel="Switch"
+        cancelLabel="Cancel"
+        variant="primary"
+        onConfirm={confirmSwitch}
+        onCancel={cancelSwitch}
+      />
+
+      {switchedTo && (
+        <div
+          data-testid="persona-switch-toast"
+          role="status"
+          aria-live="polite"
+          className="absolute right-0 top-full mt-1 z-50 whitespace-nowrap rounded-md bg-surface-800 border border-surface-600 px-3 py-1.5 text-xs text-slate-200 shadow-lg"
+        >
+          Now viewing as {switchedTo.label} ({switchedTo.username})
         </div>
       )}
     </div>
