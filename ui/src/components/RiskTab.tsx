@@ -425,6 +425,10 @@ export function RiskTab({
                   tradeAnnotations={intradayTradeAnnotations}
                   snapshotVaR={snapshotVaR}
                   snapshotLabel={snapshotLabel}
+                  contributionsVisible={Boolean(
+                    (aggregatedView && crossBookResult) ||
+                      (aggregatedView && hierarchyNode && hierarchyNode.topContributors.length > 0),
+                  )}
                 />
               </ErrorBoundary>
               {aggregatedView && crossBookResult && (
@@ -483,6 +487,7 @@ export function RiskTab({
                   error={krdError}
                   activeScenario={activeScenario}
                   marketRegime={marketRegime}
+                  hasFixedIncomePositions={positionRisk.some((p) => p.assetClass === 'FIXED_INCOME')}
                 />
               </div>
               <div className="mt-4">

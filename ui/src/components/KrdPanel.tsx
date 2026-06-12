@@ -13,6 +13,14 @@ interface KrdPanelProps {
   activeScenario?: string | null
   /** Market regime — DV01 inputs reflect the regime-adjusted rate moves. */
   marketRegime?: MarketRegime | null
+  /**
+   * Whether the book actually holds FIXED_INCOME positions (from position
+   * risk data). An empty KRD result does not imply an empty bond book — the
+   * run may simply not have computed key-rate durations yet, and claiming
+   * "no fixed-income positions" under a table of bonds is a contradiction
+   * (UX review). Omit when position composition is unknown.
+   */
+  hasFixedIncomePositions?: boolean
 }
 
 const BAR_HEIGHT = 24
@@ -35,7 +43,7 @@ function DV01Bar({ dv01, maxAbsDv01 }: { dv01: number; maxAbsDv01: number }) {
   )
 }
 
-export function KrdPanel({ aggregated, instruments, loading, error, activeScenario = null, marketRegime = null }: KrdPanelProps) {
+export function KrdPanel({ aggregated, instruments, loading, error, activeScenario = null, marketRegime = null, hasFixedIncomePositions = false }: KrdPanelProps) {
   const [expanded, setExpanded] = useState(false)
 
   if (loading) {
@@ -50,7 +58,14 @@ export function KrdPanel({ aggregated, instruments, loading, error, activeScenar
   if (aggregated.length === 0) {
     return (
       <div data-testid="krd-empty">
-        <EmptyState title="No fixed-income positions in this book." />
+        {hasFixedIncomePositions ? (
+          <EmptyState
+            title="Key-rate durations not computed for this book yet."
+            description="Run a risk calculation to populate DV01 per tenor."
+          />
+        ) : (
+          <EmptyState title="No fixed-income positions in this book." />
+        )}
       </div>
     )
   }

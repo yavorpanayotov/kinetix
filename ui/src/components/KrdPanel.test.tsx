@@ -36,6 +36,24 @@ describe('KrdPanel', () => {
   it('renders empty state when no fixed-income positions', () => {
     render(<KrdPanel aggregated={[]} instruments={[]} loading={false} error={null} />)
     expect(screen.getByTestId('krd-empty')).toBeVisible()
+    expect(screen.getByTestId('krd-empty')).toHaveTextContent(/no fixed-income positions/i)
+  })
+
+  it('does not claim "no fixed-income positions" when the book holds bonds — says KRD not computed instead', () => {
+    // UX review: the panel said "No fixed-income positions in this book"
+    // directly below a position table full of bonds. The panel can't infer
+    // position composition from an empty KRD result.
+    render(
+      <KrdPanel
+        aggregated={[]}
+        instruments={[]}
+        loading={false}
+        error={null}
+        hasFixedIncomePositions={true}
+      />,
+    )
+    expect(screen.getByTestId('krd-empty')).toHaveTextContent(/not.*computed|run a risk calculation/i)
+    expect(screen.getByTestId('krd-empty')).not.toHaveTextContent(/no fixed-income positions/i)
   })
 
   it('renders all four tenor buckets', () => {

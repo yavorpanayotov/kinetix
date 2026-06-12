@@ -78,9 +78,16 @@ interface VaRDashboardProps {
    * the delta badge.
    */
   snapshotLabel?: string | null
+  /**
+   * Whether sibling contribution tables (book/hierarchy) are rendered below
+   * this dashboard with data. When they are and no aggregate VaR exists, the
+   * empty state must explain the mismatch instead of claiming "no results"
+   * above a populated table (UX review).
+   */
+  contributionsVisible?: boolean
 }
 
-export function VaRDashboard({ varResult, filteredHistory, loading, historyLoading, refreshing = false, error, onRefresh, timeRange, setTimeRange, zoomIn, resetZoom, zoomDepth, greeksResult, varLimit, onWhatIf, selectedConfidenceLevel, onConfidenceLevelChange, isLive = true, valuationDate, totalStandaloneVar, diversificationBenefit, activeScenario = null, marketRegime = null, tradeAnnotations = [], snapshotVaR = null, snapshotLabel = null }: VaRDashboardProps) {
+export function VaRDashboard({ varResult, filteredHistory, loading, historyLoading, refreshing = false, error, onRefresh, timeRange, setTimeRange, zoomIn, resetZoom, zoomDepth, greeksResult, varLimit, onWhatIf, selectedConfidenceLevel, onConfidenceLevelChange, isLive = true, valuationDate, totalStandaloneVar, diversificationBenefit, activeScenario = null, marketRegime = null, tradeAnnotations = [], snapshotVaR = null, snapshotLabel = null, contributionsVisible = false }: VaRDashboardProps) {
   const [tooltipOpen, setTooltipOpen] = useState(false)
   const [chartView, setChartView] = useState<'var' | 'greeks'>('var')
   const [insightOpen, setInsightOpen] = useState(false)
@@ -124,10 +131,17 @@ export function VaRDashboard({ varResult, filteredHistory, loading, historyLoadi
   if (!varResult) {
     return (
       <Card data-testid="var-empty" className="mb-4">
-        <EmptyState
-          title="No VaR results yet"
-          description="Run a calculation to see risk metrics."
-        />
+        {contributionsVisible ? (
+          <EmptyState
+            title="No aggregated VaR for this scope yet"
+            description="The contribution tables below reflect the latest book-level runs. Run a calculation to compute the diversified aggregate."
+          />
+        ) : (
+          <EmptyState
+            title="No VaR results yet"
+            description="Run a calculation to see risk metrics."
+          />
+        )}
       </Card>
     )
   }

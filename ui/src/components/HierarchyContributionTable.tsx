@@ -1,5 +1,5 @@
 import type { HierarchyNodeRiskDto } from '../types'
-import { formatMoney } from '../utils/format'
+import { EM_DASH, formatMoney } from '../utils/format'
 
 interface HierarchyContributionTableProps {
   node: HierarchyNodeRiskDto
@@ -101,7 +101,7 @@ export function HierarchyContributionTable({
             <span data-testid="marginal-var-summary">
               Marginal VaR:{' '}
               <span className="font-medium text-slate-700 dark:text-slate-300 tabular-nums">
-                {formatMoney(node.marginalVar, 'USD')}
+                {summaryValue(node.marginalVar, topContributors)}
               </span>
             </span>
           )}
@@ -109,7 +109,7 @@ export function HierarchyContributionTable({
             <span data-testid="incremental-var-summary">
               Incremental VaR:{' '}
               <span className="font-medium text-slate-700 dark:text-slate-300 tabular-nums">
-                {formatMoney(node.incrementalVar, 'USD')}
+                {summaryValue(node.incrementalVar, topContributors)}
               </span>
             </span>
           )}
@@ -117,6 +117,20 @@ export function HierarchyContributionTable({
       )}
     </div>
   )
+}
+
+/**
+ * A hard zero marginal/incremental VaR next to non-zero contributions means
+ * "not computed for this run", not "zero risk" — showing $0.00 there is a
+ * contradiction (UX review). Render the not-available sentinel instead.
+ */
+function summaryValue(
+  value: string,
+  topContributors: HierarchyNodeRiskDto['topContributors'],
+): string {
+  const contributionsNonZero = topContributors.some((c) => Number(c.varContribution) !== 0)
+  if (contributionsNonZero && Number(value) === 0) return EM_DASH
+  return formatMoney(value, 'USD')
 }
 
 function childLevelOf(level: string): string {

@@ -129,6 +129,22 @@ describe('HierarchyContributionTable', () => {
     expect(screen.queryByTestId('marginal-var-summary')).not.toBeInTheDocument()
   })
 
+  it('renders an em-dash for a zero marginal/incremental VaR alongside non-zero contributions', () => {
+    // UX review: "Marginal VaR: $0.00 · Incremental VaR: $0.00" under a table
+    // of nine-figure contributions reads as a contradiction — a hard zero next
+    // to real contributions means "not computed", not "zero risk".
+    const node: HierarchyNodeRiskDto = {
+      ...firmNode,
+      marginalVar: '0.00',
+      incrementalVar: '0',
+    }
+    render(<HierarchyContributionTable node={node} />)
+
+    expect(screen.getByTestId('marginal-var-summary')).toHaveTextContent('—')
+    expect(screen.getByTestId('marginal-var-summary')).not.toHaveTextContent('$0.00')
+    expect(screen.getByTestId('incremental-var-summary')).toHaveTextContent('—')
+  })
+
   it('does not show incrementalVar summary when incrementalVar is null', () => {
     render(<HierarchyContributionTable node={firmNode} />)
 

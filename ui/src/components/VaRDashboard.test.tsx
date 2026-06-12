@@ -190,6 +190,28 @@ describe('VaRDashboard', () => {
     expect(empty).toHaveTextContent('No VaR results yet')
   })
 
+  it('explains the missing aggregate when sibling contribution data is on screen', () => {
+    // UX review: "No VaR results yet — run a calculation" rendered directly
+    // above a populated Top Division Contributors table. When sibling panels
+    // have data, the empty state must say what is actually missing.
+    render(
+      <VaRDashboard
+        varResult={null}
+        loading={false}
+        error={null}
+        onRefresh={() => {}}
+        {...defaultZoomProps}
+        filteredHistory={[]}
+        contributionsVisible={true}
+      />,
+    )
+
+    const empty = screen.getByTestId('var-empty')
+    expect(empty).toHaveTextContent(/no aggregated VaR/i)
+    expect(empty).toHaveTextContent(/contribution/i)
+    expect(empty).not.toHaveTextContent('No VaR results yet')
+  })
+
   it('renders the VaR gauge with data', () => {
     render(
       <VaRDashboard
