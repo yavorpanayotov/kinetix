@@ -258,14 +258,24 @@ describe('StressSummaryCard', () => {
       expect(rows[0]).toHaveTextContent('-$1,589,994.06')
     })
 
-    it('renders base/stressed VaR as "—" when the canned fallback row is shown (those fields are unknown)', () => {
+    it('drops the Base/Stressed VaR columns for the canned fallback row instead of rendering dashes (kx-rg8c)', () => {
       render(<StressSummaryCard {...defaultProps} cannedResult={cannedResult} />)
 
+      // The canned payload has no base/stressed VaR — em-dash columns read as
+      // broken data on a risk screen, so the columns are omitted entirely.
+      expect(screen.queryByText('Base VaR')).not.toBeInTheDocument()
+      expect(screen.queryByText('Stressed VaR')).not.toBeInTheDocument()
       const row = screen.getByTestId('stress-summary-row')
-      // Two "—" cells (Base VaR, Stressed VaR) — the P&L Impact cell renders the deltaPv.
-      const dashCells = row.querySelectorAll('td')
-      expect(dashCells[1].textContent).toBe('—')
-      expect(dashCells[2].textContent).toBe('—')
+      expect(row.querySelectorAll('td')).toHaveLength(2)
+      expect(row.textContent).not.toContain('—')
+    })
+
+    it('keeps the Base/Stressed VaR columns when real batch results are shown', () => {
+      render(<StressSummaryCard {...defaultProps} results={[stressResult]} />)
+
+      expect(screen.getByText('Base VaR')).toBeInTheDocument()
+      expect(screen.getByText('Stressed VaR')).toBeInTheDocument()
+      expect(screen.getByTestId('stress-summary-row').querySelectorAll('td')).toHaveLength(4)
     })
 
     it('prefers user-triggered batch results over the canned fallback when both are present', () => {

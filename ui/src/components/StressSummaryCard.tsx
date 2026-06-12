@@ -63,6 +63,10 @@ export function StressSummaryCard({
   const effective: StressTestResultDto[] = sorted.length > 0 ? sorted : cannedAsRow ? [cannedAsRow] : []
   const visible = effective.slice(0, MAX_ROWS)
   const hasMore = effective.length > MAX_ROWS
+  // The canned fallback carries only scenario + ΔPV — em-dash VaR columns read
+  // as broken data on a risk screen, so they are shown only for real results
+  // (kx-rg8c).
+  const showVarColumns = sorted.length > 0
 
   return (
     <Card
@@ -96,8 +100,8 @@ export function StressSummaryCard({
             <thead>
               <tr className="border-b text-left text-slate-600">
                 <th className="py-2">Scenario</th>
-                <th className="py-2 text-right">Base VaR</th>
-                <th className="py-2 text-right">Stressed VaR</th>
+                {showVarColumns && <th className="py-2 text-right">Base VaR</th>}
+                {showVarColumns && <th className="py-2 text-right">Stressed VaR</th>}
                 <th className="py-2 text-right">
                   <span className="inline-flex items-center gap-1.5 justify-end">
                     P&L Impact
@@ -117,8 +121,8 @@ export function StressSummaryCard({
                     className="border-b hover:bg-slate-50 transition-colors"
                   >
                     <td className="py-1.5 font-medium">{r.scenarioName.replace(/_/g, ' ')}</td>
-                    <td className="py-1.5 text-right">{r.baseVar ? formatCurrency(r.baseVar) : '—'}</td>
-                    <td className="py-1.5 text-right font-medium">{r.stressedVar ? formatCurrency(r.stressedVar) : '—'}</td>
+                    {showVarColumns && <td className="py-1.5 text-right">{r.baseVar ? formatCurrency(r.baseVar) : '—'}</td>}
+                    {showVarColumns && <td className="py-1.5 text-right font-medium">{r.stressedVar ? formatCurrency(r.stressedVar) : '—'}</td>}
                     <td
                       data-testid="stress-summary-pnl-impact"
                       className={`py-1.5 text-right font-medium ${isLoss ? 'text-red-600' : ''}`}
