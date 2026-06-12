@@ -56,6 +56,10 @@ services:
       dockerfile: Dockerfile
     environment:
       DEMO_MODE: "${DEMO_MODE:-true}"
+      # Ground the canned copilot in live book data (DataGroundedCannedChatClient)
+      # instead of replaying fixed fx-main fixtures — a VaR question about the
+      # selected book must cite that book's actual numbers (kx-lwlv).
+      COPILOT_GROUNDED_DEMO: "${COPILOT_GROUNDED_DEMO:-true}"
       PYTHONPATH: /app/src
     expose:
       - "8095"
