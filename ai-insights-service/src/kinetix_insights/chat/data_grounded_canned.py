@@ -18,8 +18,16 @@ cost and is safe to run on a public showcase.
 Scope and graceful degradation:
 
 * Grounded topics: :data:`~kinetix_insights.chat.intent_router.VAR`,
-  :data:`~kinetix_insights.chat.intent_router.VAR_DRIVERS`, and
-  :data:`~kinetix_insights.chat.intent_router.PNL`.
+  :data:`~kinetix_insights.chat.intent_router.VAR_DRIVERS`,
+  :data:`~kinetix_insights.chat.intent_router.PNL`,
+  :data:`~kinetix_insights.chat.intent_router.POSITIONS`
+  (``get_positions``), :data:`~kinetix_insights.chat.intent_router.LIMITS`
+  (``get_limit_utilisation`` + ``get_recent_breaches``), and
+  :data:`~kinetix_insights.chat.intent_router.VOL`
+  (``get_vol_surface`` keyed off the book's most relevant position —
+  the largest derivative-typed position by |MTM|, else the largest
+  position outright; if no surface resolves for any candidate the
+  request degrades to fixtures like every other failure path).
 * For every other routed topic, for a request that carries no
   ``book_id`` in ``page_context``, and for ANY failure while calling a
   tool (ACL fail-closed, upstream error, payload drift), the client
@@ -42,6 +50,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from datetime import datetime
@@ -50,17 +59,27 @@ from typing import Any, Awaitable, Callable
 from kinetix_insights.chat.canned import CannedCopilotChatClient, CopilotChatClient
 from kinetix_insights.chat.conversation_store import ConversationTurn
 from kinetix_insights.chat.intent_router import (
+    LIMITS,
     PNL,
+    POSITIONS,
     VAR,
     VAR_DRIVERS,
+    VOL,
     route_intent,
 )
 from kinetix_insights.chat.models import ChatChunk, ChatRequest, ToolCall
 from kinetix_insights.citations.models import Citation
-from kinetix_insights.clients.kinetix_http_client import KinetixHttpClient
+from kinetix_insights.clients.kinetix_http_client import (
+    KinetixHttpClient,
+    KinetixHttpError,
+)
 from kinetix_insights.clients.user_context import UserContext
 from kinetix_insights.mcp.tools.get_book_var import get_book_var
+from kinetix_insights.mcp.tools.get_limit_utilisation import get_limit_utilisation
 from kinetix_insights.mcp.tools.get_pnl_attribution import get_pnl_attribution
+from kinetix_insights.mcp.tools.get_positions import get_positions
+from kinetix_insights.mcp.tools.get_recent_breaches import get_recent_breaches
+from kinetix_insights.mcp.tools.get_vol_surface import get_vol_surface
 
 _LOGGER = logging.getLogger("kinetix_insights.chat")
 
@@ -82,6 +101,17 @@ _PNL_COMPONENT_LABELS: dict[str, str] = {
     "cross_gamma_pnl": "cross-gamma",
     "unexplained_pnl": "unexplained",
 }
+
+# Instrument types that suggest an optionality / derivative exposure —
+# the VOL template prefers these when picking the underlier whose
+# surface to quote (matched against ``instrument_type``, e.g.
+# ``FX_OPTION``, ``EQUITY_FUTURE``, ``INTEREST_RATE_SWAP``).
+_DERIVATIVE_TYPE_PATTERN: re.Pattern[str] = re.compile(
+    r"OPTION|FUTURE|FORWARD|SWAP"
+)
+
+# How many of the book's largest positions the POSITIONS narrative names.
+_TOP_POSITIONS_COUNT = 3
 
 
 def _fmt_usd(value: float) -> str:
@@ -143,6 +173,9 @@ class DataGroundedCannedChatClient:
             VAR: self._ground_var,
             VAR_DRIVERS: self._ground_var_drivers,
             PNL: self._ground_pnl,
+            POSITIONS: self._ground_positions,
+            LIMITS: self._ground_limits,
+            VOL: self._ground_vol,
         }
 
     def chat(
@@ -216,7 +249,7 @@ class DataGroundedCannedChatClient:
         return _Grounded(
             deltas=deltas,
             citations=[citation],
-            tool_calls=[self._tool_call("get_book_var", book_id, citation)],
+            tool_calls=[self._tool_call("get_book_var", {"book_id": book_id}, citation)],
         )
 
     async def _ground_var_drivers(
@@ -258,7 +291,7 @@ class DataGroundedCannedChatClient:
         return _Grounded(
             deltas=deltas,
             citations=citations,
-            tool_calls=[self._tool_call("get_book_var", book_id, headline)],
+            tool_calls=[self._tool_call("get_book_var", {"book_id": book_id}, headline)],
         )
 
     async def _ground_pnl(self, book_id: str, user: UserContext) -> _Grounded:
@@ -299,7 +332,214 @@ class DataGroundedCannedChatClient:
         return _Grounded(
             deltas=deltas,
             citations=citations,
-            tool_calls=[self._tool_call("get_pnl_attribution", book_id, headline)],
+            tool_calls=[self._tool_call("get_pnl_attribution", {"book_id": book_id}, headline)],
+        )
+
+    async def _ground_positions(
+        self, book_id: str, user: UserContext
+    ) -> _Grounded:
+        result = await get_positions(
+            book_id=book_id, user=user, http=self._http, now=self._now
+        )
+        rows: list[dict[str, Any]] = result["positions"]
+        total_count: int = result["total_count"]
+        headline: Citation = result["citation"]
+
+        deltas = [
+            f"Book {book_id} holds {total_count} positions ",
+            f"with a total market value of {_fmt_usd(headline.result_value)}. ",
+        ]
+        citations = [headline]
+        top = sorted(rows, key=lambda row: abs(row["mtm"]), reverse=True)[
+            :_TOP_POSITIONS_COUNT
+        ]
+        if top:
+            parts: list[str] = []
+            for row in top:
+                parts.append(
+                    f"{row['instrument_id']} ({row['asset_class']}) at "
+                    f"{_fmt_usd(row['mtm'])} with {_fmt_usd(row['pnl_today'])} P&L"
+                )
+                citations.append(
+                    self._derive_citation(
+                        headline,
+                        tool="get_positions",
+                        params={"book_id": book_id},
+                        result_field=f"positions.{row['instrument_id']}.mtm",
+                        result_value=float(row["mtm"]),
+                    )
+                )
+            deltas.append("The largest by market value: " + "; ".join(parts) + ".")
+        else:
+            deltas.append("No positions are currently held in this book.")
+
+        return _Grounded(
+            deltas=deltas,
+            citations=citations,
+            tool_calls=[
+                self._tool_call("get_positions", {"book_id": book_id}, headline)
+            ],
+        )
+
+    async def _ground_limits(self, book_id: str, user: UserContext) -> _Grounded:
+        limits = await get_limit_utilisation(
+            book_id=book_id, user=user, http=self._http, now=self._now
+        )
+        breaches = await get_recent_breaches(
+            book_id=book_id, user=user, http=self._http, now=self._now
+        )
+        limits_headline: Citation = limits["citation"]
+        breaches_headline: Citation = breaches["citation"]
+        returned_count: int = limits["returned_count"]
+        recent_count: int = breaches["recent_count"]
+        open_count: int = breaches["open_count"]
+
+        deltas = [
+            f"Book {book_id} has {returned_count} book-level limits ",
+            f"with an aggregate cap of {_fmt_usd(limits_headline.result_value)}. ",
+        ]
+        citations = [limits_headline, breaches_headline]
+        if recent_count > 0:
+            noun = "breach" if recent_count == 1 else "breaches"
+            latest: dict[str, Any] = breaches["breaches"][0]
+            current_value = float(latest["current_value"])
+            deltas.append(
+                f"There {'is' if recent_count == 1 else 'are'} "
+                f"{recent_count} limit {noun} in the last 7 days "
+                f"({open_count} open). "
+            )
+            deltas.append(
+                f"Most recent: {latest['limit_type']} at "
+                f"{_fmt_usd(current_value)} against a "
+                f"{_fmt_usd(float(latest['limit_value']))} limit."
+            )
+            citations.append(
+                self._derive_citation(
+                    breaches_headline,
+                    tool="get_recent_breaches",
+                    params={"book_id": book_id},
+                    result_field="breaches.0.current_value",
+                    result_value=current_value,
+                )
+            )
+        else:
+            deltas.append("No limit breaches in the last 7 days.")
+
+        return _Grounded(
+            deltas=deltas,
+            citations=citations,
+            tool_calls=[
+                self._tool_call(
+                    "get_limit_utilisation", {"book_id": book_id}, limits_headline
+                ),
+                self._tool_call(
+                    "get_recent_breaches", {"book_id": book_id}, breaches_headline
+                ),
+            ],
+        )
+
+    async def _ground_vol(self, book_id: str, user: UserContext) -> _Grounded:
+        positions = await get_positions(
+            book_id=book_id, user=user, http=self._http, now=self._now
+        )
+        positions_headline: Citation = positions["citation"]
+        rows: list[dict[str, Any]] = sorted(
+            positions["positions"], key=lambda row: abs(row["mtm"]), reverse=True
+        )
+
+        # Candidate underliers: derivative-typed positions first (largest
+        # |MTM| first), then the remaining positions — the most relevant
+        # instrument for a vol question is the book's biggest optionality.
+        derivatives = [
+            row
+            for row in rows
+            if _DERIVATIVE_TYPE_PATTERN.search(row["instrument_type"] or "")
+        ]
+        others = [row for row in rows if row not in derivatives]
+        candidates: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for row in derivatives + others:
+            if row["instrument_id"] not in seen:
+                seen.add(row["instrument_id"])
+                candidates.append(row)
+
+        surface: dict[str, Any] | None = None
+        chosen: dict[str, Any] | None = None
+        for row in candidates:
+            try:
+                surface = await get_vol_surface(
+                    underlier=row["instrument_id"],
+                    user=user,
+                    http=self._http,
+                    now=self._now,
+                )
+            except KinetixHttpError:
+                continue
+            chosen = row
+            break
+
+        if surface is None or chosen is None:
+            # No surface resolves for any candidate (or the book is
+            # empty) — degrade to fixtures like every other failure path.
+            raise KinetixHttpError(
+                status_code=404,
+                code="NOT_FOUND",
+                message=(
+                    f"no vol surface for any of the {len(candidates)} "
+                    f"position underliers in book {book_id!r}"
+                ),
+                service="volatility",
+                path="/api/v1/volatility/{underlier}/surface/latest",
+            )
+
+        underlier: str = surface["underlier"]
+        headline: Citation = surface["citation"]
+        inversions: list[dict[str, Any]] = surface["inversions"]
+        descriptor = (
+            "derivative position"
+            if _DERIVATIVE_TYPE_PATTERN.search(chosen["instrument_type"] or "")
+            else "position"
+        )
+
+        deltas = [
+            f"Implied volatility for {underlier}, the largest {descriptor} "
+            f"in {book_id}: ",
+            f"shortest-tenor ATM vol is {headline.result_value:.1f}%. ",
+        ]
+        citations = [headline]
+        if inversions:
+            top = max(inversions, key=lambda inv: inv["diff_vol_points"])
+            deltas.append(
+                f"The term structure is inverted — "
+                f"{top['short_maturity_days']}-day ATM vol "
+                f"{top['short_atm_vol']:.1f}% sits "
+                f"{top['diff_vol_points']:.1f} vol points above "
+                f"{top['long_maturity_days']}-day at "
+                f"{top['long_atm_vol']:.1f}%."
+            )
+            citations.append(
+                self._derive_citation(
+                    headline,
+                    tool="get_vol_surface",
+                    params={"underlier": underlier},
+                    result_field="inversions.max.diff_vol_points",
+                    result_value=float(top["diff_vol_points"]),
+                )
+            )
+        else:
+            deltas.append("No term-structure inversions above 2.0 vol points.")
+
+        return _Grounded(
+            deltas=deltas,
+            citations=citations,
+            tool_calls=[
+                self._tool_call(
+                    "get_positions", {"book_id": book_id}, positions_headline
+                ),
+                self._tool_call(
+                    "get_vol_surface", {"underlier": underlier}, headline
+                ),
+            ],
         )
 
     @staticmethod
@@ -334,7 +574,7 @@ class DataGroundedCannedChatClient:
         )
 
     @staticmethod
-    def _tool_call(name: str, book_id: str, citation: Citation) -> ToolCall:
+    def _tool_call(name: str, params: dict, citation: Citation) -> ToolCall:
         """Build a ``ToolCall`` record for the reasoning panel.
 
         ``started_at``/``completed_at`` are stamped from the citation's
@@ -344,7 +584,7 @@ class DataGroundedCannedChatClient:
 
         return ToolCall(
             name=name,
-            params={"book_id": book_id},
+            params=params,
             status="ok",
             started_at=citation.as_of_timestamp,
             completed_at=citation.as_of_timestamp,
