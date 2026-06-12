@@ -490,14 +490,25 @@ export function CounterpartyRiskDashboard({ onJumpToTrades }: CounterpartyRiskDa
   const [sortColumn, setSortColumn] = useState<SortColumn>('currentNetExposure')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [blockTradesFor, setBlockTradesFor] = useState<string | null>(null)
+  // Hidden by default: a long tail of $0.00/$0.00 rows drowns the handful of
+  // counterparties with live exposure (UX review).
+  const [showZeroExposure, setShowZeroExposure] = useState(false)
 
   const highThreshold = useMemo(() => topDecileThreshold(exposures), [exposures])
 
+  const zeroExposureCount = useMemo(
+    () => exposures.filter((e) => e.currentNetExposure === 0 && e.peakPfe === 0).length,
+    [exposures],
+  )
+
   const displayedExposures = useMemo(() => {
     const trimmed = searchQuery.trim().toLowerCase()
-    const filtered = trimmed.length === 0
+    const nonZero = showZeroExposure
       ? exposures
-      : exposures.filter((e) => e.counterpartyId.toLowerCase().includes(trimmed))
+      : exposures.filter((e) => e.currentNetExposure !== 0 || e.peakPfe !== 0)
+    const filtered = trimmed.length === 0
+      ? nonZero
+      : nonZero.filter((e) => e.counterpartyId.toLowerCase().includes(trimmed))
 
     const sorted = [...filtered].sort((a, b) => {
       let cmp: number
@@ -524,7 +535,7 @@ export function CounterpartyRiskDashboard({ onJumpToTrades }: CounterpartyRiskDa
       return sortDirection === 'asc' ? cmp : -cmp
     })
     return sorted
-  }, [exposures, searchQuery, sortColumn, sortDirection, highThreshold])
+  }, [exposures, searchQuery, sortColumn, sortDirection, highThreshold, showZeroExposure])
 
   const handleSort = (column: SortColumn) => {
     if (sortColumn === column) {
@@ -561,6 +572,18 @@ export function CounterpartyRiskDashboard({ onJumpToTrades }: CounterpartyRiskDa
     setSelectedId(id)
     void selectCounterparty(id)
   }
+
+  // Pre-select the largest exposure on first load so the detail panel opens
+  // with content instead of a "Select a counterparty" void (UX review).
+  useEffect(() => {
+    if (selectedId !== null || exposures.length === 0) return
+    const top = exposures.reduce((a, b) =>
+      Math.abs(a.currentNetExposure) >= Math.abs(b.currentNetExposure) ? a : b,
+    )
+    setSelectedId(top.counterpartyId)
+    void selectCounterparty(top.counterpartyId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exposures])
 
   return (
     <div data-testid="counterparty-risk-dashboard" className="space-y-4">
@@ -634,6 +657,20 @@ export function CounterpartyRiskDashboard({ onJumpToTrades }: CounterpartyRiskDa
                 className="w-full pl-8 pr-3 py-1.5 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
             </div>
+            {zeroExposureCount > 0 && (
+              <label
+                data-testid="show-zero-exposure-toggle"
+                className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 cursor-pointer select-none"
+              >
+                <input
+                  type="checkbox"
+                  checked={showZeroExposure}
+                  onChange={(e) => setShowZeroExposure(e.target.checked)}
+                  className="h-3.5 w-3.5 rounded border-slate-300 dark:border-slate-600"
+                />
+                Show {zeroExposureCount} zero-exposure counterpart{zeroExposureCount === 1 ? 'y' : 'ies'}
+              </label>
+            )}
             <div className="rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 overflow-hidden">
               <table className="w-full" aria-label="Counterparty exposures">
                 <thead>

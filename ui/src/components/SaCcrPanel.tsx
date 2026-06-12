@@ -63,7 +63,7 @@ function NettingSetRow({ set }: { set: SaCcrResultDto }) {
 export function SaCcrPanel({ result, loading, error }: SaCcrPanelProps) {
   if (loading) {
     return (
-      <div data-testid="sa-ccr-loading" className="flex items-center gap-2 text-sm text-slate-500">
+      <div data-testid="sa-ccr-loading" className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
         <Spinner size="sm" />
         Loading SA-CCR...
       </div>

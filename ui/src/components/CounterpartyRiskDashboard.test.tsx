@@ -90,6 +90,56 @@ describe('CounterpartyRiskDashboard', () => {
     expect(screen.getByTestId('counterparty-row-CP-JPM')).toBeInTheDocument()
   })
 
+  it('hides zero-exposure counterparties by default with a toggle to show them', () => {
+    // UX review: 25+ rows of $0.00 / $0.00 drowned the six counterparties
+    // that mattered.
+    const zeroCp = {
+      ...SAMPLE_EXPOSURE,
+      counterpartyId: 'CP-ZERO',
+      currentNetExposure: 0,
+      peakPfe: 0,
+      cva: null,
+    }
+    mockUseCounterpartyRisk.mockReturnValue({
+      ...defaultHook,
+      exposures: [SAMPLE_EXPOSURE, zeroCp],
+    })
+
+    render(<CounterpartyRiskDashboard />)
+
+    expect(screen.getByTestId('counterparty-row-CP-GS')).toBeInTheDocument()
+    expect(screen.queryByTestId('counterparty-row-CP-ZERO')).not.toBeInTheDocument()
+
+    const toggle = screen.getByTestId('show-zero-exposure-toggle')
+    expect(toggle).toHaveTextContent(/1/)
+    fireEvent.click(toggle)
+    expect(screen.getByTestId('counterparty-row-CP-ZERO')).toBeInTheDocument()
+  })
+
+  it('does not render the zero-exposure toggle when every counterparty has exposure', () => {
+    mockUseCounterpartyRisk.mockReturnValue({
+      ...defaultHook,
+      exposures: [SAMPLE_EXPOSURE, HIGH_EXPOSURE],
+    })
+
+    render(<CounterpartyRiskDashboard />)
+    expect(screen.queryByTestId('show-zero-exposure-toggle')).not.toBeInTheDocument()
+  })
+
+  it('preselects the largest counterparty so the detail panel is never an empty void', () => {
+    const selectCounterparty = vi.fn()
+    mockUseCounterpartyRisk.mockReturnValue({
+      ...defaultHook,
+      exposures: [SAMPLE_EXPOSURE, HIGH_EXPOSURE],
+      selectCounterparty,
+    })
+
+    render(<CounterpartyRiskDashboard />)
+
+    // CP-JPM has the larger |net exposure| → auto-selected on load.
+    expect(selectCounterparty).toHaveBeenCalledWith('CP-JPM')
+  })
+
   it('flags top-decile exposures (percentile threshold) when the universe is large enough', () => {
     mockUseCounterpartyRisk.mockReturnValue({
       ...defaultHook,
@@ -268,6 +318,9 @@ describe('CounterpartyRiskDashboard', () => {
       })
 
       render(<CounterpartyRiskDashboard onJumpToTrades={onJumpToTrades} />)
+      // Drop the mount-time auto-preselect call — this test is about the
+      // CTA click not triggering an ADDITIONAL selection.
+      selectCounterparty.mockClear()
 
       fireEvent.click(screen.getByTestId('jump-to-trades-CP-GS'))
 
@@ -319,6 +372,9 @@ describe('CounterpartyRiskDashboard', () => {
       })
 
       render(<CounterpartyRiskDashboard />)
+      // Drop the mount-time auto-preselect call — this test is about the
+      // CTA click not triggering an ADDITIONAL selection.
+      selectCounterparty.mockClear()
 
       fireEvent.click(screen.getByTestId('block-trades-cta-CP-DB'))
 
