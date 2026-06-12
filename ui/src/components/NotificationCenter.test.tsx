@@ -1944,4 +1944,63 @@ describe('NotificationCenter', () => {
       ).not.toBeInTheDocument()
     })
   })
+
+  // UX review (kx-6rk4): the rule-creation card and triage queue rendered on
+  // white in the dark app, with channel labels invisible. Mirrors the
+  // CounterpartyRiskDashboard dark-mode pairing audit.
+  it('pairs every slate utility class with a light-mode and dark-mode counterpart', () => {
+    const { container } = render(
+      <NotificationCenter
+        rules={sampleRules}
+        alerts={sampleAlerts}
+        loading={false}
+        error={null}
+        onCreateRule={() => {}}
+        onDeleteRule={() => {}}
+        onAcknowledge={() => {}}
+        onEscalate={() => {}}
+        onResolve={() => {}}
+      />,
+    )
+
+    type Offender = { reason: string; family: string; classAttr: string }
+    const offenders: Offender[] = []
+
+    container.querySelectorAll<HTMLElement>('[class]').forEach((node) => {
+      const classAttr = node.getAttribute('class') ?? ''
+      const tokens = classAttr.split(/\s+/).filter(Boolean)
+
+      const families: Record<string, { light: string[]; dark: string[]; slateLight: boolean; slateDark: boolean }> = {}
+      for (const token of tokens) {
+        const match = token.match(/^((?:[\w-]+:)*)((?:bg|text|border|placeholder)-[\w/-]+)$/)
+        if (!match) continue
+        const variants = match[1]
+        const utility = match[2]
+        const utilityKind = utility.split('-')[0]
+        const isDark = /\bdark:/.test(variants)
+        const familyKey = `${variants.replace(/(^|:)dark:/g, '$1')}${utilityKind}`
+        const bucket = (families[familyKey] ??= { light: [], dark: [], slateLight: false, slateDark: false })
+        const isSlate = /^(?:bg|text|border|placeholder)-slate-/.test(utility)
+        if (isDark) {
+          bucket.dark.push(token)
+          if (isSlate) bucket.slateDark = true
+        } else {
+          bucket.light.push(token)
+          if (isSlate) bucket.slateLight = true
+        }
+      }
+
+      for (const [family, { light, dark, slateLight, slateDark }] of Object.entries(families)) {
+        if (!slateLight && !slateDark) continue
+        if (dark.length === 0) {
+          offenders.push({ reason: 'bare slate utility without a `dark:` counterpart', family, classAttr })
+        }
+        if (light.length === 0) {
+          offenders.push({ reason: '`dark:` slate utility without a light-mode counterpart', family, classAttr })
+        }
+      }
+    })
+
+    expect(offenders).toEqual([])
+  })
 })

@@ -180,10 +180,10 @@ const SNOOZE_PRESETS: Array<{
 ]
 
 const statusBadgeClass: Record<string, string> = {
-  TRIGGERED: 'bg-red-100 text-red-800',
-  ACKNOWLEDGED: 'bg-blue-100 text-blue-800',
-  ESCALATED: 'bg-orange-100 text-orange-800',
-  RESOLVED: 'bg-green-100 text-green-800',
+  TRIGGERED: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
+  ACKNOWLEDGED: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
+  ESCALATED: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
+  RESOLVED: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
 }
 
 const severityBadgeVariant: Record<string, 'critical' | 'warning' | 'info'> = {
@@ -668,7 +668,7 @@ export function NotificationCenter({
     return (
       <div
         key={alert.id}
-        className={`flex items-start gap-2 p-2 bg-slate-50 rounded text-sm border-l-4 ${severityBorderColor[alert.severity] ?? 'border-gray-300'}`}
+        className={`flex items-start gap-2 p-2 bg-slate-50 dark:bg-surface-800 rounded text-sm border-l-4 ${severityBorderColor[alert.severity] ?? 'border-gray-300'}`}
       >
         {canBatchSelect && (
           <input
@@ -680,7 +680,7 @@ export function NotificationCenter({
             className="mt-1 shrink-0"
           />
         )}
-        <SevIcon className="h-4 w-4 mt-0.5 shrink-0 text-slate-500" />
+        <SevIcon className="h-4 w-4 mt-0.5 shrink-0 text-slate-500 dark:text-slate-400" />
         <span
           data-testid={`severity-badge-${alert.id}`}
           className={`px-2 py-0.5 rounded text-xs font-medium ${
@@ -695,11 +695,11 @@ export function NotificationCenter({
         </span>
         <div className="flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-slate-800">{alert.message}</span>
+            <span className="text-slate-800 dark:text-slate-100">{alert.message}</span>
             <span
               data-testid={`status-badge-${alert.id}`}
               className={`px-1.5 py-0.5 text-xs font-semibold rounded ${
-                statusBadgeClass[alert.status] ?? 'bg-slate-100 text-slate-700'
+                statusBadgeClass[alert.status] ?? 'bg-slate-100 text-slate-700 dark:bg-surface-700 dark:text-slate-300'
               }`}
             >
               {alert.status}
@@ -776,7 +776,7 @@ export function NotificationCenter({
                     <div
                       data-testid={`snooze-popover-${alert.id}`}
                       role="menu"
-                      className="absolute right-0 z-10 mt-1 w-44 rounded border border-slate-200 bg-white shadow-lg p-1 flex flex-col gap-0.5"
+                      className="absolute right-0 z-10 mt-1 w-44 rounded border border-slate-200 dark:border-surface-600 bg-white dark:bg-surface-800 shadow-lg p-1 flex flex-col gap-0.5"
                     >
                       {SNOOZE_PRESETS.map((preset) => (
                         <button
@@ -787,7 +787,7 @@ export function NotificationCenter({
                           onClick={() =>
                             applySnoozePreset(alert.id, preset.compute)
                           }
-                          className="text-left px-2 py-1 text-xs text-slate-700 hover:bg-slate-100 rounded"
+                          className="text-left px-2 py-1 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-surface-700 rounded"
                         >
                           {preset.label}
                         </button>
@@ -820,7 +820,7 @@ export function NotificationCenter({
               />
             </div>
           </div>
-          <div className="text-xs text-slate-500">
+          <div className="text-xs text-slate-500 dark:text-slate-400">
             Book: {alert.bookId} | {formatRelativeTime(alert.triggeredAt)}
             {alert.status === 'RESOLVED' && alert.resolvedAt && (
               <span className="ml-2 text-green-600">
@@ -829,7 +829,7 @@ export function NotificationCenter({
               </span>
             )}
             {alert.status === 'ACKNOWLEDGED' && (
-              <span className="ml-2 text-slate-500">
+              <span className="ml-2 text-slate-500 dark:text-slate-400">
                 <CheckCircle className="inline h-3 w-3 mr-0.5" />
                 Acknowledged
               </span>
@@ -1042,7 +1042,7 @@ export function NotificationCenter({
       header={<span className="flex items-center gap-1.5"><Bell className="h-4 w-4" />Notification Center</span>}
     >
       {loading && (
-        <div data-testid="notification-loading" className="flex items-center gap-2 text-slate-500 text-sm">
+        <div data-testid="notification-loading" className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm">
           <Spinner size="sm" />
           Loading notifications...
         </div>
@@ -1055,8 +1055,8 @@ export function NotificationCenter({
       )}
 
       {/* Create Rule Form */}
-      <div data-testid="create-rule-form" className="mb-4 p-3 bg-slate-50 rounded-lg">
-        <h3 className="text-sm font-semibold text-slate-700 mb-2">Create Alert Rule</h3>
+      <div data-testid="create-rule-form" className="mb-4 p-3 bg-slate-50 dark:bg-surface-800 rounded-lg">
+        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">Create Alert Rule</h3>
         <form onSubmit={handleSubmit} noValidate className="grid grid-cols-3 gap-2 text-sm">
           <div>
             <Input
@@ -1147,9 +1147,9 @@ export function NotificationCenter({
             <option value="INFO">INFO</option>
           </Select>
           <div className="col-span-3 flex flex-wrap items-center gap-4">
-            <span className="text-xs text-slate-500 font-medium">Channels:</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Channels:</span>
             {['IN_APP', 'EMAIL', 'WEBHOOK'].map((ch) => (
-              <label key={ch} className="flex items-center gap-1 text-xs">
+              <label key={ch} className="flex items-center gap-1 text-xs text-slate-700 dark:text-slate-300">
                 <input
                   type="checkbox"
                   data-testid={`channel-${ch}`}
@@ -1174,10 +1174,10 @@ export function NotificationCenter({
       </div>
 
       {/* Alert Rules Table */}
-      <h3 className="text-sm font-semibold text-slate-700 mb-2">Alert Rules</h3>
+      <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">Alert Rules</h3>
       <table data-testid="rules-table" className="w-full text-sm mb-4">
         <thead>
-          <tr className="border-b text-left text-slate-600">
+          <tr className="border-b dark:border-surface-700 text-left text-slate-600 dark:text-slate-300">
             <th className="py-2">Name</th>
             <th className="py-2">Type</th>
             <th className="py-2 text-right">Threshold</th>
@@ -1188,7 +1188,7 @@ export function NotificationCenter({
         </thead>
         <tbody>
           {rules.map((rule) => (
-            <tr key={rule.id} className="border-b hover:bg-slate-50 transition-colors">
+            <tr key={rule.id} className="border-b dark:border-surface-700 hover:bg-slate-50 dark:hover:bg-surface-800 transition-colors">
               <td className="py-1.5">{rule.name}</td>
               <td className="py-1.5">{rule.type}</td>
               <td className="py-1.5 text-right">{rule.threshold.toLocaleString()}</td>
@@ -1215,7 +1215,7 @@ export function NotificationCenter({
       {/* Recent Alerts */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold text-slate-700">Recent Alerts</h3>
+          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Recent Alerts</h3>
           <div data-testid="alert-status-filters" className="flex gap-1">
             {ALL_STATUSES.map((s) => {
               const active = activeStatuses.has(s)
@@ -1233,7 +1233,7 @@ export function NotificationCenter({
                   data-testid={`status-filter-${s.toLowerCase()}`}
                   onClick={() => toggleStatusFilter(s)}
                   className={`px-2 py-0.5 text-xs rounded-full transition-colors ${
-                    active ? activeClass : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    active ? activeClass : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-surface-700 dark:text-slate-300 dark:hover:bg-surface-600'
                   }`}
                 >
                   <span>{labelText}</span>
@@ -1265,7 +1265,7 @@ export function NotificationCenter({
               ])
               exportToCsv('alerts.csv', headers, rows)
             }}
-            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-slate-500 border border-slate-300 rounded hover:bg-slate-50 transition-colors"
+            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-slate-500 dark:text-slate-400 border border-slate-300 dark:border-surface-600 rounded hover:bg-slate-50 dark:hover:bg-surface-700 transition-colors"
           >
             <Download className="h-3.5 w-3.5" />
             Export CSV
@@ -1282,7 +1282,7 @@ export function NotificationCenter({
       {onAcknowledge !== undefined && (
         <div
           data-testid="alerts-batch-toolbar"
-          className="mb-2 flex items-center gap-2 text-xs text-slate-600"
+          className="mb-2 flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300"
         >
           <label className="flex items-center gap-1.5">
             <input
@@ -1304,11 +1304,11 @@ export function NotificationCenter({
             />
             <span>Select all visible</span>
           </label>
-          <span className="text-slate-500">
+          <span className="text-slate-500 dark:text-slate-400">
             Selected:{' '}
             <span
               data-testid="alerts-selection-count"
-              className="font-mono font-medium text-slate-700"
+              className="font-mono font-medium text-slate-700 dark:text-slate-200"
             >
               {selectionCount}
             </span>
@@ -1339,14 +1339,14 @@ export function NotificationCenter({
         {olderResolved.length > 0 && (
           <div
             data-testid="older-resolved-summary"
-            className="rounded border border-slate-200 bg-slate-50 text-sm"
+            className="rounded border border-slate-200 dark:border-surface-700 bg-slate-50 dark:bg-surface-800 text-sm"
           >
             <button
               type="button"
               data-testid="older-resolved-toggle"
               aria-expanded={olderResolvedExpanded}
               onClick={() => setOlderResolvedExpanded((v) => !v)}
-              className="flex w-full items-center gap-2 px-2 py-1.5 text-left text-slate-600 hover:bg-slate-100 transition-colors"
+              className="flex w-full items-center gap-2 px-2 py-1.5 text-left text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-surface-700 transition-colors"
             >
               {olderResolvedExpanded ? (
                 <ChevronDown className="h-4 w-4" />
