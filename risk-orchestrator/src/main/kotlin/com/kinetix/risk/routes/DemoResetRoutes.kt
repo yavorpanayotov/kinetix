@@ -53,6 +53,19 @@ fun Route.demoResetRoutes(
 
             DevDataSeeder(jobRecorder, exposureRepository, pnlAttributionRepository).seed()
 
+            // The reset above rewrote daily_risk_snapshots / pnl_attributions, but
+            // risk_positions_flat is otherwise refreshed only after EOD promotion —
+            // without this, reports serve the pre-reset rows (or nothing) until the
+            // next promotion (kx-cg2t). CONCURRENTLY requires an already-populated
+            // view; fall back to a plain refresh the first time.
+            newSuspendedTransaction(db = riskDb) {
+                try {
+                    exec("REFRESH MATERIALIZED VIEW CONCURRENTLY risk_positions_flat")
+                } catch (_: Exception) {
+                    exec("REFRESH MATERIALIZED VIEW risk_positions_flat")
+                }
+            }
+
             call.respond(DemoResetResponse("ok", "Risk data reset and reseeded for ${profile.id}"))
         }
     }

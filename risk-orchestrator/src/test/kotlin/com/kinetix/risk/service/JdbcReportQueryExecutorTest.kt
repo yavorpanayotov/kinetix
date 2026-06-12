@@ -121,4 +121,70 @@ class JdbcReportQueryExecutorTest : FunSpec({
 
         result.size shouldBe 1
     }
+
+    test("executeRiskSummary scopes the query by snapshot_date when a date is provided (regulatory.allium GenerateReport)") {
+        val capturedSql = mutableListOf<String>()
+
+        val meta = mockk<ResultSetMetaData>()
+        every { meta.columnCount } returns 1
+        every { meta.getColumnLabel(1) } returns "book_id"
+        val rs = mockk<ResultSet>(relaxed = true)
+        every { rs.next() } returnsMany listOf(true, false)
+        every { rs.metaData } returns meta
+        every { rs.getString(1) } returns "BOOK-1"
+
+        val ps = mockk<PreparedStatement>(relaxed = true)
+        every { ps.executeQuery() } returns rs
+
+        val stmt = mockk<java.sql.Statement>(relaxed = true)
+        val conn = mockk<Connection>(relaxed = true)
+        every { conn.isReadOnly = any() } returns Unit
+        every { conn.createStatement() } returns stmt
+        every { conn.prepareStatement(capture(capturedSql)) } returns ps
+
+        val ds = mockk<DataSource>()
+        every { ds.connection } returns conn
+
+        val executor = JdbcReportQueryExecutor(ds)
+        runBlocking { executor.executeRiskSummary("BOOK-1", "2026-06-11") }
+
+        capturedSql.single().contains("snapshot_date = ?") shouldBe true
+        io.mockk.verify { ps.setString(2, "2026-06-11") }
+    }
+
+    test("executeRiskSummary falls back to daily_risk_snapshots when the materialised view has never been populated") {
+        // The flat view is refreshed only after EOD promotion; on a freshly
+        // seeded environment it raises 55000. The base table has the rows the
+        // report needs, so the executor must read it directly instead of
+        // serving a permanently empty report.
+        val meta = mockk<ResultSetMetaData>()
+        every { meta.columnCount } returns 2
+        every { meta.getColumnLabel(1) } returns "book_id"
+        every { meta.getColumnLabel(2) } returns "instrument_id"
+        val rs = mockk<ResultSet>(relaxed = true)
+        every { rs.next() } returnsMany listOf(true, false)
+        every { rs.metaData } returns meta
+        every { rs.getString(1) } returns "BOOK-1"
+        every { rs.getString(2) } returns "AAPL"
+
+        val viewPs = mockk<PreparedStatement>(relaxed = true)
+        every { viewPs.executeQuery() } throws SQLException("view not populated", "55000")
+        val basePs = mockk<PreparedStatement>(relaxed = true)
+        every { basePs.executeQuery() } returns rs
+
+        val stmt = mockk<java.sql.Statement>(relaxed = true)
+        val conn = mockk<Connection>(relaxed = true)
+        every { conn.isReadOnly = any() } returns Unit
+        every { conn.createStatement() } returns stmt
+        every { conn.prepareStatement(match<String> { it.contains("FROM risk_positions_flat") }) } returns viewPs
+        every { conn.prepareStatement(match<String> { it.contains("FROM daily_risk_snapshots") }) } returns basePs
+
+        val ds = mockk<DataSource>()
+        every { ds.connection } returns conn
+
+        val executor = JdbcReportQueryExecutor(ds)
+        val result = runBlocking { executor.executeRiskSummary("BOOK-1", null) }
+
+        result.size shouldBe 1
+    }
 })

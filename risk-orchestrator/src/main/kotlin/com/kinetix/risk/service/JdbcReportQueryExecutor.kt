@@ -45,18 +45,69 @@ class JdbcReportQueryExecutor(private val readOnlyDataSource: DataSource) : Repo
     private val logger = LoggerFactory.getLogger(JdbcReportQueryExecutor::class.java)
 
     override suspend fun executeRiskSummary(bookId: String, date: String?): JsonArray {
-        val sql = """
-            SELECT
-                book_id, instrument_id, asset_class,
-                quantity, market_price,
-                delta, gamma, vega, theta, rho,
-                var_contribution, es_contribution,
-                snapshot_date
-            FROM risk_positions_flat
-            WHERE book_id = ?
-            ORDER BY var_contribution DESC NULLS LAST
-        """.trimIndent()
-        return executeQuery(sql, listOf(bookId))
+        val viewSql = buildString {
+            append(
+                """
+                SELECT
+                    book_id, instrument_id, asset_class,
+                    quantity, market_price,
+                    delta, gamma, vega, theta, rho,
+                    var_contribution, es_contribution,
+                    snapshot_date
+                FROM risk_positions_flat
+                WHERE book_id = ?
+                """.trimIndent(),
+            )
+            if (date != null) {
+                append(" AND snapshot_date = ?::date")
+            }
+            append(" ORDER BY var_contribution DESC NULLS LAST")
+        }
+        val params = if (date != null) listOf(bookId, date) else listOf(bookId)
+        return try {
+            runQuery(viewSql, params)
+        } catch (e: SQLException) {
+            if (hasSqlState(e, SQLSTATE_OBJECT_NOT_IN_PREREQUISITE_STATE)) {
+                // risk_positions_flat is refreshed only after EOD promotion; a
+                // freshly seeded environment has never refreshed it. The base
+                // table already holds the snapshots the report needs, so read
+                // it directly instead of serving a permanently empty report.
+                logger.warn(
+                    "risk_positions_flat not yet populated; falling back to daily_risk_snapshots for book {}",
+                    bookId,
+                )
+                executeQuery(riskSummaryBaseTableSql(date), params)
+            } else if (isDegradedEnvironmentSqlState(e)) {
+                logDegradedAndReturnEmpty(e)
+            } else {
+                throw e
+            }
+        }
+    }
+
+    private fun riskSummaryBaseTableSql(date: String?): String = buildString {
+        append(
+            """
+            SELECT * FROM (
+                SELECT DISTINCT ON (book_id, instrument_id)
+                    book_id, instrument_id, asset_class,
+                    quantity, market_price,
+                    delta, gamma, vega, theta, rho,
+                    var_contribution, es_contribution,
+                    snapshot_date
+                FROM daily_risk_snapshots
+                WHERE book_id = ?
+            """.trimIndent(),
+        )
+        if (date != null) {
+            append(" AND snapshot_date = ?::date")
+        }
+        append(
+            """
+                ORDER BY book_id, instrument_id, snapshot_date DESC
+            ) s ORDER BY var_contribution DESC NULLS LAST
+            """.trimIndent(),
+        )
     }
 
     override suspend fun executeStressTestSummary(bookId: String, date: String?): JsonArray {
@@ -102,21 +153,26 @@ class JdbcReportQueryExecutor(private val readOnlyDataSource: DataSource) : Repo
         return executeQuery(sql, params)
     }
 
-    private fun executeQuery(sql: String, params: List<String>): JsonArray {
-        return try {
-            readOnlyDataSource.connection.use { conn ->
-                conn.isReadOnly = true
-                conn.createStatement().use { stmt ->
-                    stmt.queryTimeout = STATEMENT_TIMEOUT_MS / 1_000
-                }
-                conn.prepareStatement(sql).use { ps ->
-                    params.forEachIndexed { i, param -> ps.setString(i + 1, param) }
-                    ps.queryTimeout = STATEMENT_TIMEOUT_MS / 1_000
-                    ps.executeQuery().use { rs ->
-                        rs.toJsonArray()
-                    }
+    /** Runs the query without degraded-environment tolerance — SQL errors propagate. */
+    private fun runQuery(sql: String, params: List<String>): JsonArray {
+        return readOnlyDataSource.connection.use { conn ->
+            conn.isReadOnly = true
+            conn.createStatement().use { stmt ->
+                stmt.queryTimeout = STATEMENT_TIMEOUT_MS / 1_000
+            }
+            conn.prepareStatement(sql).use { ps ->
+                params.forEachIndexed { i, param -> ps.setString(i + 1, param) }
+                ps.queryTimeout = STATEMENT_TIMEOUT_MS / 1_000
+                ps.executeQuery().use { rs ->
+                    rs.toJsonArray()
                 }
             }
+        }
+    }
+
+    private fun executeQuery(sql: String, params: List<String>): JsonArray {
+        return try {
+            runQuery(sql, params)
         } catch (e: SQLException) {
             // Pre-EOD environments hit two SQL states that are semantically
             // "no data here yet" rather than a true failure. Returning an
@@ -124,16 +180,29 @@ class JdbcReportQueryExecutor(private val readOnlyDataSource: DataSource) : Repo
             // with rowCount: 0 (the UI's already-handled empty-report state)
             // instead of the opaque 500 the route otherwise emits.
             if (isDegradedEnvironmentSqlState(e)) {
-                logger.warn(
-                    "Report query hit a degraded-environment SQL state (SQLState={}); returning 0 rows. Cause: {}",
-                    e.sqlState,
-                    e.message,
-                )
-                buildJsonArray { }
+                logDegradedAndReturnEmpty(e)
             } else {
                 throw e
             }
         }
+    }
+
+    private fun logDegradedAndReturnEmpty(e: SQLException): JsonArray {
+        logger.warn(
+            "Report query hit a degraded-environment SQL state (SQLState={}); returning 0 rows. Cause: {}",
+            e.sqlState,
+            e.message,
+        )
+        return buildJsonArray { }
+    }
+
+    private fun hasSqlState(e: SQLException, state: String): Boolean {
+        var current: SQLException? = e
+        while (current != null) {
+            if (current.sqlState == state) return true
+            current = current.nextException
+        }
+        return false
     }
 
     private fun isDegradedEnvironmentSqlState(e: SQLException): Boolean {
