@@ -370,6 +370,42 @@ describe('NotificationCenter', () => {
       vi.useRealTimers()
     })
 
+    it('paginates the queue at 25 rows so a 60-alert backlog is not one endless page', () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date(FIXED_NOW))
+
+      const many = Array.from({ length: 60 }, (_, i) => ({
+        ...criticalNew,
+        id: `q-bulk-${String(i + 1).padStart(2, '0')}`,
+        message: `Bulk alert ${i + 1}`,
+      }))
+      renderQueue(many)
+
+      const rowCount = () =>
+        screen.getByTestId('alerts-list').querySelectorAll('[data-testid^="severity-badge-"]').length
+      expect(rowCount()).toBe(25)
+      expect(screen.getByTestId('pagination-info')).toHaveTextContent('Page 1 of 3')
+
+      fireEvent.click(screen.getByTestId('pagination-next'))
+      expect(rowCount()).toBe(25)
+      expect(screen.getByTestId('pagination-info')).toHaveTextContent('Page 2 of 3')
+
+      fireEvent.click(screen.getByTestId('pagination-next'))
+      expect(rowCount()).toBe(10)
+
+      vi.useRealTimers()
+    })
+
+    it('does not render a pager for 25 or fewer queue rows', () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date(FIXED_NOW))
+
+      renderQueue([criticalNew, warningRecent])
+      expect(screen.queryByTestId('pagination-controls')).not.toBeInTheDocument()
+
+      vi.useRealTimers()
+    })
+
     it('within a severity bucket, sorts newest first by triggeredAt', () => {
       vi.useFakeTimers()
       vi.setSystemTime(new Date(FIXED_NOW))

@@ -21,6 +21,7 @@ import { formatRelativeTime, formatRelativeFuture } from '../utils/format'
 import { exportToCsv } from '../utils/exportCsv'
 import { Card, Button, Badge, Input, Select, Spinner, ErrorCard } from './ui'
 import { ConfirmDialog } from './ui/ConfirmDialog'
+import { PaginationControls } from './ui/PaginationControls'
 import { useCopilotContext } from '../hooks/useCopilotContext'
 import { chat, type ChatChunk, type ChatRequest } from '../api/copilot'
 import { ExplainButton } from './ExplainButton'
@@ -58,6 +59,9 @@ const DEFAULT_ACTIVE_STATUSES: AlertStatus[] = [
 
 /** Auto-collapse window for RESOLVED alerts — older than 24h. */
 const RESOLVED_COLLAPSE_MS = 24 * 60 * 60 * 1000
+
+/** Triage-queue rows per page — alert cards are tall, so 25 keeps a page scannable. */
+const QUEUE_PAGE_SIZE = 25
 
 interface NotificationCenterProps {
   rules: AlertRuleDto[]
@@ -241,6 +245,7 @@ export function NotificationCenter({
     () => new Set(DEFAULT_ACTIVE_STATUSES),
   )
   const [olderResolvedExpanded, setOlderResolvedExpanded] = useState(false)
+  const [queuePage, setQueuePage] = useState(1)
   const [ackOpenId, setAckOpenId] = useState<string | null>(null)
   const [ackNote, setAckNote] = useState('')
   const [ackSubmitting, setAckSubmitting] = useState(false)
@@ -341,6 +346,16 @@ export function NotificationCenter({
     }
     return { visibleAlerts: visible, olderResolved: older }
   }, [sortedAlerts])
+
+  // Paginate the triage queue — a 50+ alert backlog rendered as one endless
+  // column produced a 6,000px page (UX review). 25 rows per page; the pager
+  // resets when the status filter changes the underlying list.
+  const queueTotalPages = Math.ceil(visibleAlerts.length / QUEUE_PAGE_SIZE)
+  const clampedQueuePage = Math.min(queuePage, Math.max(1, queueTotalPages))
+  const pagedAlerts = visibleAlerts.slice(
+    (clampedQueuePage - 1) * QUEUE_PAGE_SIZE,
+    clampedQueuePage * QUEUE_PAGE_SIZE,
+  )
 
   function toggleStatusFilter(status: AlertStatus) {
     setActiveStatuses((prev) => {
@@ -1313,7 +1328,14 @@ export function NotificationCenter({
         </div>
       )}
       <div data-testid="alerts-list" className="space-y-2">
-        {visibleAlerts.map((alert) => renderAlertRow(alert))}
+        {pagedAlerts.map((alert) => renderAlertRow(alert))}
+        {queueTotalPages > 1 && (
+          <PaginationControls
+            currentPage={clampedQueuePage}
+            totalPages={queueTotalPages}
+            onPageChange={setQueuePage}
+          />
+        )}
         {olderResolved.length > 0 && (
           <div
             data-testid="older-resolved-summary"

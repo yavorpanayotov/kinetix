@@ -4,6 +4,9 @@ import { fetchExecutionCosts } from '../api/execution'
 import type { ExecutionCostDto } from '../types'
 import { formatNum, formatQuantity, formatTimestamp } from '../utils/format'
 import { Card, EmptyState, ErrorCard, Spinner } from './ui'
+import { PaginationControls } from './ui/PaginationControls'
+
+const PAGE_SIZE = 50
 
 function SimulationModeBanner() {
   return (
@@ -27,6 +30,7 @@ export function ExecutionCostPanel({ bookId }: ExecutionCostPanelProps) {
   const [costs, setCosts] = useState<ExecutionCostDto[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
 
   useEffect(() => {
     if (!bookId) return
@@ -36,6 +40,7 @@ export function ExecutionCostPanel({ bookId }: ExecutionCostPanelProps) {
     async function load() {
       setLoading(true)
       setError(null)
+      setCurrentPage(1)
       try {
         const data = await fetchExecutionCosts(bookId!)
         if (!cancelled) setCosts(data)
@@ -96,13 +101,16 @@ export function ExecutionCostPanel({ bookId }: ExecutionCostPanelProps) {
     )
   }
 
+  const totalPages = Math.ceil(costs.length / PAGE_SIZE)
+  const pageCosts = costs.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+
   return (
     <>
       <SimulationModeBanner />
       <Card>
       <div className="-mx-4 -my-4 overflow-x-auto">
         <table className="min-w-full divide-y divide-slate-200" data-testid="execution-cost-table">
-          <thead>
+          <thead className="sticky top-0 z-10">
             <tr className="bg-slate-50">
               <th className="px-4 py-2 text-left text-sm font-semibold text-slate-700">Order ID</th>
               <th className="px-4 py-2 text-left text-sm font-semibold text-slate-700">Instrument</th>
@@ -116,7 +124,7 @@ export function ExecutionCostPanel({ bookId }: ExecutionCostPanelProps) {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {costs.map((cost) => {
+            {pageCosts.map((cost) => {
               const slippage = parseFloat(cost.slippageBps)
               const isPositiveCost = slippage > 0
               return (
@@ -153,6 +161,9 @@ export function ExecutionCostPanel({ bookId }: ExecutionCostPanelProps) {
         </table>
       </div>
     </Card>
+    {totalPages > 1 && (
+      <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+    )}
     </>
   )
 }

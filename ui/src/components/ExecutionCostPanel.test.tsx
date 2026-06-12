@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, test, expect, vi, beforeEach } from 'vitest'
 import { ExecutionCostPanel } from './ExecutionCostPanel'
 import * as executionApi from '../api/execution'
@@ -43,6 +43,37 @@ describe('ExecutionCostPanel', () => {
     })
     expect(screen.getByTestId('slippage-ord-001')).toHaveTextContent('10.0')
     expect(screen.getByTestId('cost-row-ord-001')).toBeInTheDocument()
+  })
+
+  test('paginates beyond 50 rows instead of rendering one endless table', async () => {
+    // UX review: ~500 unvirtualised rows produced a 20,949px page.
+    const many = Array.from({ length: 120 }, (_, i) => ({
+      ...sampleCost,
+      orderId: `ord-${String(i + 1).padStart(3, '0')}`,
+    }))
+    mockFetchExecutionCosts.mockResolvedValue(many)
+    render(<ExecutionCostPanel bookId="book-alpha" />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('execution-cost-table')).toBeInTheDocument()
+    })
+
+    expect(screen.getAllByTestId(/^cost-row-/)).toHaveLength(50)
+    expect(screen.getByTestId('pagination-info')).toHaveTextContent('Page 1 of 3')
+
+    fireEvent.click(screen.getByTestId('pagination-next'))
+    expect(screen.getByTestId('cost-row-ord-051')).toBeInTheDocument()
+    expect(screen.getByTestId('pagination-info')).toHaveTextContent('Page 2 of 3')
+  })
+
+  test('does not render pagination for 50 rows or fewer', async () => {
+    mockFetchExecutionCosts.mockResolvedValue([sampleCost])
+    render(<ExecutionCostPanel bookId="book-alpha" />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('execution-cost-table')).toBeInTheDocument()
+    })
+    expect(screen.queryByTestId('pagination-controls')).not.toBeInTheDocument()
   })
 
   test('formats raw numeric strings: quantity separators, price and bps precision, ISO timestamp', async () => {
