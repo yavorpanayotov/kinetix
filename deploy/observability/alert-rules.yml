@@ -182,28 +182,19 @@ groups:
           runbook_url: "https://github.com/panayotovk/kinetix/blob/main/docs/runbooks/support/var-is-stale.md"
 
       # Business-event alert: failed risk calculations (RISK_CALCULATION_FAILED).
-      # DISABLED — no Prometheus metric for this signal is emitted yet.
-      # When a VaR run fails, risk-orchestrator's VaRCalculationService publishes
-      # a `RISK_CALCULATION_FAILED` GovernanceAuditEvent to Kafka (consumed and
-      # persisted by audit-service); the failure path increments no Micrometer
-      # counter, and `risk_var_calculation_total` is incremented on success only
-      # and carries no status/outcome label. The failure signal therefore lives
-      # only in the audit DB / Loki logs, not in Prometheus.
-      #
-      # To enable this alert, risk-orchestrator must emit a Prometheus counter
-      # — e.g. a `risk_calculation_failed_total` counter (or a `status`/`outcome`
-      # label on the existing `var.calculation.count` counter) — incremented in
-      # the catch block of VaRCalculationService alongside the audit event.
-      # Once that metric exists, uncomment and adjust the rule below:
-      #
-      # - alert: RiskCalculationFailureRate
-      #   expr: rate(risk_calculation_failed_total[10m]) > 0
-      #   for: 5m
-      #   labels:
-      #     severity: critical
-      #   annotations:
-      #     summary: "Risk calculations are failing"
-      #     description: "VaR calculations have been failing over the last 10m ({{ $value }}/s) — the risk picture is incomplete; check risk-orchestrator and risk-engine."
+      # risk-orchestrator's VaRCalculationService increments the
+      # `risk_calculation_failed` Micrometer counter (exported as
+      # `risk_calculation_failed_total`, labelled by `book_id` and
+      # `calculation_type`) in its failure catch block, alongside the
+      # `RISK_CALCULATION_FAILED` GovernanceAuditEvent it publishes to Kafka.
+      - alert: RiskCalculationFailureRate
+        expr: rate(risk_calculation_failed_total[10m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Risk calculations are failing"
+          description: "VaR calculations have been failing over the last 10m ({{ $value }}/s) — the risk picture is incomplete; check risk-orchestrator and risk-engine."
 
   # ---------------------------------------------------------------------------
   - name: kinetix-database

@@ -5,6 +5,7 @@ import com.kinetix.risk.client.PositionProvider
 import com.kinetix.risk.client.RiskEngineClient
 import com.kinetix.risk.kafka.RiskResultPublisher
 import com.kinetix.risk.model.*
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.doubles.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
@@ -104,6 +105,43 @@ class VaRCalculationServiceMetricsTest : FunSpec({
 
         val counter = registry.find("var.calculation.count")
             .tag("calculationType", "HISTORICAL")
+            .counter()
+        counter!!.count() shouldBe 1.0
+    }
+
+    test("counter risk_calculation_failed increments tagged with book_id and calculation_type when valuation fails") {
+        // kx-y3y: the failure catch block publishes a RISK_CALCULATION_FAILED
+        // audit event but emitted no Prometheus signal, leaving the
+        // RiskCalculationFailureRate alert rule disabled. The counter is
+        // exported as `risk_calculation_failed_total` by Prometheus.
+        val positions = listOf(
+            Position(
+                bookId = BookId("port-1"),
+                instrumentId = InstrumentId("AAPL"),
+                assetClass = AssetClass.EQUITY,
+                quantity = BigDecimal("100"),
+                averageCost = Money(BigDecimal("150.00"), Currency.getInstance("USD")),
+                marketPrice = Money(BigDecimal("170.00"), Currency.getInstance("USD")),
+                instrumentType = com.kinetix.common.model.instrument.InstrumentTypeCode.CASH_EQUITY,
+            )
+        )
+
+        coEvery { positionProvider.getPositions(BookId("port-1")) } returns positions
+        coEvery { riskEngineClient.valuate(any(), any(), any(), any()) } throws RuntimeException("risk engine unavailable")
+
+        shouldThrow<RuntimeException> {
+            service.calculateVaR(
+                VaRCalculationRequest(
+                    bookId = BookId("port-1"),
+                    calculationType = CalculationType.MONTE_CARLO,
+                    confidenceLevel = ConfidenceLevel.CL_99,
+                )
+            )
+        }
+
+        val counter = registry.find("risk_calculation_failed")
+            .tag("book_id", "port-1")
+            .tag("calculation_type", "MONTE_CARLO")
             .counter()
         counter!!.count() shouldBe 1.0
     }

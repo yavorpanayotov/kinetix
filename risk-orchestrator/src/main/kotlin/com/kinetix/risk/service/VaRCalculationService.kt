@@ -410,6 +410,15 @@ class VaRCalculationService(
 
             return enrichedResult
         } catch (e: Exception) {
+            // Prometheus failure signal (exported as `risk_calculation_failed_total`)
+            // — drives the RiskCalculationFailureRate alert; emitted alongside the
+            // RISK_CALCULATION_FAILED governance audit event below.
+            meterRegistry.counter(
+                "risk_calculation_failed",
+                "book_id", request.bookId.value,
+                "calculation_type", request.calculationType.name,
+            ).increment()
+
             jobError = e.message ?: e.javaClass.simpleName
             val jobCompletedAt = Instant.now()
             val job = ValuationJob(
