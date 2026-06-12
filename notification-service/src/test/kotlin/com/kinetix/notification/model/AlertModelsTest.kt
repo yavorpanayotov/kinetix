@@ -8,11 +8,12 @@ import java.time.Instant
 
 class AlertModelsTest : FunSpec({
 
-    test("AlertType lists all alert categories including RISK_BUDGET_EXCEEDED") {
+    test("AlertType lists all alert categories including the kx-yndy execution-lifecycle types") {
         AlertType.entries.map { it.name } shouldContainExactly listOf(
             "VAR_BREACH", "PNL_THRESHOLD", "RISK_LIMIT",
             "DELTA_BREACH", "VEGA_BREACH", "CONCENTRATION",
-            "MARGIN_BREACH", "DATA_STALENESS", "LIQUIDITY_CONCENTRATION",
+            "MARGIN_BREACH", "MARGIN_CALL", "SETTLEMENT_FAILS",
+            "DATA_STALE", "DATA_STALENESS", "LIQUIDITY_CONCENTRATION",
             "REGIME_CHANGE", "FACTOR_CONCENTRATION", "LIMIT_BREACH",
             "RISK_BUDGET_EXCEEDED",
         )
