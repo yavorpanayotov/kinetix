@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AlertRuleDto, AlertEventDto } from '../types'
 
 vi.mock('../api/notifications')
@@ -50,9 +50,52 @@ const alert: AlertEventDto = {
   status: 'TRIGGERED',
 }
 
+/**
+ * Minimal WebSocket stand-in, mirroring the pattern in
+ * `useAlertStream.exhaustion.test.tsx`. Stubbed globally so the live
+ * alert stream the hook opens (kx-66x) never touches the network.
+ */
+class MockWebSocket {
+  static instances: MockWebSocket[] = []
+
+  url: string
+  onopen: (() => void) | null = null
+  onmessage: ((e: { data: string }) => void) | null = null
+  onclose: (() => void) | null = null
+  onerror: (() => void) | null = null
+  closed = false
+
+  constructor(url: string) {
+    this.url = url
+    MockWebSocket.instances.push(this)
+  }
+
+  send() {}
+
+  close() {
+    this.closed = true
+  }
+
+  simulateOpen() {
+    this.onopen?.()
+  }
+
+  simulateAlert(alert: AlertEventDto) {
+    this.onmessage?.({
+      data: JSON.stringify({ type: 'alert', eventType: 'ALERT_TRIGGERED', alert }),
+    })
+  }
+}
+
 describe('useNotifications', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    MockWebSocket.instances = []
+    vi.stubGlobal('WebSocket', MockWebSocket)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it('loads rules and alerts on mount', async () => {
@@ -354,5 +397,131 @@ describe('useNotifications', () => {
     })
 
     expect(mockDeleteRule).toHaveBeenCalledWith('rule-1')
+  })
+
+  describe('live alert stream (kx-66x)', () => {
+    const streamAlert: AlertEventDto = {
+      ...alert,
+      id: 'alert-2',
+      ruleName: 'Delta Breach',
+      type: 'DELTA_BREACH',
+      message: 'Delta exceeded threshold',
+      triggeredAt: '2025-01-15T11:00:00Z',
+    }
+
+    it('opens a websocket to /ws/alerts on mount', async () => {
+      mockFetchRules.mockResolvedValue([])
+      mockFetchAlerts.mockResolvedValue([])
+
+      const { result } = renderHook(() => useNotifications())
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false)
+      })
+
+      expect(MockWebSocket.instances).toHaveLength(1)
+      expect(MockWebSocket.instances[0].url).toContain('/ws/alerts')
+    })
+
+    it('merges an alert pushed over the websocket into the alert list, newest first', async () => {
+      mockFetchRules.mockResolvedValue([])
+      mockFetchAlerts.mockResolvedValue([alert])
+
+      const { result } = renderHook(() => useNotifications())
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false)
+      })
+
+      const ws = MockWebSocket.instances[0]
+      act(() => {
+        ws.simulateAlert(streamAlert)
+      })
+
+      expect(result.current.alerts.map((a) => a.id)).toEqual([
+        'alert-2',
+        'alert-1',
+      ])
+    })
+
+    it('does not duplicate a websocket alert whose id is already in the REST-fetched list', async () => {
+      mockFetchRules.mockResolvedValue([])
+      mockFetchAlerts.mockResolvedValue([alert])
+
+      const { result } = renderHook(() => useNotifications())
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false)
+      })
+
+      const ws = MockWebSocket.instances[0]
+      act(() => {
+        ws.simulateAlert({ ...alert, message: 'duplicate wire copy' })
+      })
+
+      expect(result.current.alerts).toHaveLength(1)
+      // The REST copy wins — lifecycle actions apply their optimistic
+      // updates to it, so it is the authoritative row.
+      expect(result.current.alerts[0].message).toBe(alert.message)
+    })
+
+    it('acknowledges a stream-delivered alert optimistically', async () => {
+      mockFetchRules.mockResolvedValue([])
+      mockFetchAlerts.mockResolvedValue([])
+      mockAcknowledgeAlert.mockResolvedValue({
+        ...streamAlert,
+        status: 'ACKNOWLEDGED',
+      })
+
+      const { result } = renderHook(() => useNotifications('alice'))
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false)
+      })
+
+      const ws = MockWebSocket.instances[0]
+      act(() => {
+        ws.simulateAlert(streamAlert)
+      })
+
+      expect(result.current.alerts[0].status).toBe('TRIGGERED')
+
+      await act(async () => {
+        await result.current.acknowledgeAlert('alert-2')
+      })
+
+      expect(mockAcknowledgeAlert).toHaveBeenCalledWith(
+        'alert-2',
+        'alice',
+        undefined,
+      )
+      expect(result.current.alerts[0].status).toBe('ACKNOWLEDGED')
+    })
+
+    it('rolls a stream-delivered alert back to TRIGGERED when acknowledge fails', async () => {
+      mockFetchRules.mockResolvedValue([])
+      mockFetchAlerts.mockResolvedValue([])
+      mockAcknowledgeAlert.mockRejectedValue(new Error('Conflict'))
+
+      const { result } = renderHook(() => useNotifications('alice'))
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false)
+      })
+
+      const ws = MockWebSocket.instances[0]
+      act(() => {
+        ws.simulateAlert(streamAlert)
+      })
+
+      await act(async () => {
+        await expect(
+          result.current.acknowledgeAlert('alert-2'),
+        ).rejects.toThrow('Conflict')
+      })
+
+      expect(result.current.alerts[0].status).toBe('TRIGGERED')
+      expect(result.current.error).toContain('Conflict')
+    })
   })
 })

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useAlertStream } from './useAlertStream'
 import {
   fetchRules,
   createRule as apiCreateRule,
@@ -40,6 +41,47 @@ export function useNotifications(username: string | null = null): UseNotificatio
   const [alerts, setAlerts] = useState<AlertEventDto[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Live alert push over /ws/alerts (kx-66x). The REST fetch below is a
+  // one-shot snapshot; without the stream, alerts raised while the page is
+  // open never appear until a reload. `useAlertStream` owns the socket,
+  // reconnect/backoff, and polling fallback — we only consume its list.
+  const { alerts: streamAlerts } = useAlertStream()
+
+  /**
+   * Merged view returned to callers: stream-only alerts (newest first, as
+   * `useAlertStream` prepends them) ahead of the REST-fetched list, deduped
+   * by alert id. The REST copy wins for ids present in both because the
+   * lifecycle actions below apply their optimistic updates to it.
+   */
+  const mergedAlerts = useMemo(() => {
+    if (streamAlerts.length === 0) return alerts
+    const known = new Set(alerts.map((a) => a.id))
+    const fresh = streamAlerts.filter((a) => !known.has(a.id))
+    return fresh.length > 0 ? [...fresh, ...alerts] : alerts
+  }, [alerts, streamAlerts])
+
+  /**
+   * Optimistically apply `patch` to the alert with `alertId`. An alert that
+   * arrived over the live stream only is first copied into local state so
+   * the optimistic update (and the later server reconcile) have a row to
+   * land on; rolling back to the pre-action snapshot then drops that copy,
+   * and the merged view falls back to the untouched stream original.
+   */
+  const optimisticUpsert = useCallback(
+    (alertId: string, patch: Partial<AlertEventDto>) => {
+      setAlerts((current) => {
+        if (current.some((a) => a.id === alertId)) {
+          return current.map((a) =>
+            a.id === alertId ? { ...a, ...patch } : a,
+          )
+        }
+        const fromStream = streamAlerts.find((a) => a.id === alertId)
+        return fromStream ? [{ ...fromStream, ...patch }, ...current] : current
+      })
+    },
+    [streamAlerts],
+  )
 
   const loadData = useCallback(async () => {
     try {
@@ -92,11 +134,7 @@ export function useNotifications(username: string | null = null): UseNotificatio
     async (alertId: string, notes?: string) => {
       const previous = alerts
       // Optimistic update — flip the matching alert to ACKNOWLEDGED.
-      setAlerts((current) =>
-        current.map((a) =>
-          a.id === alertId ? { ...a, status: 'ACKNOWLEDGED' } : a,
-        ),
-      )
+      optimisticUpsert(alertId, { status: 'ACKNOWLEDGED' })
       setError(null)
       try {
         const updated = await apiAcknowledgeAlert(
@@ -116,7 +154,7 @@ export function useNotifications(username: string | null = null): UseNotificatio
         throw err
       }
     },
-    [alerts, username],
+    [alerts, username, optimisticUpsert],
   )
 
   /**
@@ -129,16 +167,11 @@ export function useNotifications(username: string | null = null): UseNotificatio
   const escalateAlert = useCallback(
     async (alertId: string, reason: string, assignee?: string) => {
       const previous = alerts
-      setAlerts((current) =>
-        current.map((a) =>
-          a.id === alertId
-            ? {
-                ...a,
-                status: 'ESCALATED',
-                escalatedTo: assignee ?? a.escalatedTo,
-              }
-            : a,
-        ),
+      optimisticUpsert(
+        alertId,
+        assignee !== undefined
+          ? { status: 'ESCALATED', escalatedTo: assignee }
+          : { status: 'ESCALATED' },
       )
       setError(null)
       try {
@@ -153,7 +186,7 @@ export function useNotifications(username: string | null = null): UseNotificatio
         throw err
       }
     },
-    [alerts],
+    [alerts, optimisticUpsert],
   )
 
   /**
@@ -165,13 +198,10 @@ export function useNotifications(username: string | null = null): UseNotificatio
   const resolveAlert = useCallback(
     async (alertId: string, resolutionText: string) => {
       const previous = alerts
-      setAlerts((current) =>
-        current.map((a) =>
-          a.id === alertId
-            ? { ...a, status: 'RESOLVED', resolvedReason: resolutionText }
-            : a,
-        ),
-      )
+      optimisticUpsert(alertId, {
+        status: 'RESOLVED',
+        resolvedReason: resolutionText,
+      })
       setError(null)
       try {
         const updated = await apiResolveAlert(alertId, resolutionText)
@@ -185,7 +215,7 @@ export function useNotifications(username: string | null = null): UseNotificatio
         throw err
       }
     },
-    [alerts],
+    [alerts, optimisticUpsert],
   )
 
   /**
@@ -200,11 +230,7 @@ export function useNotifications(username: string | null = null): UseNotificatio
   const snoozeAlert = useCallback(
     async (alertId: string, snoozedUntil: string) => {
       const previous = alerts
-      setAlerts((current) =>
-        current.map((a) =>
-          a.id === alertId ? { ...a, snoozedUntil } : a,
-        ),
-      )
+      optimisticUpsert(alertId, { snoozedUntil })
       setError(null)
       try {
         const updated = await apiSnoozeAlert(alertId, snoozedUntil)
@@ -218,12 +244,12 @@ export function useNotifications(username: string | null = null): UseNotificatio
         throw err
       }
     },
-    [alerts],
+    [alerts, optimisticUpsert],
   )
 
   return {
     rules,
-    alerts,
+    alerts: mergedAlerts,
     loading,
     error,
     createRule,
