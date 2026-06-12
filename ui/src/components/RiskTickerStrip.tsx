@@ -23,6 +23,12 @@ interface RiskTickerStripProps {
   varLimit: number | null
   streamConnected: boolean
   /**
+   * True when the demo replay tape is paused — the stream socket can be open
+   * while prices are not advancing, and the strip must not claim "Live" then
+   * (kx-foeg).
+   */
+  tapeFrozen?: boolean
+  /**
    * Plan §8.2 — when VaR utilisation breaches 80% of limit, the strip
    * surfaces a "Need a hedge?" CTA next to the red VaR cell. Clicking it
    * invokes this callback to open the Hedge Recommendation panel. If the
@@ -65,6 +71,7 @@ export function RiskTickerStrip({
   greeksResult,
   varLimit,
   streamConnected,
+  tapeFrozen = false,
   onOpenHedgePanel,
 }: RiskTickerStripProps) {
   // When no book is selected, render a neutral hint so the strip stays visible globally.
@@ -134,10 +141,12 @@ export function RiskTickerStrip({
       <div className="flex items-center gap-1.5">
         <span
           data-testid="ticker-connection-status"
-          className={`h-2 w-2 rounded-full ${streamConnected ? 'bg-green-500' : 'bg-red-500'}`}
-          aria-label={streamConnected ? 'Connected' : 'Disconnected'}
+          className={`h-2 w-2 rounded-full ${!streamConnected ? 'bg-red-500' : tapeFrozen ? 'bg-amber-500' : 'bg-green-500'}`}
+          aria-label={!streamConnected ? 'Disconnected' : tapeFrozen ? 'Frozen' : 'Connected'}
         />
-        <span className="text-slate-400 text-xs">{streamConnected ? 'Live' : 'Disconnected'}</span>
+        <span className="text-slate-400 text-xs">
+          {!streamConnected ? 'Disconnected' : tapeFrozen ? 'Frozen' : 'Live'}
+        </span>
       </div>
 
       <div className="flex items-baseline gap-1">

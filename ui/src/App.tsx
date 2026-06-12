@@ -829,6 +829,7 @@ function AppContent() {
         greeksResult={greeksResult}
         varLimit={varLimit}
         streamConnected={intradayConnected}
+        tapeFrozen={tapeReplay.status === 'FROZEN'}
         onOpenHedgePanel={hedgeCtaActive ? openHedgePanel : undefined}
       />
 

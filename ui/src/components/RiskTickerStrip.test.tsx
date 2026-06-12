@@ -94,6 +94,27 @@ describe('RiskTickerStrip', () => {
       expect(screen.getByTestId('ticker-nav')).toHaveTextContent('$1,000,000.00')
     })
 
+    it('shows Live with a green dot when connected and the tape is advancing', () => {
+      render(<RiskTickerStrip {...fullProps} tapeFrozen={false} />)
+      expect(screen.getByText('Live')).toBeInTheDocument()
+      expect(screen.getByTestId('ticker-connection-status').className).toContain('bg-green-500')
+    })
+
+    it('shows Frozen with an amber dot when connected but the replay tape is frozen (kx-foeg)', () => {
+      // The stream socket being open does not mean prices are moving — when
+      // the demo tape is frozen the strip must not claim "Live".
+      render(<RiskTickerStrip {...fullProps} tapeFrozen={true} />)
+      expect(screen.queryByText('Live')).not.toBeInTheDocument()
+      expect(screen.getByText('Frozen')).toBeInTheDocument()
+      expect(screen.getByTestId('ticker-connection-status').className).toContain('bg-amber-500')
+    })
+
+    it('shows Disconnected when the stream is down, regardless of tape state', () => {
+      render(<RiskTickerStrip {...fullProps} streamConnected={false} tapeFrozen={true} />)
+      expect(screen.getByText('Disconnected')).toBeInTheDocument()
+      expect(screen.queryByText('Frozen')).not.toBeInTheDocument()
+    })
+
     it('renders Unrealised P&L using formatSignedMoney (positive prefixed with +)', () => {
       render(<RiskTickerStrip {...fullProps} />)
       expect(screen.getByTestId('ticker-unrealised-pnl')).toHaveTextContent('+$50,000.00')
