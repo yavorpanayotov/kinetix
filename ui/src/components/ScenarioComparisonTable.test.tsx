@@ -50,6 +50,58 @@ describe('ScenarioComparisonTable', () => {
     expect(screen.getByText('VaR Multiplier')).toBeInTheDocument()
   })
 
+  it('collapses an identical Base VaR into one header stat instead of repeating it per row', () => {
+    // UX review: Base VaR was the same $167,731.40 on all 16 rows — a column
+    // of identical values is noise.
+    render(<ScenarioComparisonTable {...defaultProps} />)
+
+    const stat = screen.getByTestId('common-base-var')
+    expect(stat).toHaveTextContent('Base VaR')
+    expect(stat).toHaveTextContent('$100,000.00')
+    expect(stat).toHaveTextContent(/all 4 scenarios/i)
+    // The repeated value appears once, not once per row.
+    expect(screen.getAllByText('$100,000.00')).toHaveLength(1)
+  })
+
+  it('keeps the per-row Base VaR column when scenarios have different base VaRs', () => {
+    const results = [
+      makeStressResult({ scenarioName: 'GFC_2008', baseVar: '100000.00', stressedVar: '300000.00' }),
+      makeStressResult({ scenarioName: 'COVID_2020', baseVar: '120000.00', stressedVar: '250000.00' }),
+    ]
+    render(<ScenarioComparisonTable {...defaultProps} results={results} />)
+
+    expect(screen.queryByTestId('common-base-var')).not.toBeInTheDocument()
+    expect(screen.getByText('$100,000.00')).toBeInTheDocument()
+    expect(screen.getByText('$120,000.00')).toBeInTheDocument()
+  })
+
+  it('omits the Category column entirely when no scenario carries a category', () => {
+    render(<ScenarioComparisonTable {...defaultProps} />)
+    expect(screen.queryByText('Category')).not.toBeInTheDocument()
+    expect(screen.queryAllByTestId('scenario-category')).toHaveLength(0)
+  })
+
+  it('renders the Category column when scenario metadata provides categories', () => {
+    render(
+      <ScenarioComparisonTable
+        {...defaultProps}
+        scenarioMetadata={[
+          {
+            name: 'GFC_2008',
+            description: 'Global financial crisis',
+            shocks: [],
+            status: 'APPROVED',
+            approvedBy: 'risk-committee',
+            scenarioCategory: 'REGULATORY_MANDATED',
+          } as never,
+        ]}
+      />,
+    )
+
+    expect(screen.getByText('Category')).toBeInTheDocument()
+    expect(screen.getByText('Regulatory')).toBeInTheDocument()
+  })
+
   it('should render one row per scenario result', () => {
     render(<ScenarioComparisonTable {...defaultProps} />)
 

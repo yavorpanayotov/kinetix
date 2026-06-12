@@ -118,7 +118,21 @@ export function ScenarioComparisonTable({
     )
   }
 
+  const metaFor = (r: StressTestResultDto) =>
+    scenarioMetadata?.find(
+      (s) => s.name === r.scenarioName || s.name.replace(/_/g, ' ') === r.scenarioName.replace(/_/g, ' '),
+    )
+
   const hasAnyBreaches = results.some((r) => (r.limitBreaches ?? []).length > 0)
+  // An entirely empty Category column is dead width (UX review) — render it
+  // only when at least one scenario actually carries a category.
+  const hasAnyCategory = results.some((r) => metaFor(r)?.scenarioCategory)
+  // All stress runs share the portfolio's base VaR in the common case — a
+  // column of identical values is noise; collapse it to one header stat.
+  const commonBaseVar =
+    results.length > 1 && new Set(results.map((r) => Number(r.baseVar))).size === 1
+      ? results[0].baseVar
+      : null
   const showCheckboxes = !!onToggleCheck
   const explainedResult =
     explainScenario !== null
@@ -127,14 +141,26 @@ export function ScenarioComparisonTable({
 
   return (
     <div data-testid="scenario-comparison-table" className="overflow-x-auto">
+      {commonBaseVar !== null && (
+        <p
+          data-testid="common-base-var"
+          className="mb-2 text-xs text-slate-500 dark:text-slate-400"
+        >
+          <span className="font-medium">Base VaR</span>{' '}
+          <span className="font-mono tabular-nums text-slate-700 dark:text-slate-200">
+            {formatCurrency(commonBaseVar)}
+          </span>{' '}
+          · same for all {results.length} scenarios
+        </p>
+      )}
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b text-left text-slate-600 dark:text-slate-400">
             {showCheckboxes && <th className="py-2 w-8"></th>}
             <th className="py-2 w-8"></th>
             <th className="py-2">Scenario</th>
-            <th className="py-2">Category</th>
-            <th className="py-2 text-right">Base VaR</th>
+            {hasAnyCategory && <th className="py-2">Category</th>}
+            {commonBaseVar === null && <th className="py-2 text-right">Base VaR</th>}
             <th className="py-2 text-right">Stressed VaR</th>
             <th className="py-2 text-right">VaR Multiplier</th>
             <th className="py-2 text-right">P&amp;L Impact</th>
@@ -187,9 +213,7 @@ export function ScenarioComparisonTable({
                 </td>
                 <td className="py-1.5 font-medium max-w-[240px] truncate">
                   {(() => {
-                    const meta = scenarioMetadata?.find(
-                      (s) => s.name === r.scenarioName || s.name.replace(/_/g, ' ') === r.scenarioName.replace(/_/g, ' '),
-                    )
+                    const meta = metaFor(r)
                     return meta ? (
                       <ScenarioTooltip
                         scenarioName={r.scenarioName}
@@ -204,21 +228,22 @@ export function ScenarioComparisonTable({
                     )
                   })()}
                 </td>
-                <td className="py-1.5" data-testid="scenario-category">
-                  {(() => {
-                    const meta = scenarioMetadata?.find(
-                      (s) => s.name === r.scenarioName || s.name.replace(/_/g, ' ') === r.scenarioName.replace(/_/g, ' '),
-                    )
-                    const cat = meta?.scenarioCategory
-                    if (!cat) return null
-                    return (
-                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${CATEGORY_BADGE_STYLES[cat] ?? 'bg-slate-100 text-slate-600'}`}>
-                        {CATEGORY_LABELS[cat] ?? cat}
-                      </span>
-                    )
-                  })()}
-                </td>
-                <td className="py-1.5 text-right">{formatCurrency(r.baseVar)}</td>
+                {hasAnyCategory && (
+                  <td className="py-1.5" data-testid="scenario-category">
+                    {(() => {
+                      const cat = metaFor(r)?.scenarioCategory
+                      if (!cat) return null
+                      return (
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${CATEGORY_BADGE_STYLES[cat] ?? 'bg-slate-100 text-slate-600'}`}>
+                          {CATEGORY_LABELS[cat] ?? cat}
+                        </span>
+                      )
+                    })()}
+                  </td>
+                )}
+                {commonBaseVar === null && (
+                  <td className="py-1.5 text-right">{formatCurrency(r.baseVar)}</td>
+                )}
                 <td className="py-1.5 text-right font-medium text-red-600 dark:text-red-400">
                   {formatCurrency(r.stressedVar)}
                 </td>
