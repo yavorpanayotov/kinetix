@@ -38,12 +38,14 @@ describe('LimitsBreachHeader', () => {
         alerts={[
           alert({
             id: 'breach-1',
+            bookId: 'book-1',
             severity: 'CRITICAL',
             currentValue: 1_300_000,
             threshold: 1_000_000,
           }),
           alert({
             id: 'breach-2',
+            bookId: 'book-2',
             severity: 'CRITICAL',
             currentValue: 250_000,
             threshold: 100_000,
@@ -56,12 +58,31 @@ describe('LimitsBreachHeader', () => {
     expect(screen.getByTestId('breach-count')).toHaveTextContent('2')
   })
 
+  it('counts a breached condition once across repeated firings and severity shadows', () => {
+    // UX review: the chip said "BREACHES 20" while only a handful of books
+    // were actually in breach — every repeated firing and every WARNING
+    // shadow of a CRITICAL inflated the count. The chip counts breached
+    // conditions (book + alert type), not alert events.
+    render(
+      <LimitsBreachHeader
+        alerts={[
+          alert({ id: 'f-1', bookId: 'macro-hedge', severity: 'CRITICAL', currentValue: 30_447_680, threshold: 1_000_000 }),
+          alert({ id: 'f-2', bookId: 'macro-hedge', severity: 'CRITICAL', currentValue: 30_447_700, threshold: 1_000_000 }),
+          alert({ id: 'f-3', bookId: 'macro-hedge', severity: 'WARNING', currentValue: 30_447_680, threshold: 750_000 }),
+          alert({ id: 'f-4', bookId: 'multi-asset', severity: 'CRITICAL', currentValue: 2_222_774, threshold: 1_000_000 }),
+        ]}
+      />,
+    )
+
+    expect(screen.getByTestId('breach-count')).toHaveTextContent('2')
+  })
+
   it('renders the near-breach count for alerts at 80%–100% utilisation', () => {
     render(
       <LimitsBreachHeader
         alerts={[
-          alert({ id: 'nb-1', currentValue: 820_000, threshold: 1_000_000 }),
-          alert({ id: 'nb-2', currentValue: 999_000, threshold: 1_000_000 }),
+          alert({ id: 'nb-1', bookId: 'book-1', currentValue: 820_000, threshold: 1_000_000 }),
+          alert({ id: 'nb-2', bookId: 'book-2', currentValue: 999_000, threshold: 1_000_000 }),
           // Below 80% — should not count
           alert({ id: 'safe-1', currentValue: 500_000, threshold: 1_000_000 }),
           // Above 100% — should be a breach, not a near-breach

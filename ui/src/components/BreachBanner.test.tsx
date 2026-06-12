@@ -376,23 +376,91 @@ describe('BreachBanner', () => {
       expect(onViewAllAlerts).toHaveBeenCalledTimes(1)
     })
 
-    it('does not roll up alerts in different books (same severity/type, different bookId)', () => {
+    it('rolls up same-type breaches across different books into one banner naming the worst book', () => {
+      // UX review: three CRITICAL VaR banners (macro-hedge, multi-asset,
+      // emerging-markets) stacked 130px of permanent red on every tab. One
+      // condition class → one rollup row with cross-book context.
       render(
         <BreachBanner
           activeTab="positions"
           varValue={500_000}
           varLimit={1_000_000}
           alerts={[
-            makeAlert({ id: 'a1', severity: 'CRITICAL', type: 'VAR_BREACH', bookId: 'book-a', triggeredAt: '2026-02-28T11:50:00Z' }),
-            makeAlert({ id: 'a2', severity: 'CRITICAL', type: 'VAR_BREACH', bookId: 'book-b', triggeredAt: '2026-02-28T11:55:00Z' }),
+            makeAlert({ id: 'a1', severity: 'CRITICAL', type: 'VAR_BREACH', bookId: 'macro-hedge', currentValue: 30_447_680, triggeredAt: '2026-02-28T11:50:00Z' }),
+            makeAlert({ id: 'a2', severity: 'CRITICAL', type: 'VAR_BREACH', bookId: 'multi-asset', currentValue: 2_222_774, triggeredAt: '2026-02-28T11:55:00Z' }),
+            makeAlert({ id: 'a3', severity: 'CRITICAL', type: 'VAR_BREACH', bookId: 'emerging-markets', currentValue: 27_284_598, triggeredAt: '2026-02-28T11:58:00Z' }),
           ]}
           onDismiss={vi.fn()}
         />,
       )
 
-      expect(screen.queryByTestId('breach-banner-rollup')).not.toBeInTheDocument()
-      expect(screen.getByTestId('alert-item-a1')).toBeInTheDocument()
-      expect(screen.getByTestId('alert-item-a2')).toBeInTheDocument()
+      expect(screen.queryByTestId('alert-item-a1')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('alert-item-a2')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('alert-item-a3')).not.toBeInTheDocument()
+
+      const rollup = screen.getByTestId('breach-banner-rollup')
+      expect(rollup).toHaveTextContent(/3 VaR breaches across 3 books/i)
+      expect(rollup).toHaveTextContent(/\$30,447,680/)
+      expect(rollup).toHaveTextContent(/macro-hedge/)
+      expect(rollup).toHaveTextContent(/oldest/i)
+      expect(screen.getByTestId('breach-banner-count')).toHaveTextContent('3')
+    })
+
+    it('dedupes the same book+type to the highest severity before rolling up', () => {
+      // One VaR condition that tripped both the WARNING and CRITICAL rule
+      // must not inflate the rollup count.
+      render(
+        <BreachBanner
+          activeTab="positions"
+          varValue={500_000}
+          varLimit={1_000_000}
+          alerts={[
+            makeAlert({ id: 'crit-a', severity: 'CRITICAL', type: 'VAR_BREACH', bookId: 'macro-hedge', threshold: 1_000_000, triggeredAt: '2026-02-28T11:50:00Z' }),
+            makeAlert({ id: 'warn-a', severity: 'WARNING', type: 'VAR_BREACH', bookId: 'macro-hedge', threshold: 750_000, triggeredAt: '2026-02-28T11:51:00Z' }),
+            makeAlert({ id: 'crit-b', severity: 'CRITICAL', type: 'VAR_BREACH', bookId: 'multi-asset', triggeredAt: '2026-02-28T11:55:00Z' }),
+          ]}
+          onDismiss={vi.fn()}
+        />,
+      )
+
+      // Two distinct breached books → rollup of 2, not 3.
+      expect(screen.getByTestId('breach-banner-count')).toHaveTextContent('2')
+    })
+
+    it('marks a rollup whose newest member is older than 4h as stale', () => {
+      // Faked "now" is 2026-02-28T12:00Z — these fired ~15h earlier.
+      render(
+        <BreachBanner
+          activeTab="positions"
+          varValue={500_000}
+          varLimit={1_000_000}
+          alerts={[
+            makeAlert({ id: 'a1', severity: 'CRITICAL', type: 'VAR_BREACH', bookId: 'book-a', triggeredAt: '2026-02-27T21:00:00Z' }),
+            makeAlert({ id: 'a2', severity: 'CRITICAL', type: 'VAR_BREACH', bookId: 'book-b', triggeredAt: '2026-02-27T21:05:00Z' }),
+          ]}
+          onDismiss={vi.fn()}
+        />,
+      )
+
+      expect(screen.getByTestId('breach-banner-rollup')).toHaveAttribute('data-stale', 'true')
+    })
+
+    it('does not mark a rollup with a fresh member as stale', () => {
+      const now = Date.now()
+      render(
+        <BreachBanner
+          activeTab="positions"
+          varValue={500_000}
+          varLimit={1_000_000}
+          alerts={[
+            makeAlert({ id: 'a1', severity: 'CRITICAL', type: 'VAR_BREACH', bookId: 'book-a', triggeredAt: new Date(now - 60_000).toISOString() }),
+            makeAlert({ id: 'a2', severity: 'CRITICAL', type: 'VAR_BREACH', bookId: 'book-b', triggeredAt: new Date(now - 120_000).toISOString() }),
+          ]}
+          onDismiss={vi.fn()}
+        />,
+      )
+
+      expect(screen.getByTestId('breach-banner-rollup')).toHaveAttribute('data-stale', 'false')
     })
 
     it('does not roll up alerts older than the 24h window into the group', () => {

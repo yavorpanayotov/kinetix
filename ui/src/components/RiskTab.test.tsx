@@ -261,12 +261,27 @@ describe('RiskTab', () => {
     expect(limitLabel).toHaveTextContent('50%')
   })
 
-  it('renders risk alert banner when alerts are present', () => {
+  it('renders non-critical alerts in the banner — criticals are owned by the sticky breach banner', () => {
     mockUseAlerts.mockReturnValue({
       alerts: [
         {
-          id: 'alert-1',
+          id: 'alert-warn',
           ruleId: 'rule-1',
+          ruleName: 'VaR Early Warning',
+          type: 'VAR_BREACH',
+          severity: 'WARNING',
+          message: 'VaR approaching limit',
+          currentValue: 1800000,
+          threshold: 1500000,
+          bookId: 'book-2',
+          triggeredAt: '2026-02-28T10:00:00Z',
+          status: 'TRIGGERED',
+        },
+        {
+          // CRITICAL on a different book — must NOT re-render here; the
+          // App-level sticky BreachBanner already shows it on this tab.
+          id: 'alert-crit',
+          ruleId: 'rule-2',
           ruleName: 'VaR Limit',
           type: 'VAR_BREACH',
           severity: 'CRITICAL',
@@ -284,7 +299,48 @@ describe('RiskTab', () => {
     render(<RiskTab bookId="book-1" {...defaultStressProps} />)
 
     expect(screen.getByTestId('risk-alert-banner')).toBeInTheDocument()
-    expect(screen.getByText('CRITICAL: VaR breached $2,000,000 limit — current: $2,300,000 (book-1)')).toBeInTheDocument()
+    expect(screen.getByTestId('alert-item-alert-warn')).toBeInTheDocument()
+    expect(screen.queryByTestId('alert-item-alert-crit')).not.toBeInTheDocument()
+  })
+
+  it('drops a WARNING that shadows a CRITICAL on the same book and condition', () => {
+    mockUseAlerts.mockReturnValue({
+      alerts: [
+        {
+          id: 'alert-crit',
+          ruleId: 'rule-2',
+          ruleName: 'VaR Limit',
+          type: 'VAR_BREACH',
+          severity: 'CRITICAL',
+          message: 'VaR exceeds limit',
+          currentValue: 30447680,
+          threshold: 1000000,
+          bookId: 'macro-hedge',
+          triggeredAt: '2026-02-28T10:00:00Z',
+          status: 'TRIGGERED',
+        },
+        {
+          id: 'alert-warn-shadow',
+          ruleId: 'rule-3',
+          ruleName: 'VaR Early Warning',
+          type: 'VAR_BREACH',
+          severity: 'WARNING',
+          message: 'VaR approaching limit',
+          currentValue: 30447680,
+          threshold: 750000,
+          bookId: 'macro-hedge',
+          triggeredAt: '2026-02-28T10:01:00Z',
+          status: 'TRIGGERED',
+        },
+      ],
+      dismissAlert: vi.fn(),
+    })
+
+    render(<RiskTab bookId="book-1" {...defaultStressProps} />)
+
+    // Both rows describe the same condition; the WARNING shadow is dropped and
+    // the CRITICAL belongs to the sticky banner — so no banner renders here.
+    expect(screen.queryByTestId('risk-alert-banner')).not.toBeInTheDocument()
   })
 
   it('does not render risk alert banner when no alerts', () => {

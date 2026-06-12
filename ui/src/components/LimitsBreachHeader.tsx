@@ -48,9 +48,17 @@ export function LimitsBreachHeader({
   onScrollToLimits,
   onShowAlerts,
 }: LimitsBreachHeaderProps) {
+  // Count breached CONDITIONS (book + alert type), not alert events —
+  // repeated firings and lower-severity shadows of the same condition must
+  // not inflate the chip (UX review: "BREACHES 20" vs 3 books in breach).
+  const conditionCount = (filtered: AlertEventDto[]) =>
+    new Set(filtered.map((a) => `${a.bookId}|${a.type}`)).size
+
   const breaches = alerts.filter(isBreach)
   const nearBreaches = alerts.filter(isNearBreach)
   const recent = alerts.filter(isRecentMaterial)
+  const breachCount = conditionCount(breaches)
+  const nearBreachCount = conditionCount(nearBreaches)
 
   const allClear =
     breaches.length === 0 && nearBreaches.length === 0 && recent.length === 0
@@ -79,7 +87,7 @@ export function LimitsBreachHeader({
           Breaches
         </span>
         <span data-testid="breach-count" className="font-mono tabular-nums">
-          {breaches.length}
+          {breachCount}
         </span>
       </button>
 
@@ -102,7 +110,7 @@ export function LimitsBreachHeader({
           Near-breach
         </span>
         <span data-testid="near-breach-count" className="font-mono tabular-nums">
-          {nearBreaches.length}
+          {nearBreachCount}
         </span>
       </button>
 

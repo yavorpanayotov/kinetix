@@ -183,7 +183,23 @@ describe('RiskAlertBanner', () => {
 
     render(<RiskAlertBanner alerts={alerts} onDismiss={vi.fn()} />)
 
-    expect(screen.getByText('View all in Alerts tab')).toBeInTheDocument()
+    expect(screen.getByText('View all 4 in Alerts tab')).toBeInTheDocument()
+  })
+
+  it('renders the overflow line as a real button when onViewAll is supplied', () => {
+    const onViewAll = vi.fn()
+    const alerts = [
+      makeAlert({ id: 'a1' }),
+      makeAlert({ id: 'a2' }),
+      makeAlert({ id: 'a3' }),
+      makeAlert({ id: 'a4' }),
+    ]
+
+    render(<RiskAlertBanner alerts={alerts} onDismiss={vi.fn()} onViewAll={onViewAll} />)
+
+    const link = screen.getByTestId('risk-alert-banner-view-all')
+    fireEvent.click(link)
+    expect(onViewAll).toHaveBeenCalledTimes(1)
   })
 
   it('does not show "View all" link when 3 or fewer alerts', () => {
@@ -191,7 +207,19 @@ describe('RiskAlertBanner', () => {
 
     render(<RiskAlertBanner alerts={alerts} onDismiss={vi.fn()} />)
 
-    expect(screen.queryByText('View all in Alerts tab')).not.toBeInTheDocument()
+    expect(screen.queryByText(/View all .*in Alerts tab/)).not.toBeInTheDocument()
+  })
+
+  it('marks rows older than 4h as stale and fresh rows as not stale', () => {
+    const alerts = [
+      makeAlert({ id: 'old', triggeredAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString() }),
+      makeAlert({ id: 'fresh', triggeredAt: new Date(Date.now() - 60_000).toISOString() }),
+    ]
+
+    render(<RiskAlertBanner alerts={alerts} onDismiss={vi.fn()} />)
+
+    expect(screen.getByTestId('alert-item-old')).toHaveAttribute('data-stale', 'true')
+    expect(screen.getByTestId('alert-item-fresh')).toHaveAttribute('data-stale', 'false')
   })
 
   it('has data-testid on the container', () => {

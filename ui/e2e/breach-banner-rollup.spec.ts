@@ -167,4 +167,34 @@ test.describe('Breach banner rollup (plan §3.1, G3)', () => {
     await expect(rollupRows).toContainText('$2,512,730')
     await expect(rollupRows).toContainText('derivatives-book')
   })
+
+  test('folds CRITICAL VaR breaches across different books into one cross-book rollup naming the worst book', async ({ page }) => {
+    // UX review: macro-hedge / multi-asset / emerging-markets each stacked
+    // their own banner. One situation → one row.
+    const crossBookAlerts = [
+      { ...ROLLUP_ALERTS[0], id: 'xb-1', bookId: 'macro-hedge', currentValue: 30_447_680 },
+      { ...ROLLUP_ALERTS[1], id: 'xb-2', bookId: 'multi-asset', currentValue: 2_222_774 },
+      { ...ROLLUP_ALERTS[2], id: 'xb-3', bookId: 'emerging-markets', currentValue: 27_284_598 },
+    ]
+    await overrideRulesRoute(page, [BREACH_RULE])
+    await overrideVarRoute(page, SAMPLE_VAR_BELOW_LIMIT)
+    await overrideAlertsRoute(page, crossBookAlerts)
+
+    await page.goto('/')
+    await drillIntoBook(page)
+
+    await expect(page.getByTestId('breach-banner')).toBeVisible({ timeout: 5000 })
+
+    const rollupRows = page.getByTestId('breach-banner-rollup')
+    await expect(rollupRows).toHaveCount(1)
+    await expect(page.getByTestId('alert-item-xb-1')).toHaveCount(0)
+    await expect(page.getByTestId('alert-item-xb-2')).toHaveCount(0)
+    await expect(page.getByTestId('alert-item-xb-3')).toHaveCount(0)
+
+    await expect(rollupRows).toContainText('3 VaR breaches across 3 books')
+    // Worst breach drives the headline value.
+    await expect(rollupRows).toContainText('$30,447,680')
+    await expect(rollupRows).toContainText('macro-hedge')
+    await expect(rollupRows).toContainText('oldest')
+  })
 })

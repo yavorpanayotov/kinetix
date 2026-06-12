@@ -1,6 +1,9 @@
 import { useMemo } from 'react'
 import { XCircle } from 'lucide-react'
 import type { AlertEventDto } from '../types'
+import { dedupeAlerts } from '../utils/alertDedupe'
+import { formatRelativeTime } from '../utils/format'
+import { isStaleAlert } from '../utils/alertStaleness'
 import { RiskAlertBanner } from './RiskAlertBanner'
 
 /**
@@ -83,11 +86,15 @@ function formatCurrency(value: number): string {
 }
 
 /**
- * Group CRITICAL alerts by (severity, bookId, type) and, within each group,
- * keep only the alerts that fall inside a 24h window anchored on the most
- * recent member. Anchoring on the latest alert (rather than `now`) matches the
- * audit case — three identical breaches "3 days ago" still roll up because
- * they all triggered within minutes of each other.
+ * Group CRITICAL alerts by (severity, type) — across books — and, within each
+ * group, keep only the alerts that fall inside a 24h window anchored on the
+ * most recent member. Anchoring on the latest alert (rather than `now`)
+ * matches the audit case — three identical breaches "3 days ago" still roll
+ * up because they all triggered within minutes of each other.
+ *
+ * Cross-book grouping is deliberate (UX review): three books in critical VaR
+ * breach must read as ONE situation ("3 VaR breaches across 3 books"), not
+ * three stacked banners eating 130px of permanent red on every tab.
  *
  * Returns the groups in input order of their first qualifying member so the
  * visible ordering stays stable across renders.
@@ -100,7 +107,7 @@ function groupRollups(alerts: AlertEventDto[]): RollupGroup[] {
     const triggered = new Date(alert.triggeredAt).getTime()
     if (!Number.isFinite(triggered)) continue
 
-    const key = `${alert.severity}|${alert.bookId}|${alert.type}`
+    const key = `${alert.severity}|${alert.type}`
     let bucket = byKey.get(key)
     if (!bucket) {
       bucket = []
@@ -141,8 +148,10 @@ export function BreachBanner({
   onOpenHedgePanel,
   onViewAllAlerts,
 }: BreachBannerProps) {
+  // Shadow-dedupe first: a book whose one VaR condition tripped rules at two
+  // severities must count (and render) once, at the highest severity.
   const criticalAlerts = useMemo(
-    () => alerts.filter((a) => a.severity === 'CRITICAL'),
+    () => dedupeAlerts(alerts).filter((a) => a.severity === 'CRITICAL'),
     [alerts],
   )
 
@@ -208,17 +217,36 @@ export function BreachBanner({
             const latest = group.alerts.reduce((a, b) =>
               new Date(a.triggeredAt).getTime() >= new Date(b.triggeredAt).getTime() ? a : b,
             )
+            const oldest = group.alerts.reduce((a, b) =>
+              new Date(a.triggeredAt).getTime() <= new Date(b.triggeredAt).getTime() ? a : b,
+            )
+            const worst = group.alerts.reduce((a, b) => (a.currentValue >= b.currentValue ? a : b))
+            const books = new Set(group.alerts.map((a) => a.bookId))
             const label = rollupLabel(latest.type)
-            const headline = `${group.alerts.length} ${label} in the last 24h — latest ${formatCurrency(
-              latest.currentValue,
-            )} (${latest.bookId})`
+            const headline =
+              books.size > 1
+                ? `${group.alerts.length} ${label} across ${books.size} books — worst ${formatCurrency(
+                    worst.currentValue,
+                  )} (${worst.bookId}) · oldest ${formatRelativeTime(oldest.triggeredAt)}`
+                : `${group.alerts.length} ${label} in the last 24h — latest ${formatCurrency(
+                    latest.currentValue,
+                  )} (${latest.bookId})`
+            // A rollup whose newest member is hours old should not scream as
+            // loudly as a fresh breach — banner blindness is how real
+            // breaches get missed.
+            const isStale = isStaleAlert(latest.triggeredAt)
             return (
               <div
                 key={group.key}
                 data-testid="breach-banner-rollup"
+                data-stale={isStale}
                 role="alert"
                 aria-label={headline}
-                className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 text-red-900 dark:border-red-700 dark:bg-red-900/30 dark:text-red-200 px-4 py-2"
+                className={`flex items-center gap-3 rounded-lg border px-4 py-2 ${
+                  isStale
+                    ? 'border-red-300/60 bg-transparent text-red-800/90 dark:border-red-800/60 dark:text-red-300/90'
+                    : 'border-red-200 bg-red-50 text-red-900 dark:border-red-700 dark:bg-red-900/30 dark:text-red-200'
+                }`}
               >
                 <XCircle className="h-4 w-4 text-red-500 shrink-0" />
                 <span

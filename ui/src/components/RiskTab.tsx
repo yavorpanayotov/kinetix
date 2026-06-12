@@ -20,6 +20,7 @@ import { HierarchyContributionTable } from './HierarchyContributionTable'
 import { RiskBudgetPanel } from './RiskBudgetPanel'
 import { JobHistory } from './JobHistory'
 import { RiskAlertBanner } from './RiskAlertBanner'
+import { dedupeAlerts } from '../utils/alertDedupe'
 import { StressSummaryCard } from './StressSummaryCard'
 import { StressScenarioTile } from './StressScenarioTile'
 import { useCannedStress } from '../hooks/useCannedStress'
@@ -245,6 +246,10 @@ export function RiskTab({
 
   const { varLimit } = useVarLimit()
   const { alerts, dismissAlert } = useAlerts()
+  const nonCriticalAlerts = useMemo(
+    () => dedupeAlerts(alerts).filter((a) => a.severity !== 'CRITICAL'),
+    [alerts],
+  )
 
   const sod = useSodBaseline(bookId)
   const { data: pnlData } = usePnlAttribution(bookId)
@@ -350,9 +355,13 @@ export function RiskTab({
               Showing sum of book VaRs — click Recalculate All to compute diversified portfolio VaR.
             </div>
           )}
-          {alerts.length > 0 && (
+          {/* CRITICALs are owned by the sticky App-level BreachBanner on this
+              tab — re-rendering them here doubled every breach on screen.
+              Shadow-dedupe also drops WARNING copies of a condition that is
+              already CRITICAL (same book + type). */}
+          {nonCriticalAlerts.length > 0 && (
             <div className="mb-2">
-              <RiskAlertBanner alerts={alerts} onDismiss={dismissAlert} />
+              <RiskAlertBanner alerts={nonCriticalAlerts} onDismiss={dismissAlert} onViewAll={onShowAlerts} />
             </div>
           )}
           <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
