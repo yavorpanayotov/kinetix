@@ -4,6 +4,7 @@ import { Button, Card, Input, Select } from './ui'
 import { OrderPlacementErrorBanner } from './OrderPlacementErrorBanner'
 import { PreTradeRiskPreviewPanel } from './PreTradeRiskPreviewPanel'
 import { useOrderPlacement } from '../hooks/useOrderPlacement'
+import { INSTRUMENT_TYPE_TO_ASSET_CLASS } from '../utils/instrumentTypes'
 import type { OrderTimeInForce, PositionDto, PreTradeRiskPreviewRequestDto, SubmitOrderRequestDto } from '../types'
 
 /**
@@ -66,6 +67,25 @@ export function PlaceOrderPanel({ bookId, positions }: PlaceOrderPanelProps) {
     if (match) setArrivalPrice(match.marketPrice.amount)
   }
 
+  /**
+   * Resolve the instrument's reference type from the book position rather
+   * than assuming every order is a cash equity (kx-lz7p — UST-5Y/UST-10Y
+   * orders were booking trades typed CASH_EQUITY, which the blotter then
+   * mislabelled while seeded rows showed GOVERNMENT_BOND). The booked trade
+   * inherits whatever type the order carries (OrderSubmissionService →
+   * FIXExecutionReportProcessor), so the ticket must send the reference
+   * type where one is known. Unknown instruments keep the CASH_EQUITY
+   * default — the ticket's launch scope is cash equities.
+   */
+  const resolvedInstrumentType = useMemo(() => {
+    const match = positions?.find(
+      (p) => p.instrumentId.toUpperCase() === instrumentId.trim().toUpperCase(),
+    )
+    return match?.instrumentType ?? 'CASH_EQUITY'
+  }, [positions, instrumentId])
+
+  const resolvedAssetClass = INSTRUMENT_TYPE_TO_ASSET_CLASS[resolvedInstrumentType] ?? 'EQUITY'
+
   const formIncomplete =
     !instrumentId.trim() ||
     !quantity.trim() ||
@@ -82,8 +102,8 @@ export function PlaceOrderPanel({ bookId, positions }: PlaceOrderPanelProps) {
     limitPrice: orderType === 'LIMIT' ? limitPrice.trim() : undefined,
     arrivalPrice: arrivalPrice.trim() || undefined,
     timeInForce,
-    instrumentType: 'CASH_EQUITY',
-  }), [bookId, instrumentId, side, quantity, orderType, limitPrice, arrivalPrice, timeInForce])
+    instrumentType: resolvedInstrumentType,
+  }), [bookId, instrumentId, side, quantity, orderType, limitPrice, arrivalPrice, timeInForce, resolvedInstrumentType])
 
   /**
    * Build the candidate body sent to /api/v1/risk/pretrade-preview on
@@ -101,15 +121,15 @@ export function PlaceOrderPanel({ bookId, positions }: PlaceOrderPanelProps) {
     return {
       bookId,
       instrumentId: instrumentId.trim().toUpperCase(),
-      assetClass: 'EQUITY',
+      assetClass: resolvedAssetClass,
       side,
       quantity: quantity.trim(),
       priceAmount,
       priceCurrency: 'USD',
-      instrumentType: 'CASH_EQUITY',
+      instrumentType: resolvedInstrumentType,
       counterpartyId: null,
     }
-  }, [formIncomplete, bookId, instrumentId, side, quantity, orderType, limitPrice, arrivalPrice])
+  }, [formIncomplete, bookId, instrumentId, side, quantity, orderType, limitPrice, arrivalPrice, resolvedInstrumentType, resolvedAssetClass])
 
   const handleSubmit = useCallback(async () => {
     if (formIncomplete || submitting) return

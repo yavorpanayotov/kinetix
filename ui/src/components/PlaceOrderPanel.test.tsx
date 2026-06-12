@@ -163,6 +163,54 @@ describe('PlaceOrderPanel', () => {
     expect(screen.queryByTestId('order-placement-retry')).toBeNull()
   })
 
+  describe('instrument type resolution (kx-lz7p)', () => {
+    const ust5y = {
+      bookId: 'port-1',
+      instrumentId: 'UST-5Y',
+      assetClass: 'FIXED_INCOME',
+      quantity: '1000',
+      averageCost: { amount: '98.50', currency: 'USD' },
+      marketPrice: { amount: '98.80', currency: 'USD' },
+      marketValue: { amount: '98800.00', currency: 'USD' },
+      unrealizedPnl: { amount: '300.00', currency: 'USD' },
+      instrumentType: 'GOVERNMENT_BOND',
+    }
+
+    it('submits the reference instrument type from the book position instead of defaulting to CASH_EQUITY', async () => {
+      vi.mocked(submitOrder).mockResolvedValue(ack({ instrumentId: 'UST-5Y' }))
+      render(<PlaceOrderPanel bookId="port-1" positions={[ust5y]} />)
+      fireEvent.change(screen.getByTestId('place-order-instrument'), { target: { value: 'UST-5Y' } })
+      fireEvent.change(screen.getByTestId('place-order-quantity'), { target: { value: '1000' } })
+      fireEvent.change(screen.getByTestId('place-order-limit-price'), { target: { value: '98.80' } })
+      fireEvent.click(screen.getByTestId('place-order-submit'))
+
+      await waitFor(() => expect(submitOrder).toHaveBeenCalled())
+      expect(vi.mocked(submitOrder).mock.calls[0][0].instrumentType).toBe('GOVERNMENT_BOND')
+    })
+
+    it('matches the position case-insensitively when resolving the instrument type', async () => {
+      vi.mocked(submitOrder).mockResolvedValue(ack({ instrumentId: 'UST-5Y' }))
+      render(<PlaceOrderPanel bookId="port-1" positions={[ust5y]} />)
+      fireEvent.change(screen.getByTestId('place-order-instrument'), { target: { value: 'ust-5y' } })
+      fireEvent.change(screen.getByTestId('place-order-quantity'), { target: { value: '1000' } })
+      fireEvent.change(screen.getByTestId('place-order-limit-price'), { target: { value: '98.80' } })
+      fireEvent.click(screen.getByTestId('place-order-submit'))
+
+      await waitFor(() => expect(submitOrder).toHaveBeenCalled())
+      expect(vi.mocked(submitOrder).mock.calls[0][0].instrumentType).toBe('GOVERNMENT_BOND')
+    })
+
+    it('falls back to CASH_EQUITY when the instrument has no book position to resolve a type from', async () => {
+      vi.mocked(submitOrder).mockResolvedValue(ack())
+      render(<PlaceOrderPanel bookId="port-1" positions={[ust5y]} />)
+      await fillBaseForm()
+      fireEvent.click(screen.getByTestId('place-order-submit'))
+
+      await waitFor(() => expect(submitOrder).toHaveBeenCalled())
+      expect(vi.mocked(submitOrder).mock.calls[0][0].instrumentType).toBe('CASH_EQUITY')
+    })
+  })
+
   it('retry on PENDING_FAILED reuses the original clOrdId via the same form payload', async () => {
     vi.mocked(submitOrder)
       .mockResolvedValueOnce(ack({ status: 'PENDING_FAILED', rejectReason: 'SESSION_DOWN', venueOrderId: null, orderId: 'order-1' }))
