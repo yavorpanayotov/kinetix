@@ -53,7 +53,7 @@ export function MobileApp() {
             <select
               id="mobile-book-selector"
               data-testid="mobile-book-selector"
-              value={bookSelector.selectedBookId}
+              value={bookSelector.selectedBookId ?? ''}
               onChange={(e) => bookSelector.selectBook(e.target.value)}
               className="bg-surface-800 text-slate-100 text-sm rounded-md px-2 py-1 border border-surface-700 max-w-[10rem] truncate"
               aria-label="Select book"
