@@ -116,7 +116,7 @@ is removed without the change being reflected in an updated assertion.
   detail open/close, empty state.
   Acceptance: cd ui && npm run lint && npm run test
 
-- [ ] Build the mobile **Positions** view (summary, read-only)
+- [x] Build the mobile **Positions** view (summary, read-only)
   New `ui/src/components/mobile/MobilePositionsView.tsx`. Top exposures as a
   compact list — instrument/book, market value, unrealised P&L — capped to a
   sensible count (e.g. top 15), read-only, no editable notes, no 11-column grid.
