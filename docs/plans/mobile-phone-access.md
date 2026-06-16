@@ -125,7 +125,7 @@ is removed without the change being reflected in an updated assertion.
   loading/empty.
   Acceptance: cd ui && npm run lint && npm run test
 
-- [ ] Wire the four views into `MobileApp` and finalise the bottom nav
+- [x] Wire the four views into `MobileApp` and finalise the bottom nav
   Replace the placeholders with the real view components, wire the shared book
   selection and theme, ensure the bottom tab bar switches between Risk / P&L /
   Alerts / Positions. Update `MobileApp.test.tsx` to assert each view mounts when
