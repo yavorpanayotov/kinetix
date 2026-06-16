@@ -294,7 +294,7 @@ describe('App', () => {
 
       const link = screen.getByTestId('header-github-link')
       expect(link).toBeInTheDocument()
-      expect(link).toHaveAttribute('href', 'https://github.com/panayotovk/kinetix')
+      expect(link).toHaveAttribute('href', 'https://github.com/yavorpanayotov/kinetix')
       expect(link).toHaveAttribute('target', '_blank')
       const rel = link.getAttribute('rel') ?? ''
       expect(rel).toContain('noreferrer')

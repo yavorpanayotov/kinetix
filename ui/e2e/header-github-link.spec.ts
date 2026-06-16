@@ -15,7 +15,7 @@ test.describe('Header GitHub link', () => {
     await expect(link).toBeVisible()
     await expect(link).toHaveAttribute(
       'href',
-      'https://github.com/panayotovk/kinetix',
+      'https://github.com/yavorpanayotov/kinetix',
     )
     await expect(link).toHaveAttribute('target', '_blank')
     const rel = await link.getAttribute('rel')

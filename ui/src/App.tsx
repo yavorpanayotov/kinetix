@@ -678,7 +678,7 @@ function AppContent() {
           )}
           <a
             data-testid="header-github-link"
-            href="https://github.com/panayotovk/kinetix"
+            href="https://github.com/yavorpanayotov/kinetix"
             target="_blank"
             rel="noreferrer noopener"
             className="p-1.5 rounded-md hover:bg-surface-800 transition-colors text-slate-300 hover:text-white"
