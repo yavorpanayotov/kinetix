@@ -1,12 +1,42 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { VaRResultDto, BookAggregationDto, IntradayPnlSnapshotDto, AlertEventDto, PositionDto } from '../../types'
+import type { UseVaRResult } from '../../hooks/useVaR'
+import type { UseVarLimitResult } from '../../hooks/useVarLimit'
+import type { UseHierarchySummaryResult } from '../../hooks/useHierarchySummary'
+import type { UseNotificationsResult } from '../../hooks/useNotifications'
+import type { UsePositionsResult } from '../../hooks/usePositions'
 
+// The shell composes four real views; mock every data hook they reach for so
+// the shell test renders deterministically without real data. Mock shapes
+// follow the per-view tests (MobileRiskView.test.tsx etc.).
 vi.mock('../../hooks/useBookSelector')
+vi.mock('../../auth/useAuth')
+vi.mock('../../hooks/useVaR')
+vi.mock('../../hooks/useVarLimit')
+vi.mock('../../hooks/useHierarchySummary')
+vi.mock('../../hooks/useIntradayPnlStream')
+vi.mock('../../hooks/useNotifications')
+vi.mock('../../hooks/usePositions')
 
 import { MobileApp } from './MobileApp'
 import { useBookSelector } from '../../hooks/useBookSelector'
+import { useAuth } from '../../auth/useAuth'
+import { useVaR } from '../../hooks/useVaR'
+import { useVarLimit } from '../../hooks/useVarLimit'
+import { useHierarchySummary } from '../../hooks/useHierarchySummary'
+import { useIntradayPnlStream } from '../../hooks/useIntradayPnlStream'
+import { useNotifications } from '../../hooks/useNotifications'
+import { usePositions } from '../../hooks/usePositions'
 
 const mockUseBookSelector = vi.mocked(useBookSelector)
+const mockUseAuth = vi.mocked(useAuth)
+const mockUseVaR = vi.mocked(useVaR)
+const mockUseVarLimit = vi.mocked(useVarLimit)
+const mockUseHierarchySummary = vi.mocked(useHierarchySummary)
+const mockUseIntradayPnlStream = vi.mocked(useIntradayPnlStream)
+const mockUseNotifications = vi.mocked(useNotifications)
+const mockUsePositions = vi.mocked(usePositions)
 
 function setupBookSelector() {
   mockUseBookSelector.mockReturnValue({
@@ -26,10 +56,150 @@ function setupBookSelector() {
   })
 }
 
+function varResult(): VaRResultDto {
+  return {
+    bookId: 'book-1',
+    calculationType: 'PARAMETRIC',
+    confidenceLevel: 'CL_95',
+    varValue: '500000',
+    expectedShortfall: '600000',
+    componentBreakdown: [],
+    calculatedAt: new Date().toISOString(),
+  }
+}
+
+function bookSummary(): BookAggregationDto {
+  return {
+    bookId: 'book-1',
+    baseCurrency: 'USD',
+    totalNav: { amount: '12000000', currency: 'USD' },
+    totalUnrealizedPnl: { amount: '250000', currency: 'USD' },
+    currencyBreakdown: [],
+  }
+}
+
+function snapshot(): IntradayPnlSnapshotDto {
+  return {
+    snapshotAt: new Date().toISOString(),
+    baseCurrency: 'USD',
+    trigger: 'PRICE',
+    totalPnl: '180000',
+    realisedPnl: '0',
+    unrealisedPnl: '0',
+    deltaPnl: '0',
+    gammaPnl: '0',
+    vegaPnl: '0',
+    thetaPnl: '0',
+    rhoPnl: '0',
+    unexplainedPnl: '0',
+    highWaterMark: '0',
+  }
+}
+
+function alert(): AlertEventDto {
+  return {
+    id: 'alert-1',
+    ruleId: 'rule-1',
+    ruleName: 'VaR breach',
+    type: 'VAR_BREACH',
+    severity: 'CRITICAL',
+    message: 'VaR exceeded the limit',
+    currentValue: 1_500_000,
+    threshold: 1_000_000,
+    bookId: 'BOOK-EQ',
+    triggeredAt: new Date().toISOString(),
+    status: 'TRIGGERED',
+  }
+}
+
+function position(): PositionDto {
+  return {
+    bookId: 'book-1',
+    instrumentId: 'AAPL',
+    assetClass: 'EQUITY',
+    quantity: '100',
+    averageCost: { amount: '150', currency: 'USD' },
+    marketPrice: { amount: '170', currency: 'USD' },
+    marketValue: { amount: '17000', currency: 'USD' },
+    unrealizedPnl: { amount: '2000', currency: 'USD' },
+  }
+}
+
+function setupViewHooks() {
+  mockUseAuth.mockReturnValue({
+    authenticated: true,
+    initialising: false,
+    token: 'token',
+    username: 'trader-1',
+    roles: ['RISK_VIEWER'],
+    logout: vi.fn(),
+  })
+  mockUseVaR.mockReturnValue({
+    varResult: varResult(),
+    greeksResult: null,
+    history: [],
+    filteredHistory: [],
+    loading: false,
+    historyLoading: false,
+    refreshing: false,
+    error: null,
+    errorTransient: false,
+    refresh: vi.fn(),
+    timeRange: { from: '', to: '', label: '' },
+    setTimeRange: vi.fn(),
+    selectedConfidenceLevel: 'CL_95',
+    setSelectedConfidenceLevel: vi.fn(),
+    zoomIn: vi.fn(),
+    resetZoom: vi.fn(),
+    zoomDepth: 0,
+    isLive: true,
+  } as UseVaRResult)
+  mockUseVarLimit.mockReturnValue({
+    varLimit: 1_000_000,
+    loading: false,
+  } as UseVarLimitResult)
+  mockUseHierarchySummary.mockReturnValue({
+    summary: bookSummary(),
+    baseCurrency: 'USD',
+    setBaseCurrency: vi.fn(),
+    loading: false,
+    error: null,
+    summaryLabel: 'Book Summary',
+  } as UseHierarchySummaryResult)
+  mockUseIntradayPnlStream.mockReturnValue({
+    snapshots: [snapshot()],
+    latest: snapshot(),
+    connected: true,
+  })
+  mockUseNotifications.mockReturnValue({
+    rules: [],
+    alerts: [alert()],
+    loading: false,
+    error: null,
+    createRule: vi.fn(),
+    deleteRule: vi.fn(),
+    acknowledgeAlert: vi.fn(),
+    escalateAlert: vi.fn(),
+    resolveAlert: vi.fn(),
+    snoozeAlert: vi.fn(),
+  } as UseNotificationsResult)
+  mockUsePositions.mockReturnValue({
+    positions: [position()],
+    bookId: 'book-1',
+    books: ['book-1'],
+    selectBook: vi.fn(),
+    refreshPositions: vi.fn(),
+    retryInitialLoad: vi.fn(),
+    loading: false,
+    error: null,
+  } as UsePositionsResult)
+}
+
 describe('MobileApp', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     setupBookSelector()
+    setupViewHooks()
   })
 
   describe('shell', () => {
@@ -103,13 +273,13 @@ describe('MobileApp', () => {
   })
 
   describe('default view', () => {
-    it('renders the Risk view by default', () => {
+    it('mounts the real Risk view by default', () => {
       render(<MobileApp />)
 
-      expect(screen.getByTestId('mobile-view-risk')).toBeInTheDocument()
-      expect(screen.queryByTestId('mobile-view-pnl')).not.toBeInTheDocument()
-      expect(screen.queryByTestId('mobile-view-alerts')).not.toBeInTheDocument()
-      expect(screen.queryByTestId('mobile-view-positions')).not.toBeInTheDocument()
+      expect(screen.getByTestId('mobile-risk-view')).toBeInTheDocument()
+      expect(screen.queryByTestId('mobile-pnl-view')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('mobile-alerts-view')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('mobile-positions-view')).not.toBeInTheDocument()
     })
 
     it('marks the Risk tab as selected by default', () => {
@@ -127,46 +297,79 @@ describe('MobileApp', () => {
   })
 
   describe('navigation', () => {
-    it('switches to the P&L view when the P&L tab is tapped', () => {
+    it('mounts the P&L view when the P&L tab is tapped', () => {
       render(<MobileApp />)
 
       fireEvent.click(screen.getByTestId('mobile-tab-pnl'))
 
-      expect(screen.getByTestId('mobile-view-pnl')).toBeInTheDocument()
-      expect(screen.queryByTestId('mobile-view-risk')).not.toBeInTheDocument()
+      expect(screen.getByTestId('mobile-pnl-view')).toBeInTheDocument()
+      expect(screen.queryByTestId('mobile-risk-view')).not.toBeInTheDocument()
       expect(screen.getByTestId('mobile-tab-pnl')).toHaveAttribute(
         'aria-selected',
         'true',
       )
     })
 
-    it('switches to the Alerts view when the Alerts tab is tapped', () => {
+    it('mounts the Alerts view when the Alerts tab is tapped', () => {
       render(<MobileApp />)
 
       fireEvent.click(screen.getByTestId('mobile-tab-alerts'))
 
-      expect(screen.getByTestId('mobile-view-alerts')).toBeInTheDocument()
-      expect(screen.queryByTestId('mobile-view-risk')).not.toBeInTheDocument()
+      expect(screen.getByTestId('mobile-alerts-view')).toBeInTheDocument()
+      expect(screen.queryByTestId('mobile-risk-view')).not.toBeInTheDocument()
     })
 
-    it('switches to the Positions view when the Positions tab is tapped', () => {
+    it('mounts the Positions view when the Positions tab is tapped', () => {
       render(<MobileApp />)
 
       fireEvent.click(screen.getByTestId('mobile-tab-positions'))
 
-      expect(screen.getByTestId('mobile-view-positions')).toBeInTheDocument()
-      expect(screen.queryByTestId('mobile-view-risk')).not.toBeInTheDocument()
+      expect(screen.getByTestId('mobile-positions-view')).toBeInTheDocument()
+      expect(screen.queryByTestId('mobile-risk-view')).not.toBeInTheDocument()
     })
 
     it('returns to the Risk view after navigating away and back', () => {
       render(<MobileApp />)
 
       fireEvent.click(screen.getByTestId('mobile-tab-positions'))
-      expect(screen.getByTestId('mobile-view-positions')).toBeInTheDocument()
+      expect(screen.getByTestId('mobile-positions-view')).toBeInTheDocument()
 
       fireEvent.click(screen.getByTestId('mobile-tab-risk'))
-      expect(screen.getByTestId('mobile-view-risk')).toBeInTheDocument()
-      expect(screen.queryByTestId('mobile-view-positions')).not.toBeInTheDocument()
+      expect(screen.getByTestId('mobile-risk-view')).toBeInTheDocument()
+      expect(screen.queryByTestId('mobile-positions-view')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('shared state wiring', () => {
+    it('threads the authenticated username into the Alerts view notifications hook', () => {
+      render(<MobileApp />)
+      fireEvent.click(screen.getByTestId('mobile-tab-alerts'))
+
+      expect(mockUseNotifications).toHaveBeenCalledWith('trader-1')
+    })
+
+    it('feeds the selected book id to the Risk view', () => {
+      render(<MobileApp />)
+
+      expect(mockUseVaR).toHaveBeenCalledWith('book-1')
+    })
+
+    it('passes null book id to the Risk view when All Books is selected', () => {
+      mockUseBookSelector.mockReturnValue({
+        bookOptions: [{ value: '__ALL__', label: 'All Books' }],
+        selectedBookId: '__ALL__',
+        isAllSelected: true,
+        allBookIds: ['book-1', 'book-2'],
+        positions: [],
+        aggregatedPositions: [],
+        selectBook: vi.fn(),
+        loading: false,
+        error: null,
+      })
+
+      render(<MobileApp />)
+
+      expect(mockUseVaR).toHaveBeenCalledWith(null)
     })
   })
 })

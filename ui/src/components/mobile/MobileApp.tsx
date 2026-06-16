@@ -2,17 +2,23 @@ import { useState } from 'react'
 import { Activity, Shield, TrendingUp, Bell, BarChart3, Sun, Moon } from 'lucide-react'
 import { useTheme } from '../../hooks/useTheme'
 import { useBookSelector } from '../../hooks/useBookSelector'
+import { useAuth } from '../../auth/useAuth'
 import { DEFAULT_MOBILE_VIEW, type MobileView } from './MobileView'
+import { MobileRiskView } from './MobileRiskView'
+import { MobilePnlView } from './MobilePnlView'
+import { MobileAlertsView } from './MobileAlertsView'
+import { MobilePositionsView } from './MobilePositionsView'
 
 // Plan §mobile — below the 1280px desktop floor App.tsx renders <MobileApp>
 // instead of the small-viewport warning. This is the phone-first surface: a
 // compact header (logo, book selector, theme toggle), a single-column body,
 // and a thumb-reach bottom tab bar switching between four curated views.
 //
-// This file is the SCAFFOLD: each view is an empty placeholder. The real view
-// components are wired in a later checkbox. The layout is `max-width` capped so
-// it reads on a tablet too, and honours dark mode via the existing `.dark` /
-// Tailwind `dark:` mechanism.
+// The body renders the ONE view matching the active tab so only that view's
+// data hooks run — Risk/P&L/Positions are fed the selected book id, Alerts the
+// authenticated username (threaded to useNotifications exactly as App.tsx does).
+// The layout is `max-width` capped so it reads on a tablet too, and honours
+// dark mode via the existing `.dark` / Tailwind `dark:` mechanism.
 
 // The bottom tab bar entries, in display order. Each maps to a MobileView and
 // carries its lucide icon, mirroring the desktop tab metadata in App.tsx.
@@ -26,9 +32,17 @@ const MOBILE_NAV: { view: MobileView; label: string; icon: typeof Activity }[] =
 export function MobileApp() {
   const { isDark, toggle: toggleTheme } = useTheme()
   const bookSelector = useBookSelector()
+  const auth = useAuth()
   const [activeMobileView, setActiveMobileView] = useState<MobileView>(
     DEFAULT_MOBILE_VIEW,
   )
+
+  // The single book the per-book views fetch for. When "All Books" is selected
+  // the aggregate sentinel is not a real book id, so pass null — the views show
+  // their no-data state, mirroring App.tsx's effectiveBookId semantics.
+  const effectiveBookId = bookSelector.isAllSelected
+    ? null
+    : bookSelector.selectedBookId
 
   return (
     <div
@@ -81,18 +95,18 @@ export function MobileApp() {
           role="tabpanel"
           aria-labelledby={`mobile-tab-${activeMobileView}`}
         >
-          {/* Scaffold placeholders — the real views land in a later checkbox. */}
+          {/* Only the active view is rendered, so only its hooks run. */}
           {activeMobileView === 'risk' && (
-            <div data-testid="mobile-view-risk">Risk</div>
+            <MobileRiskView bookId={effectiveBookId} />
           )}
           {activeMobileView === 'pnl' && (
-            <div data-testid="mobile-view-pnl">P&amp;L</div>
+            <MobilePnlView bookId={effectiveBookId} />
           )}
           {activeMobileView === 'alerts' && (
-            <div data-testid="mobile-view-alerts">Alerts</div>
+            <MobileAlertsView username={auth.username} />
           )}
           {activeMobileView === 'positions' && (
-            <div data-testid="mobile-view-positions">Positions</div>
+            <MobilePositionsView bookId={effectiveBookId} />
           )}
         </main>
 
