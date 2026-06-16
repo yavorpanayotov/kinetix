@@ -1,0 +1,139 @@
+import { render, screen, within } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { PositionDto } from '../../types'
+import type { UsePositionsResult } from '../../hooks/usePositions'
+
+vi.mock('../../hooks/usePositions')
+
+import { MobilePositionsView } from './MobilePositionsView'
+import { usePositions } from '../../hooks/usePositions'
+
+const mockUsePositions = vi.mocked(usePositions)
+
+function position(overrides: Partial<PositionDto> = {}): PositionDto {
+  return {
+    bookId: 'book-1',
+    instrumentId: 'AAPL',
+    assetClass: 'EQUITY',
+    quantity: '100',
+    averageCost: { amount: '150', currency: 'USD' },
+    marketPrice: { amount: '170', currency: 'USD' },
+    marketValue: { amount: '17000', currency: 'USD' },
+    unrealizedPnl: { amount: '2000', currency: 'USD' },
+    ...overrides,
+  }
+}
+
+function setPositions(overrides: Partial<UsePositionsResult> = {}) {
+  mockUsePositions.mockReturnValue({
+    positions: [position()],
+    bookId: 'book-1',
+    books: ['book-1'],
+    selectBook: vi.fn(),
+    refreshPositions: vi.fn(),
+    retryInitialLoad: vi.fn(),
+    loading: false,
+    error: null,
+    ...overrides,
+  })
+}
+
+describe('MobilePositionsView', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+    setPositions()
+  })
+
+  it('renders one row per position with instrument id and market value', () => {
+    setPositions({
+      positions: [
+        position({ instrumentId: 'AAPL', marketValue: { amount: '17000', currency: 'USD' } }),
+        position({ instrumentId: 'MSFT', marketValue: { amount: '25000', currency: 'USD' } }),
+      ],
+    })
+
+    render(<MobilePositionsView bookId="book-1" />)
+
+    expect(screen.getByTestId('mobile-positions-view')).toBeInTheDocument()
+
+    const aapl = screen.getByTestId('mobile-position-row-AAPL')
+    expect(within(aapl).getByText('AAPL')).toBeInTheDocument()
+    expect(aapl).toHaveTextContent('$17,000')
+
+    const msft = screen.getByTestId('mobile-position-row-MSFT')
+    expect(within(msft).getByText('MSFT')).toBeInTheDocument()
+    expect(msft).toHaveTextContent('$25,000')
+  })
+
+  it('sorts rows by absolute market value descending', () => {
+    setPositions({
+      positions: [
+        position({ instrumentId: 'SMALL', marketValue: { amount: '1000', currency: 'USD' } }),
+        position({ instrumentId: 'BIG', marketValue: { amount: '90000', currency: 'USD' } }),
+        // Large magnitude short — absolute exposure ranks it second.
+        position({ instrumentId: 'SHORT', marketValue: { amount: '-50000', currency: 'USD' } }),
+      ],
+    })
+
+    render(<MobilePositionsView bookId="book-1" />)
+
+    const rows = screen.getAllByTestId(/^mobile-position-row-/)
+    const ids = rows.map((r) => r.getAttribute('data-testid'))
+    expect(ids).toEqual([
+      'mobile-position-row-BIG',
+      'mobile-position-row-SHORT',
+      'mobile-position-row-SMALL',
+    ])
+  })
+
+  it('caps the list at the top 15 positions by absolute exposure', () => {
+    const positions = Array.from({ length: 20 }, (_, i) =>
+      position({
+        instrumentId: `INST-${i}`,
+        // Decreasing exposure: INST-0 largest, INST-19 smallest.
+        marketValue: { amount: String((20 - i) * 1000), currency: 'USD' },
+      }),
+    )
+    setPositions({ positions })
+
+    render(<MobilePositionsView bookId="book-1" />)
+
+    const rows = screen.getAllByTestId(/^mobile-position-row-/)
+    expect(rows).toHaveLength(15)
+    // The 15 largest survive; the 5 smallest are dropped.
+    expect(screen.getByTestId('mobile-position-row-INST-0')).toBeInTheDocument()
+    expect(screen.queryByTestId('mobile-position-row-INST-19')).not.toBeInTheDocument()
+  })
+
+  it('colours unrealised P&L green when positive and red when negative', () => {
+    setPositions({
+      positions: [
+        position({ instrumentId: 'WIN', unrealizedPnl: { amount: '2000', currency: 'USD' } }),
+        position({ instrumentId: 'LOSE', unrealizedPnl: { amount: '-3000', currency: 'USD' } }),
+      ],
+    })
+
+    render(<MobilePositionsView bookId="book-1" />)
+
+    expect(screen.getByTestId('mobile-position-pnl-WIN').className).toContain('green')
+    expect(screen.getByTestId('mobile-position-pnl-LOSE').className).toContain('red')
+  })
+
+  it('shows a loading state while positions are loading', () => {
+    setPositions({ positions: [], loading: true })
+
+    render(<MobilePositionsView bookId="book-1" />)
+
+    expect(screen.getByTestId('mobile-positions-loading')).toBeInTheDocument()
+    expect(screen.queryByTestId('mobile-positions-view')).not.toBeInTheDocument()
+  })
+
+  it('shows an empty state when there are no positions', () => {
+    setPositions({ positions: [], loading: false })
+
+    render(<MobilePositionsView bookId="book-1" />)
+
+    expect(screen.getByTestId('mobile-positions-empty')).toBeInTheDocument()
+    expect(screen.queryByTestId('mobile-positions-view')).not.toBeInTheDocument()
+  })
+})
