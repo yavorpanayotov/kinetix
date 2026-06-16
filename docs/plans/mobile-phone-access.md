@@ -140,7 +140,7 @@ is removed without the change being reflected in an updated assertion.
   present. Mock API routes per `ui/e2e/fixtures.ts`.
   Acceptance: cd ui && npx playwright test mobile-access
 
-- [ ] Full UI suite + lint green
+- [x] Full UI suite + lint green
   Final gate: whole Vitest suite and ESLint clean, and the new Playwright spec
   passes alongside the existing ones.
   Acceptance: cd ui && npm run lint && npm run test && npx playwright test
