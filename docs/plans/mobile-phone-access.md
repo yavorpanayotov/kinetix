@@ -132,7 +132,7 @@ is removed without the change being reflected in an updated assertion.
   its tab is selected.
   Acceptance: cd ui && npm run lint && npm run test
 
-- [ ] Playwright E2E at a phone viewport
+- [x] Playwright E2E at a phone viewport
   New `ui/e2e/mobile-access.spec.ts` driving a 390px viewport. Assert: the app
   loads (no "desktop-only" warning), the bottom nav switches between the four
   views, mocked data renders in each, no horizontal overflow at 390px, and the
