@@ -107,7 +107,7 @@ is removed without the change being reflected in an updated assertion.
   Freshness banner. Unit test: renders numbers, P&L sign colours, loading/empty.
   Acceptance: cd ui && npm run lint && npm run test
 
-- [ ] Build the mobile **Alerts** view (read-only)
+- [x] Build the mobile **Alerts** view (read-only)
   New `ui/src/components/mobile/MobileAlertsView.tsx`. A list of alert cards
   (severity as full-card background per the UX spec, status badge, book, breach
   magnitude, triggered-at) and tap-through to a single-alert detail panel.
