@@ -92,7 +92,7 @@ is removed without the change being reflected in an updated assertion.
   a "VERIFY BEFORE ACTING" message). Unit test the three threshold states.
   Acceptance: cd ui && npm run lint && npm run test
 
-- [ ] Build the mobile **Risk** view
+- [x] Build the mobile **Risk** view
   New `ui/src/components/mobile/MobileRiskView.tsx`. VaR value, limit,
   utilisation % with a simple bar, and breach colour when utilisation > 0.8
   (reuse the `VAR_BREACH_THRESHOLD` constant from `RiskTickerStrip.tsx`). Data
