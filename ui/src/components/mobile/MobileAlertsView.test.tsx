@@ -1,0 +1,154 @@
+import { render, screen, fireEvent } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { AlertEventDto } from '../../types'
+import type { UseNotificationsResult } from '../../hooks/useNotifications'
+
+vi.mock('../../hooks/useNotifications')
+
+import { MobileAlertsView } from './MobileAlertsView'
+import { useNotifications } from '../../hooks/useNotifications'
+
+const mockUseNotifications = vi.mocked(useNotifications)
+
+function alert(overrides: Partial<AlertEventDto> = {}): AlertEventDto {
+  return {
+    id: 'alert-1',
+    ruleId: 'rule-1',
+    ruleName: 'VaR breach',
+    type: 'VAR_BREACH',
+    severity: 'CRITICAL',
+    message: 'VaR exceeded the limit',
+    currentValue: 1_500_000,
+    threshold: 1_000_000,
+    bookId: 'BOOK-EQ',
+    // Recent so relative-time renders deterministically-ish.
+    triggeredAt: new Date().toISOString(),
+    status: 'TRIGGERED',
+    ...overrides,
+  }
+}
+
+function setNotifications(overrides: Partial<UseNotificationsResult> = {}) {
+  mockUseNotifications.mockReturnValue({
+    rules: [],
+    alerts: [alert()],
+    loading: false,
+    error: null,
+    createRule: vi.fn(),
+    deleteRule: vi.fn(),
+    acknowledgeAlert: vi.fn(),
+    escalateAlert: vi.fn(),
+    resolveAlert: vi.fn(),
+    snoozeAlert: vi.fn(),
+    ...overrides,
+  })
+}
+
+describe('MobileAlertsView', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+    setNotifications()
+  })
+
+  it('renders one card per alert showing the book and severity', () => {
+    setNotifications({
+      alerts: [
+        alert({ id: 'a', bookId: 'BOOK-EQ', severity: 'CRITICAL' }),
+        alert({ id: 'b', bookId: 'BOOK-FX', severity: 'WARNING' }),
+      ],
+    })
+
+    render(<MobileAlertsView />)
+
+    expect(screen.getByTestId('mobile-alerts-view')).toBeInTheDocument()
+    expect(screen.getByTestId('mobile-alert-card-a')).toHaveTextContent('BOOK-EQ')
+    expect(screen.getByTestId('mobile-alert-card-a')).toHaveTextContent('CRITICAL')
+    expect(screen.getByTestId('mobile-alert-card-b')).toHaveTextContent('BOOK-FX')
+    expect(screen.getByTestId('mobile-alert-card-b')).toHaveTextContent('WARNING')
+  })
+
+  it('paints a CRITICAL card with the critical background and others differently', () => {
+    setNotifications({
+      alerts: [
+        alert({ id: 'crit', severity: 'CRITICAL' }),
+        alert({ id: 'warn', severity: 'WARNING' }),
+        alert({ id: 'info', severity: 'INFO' }),
+      ],
+    })
+
+    render(<MobileAlertsView />)
+
+    const crit = screen.getByTestId('mobile-alert-card-crit').className
+    const warn = screen.getByTestId('mobile-alert-card-warn').className
+    const info = screen.getByTestId('mobile-alert-card-info').className
+
+    expect(crit).toContain('red')
+    expect(warn).not.toContain('bg-red')
+    expect(info).not.toContain('bg-red')
+    expect(warn).not.toEqual(crit)
+    expect(info).not.toEqual(warn)
+  })
+
+  it('sorts alerts by severity (critical first) regardless of arrival order', () => {
+    setNotifications({
+      alerts: [
+        alert({ id: 'info', severity: 'INFO' }),
+        alert({ id: 'crit', severity: 'CRITICAL' }),
+        alert({ id: 'warn', severity: 'WARNING' }),
+      ],
+    })
+
+    render(<MobileAlertsView />)
+
+    const cards = screen.getAllByTestId(/^mobile-alert-card-/)
+    expect(cards.map((c) => c.getAttribute('data-testid'))).toEqual([
+      'mobile-alert-card-crit',
+      'mobile-alert-card-warn',
+      'mobile-alert-card-info',
+    ])
+  })
+
+  it('opens a detail panel when a card is tapped and closes it again', () => {
+    render(<MobileAlertsView />)
+
+    expect(screen.queryByTestId('mobile-alert-detail')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('mobile-alert-card-alert-1'))
+
+    const detail = screen.getByTestId('mobile-alert-detail')
+    expect(detail).toBeInTheDocument()
+    expect(detail).toHaveTextContent('VaR exceeded the limit')
+
+    fireEvent.click(screen.getByTestId('mobile-alert-detail-close'))
+
+    expect(screen.queryByTestId('mobile-alert-detail')).not.toBeInTheDocument()
+  })
+
+  it('shows no acknowledge, escalate, resolve, or snooze controls (read-only)', () => {
+    render(<MobileAlertsView />)
+    fireEvent.click(screen.getByTestId('mobile-alert-card-alert-1'))
+
+    expect(screen.queryByRole('button', { name: /acknowledge/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /escalate/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /resolve/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /snooze/i })).not.toBeInTheDocument()
+  })
+
+  it('shows an empty state when there are no alerts', () => {
+    setNotifications({ alerts: [] })
+
+    render(<MobileAlertsView />)
+
+    expect(screen.getByTestId('mobile-alerts-empty')).toBeInTheDocument()
+    expect(screen.getByTestId('mobile-alerts-empty')).toHaveTextContent('No active alerts')
+  })
+
+  it('shows a loading state while alerts are loading', () => {
+    setNotifications({ alerts: [], loading: true })
+
+    render(<MobileAlertsView />)
+
+    expect(screen.getByTestId('mobile-alerts-loading')).toBeInTheDocument()
+    expect(screen.queryByTestId('mobile-alerts-empty')).not.toBeInTheDocument()
+  })
+})
