@@ -100,7 +100,7 @@ is removed without the change being reflected in an updated assertion.
   values, shows breach styling above threshold, handles loading/empty.
   Acceptance: cd ui && npm run lint && npm run test
 
-- [ ] Build the mobile **P&L** view
+- [x] Build the mobile **P&L** view
   New `ui/src/components/mobile/MobilePnlView.tsx`. Headline numbers only — NAV,
   unrealised P&L (with `pnlColorClass` from `utils/format`), intraday P&L total.
   No waterfall, no chart. Data from `useHierarchySummary` + `useIntradayPnlStream`.
