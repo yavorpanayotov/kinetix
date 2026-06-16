@@ -43,7 +43,7 @@ const EM_DASH = '—'
 // the em-dash sentinel, so a trader hovering a missing aggregate sees it's
 // still being computed rather than mistaking it for an empty book.
 const CALCULATING_TOOLTIP = 'Calculating…'
-const VAR_BREACH_THRESHOLD = 0.8
+export const VAR_BREACH_THRESHOLD = 0.8
 
 function aggregateGreeks(greeks: GreeksResultDto | null): { delta: number; vega: number } | null {
   if (!greeks) return null
