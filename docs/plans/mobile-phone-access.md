@@ -85,7 +85,7 @@ is removed without the change being reflected in an updated assertion.
   shell, default view, and nav switching.
   Acceptance: cd ui && npm run lint && npm run test
 
-- [ ] Add `MobileFreshnessBanner` component
+- [x] Add `MobileFreshnessBanner` component
   New `ui/src/components/mobile/MobileFreshnessBanner.tsx`. Takes a `dataAsOf`
   timestamp, renders a full-width banner reusing the threshold/colour logic from
   `LastUpdatedIndicator.tsx` (neutral < 5 min, amber 5–15 min, red ≥ 15 min with
