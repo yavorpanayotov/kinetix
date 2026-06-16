@@ -1992,9 +1992,10 @@ describe('App', () => {
     })
   })
 
-  // Plan §9 — Desktop-only floor enforced via a small-viewport warning page.
-  // The warning short-circuits the rest of the app when innerWidth < 1280.
-  describe('small-viewport warning (plan §9)', () => {
+  // Plan §mobile — Desktop / mobile split at the 1280px floor. Below the floor
+  // App short-circuits the full desktop tree and renders the phone-first
+  // <MobileApp> surface; at/above the floor it renders the full <AppContent>.
+  describe('desktop / mobile viewport split (plan §mobile)', () => {
     const originalInnerWidth = window.innerWidth
 
     function setWidth(width: number) {
@@ -2013,22 +2014,25 @@ describe('App', () => {
       })
     })
 
-    it('renders the warning and hides the main app when viewport is below 1280px', () => {
+    it('renders the mobile app and hides the desktop app when viewport is below 1280px', () => {
       setWidth(800)
 
       render(<App />)
 
-      expect(screen.getByTestId('small-viewport-warning')).toBeInTheDocument()
-      // Tab bar is the canonical "main app rendered" sentinel.
+      expect(screen.getByTestId('mobile-app')).toBeInTheDocument()
+      // The desktop tab bar is the canonical "desktop app rendered" sentinel;
+      // it must NOT be present below the floor.
       expect(screen.queryByTestId('tab-bar')).not.toBeInTheDocument()
+      // The retired small-viewport warning no longer shows below the floor.
+      expect(screen.queryByTestId('small-viewport-warning')).not.toBeInTheDocument()
     })
 
-    it('does not render the warning and shows the main app on a desktop width', () => {
+    it('renders the desktop app and hides the mobile app on a desktop width', () => {
       setWidth(1440)
 
       render(<App />)
 
-      expect(screen.queryByTestId('small-viewport-warning')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('mobile-app')).not.toBeInTheDocument()
       expect(screen.getByTestId('tab-bar')).toBeInTheDocument()
     })
   })

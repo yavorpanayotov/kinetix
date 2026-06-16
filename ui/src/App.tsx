@@ -71,7 +71,8 @@ import { KeyboardShortcutsOverlay } from './components/KeyboardShortcutsOverlay'
 import { CommandPalette, type CommandItem } from './components/CommandPalette'
 import { CopilotLauncher } from './components/CopilotLauncher'
 import type { SavedQuery } from './api/savedQueries'
-import { SmallViewportWarning, MIN_VIEWPORT_WIDTH_PX } from './components/SmallViewportWarning'
+import { MIN_VIEWPORT_WIDTH_PX } from './components/SmallViewportWarning'
+import { MobileApp } from './components/mobile/MobileApp'
 
 type Tab = 'positions' | 'trades' | 'pnl' | 'risk' | 'eod' | 'scenarios' | 'regulatory' | 'counterparty-risk' | 'reports' | 'activity' | 'alerts' | 'system'
 
@@ -103,11 +104,11 @@ const TABS: { key: Tab; label: string; icon: typeof Activity; cluster: TabCluste
   { key: 'system', label: 'System', icon: Server, cluster: 'ops' },
 ]
 
-// Plan §9 — Desktop-only floor. The viewport check lives in a wrapper so that
-// when the window is too narrow we render *only* the warning, without paying
-// the cost of mounting the rest of the app tree (data fetches, websockets,
-// risk hooks, etc.). When the viewport grows back above the floor we mount
-// the full app cleanly.
+// Plan §mobile — Desktop / mobile split. The viewport check lives in a wrapper
+// so that when the window is below the 1280px floor we render the phone-first
+// <MobileApp> surface instead of mounting the full desktop tree (data fetches,
+// websockets, risk hooks, etc.). When the viewport grows back above the floor
+// we mount the full app cleanly.
 function App() {
   const [tooSmall, setTooSmall] = useState<boolean>(
     () => typeof window !== 'undefined' && window.innerWidth < MIN_VIEWPORT_WIDTH_PX,
@@ -122,7 +123,7 @@ function App() {
   }, [])
 
   if (tooSmall) {
-    return <SmallViewportWarning />
+    return <MobileApp />
   }
 
   return <AppContent />
