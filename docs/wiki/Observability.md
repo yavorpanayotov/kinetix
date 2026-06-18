@@ -2,7 +2,7 @@
 
 Kinetix runs the Grafana observability stack — Prometheus for metrics, Loki for
 logs, Tempo for traces, with an OpenTelemetry Collector as the vendor-neutral
-pipeline ([ADR-0008](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0008-grafana-stack-for-observability.md)).
+pipeline ([ADR-0008](https://github.com/yavorpanayotov/kinetix/blob/main/docs/adr/0008-grafana-stack-for-observability.md)).
 This page covers the parts that make a single business event traceable
 end-to-end: the `correlationId` join key, the dashboards-as-code setup, and the
 runbook support uses to track what happened to a trade or a risk run.
@@ -10,7 +10,7 @@ runbook support uses to track what happened to a trade or a risk run.
 ## `correlationId` — the cross-system join key
 
 Every inbound request mints a UUID `correlationId` at the gateway
-([ADR-0022](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0022-correlation-id-propagation.md)).
+([ADR-0022](https://github.com/yavorpanayotov/kinetix/blob/main/docs/adr/0022-correlation-id-propagation.md)).
 It is propagated through every HTTP call, every Kafka event, and every gRPC
 call in the causal chain. It is the one identifier that ties the three
 observability pillars and the audit trail together:
@@ -49,7 +49,7 @@ simply carry `NULL`.
 ## Dashboards as code
 
 Grafana dashboards are version-controlled JSON under
-[`deploy/observability/dashboards/`](https://github.com/panayotovk/kinetix/tree/main/deploy/observability/dashboards) —
+[`deploy/observability/dashboards/`](https://github.com/yavorpanayotov/kinetix/tree/main/deploy/observability/dashboards) —
 **no hand-built dashboards in the Grafana UI** (changes there are not
 persisted). They are provisioned by Grafana's file-based dashboard provider
 (`deploy/observability/grafana/provisioning/`) and wired into both the local

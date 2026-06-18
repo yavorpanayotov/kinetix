@@ -4,7 +4,7 @@
 
 Kinetix covers the full risk lifecycle for a multi-asset trading desk — trade capture, hierarchical pre-trade limits, mark-to-market, live intraday P&L with Greek attribution, VaR/ES across three methodologies, options and rates pricing, scenario and reverse-stress testing, regime-adaptive risk parameters, counterparty exposure with PFE and CVA, FRTB Standardised Approach capital, model governance with four-eyes approval, and a SHA-256 hash-chained audit trail.
 
-This wiki is a living reference for engineers, quants, risk managers, and operators working on the platform. For the canonical README and per-service code, see the [main repository](https://github.com/panayotovk/kinetix).
+This wiki is a living reference for engineers, quants, risk managers, and operators working on the platform. For the canonical README and per-service code, see the [main repository](https://github.com/yavorpanayotov/kinetix).
 
 ## Wiki contents
 
@@ -52,7 +52,7 @@ This wiki is a living reference for engineers, quants, risk managers, and operat
 ## Where to go next
 
 - A trader or risk manager learning the application should start with the [User Guide](User-Guide).
-- A new contributor should start with the [main README](https://github.com/panayotovk/kinetix), then [Local Development](Local-Development), then the project's `CLAUDE.md` for conventions.
+- A new contributor should start with the [main README](https://github.com/yavorpanayotov/kinetix), then [Local Development](Local-Development), then the project's `CLAUDE.md` for conventions.
 - A risk reviewer should jump to [Risk Methodology](Risk-Methodology) and [FRTB Capital](FRTB-Capital).
 - An architect should read [Architecture](Architecture) and the [ADR Index](ADR-Index).
 - An auditor should start with [Audit and Compliance](Audit-and-Compliance).

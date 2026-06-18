@@ -1,6 +1,6 @@
 # Testing Strategy
 
-Kinetix follows **strict TDD** ([CLAUDE.md](https://github.com/panayotovk/kinetix/blob/main/CLAUDE.md) — Testing Philosophy). Tests are written first, behaviour-focused (not implementation-focused), and named like specifications.
+Kinetix follows **strict TDD** ([CLAUDE.md](https://github.com/yavorpanayotov/kinetix/blob/main/CLAUDE.md) — Testing Philosophy). Tests are written first, behaviour-focused (not implementation-focused), and named like specifications.
 
 **11,300+ tests** across the stack:
 
@@ -48,7 +48,7 @@ Unit tests are **fast** (single-digit milliseconds typical), have **no I/O**, an
 ./gradlew acceptanceTest
 ```
 
-Acceptance tests live alongside the service they test. They exercise the **service contract** — REST routes, Kafka publishers, gRPC servers — against **real infrastructure** ([CLAUDE.md](https://github.com/panayotovk/kinetix/blob/main/CLAUDE.md)):
+Acceptance tests live alongside the service they test. They exercise the **service contract** — REST routes, Kafka publishers, gRPC servers — against **real infrastructure** ([CLAUDE.md](https://github.com/yavorpanayotov/kinetix/blob/main/CLAUDE.md)):
 
 - **Real Postgres** via Testcontainers (no H2, no in-memory)
 - **Real Kafka** via Testcontainers (no embedded Kafka)
@@ -87,7 +87,7 @@ cd ui && npx playwright test
 cd ui && npx playwright test --ui   # interactive mode
 ```
 
-Browser-driven E2E. **Required for every new tab, panel, dialog, or interactive workflow** ([CLAUDE.md](https://github.com/panayotovk/kinetix/blob/main/CLAUDE.md)).
+Browser-driven E2E. **Required for every new tab, panel, dialog, or interactive workflow** ([CLAUDE.md](https://github.com/yavorpanayotov/kinetix/blob/main/CLAUDE.md)).
 
 API routes mocked via fixtures in `ui/e2e/fixtures.ts`. Tests target user-visible behaviour — empty states, data rendering, user interactions, validation, error paths.
 
@@ -131,7 +131,7 @@ Worked examples lock the absolute output; property tests guard the algebraic str
 
 ## Load tests — Gatling
 
-Path: [`load-tests/`](https://github.com/panayotovk/kinetix/tree/main/load-tests)
+Path: [`load-tests/`](https://github.com/yavorpanayotov/kinetix/tree/main/load-tests)
 
 ```bash
 ./gradlew -p load-tests gatlingRun
@@ -145,13 +145,13 @@ Scenarios include:
 
 ## Schema compatibility tests
 
-Path: [`schema-tests/`](https://github.com/panayotovk/kinetix/tree/main/schema-tests)
+Path: [`schema-tests/`](https://github.com/yavorpanayotov/kinetix/tree/main/schema-tests)
 
 Ensures Kafka event schema changes are backward-compatible. New consumer code must still deserialise pre-change payloads; new producer code must still produce payloads old consumers can read.
 
 ## Smoke tests
 
-Path: [`smoke-tests/`](https://github.com/panayotovk/kinetix/tree/main/smoke-tests)
+Path: [`smoke-tests/`](https://github.com/yavorpanayotov/kinetix/tree/main/smoke-tests)
 
 Post-deploy checks that the platform actually works end-to-end. Run via `/health` and as the final step of `/deploy`.
 
@@ -180,11 +180,11 @@ cd ui && npm run lint          # ESLint
 cd risk-engine && uv run mypy  # mypy
 ```
 
-ESLint catches errors that unit tests do not (e.g. `react-hooks/set-state-in-effect`). **Always run `cd ui && npm run lint` before pushing UI changes** ([CLAUDE.md](https://github.com/panayotovk/kinetix/blob/main/CLAUDE.md)).
+ESLint catches errors that unit tests do not (e.g. `react-hooks/set-state-in-effect`). **Always run `cd ui && npm run lint` before pushing UI changes** ([CLAUDE.md](https://github.com/yavorpanayotov/kinetix/blob/main/CLAUDE.md)).
 
 ## Guardrails
 
-From [CLAUDE.md](https://github.com/panayotovk/kinetix/blob/main/CLAUDE.md):
+From [CLAUDE.md](https://github.com/yavorpanayotov/kinetix/blob/main/CLAUDE.md):
 
 - **Never delete, disable, or skip a test** without explicit permission. This includes `@Ignore`, `@Disabled`, `pytest.mark.skip`, `xfail`, `test.skip`, `.todo`. If a test is failing, fix the code under test or fix the test.
 - **Bug fixes need a reproducing test before the fix.**

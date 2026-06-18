@@ -101,7 +101,7 @@ npx playwright test --ui          # interactive mode
 1. Add a new `V<timestamp>__<description>.sql` under the service's `src/main/resources/db/<schema>/`
 2. Add a rollback file (`<timestamp>__<description>.rollback.sql`)
 3. `./gradlew :<service>:build` — Flyway runs on startup
-4. See [ADR-0025](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0025-flyway-backward-compatible-migrations.md) and [ADR-0027](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0027-database-migration-practices.md) before writing destructive migrations
+4. See [ADR-0025](https://github.com/yavorpanayotov/kinetix/blob/main/docs/adr/0025-flyway-backward-compatible-migrations.md) and [ADR-0027](https://github.com/yavorpanayotov/kinetix/blob/main/docs/adr/0027-database-migration-practices.md) before writing destructive migrations
 
 ## Demo data
 
@@ -152,7 +152,7 @@ The risk-engine Docker image sets `PYTHONPATH=/app/src` because `uv sync` doesn'
 
 ### "Testcontainers fails in `common` module"
 
-Don't put integration tests in `common`. It's a library module without the Docker client classpath. Integration tests live in the service modules. ([CLAUDE.md](https://github.com/panayotovk/kinetix/blob/main/CLAUDE.md) → Known Gotchas)
+Don't put integration tests in `common`. It's a library module without the Docker client classpath. Integration tests live in the service modules. ([CLAUDE.md](https://github.com/yavorpanayotov/kinetix/blob/main/CLAUDE.md) → Known Gotchas)
 
 ### "Exposed `shouldThrow` doesn't catch the exception"
 

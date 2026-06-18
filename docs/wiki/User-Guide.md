@@ -4,7 +4,7 @@ A walkthrough of the Kinetix web application — every tab, sub-tab, panel, and 
 
 The interface is organised into **12 tabs grouped into three clusters**, sitting under a shared chrome (header, live KPI ticker, notification inbox) that is visible on every tab.
 
-![Risk dashboard](https://raw.githubusercontent.com/panayotovk/kinetix/main/docs/screenshots/risk-dashboard.png)
+![Risk dashboard](https://raw.githubusercontent.com/yavorpanayotov/kinetix/main/docs/screenshots/risk-dashboard.png)
 
 | Cluster | Tabs | Page |
 |---|---|---|
@@ -12,7 +12,7 @@ The interface is organised into **12 tabs grouped into three clusters**, sitting
 | **Risk** | Risk, EOD History, Scenarios, Counterparty Risk | [User Guide: Risk](User-Guide-Risk) |
 | **Operations** | Regulatory, Reports, Activity, Alerts, System | [User Guide: Operations](User-Guide-Operations) |
 
-Source of truth for tab wiring: [`ui/src/App.tsx`](https://github.com/panayotovk/kinetix/blob/main/ui/src/App.tsx) (the `TABS` array and cluster definitions).
+Source of truth for tab wiring: [`ui/src/App.tsx`](https://github.com/yavorpanayotov/kinetix/blob/main/ui/src/App.tsx) (the `TABS` array and cluster definitions).
 
 ---
 
@@ -36,13 +36,13 @@ From top to bottom, every screen is composed of the same stacked regions:
 
 | Control | What it does | Source |
 |---|---|---|
-| **Hierarchy selector** | Navigate the firm → division → desk → book tree. Picks the scope all tabs operate on; popover shows NAV and P&L roll-ups per level. | [`HierarchySelector.tsx`](https://github.com/panayotovk/kinetix/blob/main/ui/src/components/HierarchySelector.tsx) |
-| **Copilot launcher** ("Ask Kinetix") | Opens the command palette in copilot mode. Shows the OS-appropriate ⌘K / Ctrl-K hint. | [`CopilotLauncher.tsx`](https://github.com/panayotovk/kinetix/blob/main/ui/src/components/CopilotLauncher.tsx) |
-| **Regime indicator** | Pill showing the detected market regime (NORMAL, ELEVATED_VOL, CRISIS, RECOVERY). Click for the confidence level, the VaR parameters that regime drives, and the underlying signals (20-day realised vol, cross-asset correlation). | [`RegimeIndicator.tsx`](https://github.com/panayotovk/kinetix/blob/main/ui/src/components/RegimeIndicator.tsx) |
-| **Data-quality indicator** | Health icon (OK / warning / critical) with a dropdown of individual data checks and messages. | [`DataQualityIndicator.tsx`](https://github.com/panayotovk/kinetix/blob/main/ui/src/components/DataQualityIndicator.tsx) |
-| **Workspace view picker** | Save, switch, rename, and delete named workspace layouts (collapsed sections, filters). | [`WorkspaceViewPicker.tsx`](https://github.com/panayotovk/kinetix/blob/main/ui/src/components/WorkspaceViewPicker.tsx) |
+| **Hierarchy selector** | Navigate the firm → division → desk → book tree. Picks the scope all tabs operate on; popover shows NAV and P&L roll-ups per level. | [`HierarchySelector.tsx`](https://github.com/yavorpanayotov/kinetix/blob/main/ui/src/components/HierarchySelector.tsx) |
+| **Copilot launcher** ("Ask Kinetix") | Opens the command palette in copilot mode. Shows the OS-appropriate ⌘K / Ctrl-K hint. | [`CopilotLauncher.tsx`](https://github.com/yavorpanayotov/kinetix/blob/main/ui/src/components/CopilotLauncher.tsx) |
+| **Regime indicator** | Pill showing the detected market regime (NORMAL, ELEVATED_VOL, CRISIS, RECOVERY). Click for the confidence level, the VaR parameters that regime drives, and the underlying signals (20-day realised vol, cross-asset correlation). | [`RegimeIndicator.tsx`](https://github.com/yavorpanayotov/kinetix/blob/main/ui/src/components/RegimeIndicator.tsx) |
+| **Data-quality indicator** | Health icon (OK / warning / critical) with a dropdown of individual data checks and messages. | [`DataQualityIndicator.tsx`](https://github.com/yavorpanayotov/kinetix/blob/main/ui/src/components/DataQualityIndicator.tsx) |
+| **Workspace view picker** | Save, switch, rename, and delete named workspace layouts (collapsed sections, filters). | [`WorkspaceViewPicker.tsx`](https://github.com/yavorpanayotov/kinetix/blob/main/ui/src/components/WorkspaceViewPicker.tsx) |
 | **Theme toggle** | Switch light / dark mode. | `useTheme.ts` |
-| **Identity** | Production: role badge (ADMIN / RISK_MANAGER / TRADER / COMPLIANCE), username, logout. Demo: a persona switcher to act as different roles. | [`PersonaSwitcher.tsx`](https://github.com/panayotovk/kinetix/blob/main/ui/src/components/PersonaSwitcher.tsx) |
+| **Identity** | Production: role badge (ADMIN / RISK_MANAGER / TRADER / COMPLIANCE), username, logout. Demo: a persona switcher to act as different roles. | [`PersonaSwitcher.tsx`](https://github.com/yavorpanayotov/kinetix/blob/main/ui/src/components/PersonaSwitcher.tsx) |
 
 In demo mode the header also shows a **scenario indicator** (the active seeded scenario) and a **tape-replay indicator** (Live / Replay / Frozen market-data state).
 
@@ -54,7 +54,7 @@ In demo mode the header also shows a **scenario indicator** (the active seeded s
 
 ### Notification strip
 
-A 36-px collapsed bar (bell icon + severity counts) that expands into an inbox: [`NotificationStrip.tsx`](https://github.com/panayotovk/kinetix/blob/main/ui/src/components/NotificationStrip.tsx)
+A 36-px collapsed bar (bell icon + severity counts) that expands into an inbox: [`NotificationStrip.tsx`](https://github.com/yavorpanayotov/kinetix/blob/main/ui/src/components/NotificationStrip.tsx)
 
 - **Morning brief** — an AI-generated summary of the day's market and risk context, auto-expanded on the first open of the trading day.
 - **Saved-query chips** — one-click launchers for common copilot questions (e.g. "Top VaR drivers").
@@ -63,23 +63,23 @@ A 36-px collapsed bar (bell icon + severity counts) that expands into an inbox: 
 
 ### Risk ticker strip
 
-An always-on KPI band for the selected book: connection status, NAV, unrealised P&L, intraday P&L, VaR with limit utilisation (red above 80%), aggregate Greeks, and the last-calc timestamp. When a VaR breach is active it surfaces a **"Need a hedge?"** button. See [`RiskTickerStrip.tsx`](https://github.com/panayotovk/kinetix/blob/main/ui/src/components/RiskTickerStrip.tsx).
+An always-on KPI band for the selected book: connection status, NAV, unrealised P&L, intraday P&L, VaR with limit utilisation (red above 80%), aggregate Greeks, and the last-calc timestamp. When a VaR breach is active it surfaces a **"Need a hedge?"** button. See [`RiskTickerStrip.tsx`](https://github.com/yavorpanayotov/kinetix/blob/main/ui/src/components/RiskTickerStrip.tsx).
 
 ### Command palette (⌘K / Ctrl-K)
 
-[`CommandPalette.tsx`](https://github.com/panayotovk/kinetix/blob/main/ui/src/components/CommandPalette.tsx) — a global launcher with two modes:
+[`CommandPalette.tsx`](https://github.com/yavorpanayotov/kinetix/blob/main/ui/src/components/CommandPalette.tsx) — a global launcher with two modes:
 
 - **Command mode** — fuzzy search across tabs, sub-tabs, books, instruments, and scenarios, with a recent-commands list.
 - **Copilot mode** — free-form questions routed to the AI copilot (`/chat`), with streaming answers, inline **citations**, and multi-turn follow-ups scoped to the current book. See [AI Features](AI-Features).
 
-![AI copilot with citation](https://raw.githubusercontent.com/panayotovk/kinetix/main/docs/screenshots/copilot-narrative.png)
+![AI copilot with citation](https://raw.githubusercontent.com/yavorpanayotov/kinetix/main/docs/screenshots/copilot-narrative.png)
 
 ### Slide-in analysis panels
 
 | Panel | Opened from | Purpose | Source |
 |---|---|---|---|
-| **Hedge recommendation** | `Shift+H`, the ticker's "Need a hedge?" button, the breach banner, or the Risk tab | AI-suggested hedge trades with expected VaR / Greek impact; can be sent to the What-If panel. | [`HedgeRecommendationPanel.tsx`](https://github.com/panayotovk/kinetix/blob/main/ui/src/components/HedgeRecommendationPanel.tsx) |
-| **What-If** | Positions tab, or "Send to What-If" from a hedge recommendation | Add/remove hypothetical trades and see the impact on VaR, Greeks, and P&L; presets like "Reduce largest" and "Flatten delta". | [`WhatIfPanel.tsx`](https://github.com/panayotovk/kinetix/blob/main/ui/src/components/WhatIfPanel.tsx) |
+| **Hedge recommendation** | `Shift+H`, the ticker's "Need a hedge?" button, the breach banner, or the Risk tab | AI-suggested hedge trades with expected VaR / Greek impact; can be sent to the What-If panel. | [`HedgeRecommendationPanel.tsx`](https://github.com/yavorpanayotov/kinetix/blob/main/ui/src/components/HedgeRecommendationPanel.tsx) |
+| **What-If** | Positions tab, or "Send to What-If" from a hedge recommendation | Add/remove hypothetical trades and see the impact on VaR, Greeks, and P&L; presets like "Reduce largest" and "Flatten delta". | [`WhatIfPanel.tsx`](https://github.com/yavorpanayotov/kinetix/blob/main/ui/src/components/WhatIfPanel.tsx) |
 
 ### Keyboard shortcuts
 

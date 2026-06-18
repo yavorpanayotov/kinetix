@@ -8,9 +8,9 @@ Five tabs: **Regulatory**, **Reports**, **Activity**, **Alerts**, **System**. Ea
 
 ## Regulatory
 
-FRTB Standardised Approach capital. Source: [`RegulatoryDashboard.tsx`](https://github.com/panayotovk/kinetix/blob/main/ui/src/components/RegulatoryDashboard.tsx) (via [`RegulatoryTab.tsx`](https://github.com/panayotovk/kinetix/blob/main/ui/src/components/RegulatoryTab.tsx)).
+FRTB Standardised Approach capital. Source: [`RegulatoryDashboard.tsx`](https://github.com/yavorpanayotov/kinetix/blob/main/ui/src/components/RegulatoryDashboard.tsx) (via [`RegulatoryTab.tsx`](https://github.com/yavorpanayotov/kinetix/blob/main/ui/src/components/RegulatoryTab.tsx)).
 
-![Regulatory FRTB tab](https://raw.githubusercontent.com/panayotovk/kinetix/main/docs/screenshots/regulatory-frtb.png)
+![Regulatory FRTB tab](https://raw.githubusercontent.com/yavorpanayotov/kinetix/main/docs/screenshots/regulatory-frtb.png)
 
 - **Actions:** Calculate FRTB, Download CSV, Download XBRL (the last two enable once a result exists).
 - **Summary cards:** Total Capital Charge, SBM, DRC, RRAO, plus a stacked bar of each charge's share of the total.
@@ -23,7 +23,7 @@ The methodology and bucket correlations are documented in [FRTB Capital](FRTB-Ca
 
 ## Reports
 
-Generate, narrate, and download reports. Source: [`ReportsTab.tsx`](https://github.com/panayotovk/kinetix/blob/main/ui/src/components/ReportsTab.tsx).
+Generate, narrate, and download reports. Source: [`ReportsTab.tsx`](https://github.com/yavorpanayotov/kinetix/blob/main/ui/src/components/ReportsTab.tsx).
 
 - **Generate** — pick a template, confirm the book, optionally set an as-of date, and Generate; Download CSV appears on completion.
 - **AI commentary** — after generation, an AI narrative summarising the report's key drivers streams into a card (see [AI Features](AI-Features)).
@@ -34,9 +34,9 @@ Generate, narrate, and download reports. Source: [`ReportsTab.tsx`](https://gith
 
 ## Activity
 
-The hash-chained audit trail of every material system event. Source: [`AuditLogPanel.tsx`](https://github.com/panayotovk/kinetix/blob/main/ui/src/components/AuditLogPanel.tsx). Background: [Audit and Compliance](Audit-and-Compliance), ADR-0017.
+The hash-chained audit trail of every material system event. Source: [`AuditLogPanel.tsx`](https://github.com/yavorpanayotov/kinetix/blob/main/ui/src/components/AuditLogPanel.tsx). Background: [Audit and Compliance](Audit-and-Compliance), ADR-0017.
 
-![Activity audit trail](https://raw.githubusercontent.com/panayotovk/kinetix/main/docs/screenshots/activity-audit.png)
+![Activity audit trail](https://raw.githubusercontent.com/yavorpanayotov/kinetix/main/docs/screenshots/activity-audit.png)
 
 - **Chain-integrity indicator** — verifies the hash chain on load: "Chain verified · N events" (green) or "Chain broken · N events" (red), with a recheck action.
 - **Filters** — book, trade, event type (e.g. `TRADE_BOOKED`), and a from/to time window.
@@ -47,9 +47,9 @@ The hash-chained audit trail of every material system event. Source: [`AuditLogP
 
 ## Alerts
 
-Define alert rules and triage the live alert queue. Source: [`NotificationCenter.tsx`](https://github.com/panayotovk/kinetix/blob/main/ui/src/components/NotificationCenter.tsx).
+Define alert rules and triage the live alert queue. Source: [`NotificationCenter.tsx`](https://github.com/yavorpanayotov/kinetix/blob/main/ui/src/components/NotificationCenter.tsx).
 
-![Alerts tab](https://raw.githubusercontent.com/panayotovk/kinetix/main/docs/screenshots/alerts-tab.png)
+![Alerts tab](https://raw.githubusercontent.com/yavorpanayotov/kinetix/main/docs/screenshots/alerts-tab.png)
 
 **Create rule** — name, rule type (VAR_BREACH, PNL_THRESHOLD, RISK_LIMIT, DELTA_BREACH, VEGA_BREACH, CONCENTRATION, MARGIN_BREACH), threshold, operator (above / below), severity (CRITICAL / WARNING / INFO), and delivery channels (in-app / email / webhook). Inline validation gates the Create button.
 
@@ -65,9 +65,9 @@ Define alert rules and triage the live alert queue. Source: [`NotificationCenter
 
 ## System
 
-Platform health and observability entry points. Source: [`SystemDashboard.tsx`](https://github.com/panayotovk/kinetix/blob/main/ui/src/components/SystemDashboard.tsx).
+Platform health and observability entry points. Source: [`SystemDashboard.tsx`](https://github.com/yavorpanayotov/kinetix/blob/main/ui/src/components/SystemDashboard.tsx).
 
-![System dashboard](https://raw.githubusercontent.com/panayotovk/kinetix/main/docs/screenshots/system-dashboard.png)
+![System dashboard](https://raw.githubusercontent.com/yavorpanayotov/kinetix/main/docs/screenshots/system-dashboard.png)
 
 - **Status banner** — "All Systems Operational" (green) or "Degraded" (amber), with a refresh.
 - **Service health grid** — a card per backend service (gateway, position, price, risk-orchestrator, notification, rates, reference-data, volatility, correlation, regulatory, audit) with a READY/DOWN status dot and, where configured, a link straight to that service's Grafana dashboard.

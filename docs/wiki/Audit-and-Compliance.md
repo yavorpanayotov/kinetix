@@ -8,8 +8,8 @@ Kinetix is designed under the assumption that every significant action must be *
 
 ## Hash-chained audit trail
 
-ADR: [0017](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0017-hash-chained-audit-trail.md)
-Service: [`audit-service/`](https://github.com/panayotovk/kinetix/tree/main/audit-service)
+ADR: [0017](https://github.com/yavorpanayotov/kinetix/blob/main/docs/adr/0017-hash-chained-audit-trail.md)
+Service: [`audit-service/`](https://github.com/yavorpanayotov/kinetix/tree/main/audit-service)
 
 ### Chain protocol
 
@@ -90,7 +90,7 @@ Two production Kafka topics ship audit events:
 
 ## Run manifests
 
-ADR: [0018](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0018-run-reproducibility-via-manifests.md)
+ADR: [0018](https://github.com/yavorpanayotov/kinetix/blob/main/docs/adr/0018-run-reproducibility-via-manifests.md)
 
 Every risk calculation captures a manifest sufficient to **replay the run bit-for-bit**:
 
@@ -118,7 +118,7 @@ This unlocks:
 
 ## EOD promotion governance
 
-ADR: [0019](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0019-official-eod-labeling-with-promotion-governance.md)
+ADR: [0019](https://github.com/yavorpanayotov/kinetix/blob/main/docs/adr/0019-official-eod-labeling-with-promotion-governance.md)
 
 Scheduled VaR runs land with the label `SCHEDULED`. They are **not** official until explicitly promoted.
 
@@ -172,7 +172,7 @@ Models cannot be used in production unless `APPROVED`.
 
 ## Regulatory submissions
 
-Source: [`regulatory-service/`](https://github.com/panayotovk/kinetix/tree/main/regulatory-service)
+Source: [`regulatory-service/`](https://github.com/yavorpanayotov/kinetix/tree/main/regulatory-service)
 
 Submission lifecycle:
 
@@ -210,7 +210,7 @@ Each backtest is audit-chained with the result and any model investigation that 
 
 ## Correlation IDs
 
-ADR: [0022](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0022-correlation-id-propagation.md)
+ADR: [0022](https://github.com/yavorpanayotov/kinetix/blob/main/docs/adr/0022-correlation-id-propagation.md)
 
 Every audit row stores the `correlation_id` of the originating request. From an audit row, you can:
 

@@ -1,87 +1,87 @@
 # Services
 
-Each service owns a single responsibility and a single PostgreSQL schema ([ADR-0011](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0011-database-per-service-isolation.md)). Cross-service data flows through Kafka or HTTP — never through shared tables.
+Each service owns a single responsibility and a single PostgreSQL schema ([ADR-0011](https://github.com/yavorpanayotov/kinetix/blob/main/docs/adr/0011-database-per-service-isolation.md)). Cross-service data flows through Kafka or HTTP — never through shared tables.
 
 ## Gateway
 
-**Path:** [`gateway/`](https://github.com/panayotovk/kinetix/tree/main/gateway)
+**Path:** [`gateway/`](https://github.com/yavorpanayotov/kinetix/tree/main/gateway)
 
 The single point of entry for the UI. Aggregates backend service responses, validates Keycloak JWTs, enforces role-based access (`ADMIN`, `TRADER`, `RISK_MANAGER`, `COMPLIANCE`, `VIEWER`), rate-limits per principal, and fans out WebSocket subscriptions for price ticks, intraday P&L, regime changes, and alerts.
 
 - **Tech:** Ktor 3.1, Koin, Resilience4j, WebSocket
 - **Dependencies:** Keycloak (token introspection), every backend service over HTTP
-- **ADRs:** [0012](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0012-api-gateway-aggregation-pattern.md), [0013](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0013-keycloak-for-authentication-and-rbac.md), [0016](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0016-websocket-for-real-time-ui-updates.md)
+- **ADRs:** [0012](https://github.com/yavorpanayotov/kinetix/blob/main/docs/adr/0012-api-gateway-aggregation-pattern.md), [0013](https://github.com/yavorpanayotov/kinetix/blob/main/docs/adr/0013-keycloak-for-authentication-and-rbac.md), [0016](https://github.com/yavorpanayotov/kinetix/blob/main/docs/adr/0016-websocket-for-real-time-ui-updates.md)
 
 ## Position Service
 
-**Path:** [`position-service/`](https://github.com/panayotovk/kinetix/tree/main/position-service)
+**Path:** [`position-service/`](https://github.com/yavorpanayotov/kinetix/tree/main/position-service)
 
 Trade lifecycle, positions, hierarchical limits, realised P&L, prime broker reconciliation. The system of record for booked trades and current holdings.
 
 - Trade book / amend / cancel with idempotent processing
-- Six-level pre-trade limit checks: Firm → Division → Desk → Book → Trader → Counterparty ([ADR-0023](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0023-hierarchical-limit-management.md))
+- Six-level pre-trade limit checks: Firm → Division → Desk → Book → Trader → Counterparty ([ADR-0023](https://github.com/yavorpanayotov/kinetix/blob/main/docs/adr/0023-hierarchical-limit-management.md))
 - Multi-currency position aggregation with FX caching
 - Realised P&L computed on position reduction with full audit
 - Order execution: outbound `NewOrderSingle` requests to fix-gateway via gRPC; inbound `ExecutionReport` consumed from `execution.reports` topic
 - Prime-broker reconciliation: scheduled jobs detect and persist breaks
-- Selective event sourcing for the trade lifecycle ([ADR-0006](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0006-selective-event-sourcing.md))
+- Selective event sourcing for the trade lifecycle ([ADR-0006](https://github.com/yavorpanayotov/kinetix/blob/main/docs/adr/0006-selective-event-sourcing.md))
 
 ## Price Service
 
-**Path:** [`price-service/`](https://github.com/panayotovk/kinetix/tree/main/price-service)
+**Path:** [`price-service/`](https://github.com/yavorpanayotov/kinetix/tree/main/price-service)
 
 Market data ingestion and distribution.
 
-- TimescaleDB hypertables ([ADR-0005](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0005-timescaledb-for-time-series.md)) with continuous aggregates and retention policies
-- Redis caching ([ADR-0015](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0015-redis-with-lettuce-for-shared-caching.md)) with TTL by instrument volatility class
+- TimescaleDB hypertables ([ADR-0005](https://github.com/yavorpanayotov/kinetix/blob/main/docs/adr/0005-timescaledb-for-time-series.md)) with continuous aggregates and retention policies
+- Redis caching ([ADR-0015](https://github.com/yavorpanayotov/kinetix/blob/main/docs/adr/0015-redis-with-lettuce-for-shared-caching.md)) with TTL by instrument volatility class
 - Kafka publishing to `price.updates`
 - Stale-price anomaly detection and `risk.anomalies` events
 
 ## Rates Service
 
-**Path:** [`rates-service/`](https://github.com/panayotovk/kinetix/tree/main/rates-service)
+**Path:** [`rates-service/`](https://github.com/yavorpanayotov/kinetix/tree/main/rates-service)
 
 Risk-free curves, forward curves, yield curve construction. Publishes to `rates.yield-curves`, `rates.forwards`, `rates.risk-free`. Curve-anomaly detection (missing nodes, non-monotonic forwards) ships to `risk.anomalies`.
 
 ## Volatility Service
 
-**Path:** [`volatility-service/`](https://github.com/panayotovk/kinetix/tree/main/volatility-service)
+**Path:** [`volatility-service/`](https://github.com/yavorpanayotov/kinetix/tree/main/volatility-service)
 
-Volatility surfaces with bilinear interpolation in (log K, √T) per [ADR-0033](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0033-vol-surface-diff-method.md). Surface diffs and "what changed" tooling for daily comparison.
+Volatility surfaces with bilinear interpolation in (log K, √T) per [ADR-0033](https://github.com/yavorpanayotov/kinetix/blob/main/docs/adr/0033-vol-surface-diff-method.md). Surface diffs and "what changed" tooling for daily comparison.
 
 ## Correlation Service
 
-**Path:** [`correlation-service/`](https://github.com/panayotovk/kinetix/tree/main/correlation-service)
+**Path:** [`correlation-service/`](https://github.com/yavorpanayotov/kinetix/tree/main/correlation-service)
 
 Correlation matrices with Ledoit-Wolf shrinkage. Estimation jobs run on rolling windows; outputs published to `correlation.matrices`.
 
 ## Reference Data Service
 
-**Path:** [`reference-data-service/`](https://github.com/panayotovk/kinetix/tree/main/reference-data-service)
+**Path:** [`reference-data-service/`](https://github.com/yavorpanayotov/kinetix/tree/main/reference-data-service)
 
 Instruments, organisational hierarchy, counterparties, credit ratings, dividend yields, credit spreads.
 
-- 11 instrument types modelled as sealed-interface subtypes ([ADR-0020](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0020-sealed-interface-instrument-type-hierarchy.md)): equities, bonds, IR swaps, FX forwards/spot, FX options, equity options, commodity futures/options, credit (CDS), inflation, structured
+- 11 instrument types modelled as sealed-interface subtypes ([ADR-0020](https://github.com/yavorpanayotov/kinetix/blob/main/docs/adr/0020-sealed-interface-instrument-type-hierarchy.md)): equities, bonds, IR swaps, FX forwards/spot, FX options, equity options, commodity futures/options, credit (CDS), inflation, structured
 - Organisational hierarchy materialised for fast roll-up
 
 ## Risk Orchestrator
 
-**Path:** [`risk-orchestrator/`](https://github.com/panayotovk/kinetix/tree/main/risk-orchestrator)
+**Path:** [`risk-orchestrator/`](https://github.com/yavorpanayotov/kinetix/tree/main/risk-orchestrator)
 
 The brain. Coordinates risk calculations across the platform.
 
-- **Five-phase pipeline** ([ADR-0021](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0021-risk-orchestration-architecture.md)): fetch positions → discover dependencies → fetch market data → valuate → publish
-- **Discovery-valuation contract** ([ADR-0029](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0029-discovery-valuation-two-phase-contract.md)): risk engine is a pure function; orchestrator owns all I/O
-- **Unified valuation RPC** ([ADR-0024](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0024-unified-valuation-rpc.md)): single Valuate RPC with `requested_outputs`, market-data `oneof`, and Monte Carlo seed for reproducibility
+- **Five-phase pipeline** ([ADR-0021](https://github.com/yavorpanayotov/kinetix/blob/main/docs/adr/0021-risk-orchestration-architecture.md)): fetch positions → discover dependencies → fetch market data → valuate → publish
+- **Discovery-valuation contract** ([ADR-0029](https://github.com/yavorpanayotov/kinetix/blob/main/docs/adr/0029-discovery-valuation-two-phase-contract.md)): risk engine is a pure function; orchestrator owns all I/O
+- **Unified valuation RPC** ([ADR-0024](https://github.com/yavorpanayotov/kinetix/blob/main/docs/adr/0024-unified-valuation-rpc.md)): single Valuate RPC with `requested_outputs`, market-data `oneof`, and Monte Carlo seed for reproducibility
 - **Cross-book aggregation:** multi-book VaR with correlation matrices; results promoted from a shared cache to avoid recomputation
-- **P&L attribution:** Greek decomposition against SOD baselines, using pricing Greeks per [ADR-0032](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0032-intraday-pnl-greek-source.md)
+- **P&L attribution:** Greek decomposition against SOD baselines, using pricing Greeks per [ADR-0032](https://github.com/yavorpanayotov/kinetix/blob/main/docs/adr/0032-intraday-pnl-greek-source.md)
 - **What-if engine:** hypothetical trade simulation with full risk re-computation
-- **EOD promotion governance** ([ADR-0019](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0019-official-eod-labeling-with-promotion-governance.md))
+- **EOD promotion governance** ([ADR-0019](https://github.com/yavorpanayotov/kinetix/blob/main/docs/adr/0019-official-eod-labeling-with-promotion-governance.md))
 - **Scheduled regime detection:** publishes regime transitions to `risk.regime.changes`
 
 ## Regulatory Service
 
-**Path:** [`regulatory-service/`](https://github.com/panayotovk/kinetix/tree/main/regulatory-service)
+**Path:** [`regulatory-service/`](https://github.com/yavorpanayotov/kinetix/tree/main/regulatory-service)
 
 Regulatory capital, model governance, submissions.
 
@@ -93,11 +93,11 @@ Regulatory capital, model governance, submissions.
 
 ## Audit Service
 
-**Path:** [`audit-service/`](https://github.com/panayotovk/kinetix/tree/main/audit-service)
+**Path:** [`audit-service/`](https://github.com/yavorpanayotov/kinetix/tree/main/audit-service)
 
 Tamper-evident, immutable record of every significant platform event.
 
-- SHA-256 hash chain ([ADR-0017](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0017-hash-chained-audit-trail.md)): `record_hash = SHA-256(payload || previous_hash)`
+- SHA-256 hash chain ([ADR-0017](https://github.com/yavorpanayotov/kinetix/blob/main/docs/adr/0017-hash-chained-audit-trail.md)): `record_hash = SHA-256(payload || previous_hash)`
 - Concurrent writes serialised with `pg_advisory_xact_lock` so the chain cannot fork
 - TimescaleDB hypertable with 7-year retention
 - DLQ replay tooling for operations
@@ -106,7 +106,7 @@ See [Audit and Compliance](Audit-and-Compliance) for the full chain protocol and
 
 ## Notification Service
 
-**Path:** [`notification-service/`](https://github.com/panayotovk/kinetix/tree/main/notification-service)
+**Path:** [`notification-service/`](https://github.com/yavorpanayotov/kinetix/tree/main/notification-service)
 
 Alert rule engine and multi-channel delivery.
 
@@ -117,9 +117,9 @@ Alert rule engine and multi-channel delivery.
 
 ## Fix Gateway
 
-**Path:** [`fix-gateway/`](https://github.com/panayotovk/kinetix/tree/main/fix-gateway)
+**Path:** [`fix-gateway/`](https://github.com/yavorpanayotov/kinetix/tree/main/fix-gateway)
 
-Venue and prime-broker FIX 4.4 connectivity, extracted from position-service per [ADR-0035](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0035-fix-gateway-service-extraction.md).
+Venue and prime-broker FIX 4.4 connectivity, extracted from position-service per [ADR-0035](https://github.com/yavorpanayotov/kinetix/blob/main/docs/adr/0035-fix-gateway-service-extraction.md).
 
 - Outbound `NewOrderSingle` via synchronous gRPC from position-service
 - Inbound `ExecutionReport` published to `execution.reports`
@@ -128,7 +128,7 @@ Venue and prime-broker FIX 4.4 connectivity, extracted from position-service per
 
 ## Risk Engine (Python)
 
-**Path:** [`risk-engine/`](https://github.com/panayotovk/kinetix/tree/main/risk-engine)
+**Path:** [`risk-engine/`](https://github.com/yavorpanayotov/kinetix/tree/main/risk-engine)
 
 Stateless gRPC calculator. No I/O outside RPC boundaries. Inputs in, results out.
 
@@ -163,7 +163,7 @@ See [Risk Methodology](Risk-Methodology) for the math and references.
 
 ## UI
 
-**Path:** [`ui/`](https://github.com/panayotovk/kinetix/tree/main/ui)
+**Path:** [`ui/`](https://github.com/yavorpanayotov/kinetix/tree/main/ui)
 
 React 19 + TypeScript trading and risk dashboard. 12 tabs grouped into three clusters.
 

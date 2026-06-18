@@ -69,7 +69,7 @@ but the Reports error and the empty P&L dashboard are the two a prospect would n
 | **Alerts** | Rule builder + rules table (VaR Breach, P&L Threshold, Limit, Concentration…) + live triggered breaches; tab badge shows 50 unread. |
 | **System** | "All Systems Operational" — 11 services `READY`; Observability panel deep-links to 9 Grafana dashboards. |
 | **AI Copilot ("Ask Kinetix")** | Opens, accepts a prompt, returns an answer with a self-verification caution banner (hallucination guard). No errors. |
-| **Header** | Demo badge, persona switcher, Firm/portfolio scope, Multi-Asset, Frozen toggle, NORMAL status, dark-mode toggle, GitHub link (`github.com/panayotovk/kinetix`). |
+| **Header** | Demo badge, persona switcher, Firm/portfolio scope, Multi-Asset, Frozen toggle, NORMAL status, dark-mode toggle, GitHub link (`github.com/yavorpanayotov/kinetix`). |
 | **Grafana** | 25 dashboards; anon access; loki/tempo/prometheus datasources healthy. Service Logs dashboard streams live (Error 564 / Warn 89.1k). Risk Overview & Risk Engine fully populated. |
 
 ## Findings / action items

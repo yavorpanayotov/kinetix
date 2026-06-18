@@ -1,8 +1,8 @@
 # Risk Methodology
 
-The quantitative core of Kinetix lives in the [Python risk engine](https://github.com/panayotovk/kinetix/tree/main/risk-engine), exposed to the rest of the platform via gRPC ([ADR-0003](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0003-grpc-for-python-integration.md), [ADR-0024](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0024-unified-valuation-rpc.md)).
+The quantitative core of Kinetix lives in the [Python risk engine](https://github.com/yavorpanayotov/kinetix/tree/main/risk-engine), exposed to the rest of the platform via gRPC ([ADR-0003](https://github.com/yavorpanayotov/kinetix/blob/main/docs/adr/0003-grpc-for-python-integration.md), [ADR-0024](https://github.com/yavorpanayotov/kinetix/blob/main/docs/adr/0024-unified-valuation-rpc.md)).
 
-A guiding rule: **the risk engine is a pure function** ([ADR-0029](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0029-discovery-valuation-two-phase-contract.md)). Given the same `(positions, market_data, seed)`, it produces the same outputs — no hidden lookups, no clock dependencies, no caches that bleed across runs. This is what makes runs replayable bit-for-bit from a manifest ([ADR-0018](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0018-run-reproducibility-via-manifests.md)).
+A guiding rule: **the risk engine is a pure function** ([ADR-0029](https://github.com/yavorpanayotov/kinetix/blob/main/docs/adr/0029-discovery-valuation-two-phase-contract.md)). Given the same `(positions, market_data, seed)`, it produces the same outputs — no hidden lookups, no clock dependencies, no caches that bleed across runs. This is what makes runs replayable bit-for-bit from a manifest ([ADR-0018](https://github.com/yavorpanayotov/kinetix/blob/main/docs/adr/0018-run-reproducibility-via-manifests.md)).
 
 ## Value at Risk
 
@@ -38,7 +38,7 @@ Three methodologies are implemented side by side. Method selection is driven by 
 ### Cross-book VaR
 
 - Multi-book aggregation with explicit correlation matrices
-- Hierarchy roll-up across Firm → Division → Desk → Book ([ADR-0023](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0023-hierarchical-limit-management.md))
+- Hierarchy roll-up across Firm → Division → Desk → Book ([ADR-0023](https://github.com/yavorpanayotov/kinetix/blob/main/docs/adr/0023-hierarchical-limit-management.md))
 - Marginal contribution and risk-budgeting decomposition for CRO-style reports
 - Files: `cross_book_var.py`, `ScheduledCrossBookVaRCalculator.kt`
 
@@ -67,7 +67,7 @@ Intraday and EOD P&L decomposed into Greek contributions:
 P&L = Δ · dS + ½Γ · dS² + ν · dσ + Θ · dt + ρ · dr + Unexplained
 ```
 
-- **Greek source:** pricing Greeks from `SodGreekSnapshot`, not VaR Greeks ([ADR-0032](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0032-intraday-pnl-greek-source.md)) — VaR Greeks are conditional on scenario distribution and would attribute P&L incorrectly
+- **Greek source:** pricing Greeks from `SodGreekSnapshot`, not VaR Greeks ([ADR-0032](https://github.com/yavorpanayotov/kinetix/blob/main/docs/adr/0032-intraday-pnl-greek-source.md)) — VaR Greeks are conditional on scenario distribution and would attribute P&L incorrectly
 - **Brinson decomposition:** allocation vs. selection contribution by sector/asset class — `brinson.py`
 - **Files:** `attribution_server.py`, `PnLAttributionDeriver.kt`
 
@@ -92,7 +92,7 @@ Loadings are estimated via OLS on rolling returns and via analytical decompositi
 - Discount-curve based PV
 - Internal KRD: 4 tenor buckets (2Y, 5Y, 10Y, 30Y) — fast for intraday risk
 - FRTB GIRR: 12 tenor buckets per Basel for capital calculation
-- Two-grid design documented in [ADR-0028](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0028-key-rate-duration-tenor-buckets.md)
+- Two-grid design documented in [ADR-0028](https://github.com/yavorpanayotov/kinetix/blob/main/docs/adr/0028-key-rate-duration-tenor-buckets.md)
 - Files: `bond_pricing.py`, `key_rate_duration.py`
 
 ### Swap pricing
@@ -146,7 +146,7 @@ Signals: rolling realised vol, correlation breakdown, term-structure inversion, 
 
 Transitions are **debounced** — a single noisy print should not flip risk parameters. Adaptive parameters per regime auto-adjust calculation method, confidence level, and time horizon.
 
-Behaviour on degraded inputs ([ADR-0034](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0034-regime-degraded-signal-policy.md)): when some signals are unavailable, a transition fires only if **all available signals agree**. Otherwise the classifier holds and emits a `risk.anomalies` event flagging the degradation.
+Behaviour on degraded inputs ([ADR-0034](https://github.com/yavorpanayotov/kinetix/blob/main/docs/adr/0034-regime-degraded-signal-policy.md)): when some signals are unavailable, a transition fires only if **all available signals agree**. Otherwise the classifier holds and emits a `risk.anomalies` event flagging the degradation.
 
 Early-warning signals are surfaced to the UI at 80% of regime-transition thresholds.
 
@@ -174,7 +174,7 @@ Early-warning signals are surfaced to the UI at 80% of regime-transition thresho
 
 ### Wrong-way risk
 
-- Sector-match taxonomy per [ADR-0031](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0031-wrong-way-risk-sector-taxonomy.md): exposure to a counterparty's sector is flagged as WWR
+- Sector-match taxonomy per [ADR-0031](https://github.com/yavorpanayotov/kinetix/blob/main/docs/adr/0031-wrong-way-risk-sector-taxonomy.md): exposure to a counterparty's sector is flagged as WWR
 - Replaces a less-strict counterparty-only heuristic from earlier versions
 
 ### SA-CCR
@@ -217,4 +217,4 @@ Every risk run captures:
 - Model version per asset class
 - Output hash
 
-This is sufficient to replay any run bit-for-bit ([ADR-0018](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0018-run-reproducibility-via-manifests.md)) — the foundation for backtesting on historical portfolios, "compare two runs" tooling, and regulator-grade audit.
+This is sufficient to replay any run bit-for-bit ([ADR-0018](https://github.com/yavorpanayotov/kinetix/blob/main/docs/adr/0018-run-reproducibility-via-manifests.md)) — the foundation for backtesting on historical portfolios, "compare two runs" tooling, and regulator-grade audit.

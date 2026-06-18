@@ -12,7 +12,7 @@ FRTB_SA = SBM + DRC + RRAO
 - **DRC** — Default Risk Charge
 - **RRAO** — Residual Risk Add-On
 
-Computed in the Python risk engine, persisted by [regulatory-service](https://github.com/panayotovk/kinetix/tree/main/regulatory-service), and exposed to the UI via the Regulatory tab with CSV and XBRL export.
+Computed in the Python risk engine, persisted by [regulatory-service](https://github.com/yavorpanayotov/kinetix/tree/main/regulatory-service), and exposed to the UI via the Regulatory tab with CSV and XBRL export.
 
 ## SBM — Sensitivities-Based Method
 
@@ -49,7 +49,7 @@ Source: `risk-engine/src/kinetix_risk/frtb/risk_weights.py`, `frtb/girr_correlat
 - Tenor correlations parameterised by `θ` (per Basel)
 - Curvature uses prescribed parallel shifts
 
-A separate 4-tenor internal KRD grid (2Y/5Y/10Y/30Y) is used for intraday risk where computation speed matters more than capital precision — see [ADR-0028](https://github.com/panayotovk/kinetix/blob/main/docs/adr/0028-key-rate-duration-tenor-buckets.md).
+A separate 4-tenor internal KRD grid (2Y/5Y/10Y/30Y) is used for intraday risk where computation speed matters more than capital precision — see [ADR-0028](https://github.com/yavorpanayotov/kinetix/blob/main/docs/adr/0028-key-rate-duration-tenor-buckets.md).
 
 ### Equity
 
