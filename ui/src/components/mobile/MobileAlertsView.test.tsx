@@ -144,6 +144,11 @@ describe('MobileAlertsView', () => {
     expect(empty).toBeInTheDocument()
     expect(empty).toHaveTextContent('No active alerts')
     expect(empty).toHaveTextContent(/all caught up/i)
+    // The muted "caught up" subtitle must clear WCAG AA contrast on the
+    // near-black dark surface: slate-400 (brighter), not slate-500.
+    const subtitle = screen.getByText(/all caught up/i)
+    expect(subtitle.className).toContain('dark:text-slate-400')
+    expect(subtitle.className).not.toContain('dark:text-slate-500')
     // The reassurance is earned: a "feed live" affordance is shown.
     expect(screen.getByTestId('mobile-alerts-feed-status')).toHaveTextContent(/live/i)
     // No warning copy when the feed is healthy.

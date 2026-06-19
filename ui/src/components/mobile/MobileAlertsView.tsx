@@ -122,7 +122,7 @@ export function MobileAlertsView({ username = null }: MobileAlertsViewProps) {
         <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
           No active alerts
         </p>
-        <p className="text-xs text-slate-400 dark:text-slate-500">
+        <p className="text-xs text-slate-400 dark:text-slate-400">
           You're all caught up.
         </p>
         <span
