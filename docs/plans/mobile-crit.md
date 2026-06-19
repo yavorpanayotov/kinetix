@@ -126,7 +126,7 @@ findings are appended here by the crit round, ordered worst-first.
   When `positions.length > TOP_N`, add a footer: "Showing top 15 by market value — full blotter on desktop."
   Acceptance: cd ui && npm run lint && npm run test && npx playwright test mobile-access
 
-- [ ] **Alerts tab has no unread badge** (trader, low)
+- [x] **Alerts tab has no unread badge** (trader, low)
   Hoist `useNotifications` to the `MobileApp` shell and render a red dot/count on the Alerts tab icon when triggered alerts exist, so a user on another tab gets a passive signal.
   Acceptance: cd ui && npm run lint && npm run test && npx playwright test mobile-access
 
@@ -169,6 +169,7 @@ findings are appended here by the crit round, ordered worst-first.
 - Risk wayfinding note: muted one-line note below the VaR card (data-present only) so the empty space reads as intentional. `MobileRiskView.tsx`. [2b5fc0d5]
 - NAV negative colour: `pnlColorClass` applied to NAV only when negative; positive/zero stays neutral. `MobilePnlView.tsx`. [5b57bc3f]
 - Positions truncation footer: "Showing top {TOP_N} by market value — full blotter on desktop." shown only when count exceeds the cap; reuses `TOP_N`. `MobilePositionsView.tsx`. [283f8842]
+- Alerts tab badge: `useNotifications` hoisted to the shell; red count chip ("9+" cap, `aria-label`) on the Alerts tab when TRIGGERED alerts exist. `MobileApp.tsx` + new Playwright assertion. [4af47c9b]
 <!-- END RESOLVED -->
 
 ## Human calls (conflicts surfaced for the user)
