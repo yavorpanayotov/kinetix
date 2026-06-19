@@ -70,7 +70,7 @@ findings are appended here by the crit round, ordered worst-first.
   `MobilePositionsView.tsx:76` passes `dataAsOf={null}` unconditionally, so the only view with no staleness signal. Thread a timestamp from `usePositions`/the summary; if none exists, render a static "no timestamp available" banner rather than nothing — every monitor view must carry freshness.
   Acceptance: cd ui && npm run lint && npm run test && npx playwright test mobile-access
 
-- [ ] **Red/stale state must dominate the data, not just the banner** (trader+ux, high)
+- [x] **Red/stale state must dominate the data, not just the banner** (trader+ux, high)
   At red staleness the VaR number renders crisp and full-size — a 520-day-stale number looks identical to a 2-min one. Fix: at `red`, visually degrade the data card (e.g. `opacity-50`) and make the banner heavier (`py-3`, larger type); raise dark-banner opacity `dark:bg-red-900/40`→`/70` and amber likewise so the strip reads as distinct from the page in dark mode.
   Acceptance: cd ui && npm run lint && npm run test && npx playwright test mobile-access
 
@@ -149,6 +149,7 @@ findings are appended here by the crit round, ordered worst-first.
 <!-- BEGIN RESOLVED -->
 - Stale freshness banner: ≥24h renders absolute date ("Data as of Jan 15, 2025"), singular "1 hour"/"1 minute" grammar fixed. `MobileFreshnessBanner.tsx`. [207b58fb]
 - Positions freshness: positions feed exposes no timestamp, so a static "Position data — no timestamp available" banner now renders (was nothing). `MobilePositionsView.tsx`. [6047f562] — follow-up: if the gateway ever returns an as-of for positions, swap the static banner for the live `MobileFreshnessBanner`.
+- Red staleness dominates data: extracted shared `utils/freshnessLevel.ts`; Risk card dims (`opacity-50`) when red-stale, banner heavier (`py-3 text-base`) + darker dark-mode strip. `MobileFreshnessBanner.tsx`, `MobileRiskView.tsx`. [170e4053] — follow-up: P&L + Positions cards could dim at red too (helper now reusable).
 <!-- END RESOLVED -->
 
 ## Human calls (conflicts surfaced for the user)
