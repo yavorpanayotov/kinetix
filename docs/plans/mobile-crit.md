@@ -66,7 +66,7 @@ findings are appended here by the crit round, ordered worst-first.
   `MobileFreshnessBanner.tsx` `formatRelative` reports raw hours past 60 min, so seed data shows the meaningless **"12481 hours ago"**, and "1 hours ago" is ungrammatical. Fix: `≥ 24h` → render an absolute date (`toLocaleDateString` short month/day/year); fix singular "1 hour". Add unit cases for >24h and the singular boundary.
   Acceptance: cd ui && npm run lint && npm run test && npx playwright test mobile-access
 
-- [ ] **Positions view has no freshness banner** (trader+ux, high)
+- [x] **Positions view has no freshness banner** (trader+ux, high)
   `MobilePositionsView.tsx:76` passes `dataAsOf={null}` unconditionally, so the only view with no staleness signal. Thread a timestamp from `usePositions`/the summary; if none exists, render a static "no timestamp available" banner rather than nothing — every monitor view must carry freshness.
   Acceptance: cd ui && npm run lint && npm run test && npx playwright test mobile-access
 
@@ -148,6 +148,7 @@ findings are appended here by the crit round, ordered worst-first.
 
 <!-- BEGIN RESOLVED -->
 - Stale freshness banner: ≥24h renders absolute date ("Data as of Jan 15, 2025"), singular "1 hour"/"1 minute" grammar fixed. `MobileFreshnessBanner.tsx`. [207b58fb]
+- Positions freshness: positions feed exposes no timestamp, so a static "Position data — no timestamp available" banner now renders (was nothing). `MobilePositionsView.tsx`. [6047f562] — follow-up: if the gateway ever returns an as-of for positions, swap the static banner for the live `MobileFreshnessBanner`.
 <!-- END RESOLVED -->
 
 ## Human calls (conflicts surfaced for the user)
