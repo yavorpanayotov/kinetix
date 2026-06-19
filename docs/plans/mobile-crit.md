@@ -82,7 +82,7 @@ findings are appended here by the crit round, ordered worst-first.
   `MobileApp.tsx:129` tab buttons use `py-2`. Bump to `py-3` and add `min-h-[48px]` so the thumb hit-zone clears 48px.
   Acceptance: cd ui && npm run lint && npm run test && npx playwright test mobile-access
 
-- [ ] **Book selector touch target undersized** (ux, high)
+- [x] **Book selector touch target undersized** (ux, high)
   `MobileApp.tsx:72` `<select>` uses `px-2 py-1` (~30px tall). Raise to `py-2`/`py-2.5` for a ≥40px hit zone; add `min-w-[7rem]` so the arrow doesn't overlap a truncated name.
   Acceptance: cd ui && npm run lint && npm run test && npx playwright test mobile-access
 
@@ -152,6 +152,7 @@ findings are appended here by the crit round, ordered worst-first.
 - Red staleness dominates data: extracted shared `utils/freshnessLevel.ts`; Risk card dims (`opacity-50`) when red-stale, banner heavier (`py-3 text-base`) + darker dark-mode strip. `MobileFreshnessBanner.tsx`, `MobileRiskView.tsx`. [170e4053] — follow-up: P&L + Positions cards could dim at red too (helper now reusable).
 - No-limit risk state: when no VaR limit is configured, the empty bar is suppressed and an amber "No limit configured" note renders (was a dash reading as 0%/no risk). `MobileRiskView.tsx`. [aea717f8]
 - Bottom-nav touch targets: four tab buttons now `py-3 min-h-[48px] justify-center` (was `py-2`). `MobileApp.tsx`. [e37b1891]
+- Book selector touch target: header `<select>` now `py-2.5 min-w-[7rem]` (was `px-2 py-1`). `MobileApp.tsx`. [e99e749f]
 <!-- END RESOLVED -->
 
 ## Human calls (conflicts surfaced for the user)
