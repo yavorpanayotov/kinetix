@@ -220,6 +220,14 @@ describe('MobileApp', () => {
       expect(within(selector).getByRole('option', { name: 'book-2' })).toBeInTheDocument()
     })
 
+    it('gives the book selector a >=40px touch target and a min width', () => {
+      render(<MobileApp />)
+
+      const selector = screen.getByTestId('mobile-book-selector')
+      expect(selector).toHaveClass('py-2.5')
+      expect(selector).toHaveClass('min-w-[7rem]')
+    })
+
     it('changing the book selector calls selectBook', () => {
       const selectBook = vi.fn()
       mockUseBookSelector.mockReturnValue({
