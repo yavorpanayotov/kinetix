@@ -130,7 +130,7 @@ findings are appended here by the crit round, ordered worst-first.
   Hoist `useNotifications` to the `MobileApp` shell and render a red dot/count on the Alerts tab icon when triggered alerts exist, so a user on another tab gets a passive signal.
   Acceptance: cd ui && npm run lint && npm run test && npx playwright test mobile-access
 
-- [ ] **"Intraday P&L" label is fragile at 390px** (ux, low)
+- [x] **"Intraday P&L" label is fragile at 390px** (ux, low)
   `MobilePnlView.tsx:95` uppercase tracking-wide label is tight in a 50/50 grid. Shorten to "Intraday" (context is unambiguous on the P&L view).
   Acceptance: cd ui && npm run lint && npm run test && npx playwright test mobile-access
 
@@ -170,6 +170,7 @@ findings are appended here by the crit round, ordered worst-first.
 - NAV negative colour: `pnlColorClass` applied to NAV only when negative; positive/zero stays neutral. `MobilePnlView.tsx`. [5b57bc3f]
 - Positions truncation footer: "Showing top {TOP_N} by market value — full blotter on desktop." shown only when count exceeds the cap; reuses `TOP_N`. `MobilePositionsView.tsx`. [283f8842]
 - Alerts tab badge: `useNotifications` hoisted to the shell; red count chip ("9+" cap, `aria-label`) on the Alerts tab when TRIGGERED alerts exist. `MobileApp.tsx` + new Playwright assertion. [4af47c9b]
+- Intraday label: column label "Intraday P&L"→"Intraday" (context is unambiguous on the P&L view) for breathing room at 390px. `MobilePnlView.tsx`. [b9683f04]
 <!-- END RESOLVED -->
 
 ## Human calls (conflicts surfaced for the user)
