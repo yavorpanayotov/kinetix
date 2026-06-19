@@ -124,6 +124,24 @@ describe('MobilePnlView', () => {
     expect(screen.getByTestId('mobile-freshness-banner')).toBeInTheDocument()
   })
 
+  it('renders a static no-timestamp fallback banner when the stream has not delivered a snapshot', () => {
+    // The summary DTO carries NAV and unrealised P&L but no as-of timestamp,
+    // and the intraday stream has produced nothing yet. Rather than render no
+    // banner at all (which would let a stale phone screen pass for live), the
+    // view shows a static "no timestamp available" strip — mirroring
+    // MobilePositionsView — so the headline figures never appear undated.
+    setStream(null)
+
+    render(<MobilePnlView bookId="book-1" />)
+
+    // The live banner is absent (no timestamp to drive it)…
+    expect(screen.queryByTestId('mobile-freshness-banner')).not.toBeInTheDocument()
+    // …but a static fallback banner is present, not nothing.
+    const fallback = screen.getByTestId('mobile-pnl-freshness')
+    expect(fallback).toBeInTheDocument()
+    expect(fallback).toHaveTextContent(/no timestamp available/i)
+  })
+
   it('renders an em dash for intraday P&L when no intraday snapshot has arrived', () => {
     setStream(null)
 

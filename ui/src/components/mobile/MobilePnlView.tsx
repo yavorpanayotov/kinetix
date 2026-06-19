@@ -62,10 +62,31 @@ export function MobilePnlView({ bookId }: MobilePnlViewProps) {
   const unrealised = summary.totalUnrealizedPnl
   const intradayPnl = latest?.totalPnl ?? null
 
+  // The only timestamp on this view is the intraday snapshot's snapshotAt — the
+  // hierarchy summary DTO (BookAggregationDto) carries NAV and unrealised P&L
+  // but no as-of field, so it cannot supply a fallback. When the intraday
+  // stream hasn't delivered yet there is no timestamp at all; rather than hide
+  // the banner (which would let an undated NAV / unrealised P&L pass for live)
+  // we show a static "no timestamp available" strip, mirroring
+  // MobilePositionsView so the two read-only mobile views stay consistent. We
+  // deliberately do NOT invent a timestamp.
+  const dataAsOf = latest?.snapshotAt ?? null
+
   return (
     <div data-testid="mobile-pnl-view">
       <div className="-mx-4 -mt-4 mb-4">
-        <MobileFreshnessBanner dataAsOf={latest?.snapshotAt ?? null} />
+        {dataAsOf ? (
+          <MobileFreshnessBanner dataAsOf={dataAsOf} />
+        ) : (
+          <div
+            data-testid="mobile-pnl-freshness"
+            role="status"
+            aria-live="polite"
+            className="w-full px-4 py-2 text-sm font-medium bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+          >
+            Intraday P&L — no timestamp available
+          </div>
+        )}
       </div>
 
       <section className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-surface-800 p-4">
