@@ -308,8 +308,14 @@ describe('MobileApp', () => {
 
       // The active tab carries a visible top-border marker so colour-blind
       // users (and anyone where the active colour is dim) still perceive it.
+      // NB: the marker uses primary-500 — the lightest primary shade actually
+      // defined in the @theme block (src/index.css). primary-400/300 are NOT
+      // defined in this Tailwind v4 theme, so those utilities emit no CSS and
+      // render invisibly on the dark surface-800 nav.
       expect(active).toHaveClass('border-t-2')
-      expect(active).toHaveClass('border-primary-400')
+      expect(active).toHaveClass('border-primary-500')
+      // Active label is white for legibility on the dark nav (not a dim/undefined token).
+      expect(active).toHaveClass('text-white')
 
       // Inactive tabs reserve the same border space (transparent) so the
       // layout doesn't shift when selection changes.
@@ -317,7 +323,7 @@ describe('MobileApp', () => {
       expect(inactive).toHaveClass('border-transparent')
 
       // The distinction must be structural, not just a different colour token.
-      expect(inactive).not.toHaveClass('border-primary-400')
+      expect(inactive).not.toHaveClass('border-primary-500')
     })
   })
 
