@@ -120,7 +120,12 @@ describe('MobileAlertsView', () => {
     expect(detail).toBeInTheDocument()
     expect(detail).toHaveTextContent('VaR exceeded the limit')
 
-    fireEvent.click(screen.getByTestId('mobile-alert-detail-close'))
+    // The Close button is the only exit from the detail overlay on this web
+    // surface (no back gesture), so it must clear the 44px touch-target minimum.
+    const close = screen.getByTestId('mobile-alert-detail-close')
+    expect(close.className).toContain('min-h-[44px]')
+
+    fireEvent.click(close)
 
     expect(screen.queryByTestId('mobile-alert-detail')).not.toBeInTheDocument()
   })
