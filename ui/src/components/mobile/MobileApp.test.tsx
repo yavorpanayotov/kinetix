@@ -395,6 +395,67 @@ describe('MobileApp', () => {
     })
   })
 
+  describe('alerts tab badge', () => {
+    it('shows a badge with the triggered-alert count on the Alerts tab', () => {
+      mockUseNotifications.mockReturnValue({
+        rules: [],
+        alerts: [
+          { ...alert(), id: 'a1', status: 'TRIGGERED' },
+          { ...alert(), id: 'a2', status: 'TRIGGERED' },
+          { ...alert(), id: 'a3', status: 'ACKNOWLEDGED' },
+        ],
+        loading: false,
+        error: null,
+        connected: true,
+        createRule: vi.fn(),
+        deleteRule: vi.fn(),
+        acknowledgeAlert: vi.fn(),
+        escalateAlert: vi.fn(),
+        resolveAlert: vi.fn(),
+        snoozeAlert: vi.fn(),
+      } as UseNotificationsResult)
+
+      render(<MobileApp />)
+
+      const badge = screen.getByTestId('mobile-tab-alerts-badge')
+      expect(badge).toBeInTheDocument()
+      expect(badge).toHaveTextContent('2')
+      expect(badge).toHaveAttribute('aria-label', '2 active alerts')
+    })
+
+    it('renders no badge when there are no triggered alerts', () => {
+      mockUseNotifications.mockReturnValue({
+        rules: [],
+        alerts: [{ ...alert(), id: 'a1', status: 'ACKNOWLEDGED' }],
+        loading: false,
+        error: null,
+        connected: true,
+        createRule: vi.fn(),
+        deleteRule: vi.fn(),
+        acknowledgeAlert: vi.fn(),
+        escalateAlert: vi.fn(),
+        resolveAlert: vi.fn(),
+        snoozeAlert: vi.fn(),
+      } as UseNotificationsResult)
+
+      render(<MobileApp />)
+
+      expect(
+        screen.queryByTestId('mobile-tab-alerts-badge'),
+      ).not.toBeInTheDocument()
+    })
+
+    it('keeps the Alerts tab touch target, border, and aria-selected intact with a badge', () => {
+      render(<MobileApp />)
+
+      const alertsTab = screen.getByTestId('mobile-tab-alerts')
+      expect(alertsTab).toHaveClass('min-h-[48px]')
+      expect(alertsTab).toHaveClass('py-3')
+      expect(alertsTab).toHaveClass('border-t-2')
+      expect(alertsTab).toHaveAttribute('aria-selected', 'false')
+    })
+  })
+
   describe('shared state wiring', () => {
     it('threads the authenticated username into the Alerts view notifications hook', () => {
       render(<MobileApp />)

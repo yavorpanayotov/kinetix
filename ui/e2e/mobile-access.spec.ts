@@ -110,6 +110,68 @@ test.describe('Mobile phone access (390px)', () => {
     await expect(page.getByTestId('mobile-position-row-GOOGL')).toBeVisible()
   })
 
+  test('surfaces a triggered-alert badge on the Alerts tab from another view', async ({ page }) => {
+    // Override the alerts snapshot to return two TRIGGERED alerts (plus one
+    // already acknowledged, which must NOT count). The badge is driven by the
+    // shell-level useNotifications call, so it appears while sitting on Risk.
+    await page.unroute('**/api/v1/notifications/alerts*')
+    await page.route('**/api/v1/notifications/alerts*', (route: Route) => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([
+          {
+            id: 'a1',
+            ruleId: 'r1',
+            ruleName: 'VaR breach',
+            type: 'VAR_BREACH',
+            severity: 'CRITICAL',
+            message: 'VaR exceeded the limit',
+            currentValue: 1500000,
+            threshold: 1000000,
+            bookId: 'BOOK-EQ',
+            triggeredAt: new Date().toISOString(),
+            status: 'TRIGGERED',
+          },
+          {
+            id: 'a2',
+            ruleId: 'r2',
+            ruleName: 'Delta breach',
+            type: 'DELTA_BREACH',
+            severity: 'WARNING',
+            message: 'Delta exceeded the limit',
+            currentValue: 500000,
+            threshold: 400000,
+            bookId: 'BOOK-FX',
+            triggeredAt: new Date().toISOString(),
+            status: 'TRIGGERED',
+          },
+          {
+            id: 'a3',
+            ruleId: 'r3',
+            ruleName: 'Vega breach',
+            type: 'VEGA_BREACH',
+            severity: 'INFO',
+            message: 'Vega exceeded the limit',
+            currentValue: 200000,
+            threshold: 100000,
+            bookId: 'BOOK-EQ',
+            triggeredAt: new Date().toISOString(),
+            status: 'ACKNOWLEDGED',
+          },
+        ]),
+      })
+    })
+    await page.goto('/')
+
+    // Still on the default Risk view, the Alerts tab carries a count badge.
+    await expect(page.getByTestId('mobile-risk-view')).toBeVisible()
+    const badge = page.getByTestId('mobile-tab-alerts-badge')
+    await expect(badge).toBeVisible()
+    await expect(badge).toHaveText('2')
+    await expect(badge).toHaveAttribute('aria-label', '2 active alerts')
+  })
+
   test('no horizontal overflow at 390px on any view', async ({ page }) => {
     // The document must not be wider than the viewport on any of the four
     // views — a horizontal scrollbar is the classic "not actually responsive"

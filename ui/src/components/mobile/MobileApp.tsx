@@ -3,6 +3,7 @@ import { Activity, Shield, TrendingUp, Bell, BarChart3, Sun, Moon } from 'lucide
 import { useTheme } from '../../hooks/useTheme'
 import { useBookSelector } from '../../hooks/useBookSelector'
 import { useAuth } from '../../auth/useAuth'
+import { useNotifications } from '../../hooks/useNotifications'
 import { DEFAULT_MOBILE_VIEW, type MobileView } from './MobileView'
 import { MobileRiskView } from './MobileRiskView'
 import { MobilePnlView } from './MobilePnlView'
@@ -36,6 +37,18 @@ export function MobileApp() {
   const [activeMobileView, setActiveMobileView] = useState<MobileView>(
     DEFAULT_MOBILE_VIEW,
   )
+
+  // A trader on any other tab gets no passive signal that alerts are firing.
+  // Call useNotifications at the shell so the bottom nav can show a count badge
+  // on the Alerts tab regardless of which view is active. MobileAlertsView also
+  // calls the hook for its own list — both calls share useAuth's username, and
+  // the existing per-view hook pattern already runs hooks per view.
+  const { alerts } = useNotifications(auth.username)
+  // TRIGGERED is the live, unresolved state (matches statusVariant in
+  // MobileAlertsView, which maps TRIGGERED -> the critical badge).
+  const triggeredAlertCount = alerts.filter(
+    (a) => a.status === 'TRIGGERED',
+  ).length
 
   // The single book the per-book views fetch for. When "All Books" is selected
   // the aggregate sentinel is not a real book id, so pass null — the views show
@@ -118,6 +131,7 @@ export function MobileApp() {
         >
           {MOBILE_NAV.map(({ view, label, icon: Icon }) => {
             const active = activeMobileView === view
+            const showBadge = view === 'alerts' && triggeredAlertCount > 0
             return (
               <button
                 key={view}
@@ -132,7 +146,18 @@ export function MobileApp() {
                     : 'border-transparent text-slate-400 hover:text-white'
                 }`}
               >
-                <Icon className="h-5 w-5" />
+                <span className="relative">
+                  <Icon className="h-5 w-5" />
+                  {showBadge && (
+                    <span
+                      data-testid="mobile-tab-alerts-badge"
+                      aria-label={`${triggeredAlertCount} active alerts`}
+                      className="absolute -top-1.5 -right-2 inline-flex min-w-[1rem] items-center justify-center rounded-full bg-red-600 px-1 text-[0.625rem] font-bold leading-4 text-white"
+                    >
+                      {triggeredAlertCount > 9 ? '9+' : triggeredAlertCount}
+                    </span>
+                  )}
+                </span>
                 <span>{label}</span>
               </button>
             )
