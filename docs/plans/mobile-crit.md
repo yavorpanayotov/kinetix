@@ -167,7 +167,7 @@ findings are appended here by the crit round, ordered worst-first.
   On `MobilePnlView.tsx` the Intraday cell shows a bare em-dash when the stream hasn't delivered — indistinguishable from "genuinely zero on the day" vs "feed dead". Add a muted qualifier (e.g. "— pending" / "no feed") in the same small-caps style as the unrealised empty state when intraday is null. One conditional line, no new architecture.
   Acceptance: cd ui && npm run lint && npm run test && npx tsc --noEmit && npx playwright test mobile-access
 
-- [ ] **Alerts feed-down state has no "last received" anchor** (trader, low)
+- [x] **Alerts feed-down state has no "last received" anchor** (trader, low) — DEFERRED to beads kx-udy6
   The "Alert feed unavailable" state gives no sense of when the feed last worked. If `useNotifications`/`useAlertStream` exposes a last-event timestamp, show "last received <time>" under the subtitle; if none is available, leave as-is (do NOT invent one — note the gap).
   Acceptance: cd ui && npm run lint && npm run test && npx tsc --noEmit && npx playwright test mobile-access
 
@@ -204,6 +204,7 @@ findings are appended here by the crit round, ordered worst-first.
 - [R2] No-timestamp banner amber: P&L + Positions static banners now `bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300` + copy "freshness unknown" (was neutral grey = read as fresh). Fixes a round-1 regression. `MobilePnlView.tsx`, `MobilePositionsView.tsx`. [71b17367]
 - [R2] Alerts subtitle AA: feed-unavailable subtitle `text-amber-600`→`text-amber-700` (cleared AA on white). `MobileAlertsView.tsx`. [200c2c03]
 - [R2] Intraday qualifier: null intraday now renders "— pending" (was a bare dash); a real 0 still renders as a number. `MobilePnlView.tsx`. [c8c8bedb]
+- [R2] Alerts "last received" anchor: DEFERRED (no code change) — no timestamp signal exists (feed-down state has no alerts to derive from; `useAlertStream` tracks only booleans). Honest fix needs a shared-hook change (also used by desktop `NotificationCenter`), out of read-only mobile-polish scope. Filed as beads **kx-udy6**. Won't re-raise.
 <!-- END RESOLVED -->
 
 ## Human calls (conflicts surfaced for the user)
