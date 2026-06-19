@@ -171,7 +171,7 @@ findings are appended here by the crit round, ordered worst-first.
   The "Alert feed unavailable" state gives no sense of when the feed last worked. If `useNotifications`/`useAlertStream` exposes a last-event timestamp, show "last received <time>" under the subtitle; if none is available, leave as-is (do NOT invent one — note the gap).
   Acceptance: cd ui && npm run lint && npm run test && npx tsc --noEmit && npx playwright test mobile-access
 
-- [ ] **Positions: no "complete" signal when below the cap** (trader, low)
+- [x] **Positions: no "complete" signal when below the cap** (trader, low)
   The truncation footer only shows when count > TOP_N; with few positions the screen reads as unfinished. When `positions.length <= TOP_N`, show a muted "All {n} positions shown" footer (symmetric with the truncation footer) so the list reads as complete, not abandoned.
   Acceptance: cd ui && npm run lint && npm run test && npx tsc --noEmit && npx playwright test mobile-access
 <!-- END FINDINGS -->
@@ -205,6 +205,7 @@ findings are appended here by the crit round, ordered worst-first.
 - [R2] Alerts subtitle AA: feed-unavailable subtitle `text-amber-600`→`text-amber-700` (cleared AA on white). `MobileAlertsView.tsx`. [200c2c03]
 - [R2] Intraday qualifier: null intraday now renders "— pending" (was a bare dash); a real 0 still renders as a number. `MobilePnlView.tsx`. [c8c8bedb]
 - [R2] Alerts "last received" anchor: DEFERRED (no code change) — no timestamp signal exists (feed-down state has no alerts to derive from; `useAlertStream` tracks only booleans). Honest fix needs a shared-hook change (also used by desktop `NotificationCenter`), out of read-only mobile-polish scope. Filed as beads **kx-udy6**. Won't re-raise.
+- [R2] Positions all-shown footer: when count ≤ TOP_N (and > 0), "All {n} positions shown" renders (mutually exclusive with the truncation footer); neither in empty/loading. `MobilePositionsView.tsx`. [e1edeeb7]
 <!-- END RESOLVED -->
 
 ## Human calls (conflicts surfaced for the user)
