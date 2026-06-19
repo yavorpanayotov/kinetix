@@ -122,7 +122,7 @@ findings are appended here by the crit round, ordered worst-first.
   `MobilePnlView.tsx` renders NAV neutral always. Apply `pnlColorClass` when negative (positive stays neutral). `pnlColorClass` is already imported.
   Acceptance: cd ui && npm run lint && npm run test && npx playwright test mobile-access
 
-- [ ] **Positions list silently caps at top 15** (trader, low)
+- [x] **Positions list silently caps at top 15** (trader, low)
   When `positions.length > TOP_N`, add a footer: "Showing top 15 by market value — full blotter on desktop."
   Acceptance: cd ui && npm run lint && npm run test && npx playwright test mobile-access
 
@@ -168,6 +168,7 @@ findings are appended here by the crit round, ordered worst-first.
 - Alerts caught-up subtitle: dark shade `slate-500`→`slate-400` for AA contrast on surface-900; amber warning branch untouched. `MobileAlertsView.tsx`. [c6a2d84d] (confirmed via unit test — capture shows the amber feed-down branch, not the healthy branch).
 - Risk wayfinding note: muted one-line note below the VaR card (data-present only) so the empty space reads as intentional. `MobileRiskView.tsx`. [2b5fc0d5]
 - NAV negative colour: `pnlColorClass` applied to NAV only when negative; positive/zero stays neutral. `MobilePnlView.tsx`. [5b57bc3f]
+- Positions truncation footer: "Showing top {TOP_N} by market value — full blotter on desktop." shown only when count exceeds the cap; reuses `TOP_N`. `MobilePositionsView.tsx`. [283f8842]
 <!-- END RESOLVED -->
 
 ## Human calls (conflicts surfaced for the user)
