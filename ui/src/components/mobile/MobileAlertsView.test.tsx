@@ -34,6 +34,7 @@ function setNotifications(overrides: Partial<UseNotificationsResult> = {}) {
     alerts: [alert()],
     loading: false,
     error: null,
+    connected: true,
     createRule: vi.fn(),
     deleteRule: vi.fn(),
     acknowledgeAlert: vi.fn(),
@@ -134,13 +135,44 @@ describe('MobileAlertsView', () => {
     expect(screen.queryByRole('button', { name: /snooze/i })).not.toBeInTheDocument()
   })
 
-  it('shows an empty state when there are no alerts', () => {
-    setNotifications({ alerts: [] })
+  it('shows a reassuring empty state when the feed is healthy and there are no alerts', () => {
+    setNotifications({ alerts: [], connected: true, error: null })
 
     render(<MobileAlertsView />)
 
-    expect(screen.getByTestId('mobile-alerts-empty')).toBeInTheDocument()
-    expect(screen.getByTestId('mobile-alerts-empty')).toHaveTextContent('No active alerts')
+    const empty = screen.getByTestId('mobile-alerts-empty')
+    expect(empty).toBeInTheDocument()
+    expect(empty).toHaveTextContent('No active alerts')
+    expect(empty).toHaveTextContent(/all caught up/i)
+    // The reassurance is earned: a "feed live" affordance is shown.
+    expect(screen.getByTestId('mobile-alerts-feed-status')).toHaveTextContent(/live/i)
+    // No warning copy when the feed is healthy.
+    expect(empty).not.toHaveTextContent(/unavailable/i)
+  })
+
+  it('warns instead of reassuring when the alert feed is disconnected', () => {
+    setNotifications({ alerts: [], connected: false, error: null })
+
+    render(<MobileAlertsView />)
+
+    const empty = screen.getByTestId('mobile-alerts-empty')
+    expect(empty).toBeInTheDocument()
+    // Does NOT falsely reassure.
+    expect(empty).not.toHaveTextContent(/all caught up/i)
+    // Surfaces a feed-health warning instead.
+    expect(empty).toHaveTextContent(/feed unavailable/i)
+    // Rendered in amber to read as a warning, not a neutral note.
+    expect(empty.className).toMatch(/amber|yellow/)
+  })
+
+  it('warns when the snapshot fetch errored even if the socket reports connected', () => {
+    setNotifications({ alerts: [], connected: true, error: 'network down' })
+
+    render(<MobileAlertsView />)
+
+    const empty = screen.getByTestId('mobile-alerts-empty')
+    expect(empty).not.toHaveTextContent(/all caught up/i)
+    expect(empty).toHaveTextContent(/feed unavailable/i)
   })
 
   it('shows a loading state while alerts are loading', () => {

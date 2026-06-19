@@ -64,7 +64,7 @@ function cardClass(severity: string): string {
 }
 
 export function MobileAlertsView({ username = null }: MobileAlertsViewProps) {
-  const { alerts, loading } = useNotifications(username)
+  const { alerts, loading, error, connected } = useNotifications(username)
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
   // Sort by severity (critical first) then recency, mirroring the desktop list.
@@ -94,6 +94,26 @@ export function MobileAlertsView({ username = null }: MobileAlertsViewProps) {
   }
 
   if (sorted.length === 0) {
+    // An empty list only means "all quiet" if the feed is actually healthy.
+    // If the live stream has dropped (or the snapshot fetch errored), newly
+    // raised alerts may be silently missing — so we must NOT reassure. Show an
+    // amber feed-health warning instead, so a trader can tell "no alerts" apart
+    // from "feed is broken". `connected` comes from useAlertStream via
+    // useNotifications; `error` is the REST snapshot failure.
+    const feedHealthy = connected && !error
+    if (!feedHealthy) {
+      return (
+        <div
+          data-testid="mobile-alerts-empty"
+          className="flex flex-col items-center justify-center gap-1 py-16 text-center text-amber-700 dark:text-amber-400"
+        >
+          <p className="text-sm font-medium">Alert feed unavailable</p>
+          <p className="text-xs text-amber-600 dark:text-amber-500">
+            Can't confirm there are no alerts — check your connection.
+          </p>
+        </div>
+      )
+    }
     return (
       <div
         data-testid="mobile-alerts-empty"
@@ -105,6 +125,16 @@ export function MobileAlertsView({ username = null }: MobileAlertsViewProps) {
         <p className="text-xs text-slate-400 dark:text-slate-500">
           You're all caught up.
         </p>
+        <span
+          data-testid="mobile-alerts-feed-status"
+          className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400"
+        >
+          <span
+            aria-hidden="true"
+            className="h-1.5 w-1.5 rounded-full bg-emerald-500"
+          />
+          Feed live
+        </span>
       </div>
     )
   }

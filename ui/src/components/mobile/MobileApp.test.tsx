@@ -176,6 +176,7 @@ function setupViewHooks() {
     alerts: [alert()],
     loading: false,
     error: null,
+    connected: true,
     createRule: vi.fn(),
     deleteRule: vi.fn(),
     acknowledgeAlert: vi.fn(),

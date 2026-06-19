@@ -17,6 +17,13 @@ export interface UseNotificationsResult {
   alerts: AlertEventDto[]
   loading: boolean
   error: string | null
+  /**
+   * Whether the live alert stream (`/ws/alerts`) is currently connected.
+   * Consumers use this to distinguish a genuinely empty feed from a silently
+   * dropped one — a `false` value means newly raised alerts may not be
+   * arriving, so an empty list is NOT a guarantee that all is quiet.
+   */
+  connected: boolean
   createRule: (request: CreateAlertRuleRequestDto) => void
   deleteRule: (ruleId: string) => void
   acknowledgeAlert: (alertId: string, notes?: string) => Promise<void>
@@ -46,7 +53,7 @@ export function useNotifications(username: string | null = null): UseNotificatio
   // one-shot snapshot; without the stream, alerts raised while the page is
   // open never appear until a reload. `useAlertStream` owns the socket,
   // reconnect/backoff, and polling fallback — we only consume its list.
-  const { alerts: streamAlerts } = useAlertStream()
+  const { alerts: streamAlerts, connected } = useAlertStream()
 
   /**
    * Merged view returned to callers: stream-only alerts (newest first, as
@@ -252,6 +259,7 @@ export function useNotifications(username: string | null = null): UseNotificatio
     alerts: mergedAlerts,
     loading,
     error,
+    connected,
     createRule,
     deleteRule,
     acknowledgeAlert,

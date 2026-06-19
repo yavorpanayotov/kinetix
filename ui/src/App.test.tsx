@@ -146,6 +146,7 @@ function setupDefaults() {
     alerts: [],
     loading: false,
     error: null,
+    connected: true,
     createRule: vi.fn(),
     deleteRule: vi.fn(),
     acknowledgeAlert: vi.fn(),
