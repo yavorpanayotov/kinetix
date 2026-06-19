@@ -106,7 +106,7 @@ findings are appended here by the crit round, ordered worst-first.
   `MobileApp.tsx` active state is only `text-primary-400` vs `text-slate-400` — fails for colour-blind users. Worse, observed in the round-1 captures: on the dark nav the active tab's `text-primary-400` icon+label are so low-contrast they look *blank* (the active slot appears empty in pnl/positions captures). Add a structural marker: `border-t-2 border-primary-400` active / `border-t-2 border-transparent` inactive, AND verify the active label/icon are legible on `bg-surface-800` in both themes (brighten the active token if needed).
   Acceptance: cd ui && npm run lint && npm run test && npx playwright test mobile-access
 
-- [ ] **Positions dark-mode row separators invisible** (ux, med)
+- [x] **Positions dark-mode row separators invisible** (ux, med)
   `MobilePositionsView.tsx:84` cards (`dark:border-slate-700 dark:bg-surface-800`) bleed into the `surface-900` page in dark mode. Raise edge contrast: `dark:border-slate-600` or `dark:bg-surface-700`.
   Acceptance: cd ui && npm run lint && npm run test && npx playwright test mobile-access
 
@@ -164,6 +164,7 @@ findings are appended here by the crit round, ordered worst-first.
 - Breach unmissable: VaR card gets a red border+fill (`border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-900/30`) on breach, matching the CRITICAL alert card; reuses existing `VAR_BREACH_THRESHOLD`. `MobileRiskView.tsx`. [15fadaa4] (visual confirm via unit test — capture mock has no limit so can't reach breach state).
 - Alerts feed health: threaded `connected` from `useAlertStream` through `useNotifications`; empty state now branches on `connected && !error` — amber "Alert feed unavailable" when down, green "Feed live" when healthy (was always "You're all caught up"). `useNotifications.ts`, `MobileAlertsView.tsx`. [aee42227] — follow-ups (file separately if wanted): distinguish reconnecting vs exhausted in copy; desktop `NotificationCenter` could surface the same signal.
 - Active-tab marker + visibility: active bottom-nav tab now `border-primary-500 text-white` (was undefined `text-primary-400`/`primary-300` → invisible on the dark nav); inactive `border-transparent text-slate-400`. Structural rail satisfies a11y + makes the active tab legible. `MobileApp.tsx`. [9d5c4334 + parent fix] — NB the subagent's first attempt used undefined `primary-400`/`300`; visual confirm caught it. Spawned the "undefined Tailwind utility" audit finding.
+- Positions dark row contrast: rows now `dark:border-slate-600 dark:bg-surface-700` (was `slate-700`/`surface-800`, bled into the surface-900 page). `MobilePositionsView.tsx`. [e9fda74b]
 <!-- END RESOLVED -->
 
 ## Human calls (conflicts surfaced for the user)
