@@ -21,7 +21,7 @@ new findings (`Dry rounds` reaches 2).
 ## Loop state
 
 - **Dry rounds:** 0  <!-- consecutive crit rounds that added zero findings; loop stops at 2 -->
-- **Last crit round:** 2026-06-19 — round 1, +20 findings (7 high, 7 med, 6 low)
+- **Last crit round:** 2026-06-19 — round 2, +6 findings (1 high, 3 med, 2 low) + 1 conflict. Round 1 was +20 (all resolved) + 1 loop-discovered. Severity trend down → converging.
 
 ## The six steps (one iteration = one box, or one crit refill)
 
@@ -148,6 +148,32 @@ findings are appended here by the crit round, ordered worst-first.
 - [x] **Audit mobile surface for undefined Tailwind utility classes** (loop, med)
   Tailwind v4 `@theme` in `src/index.css` defines only `primary-500..900` and `surface-50/700/800/900`. Utilities like `text-primary-400`, `border-primary-300`, `surface-100..600` emit **no CSS** and render invisibly — and className-only unit tests pass anyway (caught finding 11 where the active nav tab was invisible). Grep `ui/src/components/mobile/` for `primary-[1-4]00` and `surface-(50|1|2|3|4|5|6)00` (undefined shades), replace each with a defined shade, and visually confirm. Acceptance also greps for residual undefined classes.
   Acceptance: cd ui && npm run lint && npm run test && npx tsc --noEmit && npx playwright test mobile-access && ! grep -rnE "(text|bg|border)-primary-[1-4]00|(text|bg|border)-surface-(100|200|300|400|500|600)" src/components/mobile/
+
+### Round 2 — 2026-06-19
+
+- [ ] **Red "VERIFY BEFORE ACTING" banner contrast in dark mode** (ux, high)
+  `MobileFreshnessBanner.tsx` red banner right-hand label is `dark:text-red-200` on `dark:bg-red-900/70` — near the AA 4.5:1 floor for safety-critical copy. Bump the warning span to `dark:text-white` (and/or the banner to a solid `dark:bg-red-800`) so it's unambiguously legible.
+  Acceptance: cd ui && npm run lint && npm run test && npx tsc --noEmit && npx playwright test mobile-access
+
+- [ ] **"No timestamp available" banner reads as fresh/OK (neutral grey)** (trader+ux, med)
+  The static no-timestamp banners in `MobilePnlView.tsx` and `MobilePositionsView.tsx` use the same neutral `bg-slate-100/dark:bg-slate-800` palette as `MobileFreshnessBanner`'s *fresh* state — so "freshness unknown" reads as "data is current", the opposite of intent. (Regression introduced by round-1 fixes 2 & 8.) Give both a distinct non-alarming treatment: `bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300`, and consider copy "Freshness unknown". Keep it amber-level, NOT red.
+  Acceptance: cd ui && npm run lint && npm run test && npx tsc --noEmit && npx playwright test mobile-access
+
+- [ ] **Alerts feed-unavailable subtitle fails AA in light mode** (ux, med)
+  `MobileAlertsView.tsx` subtitle "Can't confirm there are no alerts…" is `text-amber-600` (~3.0:1 on white) — below AA. The title above uses `amber-700` which passes. Step the subtitle to `text-amber-700` (dark variant already fine).
+  Acceptance: cd ui && npm run lint && npm run test && npx tsc --noEmit && npx playwright test mobile-access
+
+- [ ] **Intraday bare "—" is ambiguous** (trader, med)
+  On `MobilePnlView.tsx` the Intraday cell shows a bare em-dash when the stream hasn't delivered — indistinguishable from "genuinely zero on the day" vs "feed dead". Add a muted qualifier (e.g. "— pending" / "no feed") in the same small-caps style as the unrealised empty state when intraday is null. One conditional line, no new architecture.
+  Acceptance: cd ui && npm run lint && npm run test && npx tsc --noEmit && npx playwright test mobile-access
+
+- [ ] **Alerts feed-down state has no "last received" anchor** (trader, low)
+  The "Alert feed unavailable" state gives no sense of when the feed last worked. If `useNotifications`/`useAlertStream` exposes a last-event timestamp, show "last received <time>" under the subtitle; if none is available, leave as-is (do NOT invent one — note the gap).
+  Acceptance: cd ui && npm run lint && npm run test && npx tsc --noEmit && npx playwright test mobile-access
+
+- [ ] **Positions: no "complete" signal when below the cap** (trader, low)
+  The truncation footer only shows when count > TOP_N; with few positions the screen reads as unfinished. When `positions.length <= TOP_N`, show a muted "All {n} positions shown" footer (symmetric with the truncation footer) so the list reads as complete, not abandoned.
+  Acceptance: cd ui && npm run lint && npm run test && npx tsc --noEmit && npx playwright test mobile-access
 <!-- END FINDINGS -->
 
 ## Done / won't-fix (dedup memory — do not re-raise)
@@ -182,4 +208,10 @@ findings are appended here by the crit round, ordered worst-first.
 - Round 1: none. The ux touch-target asks don't conflict with the trader's
   glanceability asks — the views are sparse (see "Risk view empty whitespace"),
   so bigger controls cost no density.
+- **Round 2 — "No limit configured" colour (HUMAN CALL).** ux-designer wants the
+  Risk "No limit configured" note moved from amber to `slate-300` (`(none set)`),
+  arguing amber reads as a risk *warning*. But round-1 fix 4 chose amber
+  *deliberately* — Marcus's point was that an absent limit must be noticeable, not
+  look benign. Genuine philosophy clash; not auto-fixed. Yavor to decide:
+  keep amber (absence is a caution) or go slate (absence is merely informational).
 <!-- END CONFLICTS -->
