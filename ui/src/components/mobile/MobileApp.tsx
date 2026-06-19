@@ -127,7 +127,7 @@ export function MobileApp() {
           data-testid="mobile-tab-bar"
           role="tablist"
           aria-label="Mobile views"
-          className="bg-surface-800 border-t border-surface-700 flex"
+          className="bg-surface-800 border-t border-surface-700 flex pb-[env(safe-area-inset-bottom,0px)]"
         >
           {MOBILE_NAV.map(({ view, label, icon: Icon }) => {
             const active = activeMobileView === view

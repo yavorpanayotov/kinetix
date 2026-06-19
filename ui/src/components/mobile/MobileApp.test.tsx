@@ -299,6 +299,18 @@ describe('MobileApp', () => {
       }
     })
 
+    it('pads the bottom tab bar by the safe-area inset so the home indicator does not clip it', () => {
+      render(<MobileApp />)
+
+      // On iPhone X+ the home indicator sits below the viewport edge; the nav
+      // needs bottom padding equal to env(safe-area-inset-bottom). The ,0px
+      // fallback means zero extra padding where no safe area exists, so the
+      // desktop/test layout is unchanged.
+      expect(screen.getByTestId('mobile-tab-bar')).toHaveClass(
+        'pb-[env(safe-area-inset-bottom,0px)]',
+      )
+    })
+
     it('marks the active tab with a structural border, not colour alone', () => {
       render(<MobileApp />)
 
