@@ -23,14 +23,27 @@ function staleness(timestamp: string): Staleness {
 }
 
 function formatRelative(timestamp: string): string {
-  const diffSeconds = Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000)
+  const asOf = new Date(timestamp)
+  const diffSeconds = Math.floor((Date.now() - asOf.getTime()) / 1000)
   if (diffSeconds < 60) return 'just now'
 
   const diffMinutes = Math.floor(diffSeconds / 60)
-  if (diffMinutes < 60) return `${diffMinutes} min ago`
+  if (diffMinutes < 60) return `${diffMinutes} ${diffMinutes === 1 ? 'minute' : 'minutes'} ago`
 
   const diffHours = Math.floor(diffMinutes / 60)
-  return `${diffHours} hours ago`
+  // Once the gap reaches a full day a relative count stops being meaningful
+  // (e.g. very old seed data would read "12481 hours ago"), so fall back to an
+  // absolute date. "Data as of Dec 3, 2023" reads naturally alongside the
+  // banner copy, the same as the relative phrasings above.
+  if (diffHours >= 24) {
+    return asOf.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    })
+  }
+
+  return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`
 }
 
 const BANNER_CLASSES: Record<Staleness, string> = {

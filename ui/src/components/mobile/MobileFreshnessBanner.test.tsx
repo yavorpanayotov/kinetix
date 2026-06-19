@@ -7,6 +7,10 @@ function minutesAgo(minutes: number): string {
   return new Date(Date.now() - minutes * 60_000).toISOString()
 }
 
+function hoursAgo(hours: number): string {
+  return new Date(Date.now() - hours * 60 * 60_000).toISOString()
+}
+
 describe('MobileFreshnessBanner', () => {
   it('renders nothing when no timestamp is provided', () => {
     const { container } = render(<MobileFreshnessBanner dataAsOf={null} />)
@@ -46,6 +50,65 @@ describe('MobileFreshnessBanner', () => {
       const banner = screen.getByTestId('mobile-freshness-banner')
       expect(banner.className).toContain('red')
       expect(screen.getByText(/VERIFY BEFORE ACTING/i)).toBeInTheDocument()
+    })
+  })
+
+  describe('relative-time grammar', () => {
+    it('uses singular "1 minute ago" at the one-minute boundary', () => {
+      render(<MobileFreshnessBanner dataAsOf={minutesAgo(1)} />)
+
+      const banner = screen.getByTestId('mobile-freshness-banner')
+      expect(banner.textContent).toContain('Data as of 1 minute ago')
+      expect(banner.textContent).not.toContain('1 minutes ago')
+    })
+
+    it('uses singular "1 hour ago" at the one-hour boundary', () => {
+      render(<MobileFreshnessBanner dataAsOf={minutesAgo(60)} />)
+
+      const banner = screen.getByTestId('mobile-freshness-banner')
+      expect(banner.textContent).toContain('Data as of 1 hour ago')
+      expect(banner.textContent).not.toContain('1 hours ago')
+    })
+
+    it('uses plural "2 hours ago" for a multi-hour gap under a day', () => {
+      render(<MobileFreshnessBanner dataAsOf={hoursAgo(2)} />)
+
+      const banner = screen.getByTestId('mobile-freshness-banner')
+      expect(banner.textContent).toContain('Data as of 2 hours ago')
+    })
+  })
+
+  describe('24 hours or older renders an absolute date', () => {
+    it('renders an absolute date, not a relative "hours ago" string', () => {
+      const timestamp = hoursAgo(30)
+      render(<MobileFreshnessBanner dataAsOf={timestamp} />)
+
+      const expected = new Date(timestamp).toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      })
+
+      const banner = screen.getByTestId('mobile-freshness-banner')
+      expect(banner.textContent).toContain(`Data as of ${expected}`)
+      expect(banner.textContent).not.toMatch(/hours ago/)
+    })
+
+    it('does not render an absurd gap as a raw "N hours ago" string', () => {
+      // ~12481 hours ago — the seed-data case from the finding.
+      const timestamp = hoursAgo(12481)
+      render(<MobileFreshnessBanner dataAsOf={timestamp} />)
+
+      const banner = screen.getByTestId('mobile-freshness-banner')
+      expect(banner.textContent).not.toMatch(/\d+ hours ago/)
+      expect(banner.textContent).not.toContain('12481')
+
+      const expected = new Date(timestamp).toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      })
+      expect(banner.textContent).toContain(`Data as of ${expected}`)
     })
   })
 })
