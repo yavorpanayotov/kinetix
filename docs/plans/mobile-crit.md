@@ -138,7 +138,7 @@ findings are appended here by the crit round, ordered worst-first.
   `MobileAlertsView.tsx:194` close button `px-3 py-1`; it's the only exit from the detail overlay. Raise to `py-2` + `min-h-[44px]`.
   Acceptance: cd ui && npm run lint && npm run test && npx playwright test mobile-access
 
-- [ ] **No safe-area inset on the bottom nav** (ux, low)
+- [x] **No safe-area inset on the bottom nav** (ux, low)
   `MobileApp.tsx:117` `<nav>` sits under the iPhone home indicator. Add `pb-[env(safe-area-inset-bottom,0px)]`.
   Acceptance: cd ui && npm run lint && npm run test && npx playwright test mobile-access
 
@@ -172,6 +172,7 @@ findings are appended here by the crit round, ordered worst-first.
 - Alerts tab badge: `useNotifications` hoisted to the shell; red count chip ("9+" cap, `aria-label`) on the Alerts tab when TRIGGERED alerts exist. `MobileApp.tsx` + new Playwright assertion. [4af47c9b]
 - Intraday label: column label "Intraday P&L"→"Intraday" (context is unambiguous on the P&L view) for breathing room at 390px. `MobilePnlView.tsx`. [b9683f04]
 - Alert-detail Close button: `px-3 py-1`→`px-3 py-2 min-h-[44px]`. `MobileAlertsView.tsx`. [750f6c5d]
+- Safe-area inset: bottom nav now `pb-[env(safe-area-inset-bottom,0px)]` so it clears the iPhone home indicator (0px fallback = no change elsewhere). `MobileApp.tsx`. [8a98266e]
 <!-- END RESOLVED -->
 
 ## Human calls (conflicts surfaced for the user)
