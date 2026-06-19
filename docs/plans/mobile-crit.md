@@ -163,7 +163,7 @@ findings are appended here by the crit round, ordered worst-first.
   `MobileAlertsView.tsx` subtitle "Can't confirm there are no alerts…" is `text-amber-600` (~3.0:1 on white) — below AA. The title above uses `amber-700` which passes. Step the subtitle to `text-amber-700` (dark variant already fine).
   Acceptance: cd ui && npm run lint && npm run test && npx tsc --noEmit && npx playwright test mobile-access
 
-- [ ] **Intraday bare "—" is ambiguous** (trader, med)
+- [x] **Intraday bare "—" is ambiguous** (trader, med)
   On `MobilePnlView.tsx` the Intraday cell shows a bare em-dash when the stream hasn't delivered — indistinguishable from "genuinely zero on the day" vs "feed dead". Add a muted qualifier (e.g. "— pending" / "no feed") in the same small-caps style as the unrealised empty state when intraday is null. One conditional line, no new architecture.
   Acceptance: cd ui && npm run lint && npm run test && npx tsc --noEmit && npx playwright test mobile-access
 
@@ -203,6 +203,7 @@ findings are appended here by the crit round, ordered worst-first.
 - [R2] Red banner dark contrast: red level now `dark:bg-red-800 dark:text-white` (was `bg-red-900/70`/`text-red-200`) — safety copy clears AA in dark mode. `MobileFreshnessBanner.tsx`. [56cb88f2]
 - [R2] No-timestamp banner amber: P&L + Positions static banners now `bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300` + copy "freshness unknown" (was neutral grey = read as fresh). Fixes a round-1 regression. `MobilePnlView.tsx`, `MobilePositionsView.tsx`. [71b17367]
 - [R2] Alerts subtitle AA: feed-unavailable subtitle `text-amber-600`→`text-amber-700` (cleared AA on white). `MobileAlertsView.tsx`. [200c2c03]
+- [R2] Intraday qualifier: null intraday now renders "— pending" (was a bare dash); a real 0 still renders as a number. `MobilePnlView.tsx`. [c8c8bedb]
 <!-- END RESOLVED -->
 
 ## Human calls (conflicts surfaced for the user)
