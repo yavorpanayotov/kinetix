@@ -145,7 +145,7 @@ findings are appended here by the crit round, ordered worst-first.
 
 ### Round 1 — added mid-loop (surfaced while fixing finding 11)
 
-- [ ] **Audit mobile surface for undefined Tailwind utility classes** (loop, med)
+- [x] **Audit mobile surface for undefined Tailwind utility classes** (loop, med)
   Tailwind v4 `@theme` in `src/index.css` defines only `primary-500..900` and `surface-50/700/800/900`. Utilities like `text-primary-400`, `border-primary-300`, `surface-100..600` emit **no CSS** and render invisibly — and className-only unit tests pass anyway (caught finding 11 where the active nav tab was invisible). Grep `ui/src/components/mobile/` for `primary-[1-4]00` and `surface-(50|1|2|3|4|5|6)00` (undefined shades), replace each with a defined shade, and visually confirm. Acceptance also greps for residual undefined classes.
   Acceptance: cd ui && npm run lint && npm run test && npx tsc --noEmit && npx playwright test mobile-access && ! grep -rnE "(text|bg|border)-primary-[1-4]00|(text|bg|border)-surface-(100|200|300|400|500|600)" src/components/mobile/
 <!-- END FINDINGS -->
@@ -173,6 +173,7 @@ findings are appended here by the crit round, ordered worst-first.
 - Intraday label: column label "Intraday P&L"→"Intraday" (context is unambiguous on the P&L view) for breathing room at 390px. `MobilePnlView.tsx`. [b9683f04]
 - Alert-detail Close button: `px-3 py-1`→`px-3 py-2 min-h-[44px]`. `MobileAlertsView.tsx`. [750f6c5d]
 - Safe-area inset: bottom nav now `pb-[env(safe-area-inset-bottom,0px)]` so it clears the iPhone home indicator (0px fallback = no change elsewhere). `MobileApp.tsx`. [8a98266e]
+- Undefined-utility audit: grepped the whole mobile surface — no remaining undefined `primary-1xx..4xx`/`surface-1xx..6xx` classes (fix 11 had removed the only real instance; the one `primary-400` left is in a documenting comment). Grep gate added to acceptance. No code change needed.
 <!-- END RESOLVED -->
 
 ## Human calls (conflicts surfaced for the user)
