@@ -212,6 +212,32 @@ describe('MobileRiskView', () => {
     expect(note.className).toContain('amber')
   })
 
+  it('renders a contextual wayfinding note below the card when VaR data is present', () => {
+    render(<MobileRiskView bookId="book-1" />)
+
+    const note = screen.getByTestId('mobile-risk-note')
+    expect(note).toBeInTheDocument()
+    expect(note).toHaveTextContent(
+      'VaR shown for the selected book — switch to Positions for the full exposure breakdown.',
+    )
+  })
+
+  it('does not render the contextual note in the loading state', () => {
+    setVaR({ varResult: null, loading: true })
+
+    render(<MobileRiskView bookId="book-1" />)
+
+    expect(screen.queryByTestId('mobile-risk-note')).not.toBeInTheDocument()
+  })
+
+  it('does not render the contextual note in the empty state', () => {
+    setVaR({ varResult: null, loading: false })
+
+    render(<MobileRiskView bookId="book-1" />)
+
+    expect(screen.queryByTestId('mobile-risk-note')).not.toBeInTheDocument()
+  })
+
   it('keeps the utilisation bar and percentage when a limit is configured', () => {
     setVarLimit({ varLimit: 1_000_000 })
 

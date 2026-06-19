@@ -170,6 +170,17 @@ export function MobileRiskView({ bookId }: MobileRiskViewProps) {
           </div>
         )}
       </section>
+
+      {/* Wayfinding: a single VaR card over a tall empty surface reads as
+          "unfinished" or "still loading". A muted one-liner makes the space
+          feel intentional and points to where the full breakdown lives. */}
+      <p
+        data-testid="mobile-risk-note"
+        className="mt-3 text-xs text-slate-500 dark:text-slate-400"
+      >
+        VaR shown for the selected book — switch to Positions for the full
+        exposure breakdown.
+      </p>
     </div>
   )
 }
