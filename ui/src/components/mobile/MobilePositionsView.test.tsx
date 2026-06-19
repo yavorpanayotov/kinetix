@@ -161,6 +161,41 @@ describe('MobilePositionsView', () => {
     expect(screen.queryByTestId('mobile-positions-truncation')).not.toBeInTheDocument()
   })
 
+  it('shows an all-shown footer (and no truncation footer) when the count is at or below the cap', () => {
+    // With a short book, the absence of any footer leaves the list ambiguous —
+    // a trader can't tell whether it's complete or silently truncated. A muted
+    // "All N positions shown" footer confirms completeness. It is mutually
+    // exclusive with the truncation footer.
+    const positions = Array.from({ length: 3 }, (_, i) =>
+      position({
+        instrumentId: `INST-${i}`,
+        marketValue: { amount: String((3 - i) * 1000), currency: 'USD' },
+      }),
+    )
+    setPositions({ positions })
+
+    render(<MobilePositionsView bookId="book-1" />)
+
+    const footer = screen.getByTestId('mobile-positions-all-shown')
+    expect(footer).toHaveTextContent(/all 3 positions shown/i)
+    expect(screen.queryByTestId('mobile-positions-truncation')).not.toBeInTheDocument()
+  })
+
+  it('shows no all-shown footer when the count exceeds the cap (truncation footer only)', () => {
+    const positions = Array.from({ length: 20 }, (_, i) =>
+      position({
+        instrumentId: `INST-${i}`,
+        marketValue: { amount: String((20 - i) * 1000), currency: 'USD' },
+      }),
+    )
+    setPositions({ positions })
+
+    render(<MobilePositionsView bookId="book-1" />)
+
+    expect(screen.queryByTestId('mobile-positions-all-shown')).not.toBeInTheDocument()
+    expect(screen.getByTestId('mobile-positions-truncation')).toBeInTheDocument()
+  })
+
   it('colours unrealised P&L green when positive and red when negative', () => {
     setPositions({
       positions: [
@@ -203,5 +238,8 @@ describe('MobilePositionsView', () => {
 
     expect(screen.getByTestId('mobile-positions-empty')).toBeInTheDocument()
     expect(screen.queryByTestId('mobile-positions-view')).not.toBeInTheDocument()
+    // Neither footer belongs in the empty state.
+    expect(screen.queryByTestId('mobile-positions-all-shown')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('mobile-positions-truncation')).not.toBeInTheDocument()
   })
 })

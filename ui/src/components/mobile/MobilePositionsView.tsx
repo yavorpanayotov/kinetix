@@ -132,6 +132,18 @@ export function MobilePositionsView({ bookId }: MobilePositionsViewProps) {
           Showing top {TOP_N} by market value — full blotter on desktop.
         </p>
       )}
+
+      {/* When the whole book fits within the cap, confirm completeness so the
+          list never reads as ambiguously truncated. Mutually exclusive with the
+          truncation footer above; shares its muted style. */}
+      {positions.length > 0 && positions.length <= TOP_N && (
+        <p
+          data-testid="mobile-positions-all-shown"
+          className="mt-3 text-xs text-slate-500 dark:text-slate-400"
+        >
+          All {positions.length} positions shown
+        </p>
+      )}
     </div>
   )
 }
