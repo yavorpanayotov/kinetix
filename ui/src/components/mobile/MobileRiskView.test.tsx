@@ -109,6 +109,27 @@ describe('MobileRiskView', () => {
     expect(screen.getByTestId('mobile-risk-utilisation-bar').className).toContain('red')
   })
 
+  it('rails the whole card red when in breach so it reads at a glance', () => {
+    // 850k against 1m => 85% utilisation, above the 0.8 threshold.
+    setVaR({ varResult: varResult({ varValue: '850000' }) })
+    setVarLimit({ varLimit: 1_000_000 })
+
+    render(<MobileRiskView bookId="book-1" />)
+
+    // A breach must be unmissable from the corner of the eye: the whole card
+    // carries a red rail/border, not just the badge and number.
+    expect(screen.getByTestId('mobile-risk-card').className).toContain('red')
+  })
+
+  it('does not rail the card red when below the breach threshold', () => {
+    setVaR({ varResult: varResult({ varValue: '500000' }) })
+    setVarLimit({ varLimit: 1_000_000 })
+
+    render(<MobileRiskView bookId="book-1" />)
+
+    expect(screen.getByTestId('mobile-risk-card').className).not.toContain('red')
+  })
+
   it('shows a loading state while VaR is loading', () => {
     setVaR({ varResult: null, loading: true })
 

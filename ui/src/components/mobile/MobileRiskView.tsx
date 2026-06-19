@@ -74,9 +74,14 @@ export function MobileRiskView({ bookId }: MobileRiskViewProps) {
 
       <section
         data-testid="mobile-risk-card"
-        className={`rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-surface-800 p-4 ${
-          redStale ? 'opacity-50' : ''
-        }`}
+        className={`rounded-lg border p-4 ${
+          breach
+            ? // Full-card red rail so a breach reads from the corner of the eye,
+              // matching MobileAlertsView's CRITICAL card treatment so the
+              // visual language stays consistent across the mobile surface.
+              'border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-900/30'
+            : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-surface-800'
+        } ${redStale ? 'opacity-50' : ''}`}
       >
         <div className="flex items-baseline justify-between">
           <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
