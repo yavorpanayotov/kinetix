@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 import { MobileFreshnessBanner } from './MobileFreshnessBanner'
@@ -50,6 +50,25 @@ describe('MobileFreshnessBanner', () => {
       const banner = screen.getByTestId('mobile-freshness-banner')
       expect(banner.className).toContain('red')
       expect(screen.getByText(/VERIFY BEFORE ACTING/i)).toBeInTheDocument()
+    })
+
+    it('renders the red strip with heavier padding than the neutral state', () => {
+      render(<MobileFreshnessBanner dataAsOf={minutesAgo(20)} />)
+      const red = screen.getByTestId('mobile-freshness-banner')
+      expect(red.className).toContain('py-3')
+
+      cleanup()
+
+      render(<MobileFreshnessBanner dataAsOf={minutesAgo(2)} />)
+      const neutral = screen.getByTestId('mobile-freshness-banner')
+      expect(neutral.className).not.toContain('py-3')
+      expect(neutral.className).toContain('py-2')
+    })
+
+    it('uses a stronger dark-mode background than amber for clear separation', () => {
+      render(<MobileFreshnessBanner dataAsOf={minutesAgo(20)} />)
+      const banner = screen.getByTestId('mobile-freshness-banner')
+      expect(banner.className).toContain('dark:bg-red-900/70')
     })
   })
 

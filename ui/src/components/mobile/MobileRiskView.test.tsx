@@ -133,6 +133,39 @@ describe('MobileRiskView', () => {
     expect(screen.getByTestId('mobile-freshness-banner')).toBeInTheDocument()
   })
 
+  it('dims the data card when the VaR timestamp is red-stale', () => {
+    // 20 minutes is past the 15-minute red threshold.
+    setVaR({
+      varResult: varResult({
+        calculatedAt: new Date(Date.now() - 20 * 60_000).toISOString(),
+      }),
+    })
+
+    render(<MobileRiskView bookId="book-1" />)
+
+    expect(screen.getByTestId('mobile-risk-card')).toHaveClass('opacity-50')
+  })
+
+  it('does not dim the data card when the VaR timestamp is fresh', () => {
+    // Default fixture timestamp is "now" — well within the neutral threshold.
+    render(<MobileRiskView bookId="book-1" />)
+
+    expect(screen.getByTestId('mobile-risk-card')).not.toHaveClass('opacity-50')
+  })
+
+  it('does not dim the data card at amber staleness', () => {
+    // 8 minutes is amber (5–15 min) — heavier than fresh but not red.
+    setVaR({
+      varResult: varResult({
+        calculatedAt: new Date(Date.now() - 8 * 60_000).toISOString(),
+      }),
+    })
+
+    render(<MobileRiskView bookId="book-1" />)
+
+    expect(screen.getByTestId('mobile-risk-card')).not.toHaveClass('opacity-50')
+  })
+
   it('renders utilisation without a percentage when no VaR limit is configured', () => {
     setVarLimit({ varLimit: null })
 

@@ -1,6 +1,7 @@
 import { useVaR } from '../../hooks/useVaR'
 import { useVarLimit } from '../../hooks/useVarLimit'
 import { formatMoney } from '../../utils/format'
+import { freshnessLevel } from '../../utils/freshnessLevel'
 import { VAR_BREACH_THRESHOLD } from '../RiskTickerStrip'
 import { MobileFreshnessBanner } from './MobileFreshnessBanner'
 
@@ -60,13 +61,23 @@ export function MobileRiskView({ bookId }: MobileRiskViewProps) {
   const barWidthPct =
     utilisation !== null ? Math.min(utilisation * 100, 100) : 0
 
+  // At red staleness the banner alone isn't enough — a 520-day-stale number
+  // renders identically to a live one. Dim the card content so a stale number
+  // reads as visually subordinate to the warning strip above it.
+  const redStale = freshnessLevel(varResult.calculatedAt) === 'red'
+
   return (
     <div data-testid="mobile-risk-view" data-breach={breach}>
       <div className="-mx-4 -mt-4 mb-4">
         <MobileFreshnessBanner dataAsOf={varResult.calculatedAt} />
       </div>
 
-      <section className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-surface-800 p-4">
+      <section
+        data-testid="mobile-risk-card"
+        className={`rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-surface-800 p-4 ${
+          redStale ? 'opacity-50' : ''
+        }`}
+      >
         <div className="flex items-baseline justify-between">
           <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
             VaR 1d 95%
