@@ -100,6 +100,36 @@ describe('MobilePnlView', () => {
     expect(screen.getByTestId('mobile-pnl-intraday').className).toContain('red')
   })
 
+  it('colours a negative NAV red', () => {
+    setSummary({ summary: bookSummary({ totalNav: { amount: '-5000000', currency: 'USD' } }) })
+
+    render(<MobilePnlView bookId="book-1" />)
+
+    expect(screen.getByTestId('mobile-pnl-nav').className).toContain('red')
+  })
+
+  it('keeps a positive NAV neutral (no sign colour)', () => {
+    setSummary({ summary: bookSummary({ totalNav: { amount: '12000000', currency: 'USD' } }) })
+
+    render(<MobilePnlView bookId="book-1" />)
+
+    const nav = screen.getByTestId('mobile-pnl-nav')
+    expect(nav.className).not.toContain('red')
+    expect(nav.className).not.toContain('green')
+    expect(nav.className).toContain('text-slate-900')
+  })
+
+  it('keeps a zero NAV neutral (no sign colour)', () => {
+    setSummary({ summary: bookSummary({ totalNav: { amount: '0', currency: 'USD' } }) })
+
+    render(<MobilePnlView bookId="book-1" />)
+
+    const nav = screen.getByTestId('mobile-pnl-nav')
+    expect(nav.className).not.toContain('red')
+    expect(nav.className).not.toContain('green')
+    expect(nav.className).toContain('text-slate-900')
+  })
+
   it('shows a loading state while the summary is loading', () => {
     setSummary({ summary: null, loading: true })
 

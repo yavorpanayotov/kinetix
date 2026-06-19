@@ -95,7 +95,11 @@ export function MobilePnlView({ bookId }: MobilePnlViewProps) {
         </h2>
         <p
           data-testid="mobile-pnl-nav"
-          className="mt-1 font-mono tabular-nums text-3xl font-bold text-slate-900 dark:text-slate-100"
+          className={`mt-1 font-mono tabular-nums text-3xl font-bold ${
+            Number(nav.amount) < 0
+              ? pnlColorClass(nav.amount)
+              : 'text-slate-900 dark:text-slate-100'
+          }`}
         >
           {formatMoney(nav.amount, nav.currency)}
         </p>
