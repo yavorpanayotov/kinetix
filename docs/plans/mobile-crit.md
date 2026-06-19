@@ -78,7 +78,7 @@ findings are appended here by the crit round, ordered worst-first.
   `MobileRiskView.tsx` shows an empty grey bar + dashes when `hasLimit` is false — reads as "0% used / no risk", the opposite of the truth. Fix: when no limit, suppress the bar and show "No limit configured" (amber) inline with the Limit field.
   Acceptance: cd ui && npm run lint && npm run test && npx playwright test mobile-access
 
-- [ ] **Bottom nav touch targets undersized** (ux, high)
+- [x] **Bottom nav touch targets undersized** (ux, high)
   `MobileApp.tsx:129` tab buttons use `py-2`. Bump to `py-3` and add `min-h-[48px]` so the thumb hit-zone clears 48px.
   Acceptance: cd ui && npm run lint && npm run test && npx playwright test mobile-access
 
@@ -151,6 +151,7 @@ findings are appended here by the crit round, ordered worst-first.
 - Positions freshness: positions feed exposes no timestamp, so a static "Position data — no timestamp available" banner now renders (was nothing). `MobilePositionsView.tsx`. [6047f562] — follow-up: if the gateway ever returns an as-of for positions, swap the static banner for the live `MobileFreshnessBanner`.
 - Red staleness dominates data: extracted shared `utils/freshnessLevel.ts`; Risk card dims (`opacity-50`) when red-stale, banner heavier (`py-3 text-base`) + darker dark-mode strip. `MobileFreshnessBanner.tsx`, `MobileRiskView.tsx`. [170e4053] — follow-up: P&L + Positions cards could dim at red too (helper now reusable).
 - No-limit risk state: when no VaR limit is configured, the empty bar is suppressed and an amber "No limit configured" note renders (was a dash reading as 0%/no risk). `MobileRiskView.tsx`. [aea717f8]
+- Bottom-nav touch targets: four tab buttons now `py-3 min-h-[48px] justify-center` (was `py-2`). `MobileApp.tsx`. [e37b1891]
 <!-- END RESOLVED -->
 
 ## Human calls (conflicts surfaced for the user)
