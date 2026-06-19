@@ -62,7 +62,7 @@ findings are appended here by the crit round, ordered worst-first.
 
 ### Round 1 — 2026-06-19
 
-- [ ] **Stale "N hours ago" has no ceiling and bad grammar** (trader+ux, high)
+- [x] **Stale "N hours ago" has no ceiling and bad grammar** (trader+ux, high)
   `MobileFreshnessBanner.tsx` `formatRelative` reports raw hours past 60 min, so seed data shows the meaningless **"12481 hours ago"**, and "1 hours ago" is ungrammatical. Fix: `≥ 24h` → render an absolute date (`toLocaleDateString` short month/day/year); fix singular "1 hour". Add unit cases for >24h and the singular boundary.
   Acceptance: cd ui && npm run lint && npm run test && npx playwright test mobile-access
 
@@ -147,7 +147,7 @@ findings are appended here by the crit round, ordered worst-first.
 ## Done / won't-fix (dedup memory — do not re-raise)
 
 <!-- BEGIN RESOLVED -->
-<!-- (empty) -->
+- Stale freshness banner: ≥24h renders absolute date ("Data as of Jan 15, 2025"), singular "1 hour"/"1 minute" grammar fixed. `MobileFreshnessBanner.tsx`. [207b58fb]
 <!-- END RESOLVED -->
 
 ## Human calls (conflicts surfaced for the user)
