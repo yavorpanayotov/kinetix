@@ -173,6 +173,11 @@ describe('MobileAlertsView', () => {
     expect(empty).toHaveTextContent(/feed unavailable/i)
     // Rendered in amber to read as a warning, not a neutral note.
     expect(empty.className).toMatch(/amber|yellow/)
+    // The warning subtitle must clear WCAG AA contrast on the light surface:
+    // amber-700 (~4.5:1), not amber-600 (~3.0:1, fails AA for normal text).
+    const subtitle = screen.getByText(/check your connection/i)
+    expect(subtitle.className).toContain('text-amber-700')
+    expect(subtitle.className).not.toContain('text-amber-600')
   })
 
   it('warns when the snapshot fetch errored even if the socket reports connected', () => {

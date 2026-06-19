@@ -108,7 +108,7 @@ export function MobileAlertsView({ username = null }: MobileAlertsViewProps) {
           className="flex flex-col items-center justify-center gap-1 py-16 text-center text-amber-700 dark:text-amber-400"
         >
           <p className="text-sm font-medium">Alert feed unavailable</p>
-          <p className="text-xs text-amber-600 dark:text-amber-500">
+          <p className="text-xs text-amber-700 dark:text-amber-500">
             Can't confirm there are no alerts — check your connection.
           </p>
         </div>
