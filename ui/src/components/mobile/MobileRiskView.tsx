@@ -108,12 +108,24 @@ export function MobileRiskView({ bookId }: MobileRiskViewProps) {
             <dt className="text-xs uppercase tracking-wide text-slate-400 dark:text-slate-500">
               Limit
             </dt>
-            <dd
-              data-testid="mobile-risk-var-limit"
-              className="font-mono tabular-nums text-slate-700 dark:text-slate-200"
-            >
-              {limitText}
-            </dd>
+            {hasLimit ? (
+              <dd
+                data-testid="mobile-risk-var-limit"
+                className="font-mono tabular-nums text-slate-700 dark:text-slate-200"
+              >
+                {limitText}
+              </dd>
+            ) : (
+              // No limit configured: an empty grey bar plus a bare "—" reads as
+              // "0% used / no risk" — the dangerous opposite of the truth. Say
+              // so explicitly, in amber, so absence reads as a state not a zero.
+              <dd
+                data-testid="mobile-risk-no-limit"
+                className="text-xs font-medium text-amber-700 dark:text-amber-300"
+              >
+                No limit configured
+              </dd>
+            )}
           </div>
           <div>
             <dt className="text-xs uppercase tracking-wide text-slate-400 dark:text-slate-500">
@@ -132,22 +144,26 @@ export function MobileRiskView({ bookId }: MobileRiskViewProps) {
           </div>
         </dl>
 
-        <div
-          className="mt-3 h-2 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden"
-          role="progressbar"
-          aria-label="VaR limit utilisation"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={utilisation !== null ? Math.round(utilisation * 100) : undefined}
-        >
+        {hasLimit && (
           <div
-            data-testid="mobile-risk-utilisation-bar"
-            className={`h-full rounded-full transition-all ${
-              breach ? 'bg-red-500 dark:bg-red-400' : 'bg-primary-500'
-            }`}
-            style={{ width: `${barWidthPct}%` }}
-          />
-        </div>
+            className="mt-3 h-2 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden"
+            role="progressbar"
+            aria-label="VaR limit utilisation"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={
+              utilisation !== null ? Math.round(utilisation * 100) : undefined
+            }
+          >
+            <div
+              data-testid="mobile-risk-utilisation-bar"
+              className={`h-full rounded-full transition-all ${
+                breach ? 'bg-red-500 dark:bg-red-400' : 'bg-primary-500'
+              }`}
+              style={{ width: `${barWidthPct}%` }}
+            />
+          </div>
+        )}
       </section>
     </div>
   )

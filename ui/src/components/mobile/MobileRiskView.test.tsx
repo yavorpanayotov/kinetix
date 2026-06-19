@@ -175,4 +175,29 @@ describe('MobileRiskView', () => {
     expect(screen.getByTestId('mobile-risk-var-value')).toHaveTextContent('$500,000')
     expect(screen.getByTestId('mobile-risk-view')).toHaveAttribute('data-breach', 'false')
   })
+
+  it('hides the utilisation bar and shows an amber "No limit configured" note when no limit is set', () => {
+    setVarLimit({ varLimit: null })
+
+    render(<MobileRiskView bookId="book-1" />)
+
+    // An empty grey bar reads as "0% used" — the dangerous opposite of the
+    // truth — so it must not render at all when there is no limit.
+    expect(screen.queryByTestId('mobile-risk-utilisation-bar')).not.toBeInTheDocument()
+
+    // The absence of a limit must be communicated as a state, not a zero.
+    const note = screen.getByTestId('mobile-risk-no-limit')
+    expect(note).toHaveTextContent('No limit configured')
+    expect(note.className).toContain('amber')
+  })
+
+  it('keeps the utilisation bar and percentage when a limit is configured', () => {
+    setVarLimit({ varLimit: 1_000_000 })
+
+    render(<MobileRiskView bookId="book-1" />)
+
+    expect(screen.getByTestId('mobile-risk-utilisation-bar')).toBeInTheDocument()
+    expect(screen.getByTestId('mobile-risk-utilisation')).toHaveTextContent('50.0%')
+    expect(screen.queryByTestId('mobile-risk-no-limit')).not.toBeInTheDocument()
+  })
 })
