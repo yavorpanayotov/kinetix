@@ -132,7 +132,7 @@ export function MobilePnlView({ bookId }: MobilePnlViewProps) {
             >
               {intradayPnl !== null
                 ? formatSignedMoney(intradayPnl, latest?.baseCurrency ?? nav.currency)
-                : EM_DASH}
+                : `${EM_DASH} pending`}
             </dd>
           </div>
         </dl>

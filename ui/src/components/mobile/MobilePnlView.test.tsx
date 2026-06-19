@@ -196,12 +196,30 @@ describe('MobilePnlView', () => {
     expect(fallback.className).not.toContain('text-slate-600')
   })
 
-  it('renders an em dash for intraday P&L when no intraday snapshot has arrived', () => {
+  it('shows a muted "pending" qualifier for intraday P&L when no snapshot has arrived', () => {
+    // A bare em dash is ambiguous: it cannot be told apart from a genuine zero
+    // on the day. When the intraday stream has delivered nothing yet, render a
+    // muted qualifier so "feed has not delivered" reads distinct from "flat".
     setStream(null)
 
     render(<MobilePnlView bookId="book-1" />)
 
     expect(screen.getByTestId('mobile-pnl-nav')).toHaveTextContent('$12,000,000')
-    expect(screen.getByTestId('mobile-pnl-intraday')).toHaveTextContent('—')
+    const intraday = screen.getByTestId('mobile-pnl-intraday')
+    expect(intraday).toHaveTextContent(/pending/i)
+    // Reuses the muted empty-value treatment used elsewhere in this view.
+    expect(intraday.className).toContain('text-slate-400')
+  })
+
+  it('renders a genuine zero intraday P&L as a formatted number, not the pending qualifier', () => {
+    // A real intraday value of zero (flat on the day) must show as a number,
+    // never as "pending" — the qualifier is reserved for "feed not delivered".
+    setStream(snapshot({ totalPnl: '0' }))
+
+    render(<MobilePnlView bookId="book-1" />)
+
+    const intraday = screen.getByTestId('mobile-pnl-intraday')
+    expect(intraday).toHaveTextContent('$0')
+    expect(intraday.textContent).not.toMatch(/pending/i)
   })
 })
