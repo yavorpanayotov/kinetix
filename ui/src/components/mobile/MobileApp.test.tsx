@@ -270,6 +270,17 @@ describe('MobileApp', () => {
       const order = main.compareDocumentPosition(tabBar)
       expect(order & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     })
+
+    it('gives each bottom-nav tab a >=48px hit zone for thumb taps', () => {
+      render(<MobileApp />)
+
+      const tabBar = screen.getByTestId('mobile-tab-bar')
+      for (const view of ['risk', 'pnl', 'alerts', 'positions']) {
+        expect(within(tabBar).getByTestId(`mobile-tab-${view}`)).toHaveClass(
+          'min-h-[48px]',
+        )
+      }
+    })
   })
 
   describe('default view', () => {

@@ -126,7 +126,7 @@ export function MobileApp() {
                 role="tab"
                 aria-selected={active}
                 onClick={() => setActiveMobileView(view)}
-                className={`flex-1 flex flex-col items-center gap-1 py-2 text-xs font-medium transition-colors ${
+                className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 min-h-[48px] text-xs font-medium transition-colors ${
                   active
                     ? 'text-primary-400'
                     : 'text-slate-400 hover:text-white'
