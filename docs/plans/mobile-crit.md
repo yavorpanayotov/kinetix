@@ -20,8 +20,8 @@ new findings (`Dry rounds` reaches 2).
 
 ## Loop state
 
-- **Dry rounds:** 0  <!-- consecutive crit rounds that added zero findings; loop stops at 2 -->
-- **Last crit round:** 2026-06-19 — round 2, +6 findings (1 high, 3 med, 2 low) + 1 conflict. Round 1 was +20 (all resolved) + 1 loop-discovered. Severity trend down → converging.
+- **Dry rounds:** 1  <!-- consecutive crit rounds that added zero findings; loop stops at 2 -->
+- **Last crit round:** 2026-06-19 — round 3, **DRY** (both trader + ux-designer returned "no material findings"). Trend: R1 +20 (7 high), R2 +6 (1 high), R3 +0. One more dry round → loop self-terminates.
 
 ## The six steps (one iteration = one box, or one crit refill)
 
