@@ -1,7 +1,6 @@
 import { useEffect } from 'react'
 import { usePositions } from '../../hooks/usePositions'
 import { formatMoney, formatSignedMoney, pnlColorClass } from '../../utils/format'
-import { MobileFreshnessBanner } from './MobileFreshnessBanner'
 
 // Plan §mobile — the phone-first Positions view. It distils the desktop
 // PositionGrid's 11-column blotter down to a compact, read-only list of the
@@ -71,9 +70,20 @@ export function MobilePositionsView({ bookId }: MobilePositionsViewProps) {
   return (
     <div data-testid="mobile-positions-view">
       <div className="-mx-4 -mt-4 mb-4">
-        {/* Positions carry no per-row asOf timestamp; null renders nothing,
-            matching how the sibling views handle an absent timestamp. */}
-        <MobileFreshnessBanner dataAsOf={null} />
+        {/* The positions feed exposes no as-of timestamp — neither PositionDto
+            nor the /positions endpoint carries one — so we can't drive the live
+            MobileFreshnessBanner. Rather than render nothing (which would make a
+            stale list look identical to a live one), we show a static banner
+            that names the gap. We deliberately do NOT invent a timestamp. The
+            styling mirrors the banner's neutral state for surface consistency. */}
+        <div
+          data-testid="mobile-positions-freshness"
+          role="status"
+          aria-live="polite"
+          className="w-full px-4 py-2 text-sm font-medium bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+        >
+          Position data — no timestamp available
+        </div>
       </div>
 
       <ul className="space-y-2">

@@ -44,6 +44,16 @@ describe('MobilePositionsView', () => {
     setPositions()
   })
 
+  it('always shows a freshness indication even though positions carry no timestamp', () => {
+    render(<MobilePositionsView bookId="book-1" />)
+
+    // The positions feed exposes no per-row or envelope as-of timestamp, so the
+    // view must still communicate that — a stale list must never look identical
+    // to a live one. We render a static fallback banner in the freshness slot.
+    const banner = screen.getByTestId('mobile-positions-freshness')
+    expect(banner).toHaveTextContent(/no timestamp available/i)
+  })
+
   it('renders one row per position with instrument id and market value', () => {
     setPositions({
       positions: [
