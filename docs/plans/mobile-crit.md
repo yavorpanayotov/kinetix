@@ -90,7 +90,7 @@ findings are appended here by the crit round, ordered worst-first.
   `MobileApp.tsx:84` toggle is `p-1.5` around a 16px icon. Raise to `p-2.5`/`p-3` (~36–40px) — frequently tapped, invisible padding so no visual cost.
   Acceptance: cd ui && npm run lint && npm run test && npx playwright test mobile-access
 
-- [ ] **P&L freshness banner absent when intraday stream hasn't delivered** (trader+ux, med)
+- [x] **P&L freshness banner absent when intraday stream hasn't delivered** (trader+ux, med)
   `MobilePnlView.tsx` feeds the banner `latest?.snapshotAt ?? null`; when the stream is silent NAV/unrealised render with no timestamp. Fix: `latest?.snapshotAt ?? summary?.asOf ?? null`, with a static "no timestamp" fallback rather than hiding.
   Acceptance: cd ui && npm run lint && npm run test && npx playwright test mobile-access
 
@@ -102,8 +102,8 @@ findings are appended here by the crit round, ordered worst-first.
   "You're all caught up." looks identical whether the feed is live or the socket dropped. If `useNotifications` exposes a connection/last-event signal, show "Feed connected as of X"; if it errors, switch copy to "Alert feed unavailable" (amber).
   Acceptance: cd ui && npm run lint && npm run test && npx playwright test mobile-access
 
-- [ ] **Active tab indicated by colour only (a11y)** (ux, med)
-  `MobileApp.tsx:129` active state is only `text-primary-400` vs `text-slate-400` — fails for colour-blind users. Add a structural marker: `border-t-2 border-primary-400` active / `border-t-2 border-transparent` inactive.
+- [ ] **Active tab indicated by colour only — and the active tab reads as near-invisible** (ux, med↑)
+  `MobileApp.tsx` active state is only `text-primary-400` vs `text-slate-400` — fails for colour-blind users. Worse, observed in the round-1 captures: on the dark nav the active tab's `text-primary-400` icon+label are so low-contrast they look *blank* (the active slot appears empty in pnl/positions captures). Add a structural marker: `border-t-2 border-primary-400` active / `border-t-2 border-transparent` inactive, AND verify the active label/icon are legible on `bg-surface-800` in both themes (brighten the active token if needed).
   Acceptance: cd ui && npm run lint && npm run test && npx playwright test mobile-access
 
 - [ ] **Positions dark-mode row separators invisible** (ux, med)
@@ -154,6 +154,7 @@ findings are appended here by the crit round, ordered worst-first.
 - Bottom-nav touch targets: four tab buttons now `py-3 min-h-[48px] justify-center` (was `py-2`). `MobileApp.tsx`. [e37b1891]
 - Book selector touch target: header `<select>` now `py-2.5 min-w-[7rem]` (was `px-2 py-1`). `MobileApp.tsx`. [e99e749f]
 - Theme toggle touch target: now `p-2.5` (~40px, was `p-1.5`/~28px). `MobileApp.tsx`. [5974b580]
+- P&L freshness: stream-less P&L now shows a static "Intraday P&L — no timestamp available" banner (was nothing); summary DTO has no asOf field so static fallback like Positions. `MobilePnlView.tsx`. [281caf6f] — follow-up: adding an as-of to `BookAggregationDto` is a backend API contract change (out of scope).
 <!-- END RESOLVED -->
 
 ## Human calls (conflicts surfaced for the user)
