@@ -74,7 +74,7 @@ findings are appended here by the crit round, ordered worst-first.
   At red staleness the VaR number renders crisp and full-size — a 520-day-stale number looks identical to a 2-min one. Fix: at `red`, visually degrade the data card (e.g. `opacity-50`) and make the banner heavier (`py-3`, larger type); raise dark-banner opacity `dark:bg-red-900/40`→`/70` and amber likewise so the strip reads as distinct from the page in dark mode.
   Acceptance: cd ui && npm run lint && npm run test && npx playwright test mobile-access
 
-- [ ] **Utilisation bar renders zero-width when no limit configured** (trader, high)
+- [x] **Utilisation bar renders zero-width when no limit configured** (trader, high)
   `MobileRiskView.tsx` shows an empty grey bar + dashes when `hasLimit` is false — reads as "0% used / no risk", the opposite of the truth. Fix: when no limit, suppress the bar and show "No limit configured" (amber) inline with the Limit field.
   Acceptance: cd ui && npm run lint && npm run test && npx playwright test mobile-access
 
@@ -150,6 +150,7 @@ findings are appended here by the crit round, ordered worst-first.
 - Stale freshness banner: ≥24h renders absolute date ("Data as of Jan 15, 2025"), singular "1 hour"/"1 minute" grammar fixed. `MobileFreshnessBanner.tsx`. [207b58fb]
 - Positions freshness: positions feed exposes no timestamp, so a static "Position data — no timestamp available" banner now renders (was nothing). `MobilePositionsView.tsx`. [6047f562] — follow-up: if the gateway ever returns an as-of for positions, swap the static banner for the live `MobileFreshnessBanner`.
 - Red staleness dominates data: extracted shared `utils/freshnessLevel.ts`; Risk card dims (`opacity-50`) when red-stale, banner heavier (`py-3 text-base`) + darker dark-mode strip. `MobileFreshnessBanner.tsx`, `MobileRiskView.tsx`. [170e4053] — follow-up: P&L + Positions cards could dim at red too (helper now reusable).
+- No-limit risk state: when no VaR limit is configured, the empty bar is suppressed and an amber "No limit configured" note renders (was a dash reading as 0%/no risk). `MobileRiskView.tsx`. [aea717f8]
 <!-- END RESOLVED -->
 
 ## Human calls (conflicts surfaced for the user)
