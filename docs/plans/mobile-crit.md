@@ -86,7 +86,7 @@ findings are appended here by the crit round, ordered worst-first.
   `MobileApp.tsx:72` `<select>` uses `px-2 py-1` (~30px tall). Raise to `py-2`/`py-2.5` for a ≥40px hit zone; add `min-w-[7rem]` so the arrow doesn't overlap a truncated name.
   Acceptance: cd ui && npm run lint && npm run test && npx playwright test mobile-access
 
-- [ ] **Theme toggle touch target ~28px** (ux, high)
+- [x] **Theme toggle touch target ~28px** (ux, high)
   `MobileApp.tsx:84` toggle is `p-1.5` around a 16px icon. Raise to `p-2.5`/`p-3` (~36–40px) — frequently tapped, invisible padding so no visual cost.
   Acceptance: cd ui && npm run lint && npm run test && npx playwright test mobile-access
 
@@ -153,6 +153,7 @@ findings are appended here by the crit round, ordered worst-first.
 - No-limit risk state: when no VaR limit is configured, the empty bar is suppressed and an amber "No limit configured" note renders (was a dash reading as 0%/no risk). `MobileRiskView.tsx`. [aea717f8]
 - Bottom-nav touch targets: four tab buttons now `py-3 min-h-[48px] justify-center` (was `py-2`). `MobileApp.tsx`. [e37b1891]
 - Book selector touch target: header `<select>` now `py-2.5 min-w-[7rem]` (was `px-2 py-1`). `MobileApp.tsx`. [e99e749f]
+- Theme toggle touch target: now `p-2.5` (~40px, was `p-1.5`/~28px). `MobileApp.tsx`. [5974b580]
 <!-- END RESOLVED -->
 
 ## Human calls (conflicts surfaced for the user)
