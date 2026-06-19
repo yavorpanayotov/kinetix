@@ -54,6 +54,19 @@ describe('MobilePositionsView', () => {
     expect(banner).toHaveTextContent(/no timestamp available/i)
   })
 
+  it('styles the no-timestamp banner as undetermined freshness (amber), not fresh/OK (neutral grey)', () => {
+    // The neutral grey palette is MobileFreshnessBanner's *fresh* (data-is-
+    // current) treatment. A "freshness unknown" banner painted that way reads
+    // as "data is live" — the opposite of intent. Use a non-alarming amber
+    // (caution), reserving red for genuinely stale (≥15 min) data.
+    render(<MobilePositionsView bookId="book-1" />)
+
+    const banner = screen.getByTestId('mobile-positions-freshness')
+    expect(banner.className).toContain('text-amber-800')
+    expect(banner.className).toContain('dark:text-amber-300')
+    expect(banner.className).not.toContain('text-slate-600')
+  })
+
   it('renders one row per position with instrument id and market value', () => {
     setPositions({
       positions: [

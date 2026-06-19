@@ -181,6 +181,21 @@ describe('MobilePnlView', () => {
     expect(fallback).toHaveTextContent(/no timestamp available/i)
   })
 
+  it('styles the no-timestamp banner as undetermined freshness (amber), not fresh/OK (neutral grey)', () => {
+    // The neutral grey palette is MobileFreshnessBanner's *fresh* (data-is-
+    // current) treatment. A "freshness unknown" banner painted that way reads
+    // as "data is live" — the opposite of intent. Use a non-alarming amber
+    // (caution), reserving red for genuinely stale (≥15 min) data.
+    setStream(null)
+
+    render(<MobilePnlView bookId="book-1" />)
+
+    const fallback = screen.getByTestId('mobile-pnl-freshness')
+    expect(fallback.className).toContain('text-amber-800')
+    expect(fallback.className).toContain('dark:text-amber-300')
+    expect(fallback.className).not.toContain('text-slate-600')
+  })
+
   it('renders an em dash for intraday P&L when no intraday snapshot has arrived', () => {
     setStream(null)
 

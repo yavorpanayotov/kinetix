@@ -75,14 +75,17 @@ export function MobilePositionsView({ bookId }: MobilePositionsViewProps) {
             MobileFreshnessBanner. Rather than render nothing (which would make a
             stale list look identical to a live one), we show a static banner
             that names the gap. We deliberately do NOT invent a timestamp. The
-            styling mirrors the banner's neutral state for surface consistency. */}
+            amber palette signals "freshness undetermined" (caution) — distinct
+            from the banner's neutral *fresh/OK* grey, which would wrongly read
+            as "data is current" — while staying below the red stale (≥15 min)
+            treatment. Kept consistent with MobilePnlView's fallback banner. */}
         <div
           data-testid="mobile-positions-freshness"
           role="status"
           aria-live="polite"
-          className="w-full px-4 py-2 text-sm font-medium bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+          className="w-full px-4 py-2 text-sm font-medium bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
         >
-          Position data — no timestamp available
+          Position data — freshness unknown, no timestamp available
         </div>
       </div>
 

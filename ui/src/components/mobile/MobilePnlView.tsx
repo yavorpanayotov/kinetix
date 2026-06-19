@@ -67,9 +67,11 @@ export function MobilePnlView({ bookId }: MobilePnlViewProps) {
   // but no as-of field, so it cannot supply a fallback. When the intraday
   // stream hasn't delivered yet there is no timestamp at all; rather than hide
   // the banner (which would let an undated NAV / unrealised P&L pass for live)
-  // we show a static "no timestamp available" strip, mirroring
-  // MobilePositionsView so the two read-only mobile views stay consistent. We
-  // deliberately do NOT invent a timestamp.
+  // we show a static "no timestamp available" strip in an amber (caution)
+  // palette — distinct from the banner's neutral *fresh/OK* grey so it can't
+  // read as "data is current" — mirroring MobilePositionsView so the two
+  // read-only mobile views stay consistent. We deliberately do NOT invent a
+  // timestamp.
   const dataAsOf = latest?.snapshotAt ?? null
 
   return (
@@ -82,9 +84,9 @@ export function MobilePnlView({ bookId }: MobilePnlViewProps) {
             data-testid="mobile-pnl-freshness"
             role="status"
             aria-live="polite"
-            className="w-full px-4 py-2 text-sm font-medium bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+            className="w-full px-4 py-2 text-sm font-medium bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
           >
-            Intraday P&L — no timestamp available
+            Intraday P&L — freshness unknown, no timestamp available
           </div>
         )}
       </div>
