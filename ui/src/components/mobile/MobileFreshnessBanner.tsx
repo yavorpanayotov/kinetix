@@ -43,7 +43,7 @@ function formatRelative(timestamp: string): string {
 const BANNER_CLASSES: Record<FreshnessLevel, string> = {
   fresh: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
   amber: 'bg-amber-100 text-amber-800 dark:bg-amber-900/70 dark:text-amber-300',
-  red: 'bg-red-100 text-red-800 dark:bg-red-900/70 dark:text-red-200',
+  red: 'bg-red-100 text-red-800 dark:bg-red-800 dark:text-white',
 }
 
 // The red strip carries more visual weight than neutral/amber: at 2am the eye

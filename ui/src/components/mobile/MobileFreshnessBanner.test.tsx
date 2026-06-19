@@ -65,10 +65,22 @@ describe('MobileFreshnessBanner', () => {
       expect(neutral.className).toContain('py-2')
     })
 
-    it('uses a stronger dark-mode background than amber for clear separation', () => {
+    it('uses a solid, darker dark-mode background than amber for clear separation', () => {
       render(<MobileFreshnessBanner dataAsOf={minutesAgo(20)} />)
       const banner = screen.getByTestId('mobile-freshness-banner')
-      expect(banner.className).toContain('dark:bg-red-900/70')
+      // A solid red-800 (no alpha) keeps the safety-critical strip opaque and
+      // separable from the amber level rather than the translucent /70 it had.
+      expect(banner.className).toContain('dark:bg-red-800')
+      expect(banner.className).not.toContain('dark:bg-red-900/70')
+    })
+
+    it('renders safety-critical text in white in dark mode to clear WCAG AA', () => {
+      render(<MobileFreshnessBanner dataAsOf={minutesAgo(20)} />)
+      const banner = screen.getByTestId('mobile-freshness-banner')
+      // dark:text-red-200 sat near the AA 4.5:1 floor; white is unambiguous for
+      // "VERIFY BEFORE ACTING" and the timestamp it shares the strip with.
+      expect(banner.className).toContain('dark:text-white')
+      expect(banner.className).not.toContain('dark:text-red-200')
     })
   })
 
