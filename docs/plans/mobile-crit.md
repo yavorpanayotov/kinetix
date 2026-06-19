@@ -151,7 +151,7 @@ findings are appended here by the crit round, ordered worst-first.
 
 ### Round 2 — 2026-06-19
 
-- [ ] **Red "VERIFY BEFORE ACTING" banner contrast in dark mode** (ux, high)
+- [x] **Red "VERIFY BEFORE ACTING" banner contrast in dark mode** (ux, high)
   `MobileFreshnessBanner.tsx` red banner right-hand label is `dark:text-red-200` on `dark:bg-red-900/70` — near the AA 4.5:1 floor for safety-critical copy. Bump the warning span to `dark:text-white` (and/or the banner to a solid `dark:bg-red-800`) so it's unambiguously legible.
   Acceptance: cd ui && npm run lint && npm run test && npx tsc --noEmit && npx playwright test mobile-access
 
@@ -200,6 +200,7 @@ findings are appended here by the crit round, ordered worst-first.
 - Alert-detail Close button: `px-3 py-1`→`px-3 py-2 min-h-[44px]`. `MobileAlertsView.tsx`. [750f6c5d]
 - Safe-area inset: bottom nav now `pb-[env(safe-area-inset-bottom,0px)]` so it clears the iPhone home indicator (0px fallback = no change elsewhere). `MobileApp.tsx`. [8a98266e]
 - Undefined-utility audit: grepped the whole mobile surface — no remaining undefined `primary-1xx..4xx`/`surface-1xx..6xx` classes (fix 11 had removed the only real instance; the one `primary-400` left is in a documenting comment). Grep gate added to acceptance. No code change needed.
+- [R2] Red banner dark contrast: red level now `dark:bg-red-800 dark:text-white` (was `bg-red-900/70`/`text-red-200`) — safety copy clears AA in dark mode. `MobileFreshnessBanner.tsx`. [56cb88f2]
 <!-- END RESOLVED -->
 
 ## Human calls (conflicts surfaced for the user)
