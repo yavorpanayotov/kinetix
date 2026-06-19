@@ -94,7 +94,7 @@ findings are appended here by the crit round, ordered worst-first.
   `MobilePnlView.tsx` feeds the banner `latest?.snapshotAt ?? null`; when the stream is silent NAV/unrealised render with no timestamp. Fix: `latest?.snapshotAt ?? summary?.asOf ?? null`, with a static "no timestamp" fallback rather than hiding.
   Acceptance: cd ui && npm run lint && npm run test && npx playwright test mobile-access
 
-- [ ] **Breach state not unmissable** (trader+ux, med)
+- [x] **Breach state not unmissable** (trader+ux, med)
   At breach the badge + number go red but the card border doesn't. Add a red rail/border (`border-l-4 border-l-red-600` or `border-red-300 dark:border-red-600`) so breach reads from the corner of the eye, matching the full-card treatment in `MobileAlertsView`.
   Acceptance: cd ui && npm run lint && npm run test && npx playwright test mobile-access
 
@@ -155,6 +155,7 @@ findings are appended here by the crit round, ordered worst-first.
 - Book selector touch target: header `<select>` now `py-2.5 min-w-[7rem]` (was `px-2 py-1`). `MobileApp.tsx`. [e99e749f]
 - Theme toggle touch target: now `p-2.5` (~40px, was `p-1.5`/~28px). `MobileApp.tsx`. [5974b580]
 - P&L freshness: stream-less P&L now shows a static "Intraday P&L — no timestamp available" banner (was nothing); summary DTO has no asOf field so static fallback like Positions. `MobilePnlView.tsx`. [281caf6f] — follow-up: adding an as-of to `BookAggregationDto` is a backend API contract change (out of scope).
+- Breach unmissable: VaR card gets a red border+fill (`border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-900/30`) on breach, matching the CRITICAL alert card; reuses existing `VAR_BREACH_THRESHOLD`. `MobileRiskView.tsx`. [15fadaa4] (visual confirm via unit test — capture mock has no limit so can't reach breach state).
 <!-- END RESOLVED -->
 
 ## Human calls (conflicts surfaced for the user)
