@@ -298,6 +298,27 @@ describe('MobileApp', () => {
         )
       }
     })
+
+    it('marks the active tab with a structural border, not colour alone', () => {
+      render(<MobileApp />)
+
+      // Risk is active by default; the others are inactive.
+      const active = screen.getByTestId('mobile-tab-risk')
+      const inactive = screen.getByTestId('mobile-tab-pnl')
+
+      // The active tab carries a visible top-border marker so colour-blind
+      // users (and anyone where the active colour is dim) still perceive it.
+      expect(active).toHaveClass('border-t-2')
+      expect(active).toHaveClass('border-primary-400')
+
+      // Inactive tabs reserve the same border space (transparent) so the
+      // layout doesn't shift when selection changes.
+      expect(inactive).toHaveClass('border-t-2')
+      expect(inactive).toHaveClass('border-transparent')
+
+      // The distinction must be structural, not just a different colour token.
+      expect(inactive).not.toHaveClass('border-primary-400')
+    })
   })
 
   describe('default view', () => {

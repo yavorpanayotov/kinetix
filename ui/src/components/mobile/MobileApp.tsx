@@ -126,10 +126,10 @@ export function MobileApp() {
                 role="tab"
                 aria-selected={active}
                 onClick={() => setActiveMobileView(view)}
-                className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 min-h-[48px] text-xs font-medium transition-colors ${
+                className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 min-h-[48px] text-xs font-medium transition-colors border-t-2 ${
                   active
-                    ? 'text-primary-400'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'border-primary-400 text-primary-300'
+                    : 'border-transparent text-slate-400 hover:text-white'
                 }`}
               >
                 <Icon className="h-5 w-5" />
