@@ -80,6 +80,15 @@ describe('MobilePnlView', () => {
     expect(screen.getByTestId('mobile-pnl-intraday')).toHaveTextContent('$180,000')
   })
 
+  it('labels the intraday figure "Intraday" (short enough for 390px)', () => {
+    render(<MobilePnlView bookId="book-1" />)
+
+    // The column label is shortened from "Intraday P&L" so the value column has
+    // room at phone width; the P&L view context keeps the meaning unambiguous.
+    expect(screen.getByText('Intraday')).toBeInTheDocument()
+    expect(screen.queryByText('Intraday P&L')).not.toBeInTheDocument()
+  })
+
   it('colours a positive unrealised and intraday P&L green', () => {
     setSummary({ summary: bookSummary({ totalUnrealizedPnl: { amount: '250000', currency: 'USD' } }) })
     setStream(snapshot({ totalPnl: '180000' }))

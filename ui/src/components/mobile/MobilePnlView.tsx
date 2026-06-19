@@ -118,7 +118,7 @@ export function MobilePnlView({ bookId }: MobilePnlViewProps) {
           </div>
           <div>
             <dt className="text-xs uppercase tracking-wide text-slate-400 dark:text-slate-500">
-              Intraday P&L
+              Intraday
             </dt>
             <dd
               data-testid="mobile-pnl-intraday"
