@@ -129,6 +129,18 @@ describe('MobilePositionsView', () => {
     expect(screen.getByTestId('mobile-position-pnl-LOSE').className).toContain('red')
   })
 
+  it('gives rows raised-contrast edges in dark mode so the list does not read as one block', () => {
+    render(<MobilePositionsView bookId="book-1" />)
+
+    // In dark mode the row cards sit on the surface-900 page background. A
+    // dim border/fill makes adjacent rows bleed together. Raise the edge
+    // contrast: a brighter border (slate-600) and a lighter fill (surface-700,
+    // a DEFINED shade) keep each row visually distinct.
+    const row = screen.getByTestId('mobile-position-row-AAPL')
+    expect(row.className).toContain('dark:border-slate-600')
+    expect(row.className).toContain('dark:bg-surface-700')
+  })
+
   it('shows a loading state while positions are loading', () => {
     setPositions({ positions: [], loading: true })
 
