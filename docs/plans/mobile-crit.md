@@ -159,7 +159,7 @@ findings are appended here by the crit round, ordered worst-first.
   The static no-timestamp banners in `MobilePnlView.tsx` and `MobilePositionsView.tsx` use the same neutral `bg-slate-100/dark:bg-slate-800` palette as `MobileFreshnessBanner`'s *fresh* state — so "freshness unknown" reads as "data is current", the opposite of intent. (Regression introduced by round-1 fixes 2 & 8.) Give both a distinct non-alarming treatment: `bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300`, and consider copy "Freshness unknown". Keep it amber-level, NOT red.
   Acceptance: cd ui && npm run lint && npm run test && npx tsc --noEmit && npx playwright test mobile-access
 
-- [ ] **Alerts feed-unavailable subtitle fails AA in light mode** (ux, med)
+- [x] **Alerts feed-unavailable subtitle fails AA in light mode** (ux, med)
   `MobileAlertsView.tsx` subtitle "Can't confirm there are no alerts…" is `text-amber-600` (~3.0:1 on white) — below AA. The title above uses `amber-700` which passes. Step the subtitle to `text-amber-700` (dark variant already fine).
   Acceptance: cd ui && npm run lint && npm run test && npx tsc --noEmit && npx playwright test mobile-access
 
@@ -202,6 +202,7 @@ findings are appended here by the crit round, ordered worst-first.
 - Undefined-utility audit: grepped the whole mobile surface — no remaining undefined `primary-1xx..4xx`/`surface-1xx..6xx` classes (fix 11 had removed the only real instance; the one `primary-400` left is in a documenting comment). Grep gate added to acceptance. No code change needed.
 - [R2] Red banner dark contrast: red level now `dark:bg-red-800 dark:text-white` (was `bg-red-900/70`/`text-red-200`) — safety copy clears AA in dark mode. `MobileFreshnessBanner.tsx`. [56cb88f2]
 - [R2] No-timestamp banner amber: P&L + Positions static banners now `bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300` + copy "freshness unknown" (was neutral grey = read as fresh). Fixes a round-1 regression. `MobilePnlView.tsx`, `MobilePositionsView.tsx`. [71b17367]
+- [R2] Alerts subtitle AA: feed-unavailable subtitle `text-amber-600`→`text-amber-700` (cleared AA on white). `MobileAlertsView.tsx`. [200c2c03]
 <!-- END RESOLVED -->
 
 ## Human calls (conflicts surfaced for the user)
