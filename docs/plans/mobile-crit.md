@@ -20,8 +20,12 @@ new findings (`Dry rounds` reaches 2).
 
 ## Loop state
 
-- **Dry rounds:** 1  <!-- consecutive crit rounds that added zero findings; loop stops at 2 -->
-- **Last crit round:** 2026-06-19 — round 3, **DRY** (both trader + ux-designer returned "no material findings"). Trend: R1 +20 (7 high), R2 +6 (1 high), R3 +0. One more dry round → loop self-terminates.
+- **Dry rounds:** 2 — **CONVERGED. Loop terminated 2026-06-19.**
+- **Last crit round:** round 4, **DRY** (both critics "no material findings", ux re-verified 4 contrast ratios). Trend: R1 +20 (7 high) → R2 +6 (1 high) → R3 +0 → R4 +0. Two consecutive dry rounds ⇒ self-terminated (no further ScheduleWakeup).
+
+## Outcome
+
+26 findings fixed across 2 active rounds + 1 deferred to beads (kx-udy6) + 1 conflict left for the user (CONFLICTS below). Net: the phone surface went from "renders below 1280px" to a polished read-only monitor — honest freshness everywhere, breach/stale states that dominate, all touch targets ≥44px, dark-mode AA contrast, a11y nav marker, and a class of undefined-Tailwind-utility bug found and swept. All on `main`, every commit independently verified (lint + Vitest + tsc + Playwright) and visually confirmed at 390px.
 
 ## The six steps (one iteration = one box, or one crit refill)
 
