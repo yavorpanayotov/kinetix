@@ -116,6 +116,19 @@ export function MobilePositionsView({ bookId }: MobilePositionsViewProps) {
           </li>
         ))}
       </ul>
+
+      {/* When the book has more positions than the cap, the list is silently
+          truncated. Without this line a trader could believe they're seeing
+          every position. Name the cap (reusing TOP_N — no second copy of the
+          number) and point to the full desktop blotter. */}
+      {positions.length > TOP_N && (
+        <p
+          data-testid="mobile-positions-truncation"
+          className="mt-3 text-xs text-slate-500 dark:text-slate-400"
+        >
+          Showing top {TOP_N} by market value — full blotter on desktop.
+        </p>
+      )}
     </div>
   )
 }

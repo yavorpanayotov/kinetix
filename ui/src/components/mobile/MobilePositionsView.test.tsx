@@ -115,6 +115,39 @@ describe('MobilePositionsView', () => {
     expect(screen.queryByTestId('mobile-position-row-INST-19')).not.toBeInTheDocument()
   })
 
+  it('shows a truncation footer naming the cap when more positions than the cap are provided', () => {
+    const positions = Array.from({ length: 20 }, (_, i) =>
+      position({
+        instrumentId: `INST-${i}`,
+        marketValue: { amount: String((20 - i) * 1000), currency: 'USD' },
+      }),
+    )
+    setPositions({ positions })
+
+    render(<MobilePositionsView bookId="book-1" />)
+
+    // A trader must never believe a capped list is the whole book. When the
+    // underlying count exceeds the cap, a muted footer names the cap and points
+    // to the desktop blotter for the full set.
+    const footer = screen.getByTestId('mobile-positions-truncation')
+    expect(footer).toHaveTextContent(/15/)
+    expect(footer).toHaveTextContent(/desktop/i)
+  })
+
+  it('renders no truncation footer when the position count is at or below the cap', () => {
+    const positions = Array.from({ length: 15 }, (_, i) =>
+      position({
+        instrumentId: `INST-${i}`,
+        marketValue: { amount: String((15 - i) * 1000), currency: 'USD' },
+      }),
+    )
+    setPositions({ positions })
+
+    render(<MobilePositionsView bookId="book-1" />)
+
+    expect(screen.queryByTestId('mobile-positions-truncation')).not.toBeInTheDocument()
+  })
+
   it('colours unrealised P&L green when positive and red when negative', () => {
     setPositions({
       positions: [
