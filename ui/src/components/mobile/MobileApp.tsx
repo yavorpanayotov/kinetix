@@ -81,7 +81,7 @@ export function MobileApp() {
             <button
               data-testid="mobile-dark-mode-toggle"
               onClick={toggleTheme}
-              className="p-1.5 rounded-md hover:bg-surface-800 transition-colors text-slate-300 hover:text-white"
+              className="p-2.5 rounded-md hover:bg-surface-800 transition-colors text-slate-300 hover:text-white"
               aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
             >
               {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}

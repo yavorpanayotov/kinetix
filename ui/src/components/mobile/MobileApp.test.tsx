@@ -259,6 +259,14 @@ describe('MobileApp', () => {
       expect(screen.getByTestId('mobile-dark-mode-toggle')).toBeInTheDocument()
     })
 
+    it('gives the theme toggle an enlarged touch target', () => {
+      render(<MobileApp />)
+
+      const toggle = screen.getByTestId('mobile-dark-mode-toggle')
+      expect(toggle).toHaveClass('p-2.5')
+      expect(toggle).not.toHaveClass('p-1.5')
+    })
+
     it('renders a bottom tab bar with all four views', () => {
       render(<MobileApp />)
 
