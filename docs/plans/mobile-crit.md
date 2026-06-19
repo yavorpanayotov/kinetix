@@ -110,7 +110,7 @@ findings are appended here by the crit round, ordered worst-first.
   `MobilePositionsView.tsx:84` cards (`dark:border-slate-700 dark:bg-surface-800`) bleed into the `surface-900` page in dark mode. Raise edge contrast: `dark:border-slate-600` or `dark:bg-surface-700`.
   Acceptance: cd ui && npm run lint && npm run test && npx playwright test mobile-access
 
-- [ ] **Alerts dark empty-state subtitle contrast borderline** (ux, med)
+- [x] **Alerts dark empty-state subtitle contrast borderline** (ux, med)
   `MobileAlertsView.tsx:106` subtitle `dark:text-slate-500` on near-black at `text-xs` is at the AA edge. Step to `dark:text-slate-400` or bump the size to 14px.
   Acceptance: cd ui && npm run lint && npm run test && npx playwright test mobile-access
 
@@ -165,6 +165,7 @@ findings are appended here by the crit round, ordered worst-first.
 - Alerts feed health: threaded `connected` from `useAlertStream` through `useNotifications`; empty state now branches on `connected && !error` — amber "Alert feed unavailable" when down, green "Feed live" when healthy (was always "You're all caught up"). `useNotifications.ts`, `MobileAlertsView.tsx`. [aee42227] — follow-ups (file separately if wanted): distinguish reconnecting vs exhausted in copy; desktop `NotificationCenter` could surface the same signal.
 - Active-tab marker + visibility: active bottom-nav tab now `border-primary-500 text-white` (was undefined `text-primary-400`/`primary-300` → invisible on the dark nav); inactive `border-transparent text-slate-400`. Structural rail satisfies a11y + makes the active tab legible. `MobileApp.tsx`. [9d5c4334 + parent fix] — NB the subagent's first attempt used undefined `primary-400`/`300`; visual confirm caught it. Spawned the "undefined Tailwind utility" audit finding.
 - Positions dark row contrast: rows now `dark:border-slate-600 dark:bg-surface-700` (was `slate-700`/`surface-800`, bled into the surface-900 page). `MobilePositionsView.tsx`. [e9fda74b]
+- Alerts caught-up subtitle: dark shade `slate-500`→`slate-400` for AA contrast on surface-900; amber warning branch untouched. `MobileAlertsView.tsx`. [c6a2d84d] (confirmed via unit test — capture shows the amber feed-down branch, not the healthy branch).
 <!-- END RESOLVED -->
 
 ## Human calls (conflicts surfaced for the user)
