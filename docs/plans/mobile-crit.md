@@ -118,7 +118,7 @@ findings are appended here by the crit round, ordered worst-first.
   One small card over ~540px of blank surface looks unfinished/loading. Add a contextual note in the existing `text-xs text-slate-400` style ("VaR for selected book — see Positions for full exposure") — improves wayfinding without adding data.
   Acceptance: cd ui && npm run lint && npm run test && npx playwright test mobile-access
 
-- [ ] **NAV has no sign colour when negative** (trader, low)
+- [x] **NAV has no sign colour when negative** (trader, low)
   `MobilePnlView.tsx` renders NAV neutral always. Apply `pnlColorClass` when negative (positive stays neutral). `pnlColorClass` is already imported.
   Acceptance: cd ui && npm run lint && npm run test && npx playwright test mobile-access
 
@@ -167,6 +167,7 @@ findings are appended here by the crit round, ordered worst-first.
 - Positions dark row contrast: rows now `dark:border-slate-600 dark:bg-surface-700` (was `slate-700`/`surface-800`, bled into the surface-900 page). `MobilePositionsView.tsx`. [e9fda74b]
 - Alerts caught-up subtitle: dark shade `slate-500`→`slate-400` for AA contrast on surface-900; amber warning branch untouched. `MobileAlertsView.tsx`. [c6a2d84d] (confirmed via unit test — capture shows the amber feed-down branch, not the healthy branch).
 - Risk wayfinding note: muted one-line note below the VaR card (data-present only) so the empty space reads as intentional. `MobileRiskView.tsx`. [2b5fc0d5]
+- NAV negative colour: `pnlColorClass` applied to NAV only when negative; positive/zero stays neutral. `MobilePnlView.tsx`. [5b57bc3f]
 <!-- END RESOLVED -->
 
 ## Human calls (conflicts surfaced for the user)
