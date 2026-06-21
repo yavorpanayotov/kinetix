@@ -6,6 +6,7 @@ pytestmark = pytest.mark.integration
 
 from kinetix.common import types_pb2
 from kinetix.risk import risk_calculation_pb2, stress_testing_pb2, stress_testing_pb2_grpc
+from kinetix_risk.stress.scenarios import list_scenarios
 from kinetix_risk.stress_server import StressTestServicer
 
 
@@ -88,7 +89,10 @@ class TestStressTestGrpc:
         assert "COVID_2020" in response.scenario_names
         assert "TAPER_TANTRUM_2013" in response.scenario_names
         assert "EURO_CRISIS_2011" in response.scenario_names
-        assert len(response.scenario_names) == 15
+        # The gRPC layer must expose the full source catalogue. Assert against
+        # list_scenarios() rather than a hard-coded count so adding a scenario
+        # can never silently leave this test stale.
+        assert set(response.scenario_names) == set(list_scenarios())
 
     def test_unknown_scenario_returns_error(self, stub):
         request = stress_testing_pb2.StressTestRequest(
