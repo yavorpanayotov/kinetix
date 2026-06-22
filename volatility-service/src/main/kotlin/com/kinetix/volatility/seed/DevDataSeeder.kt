@@ -25,15 +25,29 @@ class DevDataSeeder(
     private val log = LoggerFactory.getLogger(DevDataSeeder::class.java)
 
     suspend fun seed() {
+        // Standalone option-underlier surfaces are reconciled on every startup so
+        // surfaces added to the catalogue reach databases seeded before they
+        // existed. save() is insert-only, so guard each with an existence check.
+        var standaloneSaves = 0
+        for (cfg in standaloneSurfaces) {
+            if (volSurfaceRepository.findLatest(InstrumentId(cfg.underlier)) == null) {
+                volSurfaceRepository.save(cfg.toVolSurface())
+                standaloneSaves++
+            }
+        }
+        if (standaloneSaves > 0) {
+            log.info("Reconciled {} standalone vol surface(s)", standaloneSaves)
+        }
+
         val existing = volSurfaceRepository.findLatest(InstrumentId("SPX"))
         if (existing != null) {
-            log.info("Volatility data already present, skipping seed")
+            log.info("Volatility data already present, skipping tape seed")
             return
         }
 
         log.info(
-            "Seeding 252 daily vol surfaces for {} tape-driven underliers + {} standalone",
-            tapeUnderliers.size, standaloneSurfaces.size,
+            "Seeding 252 daily vol surfaces for {} tape-driven underliers",
+            tapeUnderliers.size,
         )
 
         var saves = 0
@@ -44,12 +58,8 @@ class DevDataSeeder(
                 saves++
             }
         }
-        for (cfg in standaloneSurfaces) {
-            volSurfaceRepository.save(cfg.toVolSurface())
-            saves++
-        }
 
-        log.info("Volatility surface seeding complete — {} surfaces saved", saves)
+        log.info("Volatility surface seeding complete — {} tape + {} standalone surfaces saved", saves, standaloneSaves)
     }
 
     /** A surface synthesised independently of the tape (e.g. VIX, no spot in tape). */
@@ -114,6 +124,16 @@ class DevDataSeeder(
          */
         internal val STANDALONE_DEFAULTS: List<StandaloneSurface> = listOf(
             StandaloneSurface(underlier = "VIX", spotPrice = 15.0, atmVol = 0.80),
+            // Option-underlier surfaces keyed to match each option's underlyingId
+            // so the engine resolves a surface for index / commodity / FX option
+            // pricing (kx-3145). Index options reference IDX-SPX / IDX-VIX (the
+            // tape surface is keyed "SPX"); commodity options reference GC / CL;
+            // FX options reference the pair id (e.g. USDJPY).
+            StandaloneSurface(underlier = "IDX-SPX", spotPrice = 5000.0, atmVol = 0.16),
+            StandaloneSurface(underlier = "IDX-VIX", spotPrice = 16.0, atmVol = 0.80),
+            StandaloneSurface(underlier = "GC", spotPrice = 2058.0, atmVol = 0.15),
+            StandaloneSurface(underlier = "CL", spotPrice = 78.0, atmVol = 0.35),
+            StandaloneSurface(underlier = "USDJPY", spotPrice = 150.0, atmVol = 0.10),
         )
 
         // Legacy constant retained for backward compatibility with VolSurfaceFeedSimulator

@@ -36,6 +36,8 @@ import io.ktor.server.routing.*
 import io.lettuce.core.RedisClient
 import io.micrometer.prometheusmetrics.PrometheusConfig
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry
+import com.kinetix.common.model.AssetClass
+import com.kinetix.common.model.InstrumentId
 import com.kinetix.common.model.PriceSource
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -169,6 +171,16 @@ fun Application.moduleWithRoutes() {
         seedDone.set(true)
     }
 
+    // Index underlyings (IDX-SPX, IDX-VIX) need a *live* spot so the engine can
+    // price index options (SPX-OPT-*, VIX-OPT-*). They are not part of the
+    // tape-driven historical seed (IDX-VIX has no tape series at all), so they
+    // are added to the live feed here rather than to DevDataSeeder.INSTRUMENTS
+    // (kx-3145). Without a current spot these options' greeks render N/A.
+    val indexFeedSeeds = listOf(
+        InstrumentSeed(InstrumentId("IDX-SPX"), BigDecimal("5000.00"), Currency.getInstance("USD"), AssetClass.EQUITY),
+        InstrumentSeed(InstrumentId("IDX-VIX"), BigDecimal("16.00"), Currency.getInstance("USD"), AssetClass.EQUITY),
+    )
+
     val feedEnabled = environment.config.propertyOrNull("feed.enabled")?.getString()?.toBoolean() ?: true
     if (feedEnabled) {
         val seeds = DevDataSeeder.INSTRUMENTS.map { (id, config) ->
@@ -178,7 +190,7 @@ fun Application.moduleWithRoutes() {
                 currency = Currency.getInstance(config.currency),
                 assetClass = config.assetClass,
             )
-        }
+        } + indexFeedSeeds
         val simulator = PriceFeedSimulator(seeds, tickIntervalSeconds = 60.0)
         launch {
             while (isActive) {
@@ -207,7 +219,7 @@ fun Application.moduleWithRoutes() {
                 currency = Currency.getInstance(config.currency),
                 assetClass = config.assetClass,
             )
-        }
+        } + indexFeedSeeds
         val replaySweeper = com.kinetix.price.feed.DemoTapeReplaySweeper.fromSeeds(
             seeds = replaySeeds,
             ingestionService = ingestionService,

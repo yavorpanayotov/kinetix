@@ -26,18 +26,21 @@ class DevDataSeederTest : FunSpec({
     }
 
     test("seeds 252 daily snapshots per tape underlier plus standalone surfaces") {
-        coEvery { volSurfaceRepository.findLatest(InstrumentId("SPX")) } returns null
+        coEvery { volSurfaceRepository.findLatest(any()) } returns null
         coEvery { volSurfaceRepository.save(any()) } just runs
 
         seeder.seed()
 
-        // 9 tape-driven underliers × 252 days + 1 standalone (VIX) = 2269
-        val expected = 9 * RegimeCalendar.DAYS + 1
+        // 9 tape-driven underliers × 252 days + standalone surfaces (VIX +
+        // index/commodity/FX option underliers).
+        val expected = 9 * RegimeCalendar.DAYS + DevDataSeeder.STANDALONE_DEFAULTS.size
         coVerify(exactly = expected) { volSurfaceRepository.save(any()) }
     }
 
     test("skips seeding when data already exists") {
-        coEvery { volSurfaceRepository.findLatest(InstrumentId("SPX")) } returns VolSurface.flat(
+        // Both the tape gate (SPX) and every standalone surface already present,
+        // so nothing — tape or standalone — is re-saved.
+        coEvery { volSurfaceRepository.findLatest(any()) } returns VolSurface.flat(
             InstrumentId("SPX"),
             DevDataSeeder.AS_OF,
             BigDecimal("0.18"),
@@ -48,8 +51,23 @@ class DevDataSeederTest : FunSpec({
         coVerify(exactly = 0) { volSurfaceRepository.save(any()) }
     }
 
+    test("reconciles missing standalone surfaces even when the tape is already seeded") {
+        // Tape present (SPX exists) but a newly-added standalone surface is not.
+        coEvery { volSurfaceRepository.findLatest(any()) } returns VolSurface.flat(
+            InstrumentId("SPX"), DevDataSeeder.AS_OF, BigDecimal("0.18"),
+        )
+        coEvery { volSurfaceRepository.findLatest(InstrumentId("IDX-VIX")) } returns null
+        coEvery { volSurfaceRepository.save(any()) } just runs
+
+        seeder.seed()
+
+        // Only the missing standalone surface is saved; the tape is not re-seeded.
+        coVerify(exactly = 1) { volSurfaceRepository.save(any()) }
+        coVerify(exactly = 1) { volSurfaceRepository.save(match { it.instrumentId.value == "IDX-VIX" }) }
+    }
+
     test("each surface has correct number of points from strike-maturity grid") {
-        coEvery { volSurfaceRepository.findLatest(InstrumentId("SPX")) } returns null
+        coEvery { volSurfaceRepository.findLatest(any()) } returns null
         val savedSurfaces = mutableListOf<VolSurface>()
         coEvery { volSurfaceRepository.save(capture(savedSurfaces)) } just runs
 
@@ -61,7 +79,7 @@ class DevDataSeederTest : FunSpec({
     }
 
     test("surfaces cover the configured underlyings with EXCHANGE source") {
-        coEvery { volSurfaceRepository.findLatest(InstrumentId("SPX")) } returns null
+        coEvery { volSurfaceRepository.findLatest(any()) } returns null
         val savedSurfaces = mutableListOf<VolSurface>()
         coEvery { volSurfaceRepository.save(capture(savedSurfaces)) } just runs
 
@@ -73,7 +91,7 @@ class DevDataSeederTest : FunSpec({
     }
 
     test("SPX surface dates span the full 252-day calendar") {
-        coEvery { volSurfaceRepository.findLatest(InstrumentId("SPX")) } returns null
+        coEvery { volSurfaceRepository.findLatest(any()) } returns null
         val savedSurfaces = mutableListOf<VolSurface>()
         coEvery { volSurfaceRepository.save(capture(savedSurfaces)) } just runs
 
