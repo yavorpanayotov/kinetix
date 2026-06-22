@@ -7,6 +7,8 @@ import com.kinetix.risk.model.CalculationType
 import com.kinetix.risk.model.ComponentBreakdown
 import com.kinetix.risk.model.ConfidenceLevel
 import com.kinetix.risk.model.CrossBookValuationResult
+import com.kinetix.risk.model.GreekValues
+import com.kinetix.risk.model.GreeksResult
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
@@ -77,5 +79,30 @@ class RedisCrossBookVaRCacheTest : FunSpec({
         val cache = RedisCrossBookVaRCache(connection)
 
         cache.get("firm").shouldBeNull()
+    }
+
+    test("CachedCrossBookValuationResult round-trips firm-level greeks") {
+        val domain = minimalCrossBookResult().copy(
+            greeks = GreeksResult(
+                assetClassGreeks = listOf(
+                    GreekValues(AssetClass.EQUITY, delta = 11.0, gamma = 22.0, vega = 33.0),
+                    GreekValues(AssetClass.FX, delta = -4.0, gamma = 0.0, vega = 1.5),
+                ),
+                theta = -7.0,
+                rho = 2.0,
+            ),
+        )
+
+        val restored = CachedCrossBookValuationResult.from(domain).toDomain()
+
+        restored.greeks shouldBe domain.greeks
+    }
+
+    test("CachedCrossBookValuationResult round-trips a null greeks (backward compatible)") {
+        val domain = minimalCrossBookResult()
+
+        val restored = CachedCrossBookValuationResult.from(domain).toDomain()
+
+        restored.greeks shouldBe null
     }
 })

@@ -19,4 +19,10 @@ data class CrossBookValuationResult(
     val modelVersion: String? = null,
     val monteCarloSeed: Long = 0,
     val jobId: UUID? = null,
+    /**
+     * Firm-level aggregate greeks: the asset-class sensitivities produced by the
+     * risk engine when it values the merged position set in a single call. Null
+     * when greeks were not requested or the engine returned none.
+     */
+    val greeks: GreeksResult? = null,
 )

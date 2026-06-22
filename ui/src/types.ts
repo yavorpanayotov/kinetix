@@ -1046,6 +1046,8 @@ export interface CrossBookVaRResultDto {
   totalStandaloneVar: string
   diversificationBenefit: string
   calculatedAt: string
+  /** Firm-level aggregate greeks across all books in the group; absent when unavailable. */
+  greeks?: GreeksResultDto | null
 }
 
 export type LiquidityTier = 'HIGH_LIQUID' | 'LIQUID' | 'SEMI_LIQUID' | 'ILLIQUID'

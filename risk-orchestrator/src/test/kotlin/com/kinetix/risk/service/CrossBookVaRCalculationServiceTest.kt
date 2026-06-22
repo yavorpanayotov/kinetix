@@ -7,6 +7,7 @@ import com.kinetix.risk.client.RiskEngineClient
 import com.kinetix.risk.kafka.CrossBookRiskResultPublisher
 import com.kinetix.risk.model.*
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.doubles.shouldBeGreaterThan
 import io.kotest.matchers.doubles.shouldBeExactly
@@ -253,5 +254,42 @@ class CrossBookVaRCalculationServiceTest : FunSpec({
         result.shouldNotBeNull()
         result.totalStandaloneVar shouldBe 3000.0
         result.diversificationBenefit shouldBeExactly 0.0
+    }
+
+    test("requests GREEKS output and surfaces the firm-level aggregated greeks from the risk engine") {
+        val bookAPositions = listOf(position(bookId = "book-A", instrumentId = "AAPL"))
+        val bookBPositions = listOf(position(bookId = "book-B", instrumentId = "TSLA"))
+
+        coEvery { positionProvider.getPositions(BookId("book-A")) } returns bookAPositions
+        coEvery { positionProvider.getPositions(BookId("book-B")) } returns bookBPositions
+        coEvery { varCache.get(any()) } returns null
+
+        // The risk engine, valuing the merged firm portfolio in one call,
+        // returns aggregate asset-class greeks. The cross-book result must
+        // surface them so the firm-level dashboard renders sensitivities.
+        val firmGreeks = GreeksResult(
+            assetClassGreeks = listOf(
+                GreekValues(AssetClass.EQUITY, delta = 1234.5, gamma = 67.8, vega = 90.1),
+            ),
+            theta = -12.3,
+            rho = 4.5,
+        )
+        val requestSlot = slot<VaRCalculationRequest>()
+        coEvery { riskEngineClient.valuate(capture(requestSlot), any(), any()) } returns
+            varResult(varValue = 4000.0).copy(greeks = firmGreeks)
+        coEvery { resultPublisher.publish(any(), any()) } just Runs
+
+        val request = CrossBookVaRRequest(
+            bookIds = listOf(BookId("book-A"), BookId("book-B")),
+            portfolioGroupId = "group-1",
+            calculationType = CalculationType.PARAMETRIC,
+            confidenceLevel = ConfidenceLevel.CL_95,
+        )
+
+        val result = service.calculate(request)
+
+        requestSlot.captured.requestedOutputs shouldContain ValuationOutput.GREEKS
+        result.shouldNotBeNull()
+        result.greeks shouldBe firmGreeks
     }
 })

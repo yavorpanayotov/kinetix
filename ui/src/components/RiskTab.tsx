@@ -234,9 +234,11 @@ export function RiskTab({
   // firm aggregate so they reconcile with the Book Contributions "Sum of
   // books". CrossBookVaRResultDto already carries varValue / expectedShortfall
   // / componentBreakdown / calculationType / confidenceLevel / calculatedAt —
-  // map it into the VaRResultDto shape the dashboard/gauge expects. Greeks,
-  // PV and valuationDate are book-level concepts and have no firm aggregate,
-  // so they remain undefined.
+  // map it into the VaRResultDto shape the dashboard/gauge expects. PV and
+  // valuationDate are book-level concepts with no firm aggregate, so they
+  // remain undefined. Greeks now DO have a firm aggregate (the risk engine
+  // values the merged position set in one call) and are passed through
+  // separately via `crossBookResult.greeks` (see greeksResult prop below).
   const dashboardVarResult: VaRResultDto | null = useMemo(() => {
     if (aggregatedView && crossBookResult) {
       return crossBookResultToVaRResult(crossBookResult)
@@ -411,7 +413,7 @@ export function RiskTab({
                   zoomIn={varZoomIn}
                   resetZoom={varResetZoom}
                   zoomDepth={varZoomDepth}
-                  greeksResult={aggregatedView ? null : greeksResult}
+                  greeksResult={aggregatedView ? (crossBookResult?.greeks ?? null) : greeksResult}
                   varLimit={varLimit}
                   onWhatIf={onWhatIf}
                   selectedConfidenceLevel={selectedConfidenceLevel}

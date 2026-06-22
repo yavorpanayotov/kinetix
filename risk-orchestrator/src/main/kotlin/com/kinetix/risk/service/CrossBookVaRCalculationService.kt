@@ -96,7 +96,14 @@ class CrossBookVaRCalculationService(
             confidenceLevel = request.confidenceLevel,
             timeHorizonDays = request.timeHorizonDays,
             numSimulations = request.numSimulations,
-            requestedOutputs = setOf(ValuationOutput.VAR, ValuationOutput.EXPECTED_SHORTFALL),
+            requestedOutputs = setOf(
+                ValuationOutput.VAR,
+                ValuationOutput.EXPECTED_SHORTFALL,
+                // Greeks over the merged position set are the firm-level aggregate
+                // sensitivities the cross-book dashboard renders. Without this the
+                // aggregated Risk view has no greeks to show.
+                ValuationOutput.GREEKS,
+            ),
             monteCarloSeed = effectiveSeed,
         )
 
@@ -132,6 +139,7 @@ class CrossBookVaRCalculationService(
             modelVersion = valuationResult.modelVersion,
             monteCarloSeed = effectiveSeed,
             jobId = UUID.randomUUID(),
+            greeks = valuationResult.greeks,
         )
 
         // Publish result

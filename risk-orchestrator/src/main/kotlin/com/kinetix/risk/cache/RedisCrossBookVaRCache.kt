@@ -7,6 +7,8 @@ import com.kinetix.risk.model.CalculationType
 import com.kinetix.risk.model.ComponentBreakdown
 import com.kinetix.risk.model.ConfidenceLevel
 import com.kinetix.risk.model.CrossBookValuationResult
+import com.kinetix.risk.model.GreekValues
+import com.kinetix.risk.model.GreeksResult
 import io.lettuce.core.SetArgs
 import io.lettuce.core.api.StatefulRedisConnection
 import kotlinx.serialization.Serializable
@@ -99,6 +101,7 @@ internal data class CachedCrossBookValuationResult(
     val modelVersion: String? = null,
     val monteCarloSeed: Long = 0,
     val jobId: String? = null,
+    val greeks: CachedGreeksResult? = null,
 ) {
     fun toDomain(): CrossBookValuationResult = CrossBookValuationResult(
         portfolioGroupId = portfolioGroupId,
@@ -127,6 +130,15 @@ internal data class CachedCrossBookValuationResult(
         modelVersion = modelVersion,
         monteCarloSeed = monteCarloSeed,
         jobId = jobId?.let { UUID.fromString(it) },
+        greeks = greeks?.let { g ->
+            GreeksResult(
+                assetClassGreeks = g.assetClassGreeks.map {
+                    GreekValues(AssetClass.valueOf(it.assetClass), it.delta, it.gamma, it.vega)
+                },
+                theta = g.theta,
+                rho = g.rho,
+            )
+        },
     )
 
     companion object {
@@ -158,6 +170,15 @@ internal data class CachedCrossBookValuationResult(
                 modelVersion = r.modelVersion,
                 monteCarloSeed = r.monteCarloSeed,
                 jobId = r.jobId?.toString(),
+                greeks = r.greeks?.let { g ->
+                    CachedGreeksResult(
+                        assetClassGreeks = g.assetClassGreeks.map {
+                            CachedGreekValues(it.assetClass.name, it.delta, it.gamma, it.vega)
+                        },
+                        theta = g.theta,
+                        rho = g.rho,
+                    )
+                },
             )
     }
 }

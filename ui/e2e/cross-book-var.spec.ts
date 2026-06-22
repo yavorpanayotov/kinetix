@@ -29,6 +29,16 @@ const TEST_CROSS_BOOK_VAR_RESULT = {
   totalStandaloneVar: '250000.00',
   diversificationBenefit: '50000.00',
   calculatedAt: '2025-01-15T12:00:00Z',
+  greeks: {
+    bookId: 'firm',
+    assetClassGreeks: [
+      { assetClass: 'EQUITY', delta: '168720.873891', gamma: '30468.465840', vega: '378732.525038' },
+      { assetClass: 'FIXED_INCOME', delta: '67919.457499', gamma: '31184.881244', vega: '1170852.883209' },
+    ],
+    theta: '-12345.678900',
+    rho: '4567.890000',
+    calculatedAt: '2025-01-15T12:00:00Z',
+  },
 }
 
 const TEST_BOOKS_MULTI = [
@@ -123,6 +133,22 @@ test.describe('Cross-Book VaR', () => {
     // Diversification benefit: -$50,000.00 (20.0%) — rendered compact as -$50K with full value in title
     await expect(page.getByTestId('diversification-benefit-value')).toHaveAttribute('title', '$50,000.00')
     await expect(page.getByTestId('diversification-benefit-value')).toContainText('20.0%')
+  })
+
+  test('renders firm-level aggregated Greeks in the sensitivities panel', async ({ page }) => {
+    await mockRiskTabRoutes(page, {
+      varResult: TEST_VAR_RESULT,
+      jobHistory: TEST_JOB_HISTORY,
+    })
+    await mockCrossBookVaR(page, TEST_CROSS_BOOK_VAR_RESULT)
+
+    await goToRiskTab(page)
+    await page.waitForSelector('[data-testid="var-dashboard"]')
+
+    // Firm/aggregated view must surface the cross-book aggregated greeks rather
+    // than the "No greeks data" placeholder (kx-qyd2).
+    await expect(page.getByTestId('sensitivities-placeholder')).toHaveCount(0)
+    await expect(page.getByTestId('greeks-footnote')).toBeVisible()
   })
 
   test('displays book contribution table with per-book rows', async ({ page }) => {

@@ -10,6 +10,8 @@ import com.kinetix.risk.routes.dtos.BookVaRContributionResponse
 import com.kinetix.risk.routes.dtos.ComponentBreakdownDto
 import com.kinetix.risk.routes.dtos.CrossBookVaRCalculationRequestBody
 import com.kinetix.risk.routes.dtos.CrossBookVaRResultResponse
+import com.kinetix.risk.routes.dtos.GreekValuesDto
+import com.kinetix.risk.routes.dtos.GreeksResponse
 import com.kinetix.risk.routes.dtos.StressedCrossBookVaRRequestBody
 import com.kinetix.risk.routes.dtos.StressedCrossBookVaRResultResponse
 import com.kinetix.risk.service.CrossBookVaRCalculationService
@@ -140,4 +142,20 @@ internal fun CrossBookValuationResult.toResponse() = CrossBookVaRResultResponse(
     totalStandaloneVar = "%.2f".format(totalStandaloneVar),
     diversificationBenefit = "%.2f".format(diversificationBenefit),
     calculatedAt = calculatedAt.toString(),
+    greeks = greeks?.let { g ->
+        GreeksResponse(
+            bookId = portfolioGroupId,
+            assetClassGreeks = g.assetClassGreeks.map { gv ->
+                GreekValuesDto(
+                    assetClass = gv.assetClass.name,
+                    delta = "%.6f".format(gv.delta),
+                    gamma = "%.6f".format(gv.gamma),
+                    vega = "%.6f".format(gv.vega),
+                )
+            },
+            theta = "%.6f".format(g.theta),
+            rho = "%.6f".format(g.rho),
+            calculatedAt = calculatedAt.toString(),
+        )
+    },
 )

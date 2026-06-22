@@ -927,6 +927,16 @@ describe('RiskTab', () => {
       totalStandaloneVar: '190100000',
       diversificationBenefit: '38100000',
       calculatedAt: '2026-06-02T10:00:00Z',
+      greeks: {
+        bookId: 'firm',
+        assetClassGreeks: [
+          { assetClass: 'EQUITY', delta: '168720.873891', gamma: '30468.465840', vega: '378732.525038' },
+          { assetClass: 'FIXED_INCOME', delta: '67919.457499', gamma: '31184.881244', vega: '1170852.883209' },
+        ],
+        theta: '-12345.678900',
+        rho: '4567.890000',
+        calculatedAt: '2026-06-02T10:00:00Z',
+      },
     }
 
     // Single-book result the stray fall-through bookId resolves to (~$226K).
@@ -1045,6 +1055,33 @@ describe('RiskTab', () => {
       const diversificationAmount = screen.getByTestId('diversification-amount')
       const benefit = Number(diversificationAmount.textContent?.replace(/[^0-9.+-]/g, ''))
       expect(Math.abs(benefit)).toBeLessThan(1)
+    })
+
+    it('renders firm-level aggregated greeks (not the "No greeks data" placeholder) in firm view', () => {
+      mockSingleBookVaR() // single-book greeksResult is null
+      mockUseCrossBookVaR.mockReturnValue({
+        result: CROSS_BOOK_RESULT, // carries firm-level aggregate greeks
+        loading: false,
+        refreshing: false,
+        error: null,
+        refresh: vi.fn(),
+      })
+
+      render(
+        <RiskTab
+          bookId="multi-asset"
+          aggregatedView
+          effectiveBookIds={['emerging-markets', 'macro-hedge']}
+          portfolioGroupId="firm"
+          hierarchyLevel="FIRM"
+          {...defaultStressProps}
+        />,
+      )
+
+      // The aggregated view must surface the cross-book greeks, not fall back
+      // to the empty placeholder.
+      expect(screen.queryByTestId('sensitivities-placeholder')).not.toBeInTheDocument()
+      expect(screen.getByTestId('greeks-footnote')).toBeInTheDocument()
     })
 
     it('does not fire useVaR with a stray book id when in firm/aggregated view', () => {

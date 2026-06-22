@@ -15,4 +15,6 @@ data class CrossBookVaRResultResponse(
     val totalStandaloneVar: String,
     val diversificationBenefit: String,
     val calculatedAt: String,
+    /** Firm-level aggregate greeks across all books in the group; null when unavailable. */
+    val greeks: GreeksResponse? = null,
 )
