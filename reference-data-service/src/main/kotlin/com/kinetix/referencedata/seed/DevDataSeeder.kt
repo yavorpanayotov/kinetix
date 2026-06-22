@@ -68,9 +68,17 @@ class DevDataSeeder(
         // demo benchmark exists even on databases that pre-date this seed step.
         seedBenchmarks()
 
+        // The instrument master is reconciled on every startup (save() upserts),
+        // mirroring the benchmark seeding above. Without this, the all-or-nothing
+        // gate below leaves instruments added to the catalogue AFTER a database
+        // was first seeded permanently unseeded on a persisted demo DB — which
+        // surfaces downstream as missing reference data and null position greeks
+        // for those instruments (e.g. PG, the SPX/VIX options, index futures).
+        seedInstruments()
+
         val existing = dividendYieldRepository.findLatest(InstrumentId("AAPL"))
         if (existing != null) {
-            log.info("Reference data already present, skipping seed")
+            log.info("Reference data already present, skipping remaining seed")
             return
         }
 
@@ -78,7 +86,6 @@ class DevDataSeeder(
 
         seedDividendYields()
         seedCreditSpreads()
-        seedInstruments()
         seedDivisions()
         seedDesks()
         seedTraders()

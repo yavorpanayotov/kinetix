@@ -388,6 +388,30 @@ class DevDataSeederTest : FunSpec({
         esFut.currency shouldBe "USD"
     }
 
+    test("reconciles the instrument master even when the database is already seeded") {
+        val instrumentRepository = mockk<InstrumentRepository>()
+        // Gate trips: AAPL dividend yield already present, so the rest of the
+        // seed is skipped — but the instrument master must still be reconciled
+        // so instruments added after the first seed reach a persisted DB.
+        coEvery { dividendYieldRepository.findLatest(InstrumentId("AAPL")) } returns mockk<DividendYield>()
+        coEvery { instrumentRepository.save(any()) } just runs
+
+        DevDataSeeder(
+            dividendYieldRepository,
+            creditSpreadRepository,
+            instrumentRepository = instrumentRepository,
+        ).seed()
+
+        // Every catalogue instrument is upserted, including ones previously
+        // missing from persisted demo databases.
+        coVerify { instrumentRepository.save(match { it.instrumentId.value == "SPX-OPT-5000C" }) }
+        coVerify { instrumentRepository.save(match { it.instrumentId.value == "VIX-OPT-20C" }) }
+        coVerify { instrumentRepository.save(match { it.instrumentId.value == "PG" }) }
+        coVerify { instrumentRepository.save(match { it.instrumentId.value == "UST-10Y" }) }
+        // The skipped-seed gate still applied to the rest (no dividend re-seed).
+        coVerify(exactly = 0) { dividendYieldRepository.save(any()) }
+    }
+
     test("derivatives-book demo placeholder instrument ids are present in reference-data") {
         // DemoBookProfiles.derivatives-book references these three ids. Without them,
         // gateway enrichment of position/trade responses cannot resolve structured
