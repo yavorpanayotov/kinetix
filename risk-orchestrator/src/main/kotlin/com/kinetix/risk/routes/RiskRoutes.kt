@@ -14,6 +14,7 @@ import com.kinetix.risk.model.CalculationType
 import com.kinetix.risk.model.ConfidenceLevel
 import com.kinetix.risk.model.ValuationOutput
 import com.kinetix.risk.model.VaRCalculationRequest
+import com.kinetix.risk.persistence.DailyRiskSnapshotRepository
 import com.kinetix.risk.persistence.LatestStressBatchRepository
 import com.kinetix.risk.persistence.PnlAttributionRepository
 import com.kinetix.risk.service.BatchStressTestService
@@ -23,6 +24,7 @@ import com.kinetix.risk.service.SodSnapshotService
 import com.kinetix.risk.service.StressLimitCheckService
 import com.kinetix.risk.service.VaRCalculationService
 import com.kinetix.risk.service.ValuationJobRecorder
+import com.kinetix.risk.service.overlayGreeksFromSnapshots
 import com.kinetix.risk.service.RebalancingWhatIfService
 import com.kinetix.risk.service.WhatIfAnalysisService
 import com.kinetix.risk.routes.dtos.BatchScenarioFailureDto
@@ -53,8 +55,11 @@ import io.ktor.http.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import org.slf4j.LoggerFactory
 import java.time.Instant
 import java.time.LocalDate
+
+private val logger = LoggerFactory.getLogger("com.kinetix.risk.routes.RiskRoutes")
 
 fun Route.riskRoutes(
     varCalculationService: VaRCalculationService,
@@ -72,6 +77,7 @@ fun Route.riskRoutes(
     jobRecorder: ValuationJobRecorder? = null,
     batchStressTestService: BatchStressTestService? = null,
     latestStressBatchRepository: LatestStressBatchRepository? = null,
+    dailyRiskSnapshotRepository: DailyRiskSnapshotRepository? = null,
 ) {
     // VaR routes
     route("/api/v1/risk/var/{bookId}") {
@@ -199,7 +205,22 @@ fun Route.riskRoutes(
         } else {
             val cached = varCache.get(bookId)
             if (cached != null && cached.positionRisk.isNotEmpty()) {
-                call.respond(cached.positionRisk.map { it.toDto() })
+                // Live valuations can store null option greeks when their
+                // market-data bundle was partial. Fill those gaps from the most
+                // recent daily snapshot, which is computed with a complete
+                // bundle (kx-...). Never overwrites a live computed greek.
+                val overlaid = if (dailyRiskSnapshotRepository != null) {
+                    val snapshots = try {
+                        dailyRiskSnapshotRepository.findByBookId(BookId(bookId))
+                    } catch (e: Exception) {
+                        logger.warn("Failed to load daily snapshots for greeks overlay, book {}", bookId, e)
+                        emptyList()
+                    }
+                    overlayGreeksFromSnapshots(cached.positionRisk, snapshots)
+                } else {
+                    cached.positionRisk
+                }
+                call.respond(overlaid.map { it.toDto() })
             } else {
                 call.respond(HttpStatusCode.NotFound)
             }

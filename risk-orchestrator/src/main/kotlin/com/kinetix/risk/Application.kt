@@ -749,7 +749,7 @@ fun Application.moduleWithRoutes() {
         // kx-kjse — persist the latest batch per book so the Scenarios tab can
         // populate on cold open without a fresh "Run All Scenarios" click.
         val latestStressBatchRepository = com.kinetix.risk.persistence.ExposedLatestStressBatchRepository(riskDb)
-        riskRoutes(varCalculationService, varCache, effectivePositionProvider, stressTestStub, regulatoryStub, effectiveRiskEngineClient, whatIfAnalysisService = whatIfAnalysisService, rebalancingWhatIfService = rebalancingWhatIfService, pnlAttributionRepository = pnlAttributionRepository, sodSnapshotService = sodSnapshotService, pnlComputationService = pnlComputationService, stressLimitCheckService = stressLimitCheckService, jobRecorder = jobRecorder, batchStressTestService = batchStressTestService, latestStressBatchRepository = latestStressBatchRepository)
+        riskRoutes(varCalculationService, varCache, effectivePositionProvider, stressTestStub, regulatoryStub, effectiveRiskEngineClient, whatIfAnalysisService = whatIfAnalysisService, rebalancingWhatIfService = rebalancingWhatIfService, pnlAttributionRepository = pnlAttributionRepository, sodSnapshotService = sodSnapshotService, pnlComputationService = pnlComputationService, stressLimitCheckService = stressLimitCheckService, jobRecorder = jobRecorder, batchStressTestService = batchStressTestService, latestStressBatchRepository = latestStressBatchRepository, dailyRiskSnapshotRepository = dailyRiskSnapshotRepository)
         // kx-wxy — canned stress-scenario tile endpoints. Cache lives at module
         // scope so successive POST/GET calls share the same in-memory store.
         cannedStressRoutes(effectivePositionProvider, stressTestStub, cannedStressCache)
