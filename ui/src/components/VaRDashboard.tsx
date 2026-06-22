@@ -87,11 +87,18 @@ interface VaRDashboardProps {
    * above a populated table (UX review).
    */
   contributionsVisible?: boolean
+  /**
+   * Firm/aggregated scope. The Greeks-trend chart is fed an aggregated
+   * (additive) firm history, but the VaR/ES line is NOT additive, so in this
+   * mode the VaR/ES tab shows a "select a book" affordance and the chart
+   * defaults to the Greeks view.
+   */
+  aggregatedView?: boolean
 }
 
-export function VaRDashboard({ varResult, filteredHistory, loading, historyLoading, refreshing = false, error, onRefresh, timeRange, setTimeRange, zoomIn, resetZoom, zoomDepth, greeksResult, varLimit, onWhatIf, selectedConfidenceLevel, onConfidenceLevelChange, isLive = true, valuationDate, totalStandaloneVar, diversificationBenefit, activeScenario = null, marketRegime = null, tradeAnnotations = [], snapshotVaR = null, snapshotLabel = null, contributionsVisible = false }: VaRDashboardProps) {
+export function VaRDashboard({ varResult, filteredHistory, loading, historyLoading, refreshing = false, error, onRefresh, timeRange, setTimeRange, zoomIn, resetZoom, zoomDepth, greeksResult, varLimit, onWhatIf, selectedConfidenceLevel, onConfidenceLevelChange, isLive = true, valuationDate, totalStandaloneVar, diversificationBenefit, activeScenario = null, marketRegime = null, tradeAnnotations = [], snapshotVaR = null, snapshotLabel = null, contributionsVisible = false, aggregatedView = false }: VaRDashboardProps) {
   const [tooltipOpen, setTooltipOpen] = useState(false)
-  const [chartView, setChartView] = useState<'var' | 'greeks'>('var')
+  const [chartView, setChartView] = useState<'var' | 'greeks'>(aggregatedView ? 'greeks' : 'var')
   const [insightOpen, setInsightOpen] = useState(false)
   const [insightLoading, setInsightLoading] = useState(false)
   const [insightError, setInsightError] = useState<string | null>(null)
@@ -287,7 +294,15 @@ export function VaRDashboard({ varResult, filteredHistory, loading, historyLoadi
             </button>
           </div>
         </div>
-        {chartView === 'var' ? (
+        {aggregatedView && chartView === 'var' ? (
+          <div
+            data-testid="var-history-aggregated-placeholder"
+            className="rounded bg-slate-800 p-4 h-64 flex items-center justify-center text-center text-sm text-slate-400"
+          >
+            VaR / ES is not additive across books — select a single book to view its
+            VaR history. The Greeks trend (additive) is shown for the firm here.
+          </div>
+        ) : chartView === 'var' ? (
           <VaRTrendChart
             history={filteredHistory}
             isLoading={historyLoading}

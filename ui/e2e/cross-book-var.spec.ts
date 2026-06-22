@@ -196,6 +196,34 @@ test.describe('Cross-Book VaR', () => {
     await expect(page.getByTestId('correlation-heatmap')).toBeVisible()
   })
 
+  test('firm view aggregates position risk and guides for factor risk / VaR history (kx-7bms)', async ({ page }) => {
+    const POSITIONS = [
+      { instrumentId: 'AAPL', assetClass: 'EQUITY', marketValue: '1000000', delta: '1000000', gamma: '0', vega: '0', theta: '0', rho: '0', dv01: '0', varContribution: '60000', esContribution: '75000', percentageOfTotal: '60.0' },
+      { instrumentId: 'UST-10Y', assetClass: 'FIXED_INCOME', marketValue: '500000', delta: '500000', gamma: '0', vega: '0', theta: '0', rho: '120', dv01: '450', varContribution: '40000', esContribution: '50000', percentageOfTotal: '40.0' },
+    ]
+    await mockRiskTabRoutes(page, {
+      varResult: TEST_VAR_RESULT,
+      jobHistory: TEST_JOB_HISTORY,
+      positionRisk: POSITIONS,
+    })
+    await mockCrossBookVaR(page, TEST_CROSS_BOOK_VAR_RESULT)
+
+    await goToRiskTab(page)
+    await page.waitForSelector('[data-testid="var-dashboard"]')
+
+    // Position risk is aggregated across the firm's books (union by instrument),
+    // so the table renders rather than the empty/placeholder state.
+    await expect(page.getByTestId('position-risk-table')).toBeVisible()
+
+    // Factor risk has no firm aggregate → guidance to drill into a book.
+    await expect(page.getByTestId('factor-risk-aggregated-guide')).toBeVisible()
+
+    // The chart defaults to the (additive) Greeks trend; switching to VaR/ES
+    // shows the "not additive — select a book" affordance.
+    await page.getByTestId('chart-toggle-var').click()
+    await expect(page.getByTestId('var-history-aggregated-placeholder')).toBeVisible()
+  })
+
   test('hides warning banner when cross-book result is available', async ({ page }) => {
     await mockRiskTabRoutes(page, {
       varResult: TEST_VAR_RESULT,

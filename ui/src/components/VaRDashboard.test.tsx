@@ -229,6 +229,29 @@ describe('VaRDashboard', () => {
     expect(screen.getByTestId('var-value')).toHaveTextContent('$1.2M')
   })
 
+  it('in aggregatedView defaults to the Greeks chart and guides the non-additive VaR/ES line', () => {
+    render(
+      <VaRDashboard
+        varResult={varResult}
+        loading={false}
+        error={null}
+        onRefresh={() => {}}
+        aggregatedView
+        {...defaultZoomProps}
+      />,
+    )
+
+    // Defaults to the Greeks trend (additive), so the VaR-history placeholder is
+    // not shown until the user explicitly switches to the VaR/ES tab.
+    expect(screen.getByTestId('greeks-trend-chart')).toBeInTheDocument()
+    expect(screen.queryByTestId('var-history-aggregated-placeholder')).not.toBeInTheDocument()
+
+    // Switching to VaR/ES shows the "select a book" affordance, not a misleading
+    // additive VaR line.
+    fireEvent.click(screen.getByTestId('chart-toggle-var'))
+    expect(screen.getByTestId('var-history-aggregated-placeholder')).toBeInTheDocument()
+  })
+
   it('stamps the VaR figure with its scope and as-of time', () => {
     render(
       <VaRDashboard

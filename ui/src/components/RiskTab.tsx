@@ -4,6 +4,8 @@ import { SubTabBar } from './ui/SubTabBar'
 import { useVaR } from '../hooks/useVaR'
 import { useCrossBookVaR } from '../hooks/useCrossBookVaR'
 import { usePositionRisk } from '../hooks/usePositionRisk'
+import { useAggregatedPositionRisk } from '../hooks/useAggregatedPositionRisk'
+import { useAggregatedGreeksHistory } from '../hooks/useAggregatedGreeksHistory'
 import { useVarLimit } from '../hooks/useVarLimit'
 import { useAlerts } from '../hooks/useAlerts'
 import { useSodBaseline } from '../hooks/useSodBaseline'
@@ -211,12 +213,19 @@ export function RiskTab({
     // aggregate below instead.
   } = useVaR(aggregatedView ? null : bookId, valuationDate)
 
+  const singleBookPositionRisk = usePositionRisk(aggregatedView ? null : bookId, valuationDate)
+  // Firm/aggregated scope: position risk is the union of all books' positions,
+  // merged by instrument so greeks are exact firm-level sums (kx-7bms).
+  const aggregatedPositionRiskResult = useAggregatedPositionRisk(
+    aggregatedView ? effectiveBookIds : [],
+    valuationDate,
+  )
   const {
     positionRisk,
     loading: positionRiskLoading,
     error: positionRiskError,
     refresh: refreshPositionRisk,
-  } = usePositionRisk(bookId, valuationDate)
+  } = aggregatedView ? aggregatedPositionRiskResult : singleBookPositionRisk
 
   const {
     result: crossBookResult,
@@ -246,6 +255,16 @@ export function RiskTab({
     return varResult
   }, [aggregatedView, crossBookResult, varResult])
 
+  // Firm/aggregated scope: the Greeks-trend chart is driven by the sum of each
+  // book's per-bucket greeks (additive); the VaR/ES line shows a "select a book"
+  // affordance in VaRDashboard since VaR is not additive (kx-7bms).
+  const aggregatedGreeks = useAggregatedGreeksHistory(
+    aggregatedView ? effectiveBookIds : [],
+    varTimeRange,
+  )
+  const effectiveHistory = aggregatedView ? aggregatedGreeks.history : filteredHistory
+  const effectiveHistoryLoading = aggregatedView ? aggregatedGreeks.loading : varHistoryLoading
+
   const { varLimit } = useVarLimit()
   const { alerts, dismissAlert } = useAlerts()
   const nonCriticalAlerts = useMemo(
@@ -269,17 +288,20 @@ export function RiskTab({
     refresh: refreshLiquidity,
   } = useLiquidityRisk(bookId)
 
+  // Factor risk has no firm-level aggregate (VaR contributions don't sum across
+  // books), so it stays book-scoped: pass null in aggregated view to skip the
+  // __ALL__ fetch and render a "select a book" guide instead (kx-7bms).
   const {
     result: factorRiskResult,
     loading: factorRiskLoading,
     error: factorRiskError,
-  } = useFactorRisk(bookId)
+  } = useFactorRisk(aggregatedView ? null : bookId)
 
   const {
     history: factorRiskHistory,
     loading: factorRiskHistoryLoading,
     error: factorRiskHistoryError,
-  } = useFactorRiskHistory(bookId)
+  } = useFactorRiskHistory(aggregatedView ? null : bookId)
   const { node: hierarchyNode } = useHierarchyNodeRisk(
     aggregatedView ? hierarchyLevel : null,
     portfolioGroupId ?? 'FIRM',
@@ -402,9 +424,10 @@ export function RiskTab({
               <ErrorBoundary fallback={<SectionErrorCard name="VaR Dashboard" />}>
                 <VaRDashboard
                   varResult={dashboardVarResult}
-                  filteredHistory={filteredHistory}
+                  filteredHistory={effectiveHistory}
                   loading={aggregatedView ? crossBookLoading : varLoading}
-                  historyLoading={varHistoryLoading}
+                  historyLoading={effectiveHistoryLoading}
+                  aggregatedView={aggregatedView}
                   refreshing={varRefreshing || crossBookRefreshing}
                   error={crossBookError || varError}
                   onRefresh={handleRefresh}
@@ -492,24 +515,36 @@ export function RiskTab({
                   hasFixedIncomePositions={positionRisk.some((p) => p.assetClass === 'FIXED_INCOME')}
                 />
               </div>
-              <div className="mt-4">
-                <ErrorBoundary fallback={<SectionErrorCard name="Factor Decomposition" />}>
-                  <FactorDecompositionPanel
-                    result={factorRiskResult}
-                    loading={factorRiskLoading}
-                    error={factorRiskError}
-                    activeScenario={activeScenario}
-                    marketRegime={marketRegime}
-                  />
-                </ErrorBoundary>
-              </div>
-              <div className="mt-4">
-                <FactorAttributionHistoryChart
-                  history={factorRiskHistory}
-                  loading={factorRiskHistoryLoading}
-                  error={factorRiskHistoryError}
-                />
-              </div>
+              {aggregatedView ? (
+                <div
+                  data-testid="factor-risk-aggregated-guide"
+                  className="mt-4 rounded border border-slate-200 bg-slate-50 p-4 text-center text-sm text-slate-500"
+                >
+                  Factor risk is computed per book — select a single book to view its
+                  factor decomposition and attribution history.
+                </div>
+              ) : (
+                <>
+                  <div className="mt-4">
+                    <ErrorBoundary fallback={<SectionErrorCard name="Factor Decomposition" />}>
+                      <FactorDecompositionPanel
+                        result={factorRiskResult}
+                        loading={factorRiskLoading}
+                        error={factorRiskError}
+                        activeScenario={activeScenario}
+                        marketRegime={marketRegime}
+                      />
+                    </ErrorBoundary>
+                  </div>
+                  <div className="mt-4">
+                    <FactorAttributionHistoryChart
+                      history={factorRiskHistory}
+                      loading={factorRiskHistoryLoading}
+                      error={factorRiskHistoryError}
+                    />
+                  </div>
+                </>
+              )}
             </SectionBlock>
 
             <SectionBlock

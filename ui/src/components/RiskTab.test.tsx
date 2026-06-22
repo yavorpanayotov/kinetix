@@ -1084,6 +1084,32 @@ describe('RiskTab', () => {
       expect(screen.getByTestId('greeks-footnote')).toBeInTheDocument()
     })
 
+    it('shows a "select a book" guide for factor risk in firm view (no firm aggregate)', () => {
+      mockSingleBookVaR()
+      mockUseCrossBookVaR.mockReturnValue({
+        result: CROSS_BOOK_RESULT,
+        loading: false,
+        refreshing: false,
+        error: null,
+        refresh: vi.fn(),
+      })
+
+      render(
+        <RiskTab
+          bookId="multi-asset"
+          aggregatedView
+          effectiveBookIds={['emerging-markets', 'macro-hedge']}
+          portfolioGroupId="firm"
+          hierarchyLevel="FIRM"
+          {...defaultStressProps}
+        />,
+      )
+
+      // Factor risk has no firm aggregate, so the firm view shows guidance, not
+      // the (empty) factor decomposition panel (kx-7bms).
+      expect(screen.getByTestId('factor-risk-aggregated-guide')).toBeInTheDocument()
+    })
+
     it('does not fire useVaR with a stray book id when in firm/aggregated view', () => {
       mockSingleBookVaR()
       mockUseCrossBookVaR.mockReturnValue({
