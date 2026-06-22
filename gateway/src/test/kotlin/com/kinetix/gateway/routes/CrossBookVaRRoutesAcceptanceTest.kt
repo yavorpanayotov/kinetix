@@ -113,6 +113,54 @@ class CrossBookVaRRoutesAcceptanceTest : FunSpec({
         }
     }
 
+    test("POST /api/v1/risk/var/cross-book — forwards firm-level aggregated greeks from the orchestrator") {
+        val withGreeksJson = crossBookResultJson.trimEnd().removeSuffix("}").trimEnd() + """
+            ,
+              "greeks":{
+                "bookId":"firm",
+                "assetClassGreeks":[
+                  {"assetClass":"EQUITY","delta":"168720.873891","gamma":"30468.465840","vega":"378732.525038"},
+                  {"assetClass":"FIXED_INCOME","delta":"67919.457499","gamma":"31184.881244","vega":"1170852.883209"}
+                ],
+                "theta":"-12345.678900",
+                "rho":"4567.890000",
+                "calculatedAt":"2026-05-19T12:00:00Z"
+              }
+            }
+        """.trimIndent()
+        val backend = BackendStubServer {
+            post("/api/v1/risk/var/cross-book") {
+                call.respond(Json.parseToJsonElement(withGreeksJson).jsonObject)
+            }
+        }
+        val httpClient = HttpClient(CIO) { install(ClientContentNegotiation) { json() } }
+        try {
+            val riskClient = HttpRiskServiceClient(httpClient, backend.baseUrl)
+
+            testApplication {
+                application { module(riskClient) }
+                val response = client.post("/api/v1/risk/var/cross-book") {
+                    contentType(ContentType.Application.Json)
+                    setBody("""{"bookIds":["port-1","port-2"],"portfolioGroupId":"firm"}""")
+                }
+
+                response.status shouldBe HttpStatusCode.OK
+                val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+
+                // The gateway must forward the firm-level aggregated greeks, not
+                // strip them when re-mapping the orchestrator response (kx-qyd2).
+                val greeks = body["greeks"]!!.jsonObject
+                greeks["assetClassGreeks"]!!.jsonArray.size shouldBe 2
+                greeks["assetClassGreeks"]!!.jsonArray[0].jsonObject["assetClass"]?.jsonPrimitive?.content shouldBe "EQUITY"
+                greeks["theta"]?.jsonPrimitive?.content shouldNotBe null
+                greeks["rho"]?.jsonPrimitive?.content shouldNotBe null
+            }
+        } finally {
+            httpClient.close()
+            backend.close()
+        }
+    }
+
     test("POST /api/v1/risk/var/cross-book — with legacy bookGroupId field instead of portfolioGroupId — returns 4xx rather than 500") {
         // Locks down the regression: a payload missing the required
         // `portfolioGroupId` must be rejected as a client error, not flattened

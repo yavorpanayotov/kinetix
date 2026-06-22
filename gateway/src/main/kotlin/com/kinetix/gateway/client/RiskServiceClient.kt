@@ -450,6 +450,8 @@ data class CrossBookVaRResultSummary(
     val totalStandaloneVar: Double,
     val diversificationBenefit: Double,
     val calculatedAt: Instant,
+    /** Firm-level aggregate greeks across the group; null when the orchestrator omits them. */
+    val greeks: GreeksResultSummary? = null,
 )
 
 data class WhatIfResultSummary(

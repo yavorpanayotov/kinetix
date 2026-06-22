@@ -3,6 +3,8 @@ package com.kinetix.gateway.client.dtos
 import com.kinetix.gateway.client.BookVaRContributionSummary
 import com.kinetix.gateway.client.ComponentBreakdownItem
 import com.kinetix.gateway.client.CrossBookVaRResultSummary
+import com.kinetix.gateway.client.GreeksResultDto
+import com.kinetix.gateway.client.toDomain
 import kotlinx.serialization.Serializable
 import java.time.Instant
 
@@ -40,6 +42,7 @@ data class CrossBookVaRResultClientDto(
     val totalStandaloneVar: String,
     val diversificationBenefit: String,
     val calculatedAt: String,
+    val greeks: GreeksResultDto? = null,
 )
 
 @Serializable
@@ -77,4 +80,5 @@ fun CrossBookVaRResultClientDto.toDomain() = CrossBookVaRResultSummary(
     totalStandaloneVar = totalStandaloneVar.toDouble(),
     diversificationBenefit = diversificationBenefit.toDouble(),
     calculatedAt = Instant.parse(calculatedAt),
+    greeks = greeks?.toDomain(),
 )

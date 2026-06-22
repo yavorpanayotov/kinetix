@@ -16,6 +16,8 @@ data class CrossBookVaRResponseDto(
     val totalStandaloneVar: String,
     val diversificationBenefit: String,
     val calculatedAt: String,
+    /** Firm-level aggregate greeks across the group; null when unavailable. */
+    val greeks: GreeksResponse? = null,
 )
 
 fun CrossBookVaRResultSummary.toResponse(): CrossBookVaRResponseDto = CrossBookVaRResponseDto(
@@ -40,4 +42,5 @@ fun CrossBookVaRResultSummary.toResponse(): CrossBookVaRResponseDto = CrossBookV
     totalStandaloneVar = "%.2f".format(totalStandaloneVar),
     diversificationBenefit = "%.2f".format(diversificationBenefit),
     calculatedAt = calculatedAt.toString(),
+    greeks = greeks?.toResponse(),
 )
