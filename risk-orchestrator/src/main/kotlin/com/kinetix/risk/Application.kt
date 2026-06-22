@@ -814,8 +814,16 @@ fun Application.moduleWithRoutes() {
         .propertyOrNull("scheduler.enabled")?.getString()?.toBoolean() ?: true
 
     launch { tradeEventConsumer.start() }
-    if (schedulerEnabled) {
+    // The price-event consumer is event-driven (it reacts to `price.updates`),
+    // not a scheduled job, so it must run even when the scheduler is disabled
+    // (demo mode: SCHEDULER_ENABLED=false). It is the sole producer of
+    // mark-to-market POSITION_CHANGE intraday P&L snapshots; gating it behind
+    // `scheduler.enabled` left every book's Intraday P&L/Risk dashboards empty
+    // in demo mode, with the trade-booked path the only snapshot source — which
+    // dries up for any book that hits its exposure limit. Keep it outside the
+    // `if (schedulerEnabled)` block so intraday P&L stays live for all books.
     launch { priceEventConsumer.start() }
+    if (schedulerEnabled) {
     launch { scheduledRegimeDetector.start() }
     launch {
         ScheduledVaRCalculator(
